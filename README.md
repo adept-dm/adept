@@ -98,7 +98,8 @@ adept describe $(echo my_deps) | adept add --scala-version=2.10.0 typesafe play:
 Notice: `--scala-version=2.10.0` adds the scala jars and some tags (in the []s)
 
 This is shorthand for: 
-```adept describe  $(echo my_deps) scala:scala-library:2.10.0 | adept add typesafe play:play:2.1.0[scala-version=2.10.0] target/play.jar
+```
+adept describe  $(echo my_deps) scala:scala-library:2.10.0 | adept add typesafe play:play:2.1.0[scala-version=2.10.0] target/play.jar
 ```
 
 Push dependencies and jars to remote repo: 
