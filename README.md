@@ -66,15 +66,17 @@ The cons are:
 10. maven support???
 
 ## Command line commands ##
-To give you an idea of how adept will work, below are some examples of how to do stuff on the commandline (I think there will be modifications as we go along though):
+To give you an idea of how adept will work, below are some examples of how to do stuff on the commandline (I think there will be modifications as we go along though). 
 
 ### Starting from scratch: ###
 Initialize a new repo in current folder: `adept init`
 
-Get and merge data from remote repos: `adept pull local typesafe sbtplugins`
+Get and merge data from remote repos: `adept pull local http://adept.othercompany.com/ typesafe`
+`typesafe` and `local` are alias in a known_repositories file in `.adept`
 
 ### Finding hashes in repo: ###
 Outputs it self and all its deps:`adept describe play:play:2.1.0`
+Imagine doing this with bash completion.
 
 Will look something like this: `#play:play:2.1.0[scala-version=2.10.0]!124192313 com.typesafe.akka:akka-actor:2.1.0!1231251231,junit:junit:4.10[scope=test]!12425123412 ...`
 
