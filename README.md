@@ -68,10 +68,13 @@ The cons are:
 To give you an idea of how adept will work, below are some examples of how to do stuff on the commandline (I think there will be modifications as we go along though). 
 
 ### Starting from scratch: ###
-Initialize a new repo in current folder: ```adept init```
+Initialize a new repo in current folder: 
+```bash
+adept init
+```
 
 Get and merge data from remote repos: 
-```
+```bash
 adept pull local http://adept.othercompany.com/ typesafe
 ```
 `typesafe` and `local` are alias in a known_repositories file in `.adept`
