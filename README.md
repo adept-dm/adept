@@ -34,11 +34,10 @@ adept does not do that. adept has a repository containing the entire graph of th
 The pros are as follows:
 - there is never a doubt of where a dependency comes from
 - it makes it possible to download more quickly since we can bulk download
-- the dependency graph is what you have downloaded, it will not change
+- offline browsing and discovery
 
 The cons are:
 - you will have more information (the entire dependency graph) in your project than earlier
-- instead of just adding text in your build file you have to use a tool or similar to download and find versions
 
 ## Core features ##
 
