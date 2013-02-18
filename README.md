@@ -78,7 +78,7 @@ Get and merge data from remote repos: `adept pull local http://adept.othercompan
 Outputs it self and all its deps:`adept describe play:play:2.1.0`
 Imagine doing this with bash completion.
 
-Will look something like this: `#play:play:2.1.0[scala-version=2.10.0]!124192313 com.typesafe.akka:akka-actor:2.1.0!1231251231,junit:junit:4.10[scope=test]!12425123412 ...`
+Output will look something like this: `play:play:2.1.0[scala-version=2.10.0]!124192313\ncom.typesafe.akka:akka-actor:2.1.0!1231251231\njunit:junit:4.10[scope=test]!12425123412 ...`
 
 ### Publishing:  ###
 First add deps in current repo: `adept describe $(echo my_deps) | adept add --scala-version=2.10.0 typesafe play:play:2.1.0 target/play.jar`
