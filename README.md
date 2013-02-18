@@ -68,26 +68,29 @@ The cons are:
 To give you an idea of how adept will work, below are some examples of how to do stuff on the commandline (I think there will be modifications as we go along though). 
 
 ### Starting from scratch: ###
-Initialize a new repo in current folder: `adept init`
+Initialize a new repo in current folder: ```adept init```
 
-Get and merge data from remote repos: `adept pull local http://adept.othercompany.com/ typesafe`
+Get and merge data from remote repos: ```adept pull local http://adept.othercompany.com/ typesafe```
 `typesafe` and `local` are alias in a known_repositories file in `.adept`
 
 ### Finding hashes in repo: ###
-Outputs it self and all its deps:`adept describe play:play:2.1.0`
+Outputs it self and all its deps:```adept describe play:play:2.1.0```
 Imagine doing this with bash completion.
 
-Output will look something like this: `play:play:2.1.0[scala-version=2.10.0]!124192313\ncom.typesafe.akka:akka-actor:2.1.0!1231251231\njunit:junit:4.10[scope=test]!12425123412 ...`
+Output will look something like this: ```
+play:play:2.1.0[scala-version=2.10.0]!124192313
+com.typesafe.akka:akka-actor:2.1.0!1231251231
+junit:junit:4.10[scope=test]!12425123412 ...```
 
 ### Publishing:  ###
-First add deps in current repo: `adept describe $(echo my_deps) | adept add --scala-version=2.10.0 typesafe play:play:2.1.0 target/play.jar`
+First add deps in current repo: ```adept describe $(echo my_deps) | adept add --scala-version=2.10.0 typesafe play:play:2.1.0 target/play.jar```
 Notice: `--scala-version=2.10.0` adds the scala jars and some tags (in the []s)
 
-This is shorthand for: `adept describe  $(echo my_deps) scala:scala-library:2.10.0 | adept add typesafe play:play:2.1.0[scala-version=2.10.0] target/play.jar`
+This is shorthand for: ```adept describe  $(echo my_deps) scala:scala-library:2.10.0 | adept add typesafe play:play:2.1.0[scala-version=2.10.0] target/play.jar```
 
 Push dependencies and jars to remote repo: `adept push typesafe`
 This fails if you do not have the rights or are not up-to-date.
 
 ### Integrating with Ivy: ### 
-Adds the ivy deps to the current repo: `adept ivy-add --settings=typesafe-settings.xml typesafe play:play:2.1.0`
+Adds the ivy deps to the current repo: ```adept ivy-add --settings=typesafe-settings.xml typesafe play:play:2.1.0```
 
