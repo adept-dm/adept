@@ -78,7 +78,7 @@ adept pull local http://adept.othercompany.com/ typesafe
 
 ### Finding hashes in repo: ###
 Outputs it self and all its deps: 
-```
+```bash
 adept describe play:play:2.1.0
 ```
 Imagine doing this with bash completion.
@@ -98,19 +98,19 @@ adept describe $(echo my_deps) | adept add --scala-version=2.10.0 typesafe play:
 Notice: `--scala-version=2.10.0` adds the scala jars and some tags (in the []s)
 
 This is shorthand for: 
-```
+```bash
 adept describe  $(echo my_deps) scala:scala-library:2.10.0 | adept add typesafe play:play:2.1.0[scala-version=2.10.0] target/play.jar
 ```
 
 Push dependencies and jars to remote repo: 
-```
+```bash
 adept push typesafe
 ```
 This fails if you do not have the rights or are not up-to-date.
 
 ### Integrating with Ivy: ###
 Adds the ivy deps to the current repo: 
-```
+```bash
 adept ivy-add --settings=typesafe-settings.xml typesafe play:play:2.1.0
 ```
 
