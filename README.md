@@ -92,7 +92,7 @@ junit:junit:4.10[scope=test]!12425123412 ...
 
 ### Publishing: ###
 First add deps in current repo: 
-```
+```bash
 adept describe $(echo my_deps) | adept add --scala-version=2.10.0 typesafe play:play:2.1.0 target/play.jar
 ```
 Notice: `--scala-version=2.10.0` adds the scala jars and some tags (in the []s)
