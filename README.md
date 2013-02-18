@@ -66,7 +66,7 @@ The cons are:
 10. maven support???
 
 ## Command line commands ##
-To give you an idea of how adept will work, below are some commands of how to do stuff on the command line (I think there will be modifications as we go along though):
+To give you an idea of how adept will work, below are some examples of how to do stuff on the commandline (I think there will be modifications as we go along though):
 
 ### Starting from scratch: ###
 Initialize a new repo in current folder: `adept init`
