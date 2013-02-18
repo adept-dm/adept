@@ -82,7 +82,7 @@ play:play:2.1.0[scala-version=2.10.0]!124192313
 com.typesafe.akka:akka-actor:2.1.0!1231251231
 junit:junit:4.10[scope=test]!12425123412 ...```
 
-### Publishing:  ###
+### Publishing: ###
 First add deps in current repo: ```adept describe $(echo my_deps) | adept add --scala-version=2.10.0 typesafe play:play:2.1.0 target/play.jar```
 Notice: `--scala-version=2.10.0` adds the scala jars and some tags (in the []s)
 
@@ -91,6 +91,6 @@ This is shorthand for: ```adept describe  $(echo my_deps) scala:scala-library:2.
 Push dependencies and jars to remote repo: `adept push typesafe`
 This fails if you do not have the rights or are not up-to-date.
 
-### Integrating with Ivy: ### 
+### Integrating with Ivy: ###
 Adds the ivy deps to the current repo: ```adept ivy-add --settings=typesafe-settings.xml typesafe play:play:2.1.0```
 
