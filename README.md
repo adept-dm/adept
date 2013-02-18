@@ -90,7 +90,8 @@ Output will look something like this:
 ```bash
 play:play:2.1.0[scala-version=2.10.0]!124192313
 com.typesafe.akka:akka-actor:2.1.0!1231251231
-junit:junit:4.10[scope=test]!12425123412 ...
+junit:junit:4.10[scope=test]!12425123412
+...
 ```
 
 ### Publishing: ###
