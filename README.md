@@ -12,3 +12,5 @@ Please see the wiki for the current proposals.
 Discuss existing ideas and propose new ones on the development mailing list:
 
   http://groups.google.com/group/adept-dev/
+
+Although hosted on the sbt organization, adept is intended to be build tool agnostic.
