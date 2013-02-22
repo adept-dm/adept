@@ -53,8 +53,36 @@ object Repository {
   }
 
   def describe(coords: Coordinates, meta: Metadata): Either[String, Seq[Descriptor]] = {
-    
-    Left("TODO")
+    database.withSession{
+      val q = if (meta.data.isEmpty) {
+        for {
+          d <- Descriptors
+          if d.name === coords.name && 
+             d.org === coords.org &&
+             d.version === coords.version
+           m <- Metadata
+           if m.descriptorHash === d.hash
+        } yield (d.hash, d.name, d.org, d.version, m.key, m.value)
+      } else {
+        for {
+          d <- Descriptors
+          if d.name === coords.name && 
+             d.org === coords.org &&
+             d.version === coords.version
+          m <- Metadata
+          if m.key.inSet(meta.data.map(_._1)) && 
+             m.value.inSet(meta.data.map(_._2)) &&
+             m.descriptorHash === d.hash
+        } yield (d.hash, d.name, d.org, d.version, m.key, m.value)
+      }
+      q.list.groupBy(_._1).map{
+        case (_, metadata) => {
+          metadata.headOption
+          //TODO:Descriptor()
+        }
+      }
+    }
+    Left("s")
   }
   
   def pull(repos: Seq[String], dir: jFile) = {
