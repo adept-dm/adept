@@ -90,10 +90,10 @@ object Descriptors extends Table[(Int, String, String, String, String, Int)]("DE
   def toRow(d: Descriptor, repoId: Int): (String, String, String, String, Int) = (d.hash.value, d.coords.org, d.coords.name, d.coords.version, repoId)
 }
 
-object RepositoryMetadata extends Table[(Int, java.sql.Timestamp)]("REPOSITORY") {
+object RepositoryMetadata extends Table[(Int, String)]("REPOSITORY") {
   def version = column[Int]("VERSION", O.PrimaryKey, O.AutoInc)
-  def created = column[java.sql.Timestamp]("REPOSITORY_CREATED", O.NotNull)
-  def * = version ~ created
+  def name = column[String]("NAME", O.NotNull)
+  def * = version ~ name
   
-  def autoInc = created returning version
+  def autoInc = name returning version
 }

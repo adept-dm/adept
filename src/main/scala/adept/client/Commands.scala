@@ -39,7 +39,7 @@ object AddCommand extends Command {
     } yield {
       val hash = Hash.calculate(coords, jarFile)
       val descriptor = Descriptor(coords, metadata, hash)
-      Repository.add(descriptor, jarFile).right.map(_.toString)
+      Repository.add(repoName, descriptor, jarFile).right.map(_.toString)
     }).joinRight
   }
 }
@@ -70,14 +70,17 @@ object InitCommand extends Command {
   override val command = "init"
   override def description = """initialises current directory with a new repository"""
   override def help = s"""
-    |usage: adept $command
+    |usage: adept $command <OPTIONAL: name>
     """.stripMargin
   override def execute(args: List[String]): Either[String, String]  = {
     val dir = Configuration.currentAdeptDir()
-    if (Repository.init(dir)) 
-      Right(s"Initialized adept in $dir")
+    if (args.size > 1)
+      Left("too many names for repo")
     else {
-      Left(s"Could not initialize $dir - already initialized?")
+      val repoName = args.headOption.getOrElse(Configuration.defaultRepoName)
+      Repository.init(dir, repoName)
     }
+
+    
   }
 }

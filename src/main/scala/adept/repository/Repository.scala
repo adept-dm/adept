@@ -13,22 +13,31 @@ case object RemoveThisNotImplementedException extends Exception
 
 
 object Repository {
-  def init(dir: jFile): Boolean= {
+  def init(dir: jFile, name: String): Either[String, String]= {
     database.withSession{ //TODO: check if schema is there and schema version
-      val s = implicitly[Session]
-      val tables = s.conn.getMetaData().getTables(s.conn.getCatalog(), null, null, null)
-      tables.last()
-      if (tables.getRow() > 28) //28 is the number of tables in h2 on init
-        false
-      else {
+      val currentRow = {
+        val s = implicitly[Session]
+        val tables = s.conn.getMetaData().getTables(s.conn.getCatalog(), null, null, null)
+        tables.last()
+        tables.getRow()
+      }
+      if (currentRow > 28) { //28 is the number of tables in h2 on init
+        val repository = Query(RepositoryMetadata).filter(_.name === name).firstOption
+        if (repository.isDefined) {
+          Left(s"repository $name is already defined in $dir")
+        } else {
+          RepositoryMetadata.autoInc.insert(name)
+          Right(s"Initialized adept repository: $name in $dir")
+        }
+      } else {
         (Metadata.ddl ++ Descriptors.ddl ++ RepositoryMetadata.ddl ++ Dependencies.ddl).create
-        true
+        RepositoryMetadata.autoInc.insert(name)
+        Right(s"Created new adept repository: $name in $dir")
       }
     }
   }
   
-  def add(descriptor: Descriptor, file: jFile): Either[String, Descriptor] = {
-    val repoId = 1 //FIXME: only increment repoId when pushed/merged RepositoryMetadata.autoInc.insert(new java.sql.Timestamp((new java.util.Date).getTime()))
+  def add(repoName: String, descriptor: Descriptor, file: jFile): Either[String, Descriptor] = {
     
     def metadataInsert(descriptor: Descriptor) = Metadata.autoInc.insertAll{
       descriptor.metadata.data.map{ case (key, value) =>
@@ -37,26 +46,29 @@ object Repository {
     }
     
     database.withTransaction{
-      val descriptorExists = (for {
-        d <- Descriptors
-        if d.hash === descriptor.hash.value
-      } yield d.hash).firstOption.isDefined
-      
-      if (descriptorExists) {
-        val metadata = (for {
-          m <- Metadata
-          if m.descriptorHash === descriptor.hash.value
-        } yield m.key -> m.value).list
-        if (metadata.toMap == descriptor.metadata.data) {
-          Right(descriptor)
+      val repoQuery = Query(Query(RepositoryMetadata).filter(_.name === repoName).map(_.version).max)
+      (repoQuery.firstOption.flatten.map { repoId =>
+        val descriptorExists = (for {
+          d <- Descriptors
+          if d.hash === descriptor.hash.value
+        } yield d.hash).firstOption.isDefined
+        
+        if (descriptorExists) {
+          val metadata = (for {
+            m <- Metadata
+            if m.descriptorHash === descriptor.hash.value
+          } yield m.key -> m.value).list
+          if (metadata.toMap == descriptor.metadata.data) {
+            Right(descriptor)
+          } else {
+            Left(s"cannot insert ${descriptor.metadata} because ${descriptor.coords} has ${Metadata(metadata.toMap)} already" )
+          }
         } else {
-          Left(s"cannot insert ${descriptor.metadata} because ${descriptor.coords} has ${Metadata(metadata.toMap)} already" )
+          Descriptors.autoInc.insert(Descriptors.toRow(descriptor, repoId))
+          metadataInsert(descriptor)
+          Right(descriptor)
         }
-      } else {
-        Descriptors.autoInc.insert(Descriptors.toRow(descriptor, repoId))
-        metadataInsert(descriptor)
-        Right(descriptor)
-      }
+      }).toRight(s"could not find a repository named: $repoName").joinRight
     }
   }
 
