@@ -74,7 +74,10 @@ object InitCommand extends Command {
     """.stripMargin
   override def execute(args: List[String]): Either[String, String]  = {
     val dir = Configuration.currentAdeptDir()
-    Repository.init(dir)
-    Right(s"Initialized adept in $dir")
+    if (Repository.init(dir)) 
+      Right(s"Initialized adept in $dir")
+    else {
+      Left(s"Could not initialize $dir - already initialized?")
+    }
   }
 }

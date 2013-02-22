@@ -13,9 +13,17 @@ case object RemoveThisNotImplementedException extends Exception
 
 
 object Repository {
-  def init(dir: jFile)= {
-    database.withSession{ //TODO: check if schema is there and schema version 
-      (Metadata.ddl ++ Descriptors.ddl ++ RepositoryMetadata.ddl ++ Dependencies.ddl).create 
+  def init(dir: jFile): Boolean= {
+    database.withSession{ //TODO: check if schema is there and schema version
+      val s = implicitly[Session]
+      val tables = s.conn.getMetaData().getTables(s.conn.getCatalog(), null, null, null)
+      tables.last()
+      if (tables.getRow() > 28) //28 is the number of tables in h2 on init
+        false
+      else {
+        (Metadata.ddl ++ Descriptors.ddl ++ RepositoryMetadata.ddl ++ Dependencies.ddl).create
+        true
+      }
     }
   }
   
