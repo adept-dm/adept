@@ -39,7 +39,7 @@ object AddCommand extends Command {
     } yield {
       val hash = Hash.calculate(coords, jarFile)
       val descriptor = Descriptor(coords, metadata, hash)
-      Repository.add(repoName, descriptor, jarFile).right.map(_.toString)
+      Repository.add(repoName, descriptor, jarFile, Seq.empty).right.map(_.toString) //TODO: fix dependencies
     }).joinRight
   }
 }

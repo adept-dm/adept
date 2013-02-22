@@ -71,6 +71,8 @@ object Dependencies extends Table[(Int, String, String)]("DEPENDENCIES") {
       onDelete = ForeignKeyAction.Cascade, onUpdate = ForeignKeyAction.Cascade)
   def parent = foreignKey("DEP_CHILD_FK", parentHash, Descriptors)(_.hash, 
       onDelete = ForeignKeyAction.Cascade, onUpdate = ForeignKeyAction.Cascade)
+      
+  def autoInc = parentHash ~ childHash returning id
 }
 
 object Descriptors extends Table[(Int, String, String, String, String, Int)]("DESCRIPTORS") {

@@ -37,7 +37,7 @@ object Repository {
     }
   }
   
-  def add(repoName: String, descriptor: Descriptor, file: jFile): Either[String, Descriptor] = {
+  def add(repoName: String, descriptor: Descriptor, file: jFile, dependencies: Seq[Descriptor]): Either[String, Descriptor] = {
     
     def metadataInsert(descriptor: Descriptor) = Metadata.autoInc.insertAll{
       descriptor.metadata.data.map{ case (key, value) =>
@@ -58,14 +58,24 @@ object Repository {
             m <- Metadata
             if m.descriptorHash === descriptor.hash.value
           } yield m.key -> m.value).list
-          if (metadata.toMap == descriptor.metadata.data) {
+          
+          val dependencyHashes = (for {
+            descriptor <- Descriptors
+            dep <- Dependencies
+            if dep.parentHash === descriptor.hash
+          } yield {
+            dep.childHash
+          }).list
+          
+          if (metadata.toMap == descriptor.metadata.data && dependencyHashes == dependencies.map(_.hash.value)) {
             Right(descriptor)
           } else {
-            Left(s"cannot insert ${descriptor.metadata} because ${descriptor.coords} has ${Metadata(metadata.toMap)} already" )
+            Left(s"cannot insert ${descriptor.metadata} because ${descriptor.coords} it already exsits with: ${Metadata(metadata.toMap)} and the following dependencies: ${dependencyHashes.mkString(",")}" )
           }
         } else {
           Descriptors.autoInc.insert(Descriptors.toRow(descriptor, repoId))
           metadataInsert(descriptor)
+          Dependencies.autoInc.insertAll(dependencies.map(_.hash).map(childHash => descriptor.hash.value -> childHash.value): _*)
           Right(descriptor)
         }
       }).toRight(s"could not find a repository named: $repoName").joinRight
