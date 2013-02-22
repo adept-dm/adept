@@ -21,14 +21,19 @@ case class Hash(value: String) {
   override val toString = value 
 }
 object Hash {
+  private lazy val md = java.security.MessageDigest.getInstance("SHA-1")
+  private def encode(bytes: Array[Byte]) = {
+    md.digest(bytes).map(b => "%02X" format b).mkString.toLowerCase
+  }
+  
   def calculate(coords: Coordinates, jarFile: jFile): Hash = {
-    import util.hashing.MurmurHash3
-    import util.hashing.MurmurHash3._
-    val coordsHash = MurmurHash3.stringHash(coords.org + coords.name + coords.version)
     val jarSource = io.Source.fromFile(jarFile)
-    val jarHash = MurmurHash3.arrayHash(jarSource.getLines.toArray)
-    val hashValue = finalizeHash(mixLast( coordsHash,jarHash), length=2) //FIXME: length was chosen on semirandomly based on SO: http://stackoverflow.com/questions/14797505/migrate-from-murmurhash-to-murmurhash3
-    Hash(((hashValue:Long)-(Integer.MIN_VALUE:Long)).toString) //make it positive, so that it plays better with the file system
+    val hash = try {
+      encode(jarSource.map(_.toByte).toArray ++ (coords.org + coords.name + coords.version).getBytes)
+    } finally {
+      jarSource.close()
+    }
+    Hash(hash)
   }
 }
 case class Descriptor(coords: Coordinates, metadata: Metadata, hash:Hash) {
