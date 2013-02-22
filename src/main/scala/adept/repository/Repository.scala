@@ -77,7 +77,7 @@ object Repository {
         Descriptor(coords, allMetadata, Hash(hash))
       }.filter{ //TODO: filter in query?
         _.metadata == meta
-      }.headOption.toRight(s"could not descrive $coords$meta")
+      }.headOption.toRight(s"could not describe $coords$meta")
     }
   }
   
