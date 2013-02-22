@@ -52,37 +52,33 @@ object Repository {
     }
   }
 
-  def describe(coords: Coordinates, meta: Metadata): Either[String, Seq[Descriptor]] = {
+  def describe(coords: Coordinates, meta: Metadata): Either[String, Descriptor] = {
     database.withSession{
-      val q = if (meta.data.isEmpty) {
-        for {
-          d <- Descriptors
+      val q = for {
+          (d,m) <- Descriptors leftJoin Metadata on (_.hash === _.descriptorHash)
           if d.name === coords.name && 
              d.org === coords.org &&
              d.version === coords.version
-           m <- Metadata
-           if m.descriptorHash === d.hash
-        } yield (d.hash, d.name, d.org, d.version, m.key, m.value)
-      } else {
-        for {
-          d <- Descriptors
-          if d.name === coords.name && 
-             d.org === coords.org &&
-             d.version === coords.version
-          m <- Metadata
-          if m.key.inSet(meta.data.map(_._1)) && 
-             m.value.inSet(meta.data.map(_._2)) &&
-             m.descriptorHash === d.hash
-        } yield (d.hash, d.name, d.org, d.version, m.key, m.value)
-      }
-      q.list.groupBy(_._1).map{
-        case (_, metadata) => {
-          metadata.headOption
-          //TODO:Descriptor()
-        }
-      }
+        } yield (d.hash, d.name, d.org, d.version, m.key.?, m.value.?)
+      val values = q.list
+      var lastHash: Option[String] = None //TODO: check this is in query?
+      values.map{ case (hash, _, _, _, _, _) =>
+        if (lastHash == None) lastHash = Some(hash)
+        else lastHash.foreach{ lh => assert(lh == hash, s"FATAL ERROR: found multiple hashes ($lh and $hash) bound to the same set of coordinates $coords") }
+
+        val allMetadata = Metadata((values.groupBy(_._5).flatMap{ //_5 is key
+          case (_, allProps) => {
+            allProps.flatMap{ p => for {
+              key <- p._5
+              value <- p._6
+            } yield (key -> value)}
+          }
+        }).toMap)
+        Descriptor(coords, allMetadata, Hash(hash))
+      }.filter{ //TODO: filter in query?
+        _.metadata == meta
+      }.headOption.toRight(s"could not descrive $coords$meta")
     }
-    Left("s")
   }
   
   def pull(repos: Seq[String], dir: jFile) = {

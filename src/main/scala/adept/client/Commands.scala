@@ -51,12 +51,18 @@ object DescribeCommand extends Command {
     |usage: adept $command <coordinate[<metadata>]>
     """.stripMargin
   override def execute(args: List[String]): Either[String, String] = {
-    args.map{ a =>
-      Parsers.coordsMetadata(a).right.map{ case (coords, meta) =>
-        Repository.describe(coords, meta)
-      }
+    val coordsArg: Either[String, String] = if (args.size > 1)
+      Left("too many coordinates for describe")
+    else {
+      args.headOption.toRight("please provide coordinates")
     }
-    Right("TODO")
+
+    (for {
+      a <- coordsArg.right
+      (coords, meta) <- Parsers.coordsMetadata(a).right
+    } yield {
+      Repository.describe(coords, meta).right.map(_.toString)
+    }).joinRight
   }
 }
 
