@@ -2,7 +2,7 @@ name := "adept"
 
 scalaVersion := "2.10.0"
 
-organization := "com.typesafe.adept"
+organization := "org.adept"
 
 version := "0.1"
 
