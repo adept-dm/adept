@@ -64,7 +64,7 @@ object Repository {
       var lastHash: Option[String] = None //TODO: check this is in query?
       values.map{ case (hash, _, _, _, _, _) =>
         if (lastHash == None) lastHash = Some(hash)
-        else lastHash.foreach{ lh => assert(lh == hash, s"FATAL ERROR: found multiple hashes ($lh and $hash) bound to the same set of coordinates $coords") }
+        else lastHash.foreach{ lh => assert(lh == hash, s"FATAL ERROR: found multiple hashes ($lh and $hash) bound to the same set of coordinates $coords with meta $meta. list of values for debug: $values") }
 
         val allMetadata = Metadata((values.groupBy(_._5).flatMap{ //_5 is key
           case (_, allProps) => {
