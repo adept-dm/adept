@@ -47,7 +47,7 @@ object Parsers {
   }
   
   def coordsMetadata(string: String): Either[String, (Coordinates, Metadata)] = string match {
-    case CoordsMetadataExpr(coordsString, _, metadataString) => 
+    case CoordsMetadataExpr(coordsString, _, metadataString) =>
       val foundCoords = Parsers.coords(coordsString)
       val foundMetadata = (for {
         metadata <- Option(metadataString)

@@ -17,7 +17,7 @@ object Repository {
     database.withSession{
       val q = for {
           (d,m) <- Descriptors leftJoin Metadata on (_.hash === _.descriptorHash)
-        } yield (d.hash, d.org, d.version, d.name, m.key.?, m.value.?)
+        } yield (d.hash, d.org, d.name, d.version, m.key.?, m.value.?)
       
       Right(formatDescriptors(q.list).mkString("\n"))
     }
@@ -91,7 +91,7 @@ object Repository {
     }
   }
 
-  //List[(<key>,  <org>,<version>,<name>,  <meta key>,<meta value>)]
+  //List[(<key>,  <org>,<name>,<version>,  <meta key>,<meta value>)]
   private def formatDescriptors(values: List[(String, String, String, String, Option[String], Option[String])]): Seq[Descriptor] = {
     values.map{ case (hash, org, name, version, _, _) =>
       val coords = Coordinates(org, name, version)
@@ -114,8 +114,7 @@ object Repository {
           if d.name === coords.name && 
              d.org === coords.org &&
              d.version === coords.version
-        } yield (d.hash, d.org, d.version, d.name, m.key.?, m.value.?)
-      
+        } yield (d.hash, d.org, d.name, d.version, m.key.?, m.value.?)
      formatDescriptors(q.list)
       .filter{ //TODO: filter in query?
         d =>
@@ -126,7 +125,7 @@ object Repository {
           val q = for {
             (d,m) <- Descriptors leftJoin Metadata on (_.hash === _.descriptorHash)
             if d.hash inSet(dependencyHashes)
-          } yield (d.hash, d.org, d.version, d.name, m.key.?, m.value.?)
+          } yield (d.hash, d.org, d.name, d.version, m.key.?, m.value.?)
           formatDescriptors(q.list)
         }
       }.toRight(s"could not describe $coords$meta")
