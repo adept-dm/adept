@@ -13,8 +13,18 @@ case object RemoveThisNotImplementedException extends Exception
 
 
 object Repository {
+  def list(dir: jFile, name: String): Either[String, String]= {
+    database.withSession{
+      val q = for {
+          (d,m) <- Descriptors leftJoin Metadata on (_.hash === _.descriptorHash)
+        } yield (d.hash, d.org, d.version, d.name, m.key.?, m.value.?)
+      
+      Right(formatDescriptors(q.list).mkString("\n"))
+    }
+  }
+  
   def init(dir: jFile, name: String): Either[String, String]= {
-    database.withSession{ //TODO: check if schema is there and schema version
+    database.withSession{
       val currentRow = {
         val s = implicitly[Session]
         val tables = s.conn.getMetaData().getTables(s.conn.getCatalog(), null, null, null)
@@ -66,7 +76,6 @@ object Repository {
           } yield {
             dep.childHash
           }).list
-          
           if (metadata.toMap == descriptor.metadata.data && dependencyHashes == dependencies.map(_.hash.value)) {
             Right(descriptor)
           } else {
@@ -82,32 +91,45 @@ object Repository {
     }
   }
 
-  def describe(coords: Coordinates, meta: Metadata): Either[String, Descriptor] = {
+  //List[(<key>,  <org>,<version>,<name>,  <meta key>,<meta value>)]
+  private def formatDescriptors(values: List[(String, String, String, String, Option[String], Option[String])]): Seq[Descriptor] = {
+    values.map{ case (hash, org, name, version, _, _) =>
+      val coords = Coordinates(org, name, version)
+      val allMetadata = Metadata((values.groupBy(_._5).flatMap{ //_5 is meta key
+        case (_, allProps) => {
+          allProps.flatMap{ p => for {
+            key <- p._5
+            value <- p._6
+          } yield (key -> value)}
+        }
+      }).toMap)
+      Descriptor(coords, allMetadata, Hash(hash))
+    }
+  }
+  
+  def describe(coords: Coordinates, meta: Metadata): Either[String, (Descriptor, Seq[Descriptor])] = {
     database.withSession{
       val q = for {
           (d,m) <- Descriptors leftJoin Metadata on (_.hash === _.descriptorHash)
           if d.name === coords.name && 
              d.org === coords.org &&
              d.version === coords.version
-        } yield (d.hash, d.name, d.org, d.version, m.key.?, m.value.?)
-      val values = q.list
-      var lastHash: Option[String] = None //TODO: check this is in query?
-      values.map{ case (hash, _, _, _, _, _) =>
-        if (lastHash == None) lastHash = Some(hash)
-        else lastHash.foreach{ lh => assert(lh == hash, s"FATAL ERROR: found multiple hashes ($lh and $hash) bound to the same set of coordinates $coords with meta $meta. list of values for debug: $values") }
-
-        val allMetadata = Metadata((values.groupBy(_._5).flatMap{ //_5 is key
-          case (_, allProps) => {
-            allProps.flatMap{ p => for {
-              key <- p._5
-              value <- p._6
-            } yield (key -> value)}
-          }
-        }).toMap)
-        Descriptor(coords, allMetadata, Hash(hash))
-      }.filter{ //TODO: filter in query?
-        _.metadata == meta
-      }.headOption.toRight(s"could not describe $coords$meta")
+        } yield (d.hash, d.org, d.version, d.name, m.key.?, m.value.?)
+      
+     formatDescriptors(q.list)
+      .filter{ //TODO: filter in query?
+        d =>
+          meta.data.isEmpty || d.metadata == meta
+      }.headOption.map{ descriptor =>
+        descriptor -> {
+          val dependencyHashes = Query(Dependencies).filter(_.parentHash === descriptor.hash.value).map(_.childHash).list
+          val q = for {
+            (d,m) <- Descriptors leftJoin Metadata on (_.hash === _.descriptorHash)
+            if d.hash inSet(dependencyHashes)
+          } yield (d.hash, d.org, d.version, d.name, m.key.?, m.value.?)
+          formatDescriptors(q.list)
+        }
+      }.toRight(s"could not describe $coords$meta")
     }
   }
   

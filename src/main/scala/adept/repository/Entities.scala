@@ -40,7 +40,7 @@ case class Descriptor(coords: Coordinates, metadata: Metadata, hash:Hash) {
   
   override val toString = {
     val metadataString = if (metadata.data.isEmpty) "" else metadata.toString 
-    s"$coords$metadataString!$hash" 
+    s"$coords$metadataString@$hash" 
   }
 }
 case class Metadata(data: Map[String, String]) {

@@ -6,6 +6,18 @@ object Parsers {
   val CoordsExpr = """\s*(.*):(.*):(.*)\s*""".r
   val CoordsMetadataExpr = """\s*(.*?)(\[(.*)\])?\s*""".r
   val MetadataExpr = """\s*(.*)=(.*)\s*""".r
+  val CoordsMetadataHashExpr = """\s*(.*)@(.*)\s*""".r
+  
+  def descriptor(string: String): Either[String, Descriptor] = {
+    string match {
+      case CoordsMetadataHashExpr(coordsMeta, hash) => {
+        coordsMetadata(coordsMeta).right.map{ case (coords, meta) =>
+          Descriptor(coords, meta, Hash(hash))
+        }
+      }
+      case noHash => Left(s"could not find required hash in $noHash")
+    }
+  }
   
   def coords(string: String): Either[String, Coordinates] = string match {
     case CoordsExpr(org, name, version) => {
