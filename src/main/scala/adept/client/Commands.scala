@@ -75,7 +75,9 @@ object AddCommand extends Command {
     } yield {
       val hash = whileWaiting(s"calculating hash for $coords...") { Hash.calculate(coords, jarFile) }
       val descriptor = Descriptor(coords, metadata, hash)
-      whileWaiting(s"loading $coords to repository...") { Repository.add(repoName, descriptor, jarFile, deps).right.map(_.toString) } //TODO: fix dependencies
+      whileWaiting(s"loading $coords to repository...") { 
+        Repository.add(repoName, descriptor, deps)(db.database).right.map(_.toString)
+      }
     }).joinRight
   }
 }
@@ -97,7 +99,7 @@ object DescribeCommand extends Command {
       a <- coordsArg.right
       (coords, meta) <- Parsers.coordsMetadata(a).right
     } yield {
-      Repository.describe(coords, meta).right.map{ case (parent, children) => 
+      Repository.describe(coords, meta)(db.database).right.map{ case (parent, children) => 
         (parent +: children).mkString("\n")
       }
     }).joinRight
@@ -116,7 +118,7 @@ object InitCommand extends Command {
       Left("too many repository names for init")
     else {
       val repoName = args.headOption.getOrElse(Configuration.defaultRepoName)
-      Repository.init(dir, repoName)
+      Repository.init(repoName)(db.database)
     }
   }
 }
@@ -133,7 +135,7 @@ object ListCommand extends Command {
       Left("too many args names for list")
     else {
       val repoName = args.headOption.getOrElse(Configuration.defaultRepoName)
-      Repository.list(dir, repoName)
+      Repository.list(repoName)(db.database)
     }
   }
 }

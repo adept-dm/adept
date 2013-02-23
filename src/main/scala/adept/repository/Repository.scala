@@ -7,13 +7,12 @@ import slick.session.Database
 //database
 import Database.threadLocalSession
 import db.driver.simple._
-import db._
 
 case object RemoveThisNotImplementedException extends Exception
 
 
 object Repository {
-  def list(dir: jFile, name: String): Either[String, String]= {
+  def list(name: String)(database: Database): Either[String, String]= {
     database.withSession{
       val q = for {
           (d,m) <- Descriptors leftJoin Metadata on (_.hash === _.descriptorHash)
@@ -23,7 +22,7 @@ object Repository {
     }
   }
   
-  def init(dir: jFile, name: String): Either[String, String]= {
+  def init(name: String)(database: Database): Either[String, String]= {
     database.withSession{
       val currentRow = {
         val s = implicitly[Session]
@@ -34,20 +33,20 @@ object Repository {
       if (currentRow > 28) { //28 is the number of tables in h2 on init
         val repository = Query(RepositoryMetadata).filter(_.name === name).firstOption
         if (repository.isDefined) {
-          Left(s"repository $name is already defined in $dir")
+          Left(s"repository $name is already defined")
         } else {
           RepositoryMetadata.autoInc.insert(name)
-          Right(s"Initialized adept repository: $name in $dir")
+          Right(s"Initialized adept repository $name ")
         }
       } else {
         (Metadata.ddl ++ Descriptors.ddl ++ RepositoryMetadata.ddl ++ Dependencies.ddl).create
         RepositoryMetadata.autoInc.insert(name)
-        Right(s"Created new adept repository: $name in $dir")
+        Right(s"Created new adept repository $name")
       }
     }
   }
   
-  def add(repoName: String, descriptor: Descriptor, file: jFile, dependencies: Seq[Descriptor]): Either[String, Descriptor] = {
+  def add(repoName: String, descriptor: Descriptor, dependencies: Seq[Descriptor])(database: Database): Either[String, Descriptor] = {
     
     def metadataInsert(descriptor: Descriptor) = Metadata.autoInc.insertAll{
       descriptor.metadata.data.map{ case (key, value) =>
@@ -107,7 +106,7 @@ object Repository {
     }
   }
   
-  def describe(coords: Coordinates, meta: Metadata): Either[String, (Descriptor, Seq[Descriptor])] = {
+  def describe(coords: Coordinates, meta: Metadata)(database: Database): Either[String, (Descriptor, Seq[Descriptor])] = {
     database.withSession{
       val q = for {
           (d,m) <- Descriptors leftJoin Metadata on (_.hash === _.descriptorHash)
