@@ -37,11 +37,7 @@ object Hash {
   }
 }
 case class Descriptor(coords: Coordinates, metadata: Metadata, hash:Hash) {
-  
-  override val toString = {
-    val metadataString = if (metadata.data.isEmpty) "" else metadata.toString 
-    s"$coords$metadataString@$hash" 
-  }
+  override val toString = s"$coords$metadata@$hash" 
 }
 case class Metadata(data: Map[String, String]) {
   def addScalaVersion(version: String): Metadata = {

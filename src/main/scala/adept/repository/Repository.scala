@@ -12,7 +12,7 @@ case object RemoveThisNotImplementedException extends Exception
 
 
 object Repository {
-  def list(name: String)(database: Database): Either[String, String]= {
+  def list(name: String)(implicit database: Database): Either[String, String]= {
     database.withSession{
       val q = for {
           (d,m) <- Descriptors leftJoin Metadata on (_.hash === _.descriptorHash)
@@ -22,7 +22,9 @@ object Repository {
     }
   }
   
-  def init(name: String)(database: Database): Either[String, String]= {
+  val allDDLs = Metadata.ddl ++ Descriptors.ddl ++ RepositoryMetadata.ddl ++ Dependencies.ddl
+  
+  def init(name: String)(implicit database: Database): Either[String, String]= {
     database.withSession{
       val currentRow = {
         val s = implicitly[Session]
@@ -39,14 +41,14 @@ object Repository {
           Right(s"Initialized adept repository $name ")
         }
       } else {
-        (Metadata.ddl ++ Descriptors.ddl ++ RepositoryMetadata.ddl ++ Dependencies.ddl).create
+        allDDLs.create
         RepositoryMetadata.autoInc.insert(name)
         Right(s"Created new adept repository $name")
       }
     }
   }
   
-  def add(repoName: String, descriptor: Descriptor, dependencies: Seq[Descriptor])(database: Database): Either[String, Descriptor] = {
+  def add(repoName: String, descriptor: Descriptor, dependencies: Seq[Descriptor])(implicit database: Database): Either[String, Descriptor] = {
     
     def metadataInsert(descriptor: Descriptor) = Metadata.autoInc.insertAll{
       descriptor.metadata.data.map{ case (key, value) =>
@@ -61,7 +63,8 @@ object Repository {
           d <- Descriptors
           if d.hash === descriptor.hash.value
         } yield d.hash).firstOption.isDefined
-        
+        val newDependencyHashes = dependencies.map(_.hash.value)
+
         if (descriptorExists) {
           val metadata = (for {
             m <- Metadata
@@ -75,16 +78,27 @@ object Repository {
           } yield {
             dep.childHash
           }).list
-          if (metadata.toMap == descriptor.metadata.data && dependencyHashes == dependencies.map(_.hash.value)) {
+          if (metadata.toMap == descriptor.metadata.data && dependencyHashes == newDependencyHashes) {
             Right(descriptor)
           } else {
-            Left(s"cannot insert ${descriptor.metadata} because ${descriptor.coords} it already exsits with: ${Metadata(metadata.toMap)} and the following dependencies: ${dependencyHashes.mkString(",")}" )
+            Left(s"cannot insert ${descriptor} with deps: {${newDependencyHashes.mkString(",")}} because ${descriptor.hash} already has meta: ${Metadata(metadata.toMap)} and deps: {${dependencyHashes.mkString(",")}}" )
           }
         } else {
-          Descriptors.autoInc.insert(Descriptors.toRow(descriptor, repoId))
-          metadataInsert(descriptor)
-          Dependencies.autoInc.insertAll(dependencies.map(_.hash).map(childHash => descriptor.hash.value -> childHash.value): _*)
-          Right(descriptor)
+          val existingHashes = (for {
+            descriptor <- Descriptors
+            if descriptor.hash.inSet(newDependencyHashes)
+          } yield {
+            descriptor.hash
+          }).list
+          if (existingHashes.sorted == newDependencyHashes.sorted) {
+            Descriptors.autoInc.insert(Descriptors.toRow(descriptor, repoId))
+            metadataInsert(descriptor)
+            Dependencies.autoInc.insertAll(dependencies.map(_.hash).map(childHash => descriptor.hash.value -> childHash.value): _*)
+            Right(descriptor)
+          } else {
+            Left(s"cannot insert ${descriptor} with deps: {${newDependencyHashes.mkString(",")}} because these deps are not known to adept: {${newDependencyHashes.diff(existingHashes).mkString(",")}}")
+          }
+          
         }
       }).toRight(s"could not find a repository named: $repoName").joinRight
     }
@@ -100,8 +114,10 @@ object Repository {
     
     def formatDescriptors(values: List[MetaDescriptorRow]): Seq[Descriptor] = {
       values.groupBy(r => (r.hash, r.org, r.name, r.version)).toSeq.map{
+        //for each hash we have:
         case ((hash, org, name, version), rest) => {
           val coords = Coordinates(org, name, version)
+          //gather the meta key/value pairs for this hash:
           val allMetadata = Metadata((rest.groupBy(_.metaKey).flatMap{
             case (_, allProps) => {
               allProps.flatMap{ p => for {
@@ -116,7 +132,7 @@ object Repository {
     }
   }
   
-  def describe(coords: Coordinates, meta: Metadata)(database: Database): Either[String, (Descriptor, Seq[Descriptor])] = {
+  def describe(coords: Coordinates, meta: Metadata)(implicit database: Database): Either[String, (Descriptor, Seq[Descriptor])] = {
     database.withSession{
       val q = for {
           (d,m) <- Descriptors leftJoin Metadata on (_.hash === _.descriptorHash)
@@ -126,8 +142,7 @@ object Repository {
         } yield (d.hash, d.org, d.name, d.version, m.key.?, m.value.?)
      MetaDescriptorRow.formatDescriptors(MetaDescriptorRow.fromList(q.list))
       .filter{ //TODO: filter in query?
-        d =>
-          meta.data.isEmpty || d.metadata == meta
+        d => meta.data.isEmpty || d.metadata == meta
       }.headOption.map{ descriptor =>
         descriptor -> {
           val dependencyHashes = Query(Dependencies).filter(_.parentHash === descriptor.hash.value).map(_.childHash).list
