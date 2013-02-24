@@ -18,7 +18,7 @@ object Repository {
           (d,m) <- Descriptors leftJoin Metadata on (_.hash === _.descriptorHash)
         } yield (d.hash, d.org, d.name, d.version, m.key.?, m.value.?)
       
-      Right(formatDescriptors(q.list).mkString("\n"))
+      Right(MetaDescriptorRow.formatDescriptors(MetaDescriptorRow.fromList(q.list)).mkString("\n"))
     }
   }
   
@@ -90,19 +90,29 @@ object Repository {
     }
   }
 
-  //List[(<key>,  <org>,<name>,<version>,  <meta key>,<meta value>)]
-  private def formatDescriptors(values: List[(String, String, String, String, Option[String], Option[String])]): Seq[Descriptor] = {
-    values.map{ case (hash, org, name, version, _, _) =>
-      val coords = Coordinates(org, name, version)
-      val allMetadata = Metadata((values.groupBy(_._5).flatMap{ //_5 is meta key
-        case (_, allProps) => {
-          allProps.flatMap{ p => for {
-            key <- p._5
-            value <- p._6
-          } yield (key -> value)}
+  //TODO: move this class and companion object out of here, not very happy with naming: consider changing it
+  case class MetaDescriptorRow(hash: String, org: String, name: String, version: String, metaKey: Option[String], metaValue: Option[String]) 
+  
+  object MetaDescriptorRow {
+    def fromList(l: List[(String, String, String, String, Option[String],Option[String])]) = {
+      l.map(r => MetaDescriptorRow(r._1, r._2, r._3, r._4, r._5, r._6))
+    }
+    
+    def formatDescriptors(values: List[MetaDescriptorRow]): Seq[Descriptor] = {
+      values.groupBy(r => (r.hash, r.org, r.name, r.version)).toSeq.map{
+        case ((hash, org, name, version), rest) => {
+          val coords = Coordinates(org, name, version)
+          val allMetadata = Metadata((rest.groupBy(_.metaKey).flatMap{
+            case (_, allProps) => {
+              allProps.flatMap{ p => for {
+                key <- p.metaKey
+                value <- p.metaValue
+              } yield (key -> value)}
+            }
+          }).toMap)
+          Descriptor(coords, allMetadata, Hash(hash))
         }
-      }).toMap)
-      Descriptor(coords, allMetadata, Hash(hash))
+      }
     }
   }
   
@@ -114,7 +124,7 @@ object Repository {
              d.org === coords.org &&
              d.version === coords.version
         } yield (d.hash, d.org, d.name, d.version, m.key.?, m.value.?)
-     formatDescriptors(q.list)
+     MetaDescriptorRow.formatDescriptors(MetaDescriptorRow.fromList(q.list))
       .filter{ //TODO: filter in query?
         d =>
           meta.data.isEmpty || d.metadata == meta
@@ -125,7 +135,7 @@ object Repository {
             (d,m) <- Descriptors leftJoin Metadata on (_.hash === _.descriptorHash)
             if d.hash inSet(dependencyHashes)
           } yield (d.hash, d.org, d.name, d.version, m.key.?, m.value.?)
-          formatDescriptors(q.list)
+          MetaDescriptorRow.formatDescriptors(MetaDescriptorRow.fromList(q.list))
         }
       }.toRight(s"could not describe $coords$meta")
     }
