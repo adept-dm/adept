@@ -1,5 +1,6 @@
 package adept.cli
 
+import adept.cli.commands.Commands
 
 object Main extends App {
   def help(error: Option[String]) = error.getOrElse("")+s"""

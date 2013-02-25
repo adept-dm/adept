@@ -1,22 +1,7 @@
-package adept.cli
+package adept.cli.commands
 
 import adept.api._
-import java.io.{File => jFile}
-
-object Commands {
-  def all: Map[String, Command] = Seq(
-      InitCommand,
-      AddCommand,
-      ListCommand,
-      DescribeCommand).map(c => c.command -> c).toMap
-}
-
-trait Command {
-  val command: String
-  def execute(args: List[String]): Either[String, String] 
-  def description: String
-  def help: String
-}
+import java.io.{ File => jFile }
 
 object AddCommand extends Command {
   override val command = "add"
@@ -79,63 +64,5 @@ object AddCommand extends Command {
         Adept.add(repoName, module, deps)(db.database).right.map(_.toString)
       }
     }).joinRight
-  }
-}
-
-object DescribeCommand extends Command {
-  override val command = "describe"
-  override def description = """describes the dependencies matching the input"""
-  override def help = s"""
-    |usage: adept $command <coordinate[<metadata>]>
-    """.stripMargin
-  override def execute(args: List[String]): Either[String, String] = {
-    val coordsArg: Either[String, String] = if (args.size > 1)
-      Left("too many coordinates for describe")
-    else {
-      args.headOption.toRight("please provide coordinates")
-    }
-
-    (for {
-      a <- coordsArg.right
-      (coords, meta) <- Parsers.coordsMetadata(a).right
-    } yield {
-      Adept.describe(coords, meta)(db.database).right.map{ case (parent, children) => 
-        (parent +: children).mkString("\n")
-      }
-    }).joinRight
-  }
-}
-
-object InitCommand extends Command {
-  override val command = "init"
-  override def description = """initialises current directory with a new repository"""
-  override def help = s"""
-    |usage: adept $command <OPTIONAL: name>
-    """.stripMargin
-  override def execute(args: List[String]): Either[String, String]  = {
-    val dir = Configuration.currentAdeptDir()
-    if (args.size > 1)
-      Left("too many repository names for init")
-    else {
-      val repoName = args.headOption.getOrElse(Configuration.defaultRepoName)
-      Adept.init(repoName)(db.database)
-    }
-  }
-}
-
-object ListCommand extends Command {
-  override val command = "ls"
-  override def description = """list the repository"""
-  override def help = s"""
-    |usage: adept $command
-    """.stripMargin
-  override def execute(args: List[String]): Either[String, String]  = {
-    val dir = Configuration.currentAdeptDir()
-    if (args.size > 0)
-      Left("too many args names for list")
-    else {
-      val repoName = args.headOption.getOrElse(Configuration.defaultRepoName)
-      Adept.list(repoName)(db.database)
-    }
   }
 }
