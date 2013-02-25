@@ -21,7 +21,7 @@ object Helpers {
     tmp
   }
   
-  implicit lazy val database = {
-    Database.forURL("jdbc:h2:mem:test", driver = "org.h2.Driver") 
+  def getDatabase(id: String) = {
+    Database.forURL("jdbc:h2:mem:adept-test-"+id, driver = "org.h2.Driver") 
   }
 }

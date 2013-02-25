@@ -9,10 +9,13 @@ trait FreshDBEachRun extends FunSpec with BeforeAndAfterEach {
   import TestData._
 
   //FIXME: hack to leave in memory database running without having a session
-  var session: Connection = null
+  var connection: Connection = null
+  
+  implicit lazy val database = Database.forURL("jdbc:h2:mem:adept-test-"+this.hashCode(), driver = "org.h2.Driver") 
+  
   
   override def beforeEach = {
-    session = database.createSession.conn
+    connection = database.createSession.conn
     Adept.init(repo)
   }
   
@@ -21,6 +24,6 @@ trait FreshDBEachRun extends FunSpec with BeforeAndAfterEach {
       import Database.threadLocalSession
       db.allDDLs.drop
     }
-    session = null
+    connection = null
   }
 }
