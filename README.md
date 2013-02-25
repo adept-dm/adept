@@ -1,4 +1,5 @@
 # adept #
+
 adept helps you find, declare, and download dependencies.
 
 adept retrieves dependency metadata all at once and identifies artifacts by hashing their content.
@@ -12,6 +13,19 @@ Discuss existing ideas and propose new ones on the development mailing list:
   http://groups.google.com/group/adept-dev/
 
 Although hosted on the sbt organization, adept is intended to be build tool agnostic.
+
+## Trying it out ##
+Trying it out is simple, just run this in the working dir:
+```bash
+sbt adept-create-script
+```
+Add the `bin` directory to your PATH and you are good to go!
+
+This script uses latest compiled version, so you can do changes to see how it works.
+
+It requires bash and sbt (see build.properties for version). 
+
+If you are on Windows and this is of interest to you, please open an issue (PRs are of course also welcome :).
 
 ## Scope ##
 
