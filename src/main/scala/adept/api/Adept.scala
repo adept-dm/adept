@@ -57,9 +57,9 @@ object Adept {
       val repoQuery = Query(Query(RepositoryMetadata).filter(_.name === repoName).map(_.version).max)
       (repoQuery.firstOption.flatten.map { repoId =>
         val moduleExists = (for {
-          d <- Modules
-          if d.hash === module.hash.value
-        } yield d.hash).firstOption.isDefined
+          dbModule <- Modules
+          if dbModule.hash === module.hash.value
+        } yield dbModule.hash).firstOption.isDefined
         val newDependencyHashes = dependencies.map(_.hash.value)
 
         if (moduleExists) {
@@ -132,11 +132,11 @@ object Adept {
   def describe(coords: Coordinates, meta: Metadata)(implicit database: Database): Either[String, (Module, Seq[Module])] = {
     database.withSession{
       val q = for {
-          (d,m) <- Modules leftJoin Metadata on (_.hash === _.moduleHash)
-          if d.name === coords.name && 
-             d.org === coords.org &&
-             d.version === coords.version
-        } yield (d.hash, d.org, d.name, d.version, m.key.?, m.value.?)
+          (dbModule,m) <- Modules leftJoin Metadata on (_.hash === _.moduleHash)
+          if dbModule.name === coords.name && 
+             dbModule.org === coords.org &&
+             dbModule.version === coords.version
+        } yield (dbModule.hash, dbModule.org, dbModule.name, dbModule.version, m.key.?, m.value.?)
      MetaModuleRow.formatModules(MetaModuleRow.fromList(q.list))
       .filter{ //TODO: filter in query?
         d => meta.data.isEmpty || d.metadata == meta
