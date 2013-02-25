@@ -26,6 +26,7 @@ class ParserSpec extends FunSpec with ShouldMatchers {
       val testCoodsMetadata = testCoords -> Metadata(data = Map(singleTuple , "test" -> "2341"))
       
       Parsers.coordsMetadata("play:play:2.142[foo=123]") should equal (Right(testCoords -> Metadata(data = Map(singleTuple))))
+      Parsers.coordsMetadata("play:play:2.142[]") should equal (Right(testCoords -> Metadata(data = Map.empty)))
       
       //check for correct whitespace tolerance:
       Parsers.coordsMetadata("play:play:2.142[foo=123, test=2341]") should equal(Right(testCoodsMetadata))

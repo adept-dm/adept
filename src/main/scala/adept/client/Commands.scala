@@ -64,12 +64,12 @@ object AddCommand extends Command {
     }
     (for {
       repoName <- repoArg.toRight("please provide a repository name").right
-      coordsAndMetadataString <- coordsArg.toRight("please provide coordinates").right
+      coordsAndMetadataString <- coordsArg.toRight("please provide coordinates (basic: <org>:<name>:<version>, with metadata: <org>:<name>:<version>[key=value, ...])").right
       jar <- jarArg.toRight("please provide a jar file").right
       jarFile <- jarArg.map(f => new jFile(f)).filter(_.exists).toRight(s"jar file: '$jar' does not exist").right
       (coords, metadata) <- Parsers.coordsMetadata(coordsAndMetadataString).right
       deps <- {
-         cmdLineMsgPrintStream.println("add descriptors, enter a empty line to finish:") //TODO: move this out from this method and up where the rest of cmd line input/output is handled?
+         cmdLineMsgPrintStream.println("add dependencies (format: <org>:<name>:<version>[key=value,...]@<hash>), enter a empty line to finish:") //TODO: move this out from this method and up where the rest of cmd line input/output is handled?
          parseInputDescriptors.right
       }
     } yield {

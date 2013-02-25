@@ -32,16 +32,21 @@ object Parsers {
   def metadata(string: String): Either[String, Metadata] = {
     val foundMetaEntries = string.split(",").map{ entry =>
       entry match {
-        case MetadataExpr(key, value) => Right(key -> value)
+        case "" => Right(None)
+        case MetadataExpr(key, value) => Right(Some(key -> value))
         case noMeta => Left(s"could not parse metadata $string because of syntax error around: '$noMeta'")
       }
     }
     foundMetaEntries.foldLeft[Either[String, Metadata]](Right(Metadata(Map.empty))){ (product, current) =>
       for {
         p <- product.right
-        c <- current.right
+        perhapsC <- current.right
       } yield {
-        Metadata(p.data + c)
+        perhapsC.map { c => 
+          Metadata(p.data + c)
+        }.getOrElse {
+          Metadata(p.data)
+        }
       }
     }
   }

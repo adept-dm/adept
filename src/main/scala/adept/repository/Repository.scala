@@ -145,12 +145,21 @@ object Repository {
         d => meta.data.isEmpty || d.metadata == meta
       }.headOption.map{ descriptor =>
         descriptor -> {
-          val dependencyHashes = Query(Dependencies).filter(_.parentHash === descriptor.hash.value).map(_.childHash).list
+          @tailrec def allDeps(hashes: Seq[String]): Seq[String] = {
+            val childHashes = Query(Dependencies).filter(_.parentHash.inSet(hashes)).map(_.childHash).list
+            val newChildren = childHashes.diff(hashes) //new hashes
+            if (newChildren.isEmpty)
+               hashes
+            else {
+               allDeps(newChildren) ++ hashes
+            } 
+          }
+          val dependencyHashes = allDeps(Seq(descriptor.hash.value))
           val q = for {
             (d,m) <- Descriptors leftJoin Metadata on (_.hash === _.descriptorHash)
             if d.hash inSet(dependencyHashes)
           } yield (d.hash, d.org, d.name, d.version, m.key.?, m.value.?)
-          MetaDescriptorRow.formatDescriptors(MetaDescriptorRow.fromList(q.list))
+          MetaDescriptorRow.formatDescriptors(MetaDescriptorRow.fromList(q.list)).filter( _ != descriptor)
         }
       }.toRight(s"could not describe $coords$meta")
     }
@@ -161,10 +170,6 @@ object Repository {
   }
 
   def push(repos: Seq[String]) = {
-    throw RemoveThisNotImplementedException
-  }
-
-  def location(coords: Coordinates, hash: Hash, noCache: Boolean = false): Seq[Location] = {
     throw RemoveThisNotImplementedException
   }
 
