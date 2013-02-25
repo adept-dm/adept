@@ -1,6 +1,4 @@
-package adept.client
-
-import adept.repository._
+package adept.api
 
 object Parsers {
   val CoordsExpr = """\s*(.*):(.*):(.*)\s*""".r
@@ -8,11 +6,11 @@ object Parsers {
   val MetadataExpr = """\s*(.*)=(.*)\s*""".r
   val CoordsMetadataHashExpr = """\s*(.*)@(.*)\s*""".r
   
-  def descriptor(string: String): Either[String, Descriptor] = {
+  def module(string: String): Either[String, Module] = {
     string match {
       case CoordsMetadataHashExpr(coordsMeta, hash) => {
         coordsMetadata(coordsMeta).right.map{ case (coords, meta) =>
-          Descriptor(coords, meta, Hash(hash))
+          Module(coords, meta, Hash(hash))
         }
       }
       case noHash => Left(s"could not find required hash in $noHash")

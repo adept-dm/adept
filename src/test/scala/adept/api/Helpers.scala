@@ -1,4 +1,4 @@
-package adept.repository
+package adept.api
 
 import scala.slick.session.Database
 

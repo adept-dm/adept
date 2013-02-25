@@ -1,7 +1,7 @@
-package adept.client
+package adept.cli
 
 
-object Adept extends App {
+object Main extends App {
   def help(error: Option[String]) = error.getOrElse("")+s"""
   |usage: adept <command> <options>
   |commands:

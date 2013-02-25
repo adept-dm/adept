@@ -1,7 +1,6 @@
-package adept.client
+package adept.api
 
 import org.scalatest._
-import adept.repository._
 
 class ParserSpec extends FunSpec with ShouldMatchers {
   def checkLeftContains(res: Either[String, _], includesWords: String*) = {

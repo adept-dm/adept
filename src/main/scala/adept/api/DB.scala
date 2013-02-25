@@ -1,16 +1,20 @@
-package adept.repository
+package adept.api
 
 import java.io.{File => jFile}
 import slick.lifted.ForeignKeyAction
 import slick.session.Database
-import adept.client.Configuration
 
 object db {
   lazy val database = {
     Database.forURL("jdbc:h2:"+Configuration.currentAdeptDir()+"/adept", driver = "org.h2.Driver") 
   }
-  
-  val driver = slick.driver.H2Driver
+
+  lazy val driver = slick.driver.H2Driver
+    
+  lazy val allDDLs = {
+    import driver._
+    Metadata.ddl ++ Modules.ddl ++ RepositoryMetadata.ddl ++ Dependencies.ddl
+  }
 }
 import db.driver.simple._
 
@@ -36,11 +40,11 @@ object Hash {
     Hash(hash)
   }
 }
-case class Descriptor(coords: Coordinates, metadata: Metadata, hash:Hash) {
+case class Module(coords: Coordinates, metadata: Metadata, hash:Hash) {
   override val toString = s"$coords$metadata@$hash" 
 }
 case class Metadata(data: Map[String, String]) {
-  def addScalaVersion(version: String): Metadata = {
+  def addScalaVersion(version: String): Metadata = { //TODO: as long we do not need it
     this.copy(data = data + ("scala-version" -> version))
   }
   override val toString = s"[${data.map(e => s"${e._1}=${e._2}")mkString(",")}]" 
@@ -50,11 +54,11 @@ object Metadata extends Table[(Int, String, String, String)]("METADATA") {
   def id = column[Int]("METADATA_ID", O.PrimaryKey, O.AutoInc)
   def key = column[String]("KEY", O.NotNull)
   def value = column[String]("VALUE", O.NotNull)
-  def descriptorHash = column[String]("DESCRIPTOR_METADATA_HASH", O.NotNull)
-  def * = id ~ key ~ value ~ descriptorHash
+  def moduleHash = column[String]("MODULE_METADATA_HASH", O.NotNull)
+  def * = id ~ key ~ value ~ moduleHash
 
-  def idx = index("METADATA_INDEX", (descriptorHash, key), unique = true)
-  def autoInc = key ~ value ~ descriptorHash returning id 
+  def idx = index("METADATA_INDEX", (moduleHash, key), unique = true)
+  def autoInc = key ~ value ~ moduleHash returning id 
 }
 
 object Dependencies extends Table[(Int, String, String)]("DEPENDENCIES") {
@@ -63,29 +67,29 @@ object Dependencies extends Table[(Int, String, String)]("DEPENDENCIES") {
   def childHash= column[String]("CHILD_HASH", O.NotNull)
   def * = id ~ parentHash ~ childHash
   
-  def child = foreignKey("DEP_PARENT_FK", parentHash, Descriptors)(_.hash, 
+  def child = foreignKey("DEP_PARENT_FK", parentHash, Modules)(_.hash, 
       onDelete = ForeignKeyAction.Cascade, onUpdate = ForeignKeyAction.Cascade)
-  def parent = foreignKey("DEP_CHILD_FK", parentHash, Descriptors)(_.hash, 
+  def parent = foreignKey("DEP_CHILD_FK", parentHash, Modules)(_.hash, 
       onDelete = ForeignKeyAction.Cascade, onUpdate = ForeignKeyAction.Cascade)
       
   def autoInc = parentHash ~ childHash returning id
 }
 
-object Descriptors extends Table[(Int, String, String, String, String, Int)]("DESCRIPTORS") {
-  def id = column[Int]("DESCRIPTOR_ID", O.AutoInc, O.PrimaryKey)
+object Modules extends Table[(Int, String, String, String, String, Int)]("MODULES") {
+  def id = column[Int]("MODULE_ID", O.AutoInc, O.PrimaryKey)
   def hash = column[String]("HASH", O.NotNull)
   def org = column[String]("ORG", O.NotNull)
   def name = column[String]("NAME", O.NotNull)
   def version = column[String]("VERSION", O.NotNull)
   def repositoryMetadata = column[Int]("REPOSITORY_METADATA", O.NotNull)
   
-  def hashIdx= index("DESCRIPTOR_HASH_INDEX", hash, unique = true)
+  def hashIdx= index("MODULE_HASH_INDEX", hash, unique = true)
   
   def * = id ~ hash ~ org ~ name ~ version ~ repositoryMetadata
   
   def autoInc = hash ~ org ~ name ~ version ~ repositoryMetadata returning id
   
-  def toRow(d: Descriptor, repoId: Int): (String, String, String, String, Int) = (d.hash.value, d.coords.org, d.coords.name, d.coords.version, repoId)
+  def toRow(d: Module, repoId: Int): (String, String, String, String, Int) = (d.hash.value, d.coords.org, d.coords.name, d.coords.version, repoId)
 }
 
 object RepositoryMetadata extends Table[(Int, String)]("REPOSITORY") {

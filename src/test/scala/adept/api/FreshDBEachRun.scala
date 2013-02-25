@@ -1,4 +1,4 @@
-package adept.repository
+package adept.api
 
 import java.sql.Connection
 import org.scalatest._
@@ -13,13 +13,13 @@ trait FreshDBEachRun extends FunSpec with BeforeAndAfterEach {
   
   override def beforeEach = {
     session = database.createSession.conn
-    Repository.init(repo)
+    Adept.init(repo)
   }
   
   override def afterEach = {
     database.withSession{ 
       import Database.threadLocalSession
-      Repository.allDDLs.drop
+      db.allDDLs.drop
     }
     session = null
   }

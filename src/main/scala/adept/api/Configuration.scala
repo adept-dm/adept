@@ -1,4 +1,4 @@
-package adept.client
+package adept.api
 
 import java.io.{File => jFile} 
 

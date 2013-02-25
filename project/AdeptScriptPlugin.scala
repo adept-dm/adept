@@ -13,7 +13,7 @@ object AdeptScriptPlugin extends Plugin {
 
 classpath="""+classpath+"""
 
-java -cp $classpath adept.client.Adept $*
+java -cp $classpath adept.cli.Main $*
 """
     val binDir = baseDir / "bin"
     binDir.mkdirs()

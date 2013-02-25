@@ -1,6 +1,6 @@
-package adept.client
+package adept.cli
 
-import adept.repository._
+import adept.api._
 import java.io.{File => jFile}
 
 object Commands {
@@ -30,7 +30,7 @@ object AddCommand extends Command {
     val repoArg = args.drop(0).take(1).headOption
     val coordsArg = args.drop(1).take(1).headOption
     val jarArg = args.drop(2).take(1).headOption
-    def parseInputDescriptors: Either[String, List[Descriptor]] = {
+    def parseInputModules: Either[String, List[Module]] = {
       val reader = {
         import java.io._
         new BufferedReader(new InputStreamReader(System.in));
@@ -40,13 +40,13 @@ object AddCommand extends Command {
         if (line != null && line.nonEmpty) slurpInput(line :: lines)
         else lines
       }
-      slurpInput(List.empty).foldLeft(Right(List.empty): Either[String, List[Descriptor]]){ 
+      slurpInput(List.empty).foldLeft(Right(List.empty): Either[String, List[Module]]){ 
         (current, string) => {
           for {
-            currentDescriptors <- current.right
-            descriptor <- Parsers.descriptor(string).right
+            currentModules <- current.right
+            module <- Parsers.module(string).right
           } yield {
-            descriptor +: currentDescriptors 
+            module +: currentModules 
           }
         }
       }
@@ -70,13 +70,13 @@ object AddCommand extends Command {
       (coords, metadata) <- Parsers.coordsMetadata(coordsAndMetadataString).right
       deps <- {
          cmdLineMsgPrintStream.println("add dependencies (format: <org>:<name>:<version>[key=value,...]@<hash>), enter a empty line to finish:") //TODO: move this out from this method and up where the rest of cmd line input/output is handled?
-         parseInputDescriptors.right
+         parseInputModules.right
       }
     } yield {
       val hash = whileWaiting(s"calculating hash for $coords...") { Hash.calculate(coords, jarFile) }
-      val descriptor = Descriptor(coords, metadata, hash)
+      val module = Module(coords, metadata, hash)
       whileWaiting(s"loading $coords to repository...") { 
-        Repository.add(repoName, descriptor, deps)(db.database).right.map(_.toString)
+        Adept.add(repoName, module, deps)(db.database).right.map(_.toString)
       }
     }).joinRight
   }
@@ -99,7 +99,7 @@ object DescribeCommand extends Command {
       a <- coordsArg.right
       (coords, meta) <- Parsers.coordsMetadata(a).right
     } yield {
-      Repository.describe(coords, meta)(db.database).right.map{ case (parent, children) => 
+      Adept.describe(coords, meta)(db.database).right.map{ case (parent, children) => 
         (parent +: children).mkString("\n")
       }
     }).joinRight
@@ -118,7 +118,7 @@ object InitCommand extends Command {
       Left("too many repository names for init")
     else {
       val repoName = args.headOption.getOrElse(Configuration.defaultRepoName)
-      Repository.init(repoName)(db.database)
+      Adept.init(repoName)(db.database)
     }
   }
 }
@@ -135,7 +135,7 @@ object ListCommand extends Command {
       Left("too many args names for list")
     else {
       val repoName = args.headOption.getOrElse(Configuration.defaultRepoName)
-      Repository.list(repoName)(db.database)
+      Adept.list(repoName)(db.database)
     }
   }
 }
