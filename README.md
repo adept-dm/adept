@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # adept #
 
 adept is a new dependency manager and aims to replace apache ivy.
