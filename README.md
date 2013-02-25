@@ -1,14 +1,17 @@
 # adept #
+adept helps you find, declare, and download dependencies.
 
-adept is a new dependency manager and aims to replace apache ivy.
+adept retrieves dependency metadata all at once and identifies artifacts by hashing their content.
+This makes adept well-suited for discovering dependencies in addition to being predictable and fast.
 
-It is not a build system like maven, gradle or sbt, but can be used inside of the build systems to load dependencies.
+adept is currently in the proposal and discussion stage and needs your involvement.
+Please see the wiki for the current proposals.
 
-Have you ever been surprised by how long it takes to download dependencies using maven or ivy? I mean your adsl line should download the 10-100 mbs of data so fast, right?
-Have you ever had to debug maven and ivy, having to hack your way to figure out why your classpath is wrong and why some dependencies are there or not.
-Ever thought: I know what jars I want, give them to me!
+Discuss existing ideas and propose new ones on the development mailing list:
 
-adept is here to answer those thoughts!
+  http://groups.google.com/group/adept-dev/
+
+Although hosted on the sbt organization, adept is intended to be build tool agnostic.
 
 ## Scope ##
 
