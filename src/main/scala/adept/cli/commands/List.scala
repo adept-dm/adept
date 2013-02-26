@@ -1,6 +1,6 @@
 package adept.cli.commands
 
-import adept.api._
+import adept.core._
 
 object ListCommand extends Command {
   override val command = "ls"

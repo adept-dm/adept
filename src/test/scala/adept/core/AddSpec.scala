@@ -1,4 +1,4 @@
-package adept.api
+package adept.core
 
 import org.scalatest._
 import java.sql.Connection
@@ -6,7 +6,7 @@ import java.sql.Connection
 class AddSpec extends FreshDBEachRun with ShouldMatchers {
   import db.driver.simple._
   import Helpers._
-  import TestData._
+import TestData._
 
   describe("Adding modules") {
     it("should be idempotent") {

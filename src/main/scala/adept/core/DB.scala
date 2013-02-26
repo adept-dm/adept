@@ -1,4 +1,4 @@
-package adept.api
+package adept.core
 
 import java.io.{File => jFile}
 import slick.lifted.ForeignKeyAction

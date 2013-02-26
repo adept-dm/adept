@@ -1,4 +1,4 @@
-package adept.api
+package adept.core
 
 import scala.slick.session.Database
 
@@ -19,9 +19,5 @@ object Helpers {
       writer.close()
     }
     tmp
-  }
-  
-  def getDatabase(id: String) = {
-    Database.forURL("jdbc:h2:mem:adept-test-"+id, driver = "org.h2.Driver") 
   }
 }

@@ -1,4 +1,4 @@
-package adept.api
+package adept.core
 
 object TestData {
   val modules = Map(

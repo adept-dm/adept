@@ -1,6 +1,7 @@
 package adept.cli.commands
 
-import adept.api._
+import adept.core._
+import adept.core.Configuration;
 import java.io.{ File => jFile }
 
 object AddCommand extends Command {
@@ -17,7 +18,7 @@ object AddCommand extends Command {
     val jarArg = args.drop(2).take(1).headOption
     def parseInputModules: Either[String, List[Module]] = {
       val reader = {
-        import java.io._
+import java.io._
         new BufferedReader(new InputStreamReader(System.in));
       }
       @annotation.tailrec def slurpInput(lines: List[String]): List[String] = {

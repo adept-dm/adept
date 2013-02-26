@@ -1,7 +1,8 @@
-package adept.api
+package adept.core
 
 import java.sql.Connection
 import org.scalatest._
+
 
 trait FreshDBEachRun extends FunSpec with BeforeAndAfterEach {
   import db.driver.simple._
@@ -21,7 +22,7 @@ trait FreshDBEachRun extends FunSpec with BeforeAndAfterEach {
   
   override def afterEach = {
     database.withSession{ 
-      import Database.threadLocalSession
+import Database.threadLocalSession
       db.allDDLs.drop
     }
     connection = null

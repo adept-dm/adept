@@ -1,7 +1,6 @@
-package adept.api
+package adept.core
 
 import org.scalatest._
-import java.sql.Connection
 
 class DescribeSpec extends FreshDBEachRun with ShouldMatchers {
   import db.driver.simple._
@@ -17,7 +16,7 @@ class DescribeSpec extends FreshDBEachRun with ShouldMatchers {
       Adept.add(repo, parent, deps)
       val uberParent = Module(Coordinates("test", "uber","1.0"), Metadata(Map("test" -> "yes")), Hash("uberunique"))
       Adept.add(repo, uberParent , Seq(parent))
-      println(Adept.describe(uberParent.coords, uberParent.metadata).right.map{ case (a,b) => a -> b.mkString("\n") } )
+      Adept.describe(uberParent.coords, uberParent.metadata) should be(Right((uberParent +: parent +: deps).toSeq))
     }
   }
 }

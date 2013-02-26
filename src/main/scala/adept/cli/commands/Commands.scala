@@ -1,6 +1,6 @@
 package adept.cli.commands
 
-import adept.api._
+import adept.core._
 import java.io.{File => jFile}
 import java.io.{ File => jFile }
 
