@@ -69,12 +69,12 @@ object Adept {
           } yield m.key -> m.value).list
           
           val dependencyHashes = (for {
-            module <- Modules
             dep <- Dependencies
-            if dep.parentHash === module.hash
+            if dep.parentHash === module.hash.value
           } yield {
             dep.childHash
           }).list
+          
           if (metadata.toMap == module.metadata.data && dependencyHashes == newDependencyHashes) {
             Right(module)
           } else {

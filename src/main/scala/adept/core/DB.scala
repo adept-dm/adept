@@ -13,7 +13,7 @@ object db {
     
   lazy val allDDLs = {
     import driver._
-    Metadata.ddl ++ Modules.ddl ++ RepositoryMetadata.ddl ++ Dependencies.ddl
+    Metadata.ddl ++ Modules.ddl ++ RepositoryMetadata.ddl ++ Dependencies.ddl ++ Artifacts.ddl
   }
 }
 import db.driver.simple._
@@ -67,12 +67,23 @@ object Dependencies extends Table[(Int, String, String)]("DEPENDENCIES") {
   def childHash= column[String]("CHILD_HASH", O.NotNull)
   def * = id ~ parentHash ~ childHash
   
-  def child = foreignKey("DEP_PARENT_FK", parentHash, Modules)(_.hash, 
+  def child = foreignKey("DEP_CHILD_FK", parentHash, Modules)(_.hash, 
       onDelete = ForeignKeyAction.Cascade, onUpdate = ForeignKeyAction.Cascade)
-  def parent = foreignKey("DEP_CHILD_FK", parentHash, Modules)(_.hash, 
+  def parent = foreignKey("DEP_PARENT_FK", parentHash, Modules)(_.hash, 
       onDelete = ForeignKeyAction.Cascade, onUpdate = ForeignKeyAction.Cascade)
       
   def autoInc = parentHash ~ childHash returning id
+}
+
+object Artifacts extends Table[(Int, String, String)]("ARTIFACTS") {
+  def id = column[Int]("ARTIFACT_ID", O.AutoInc, O.PrimaryKey)
+  def location = column[String]("LOCATION", O.NotNull)
+  def hash = column[String]("MODULE_HASH", O.NotNull)
+  
+  def hashFk = foreignKey("DEP_FK", hash, Modules)(_.hash, 
+      onDelete = ForeignKeyAction.Cascade, onUpdate = ForeignKeyAction.Cascade)
+      
+  def * = id ~ location ~ hash
 }
 
 object Modules extends Table[(Int, String, String, String, String, Int)]("MODULES") {

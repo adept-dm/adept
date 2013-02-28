@@ -15,3 +15,14 @@ libraryDependencies += "com.typesafe.akka" %% "akka-actor" % "2.1.0"
 libraryDependencies += "org.slf4j" % "slf4j-nop" % "1.6.4"
 
 libraryDependencies += "org.scalatest" % "scalatest_2.10" % "2.0.M5b" % "test"
+
+libraryDependencies += "org.apache.ivy" % "ivy" % "2.3.0"
+
+scalacOptions ++= Seq("-feature", "-deprecation")
+
+resolvers += "spray repo" at "http://repo.spray.io"
+
+libraryDependencies += "io.spray" % "spray-can" % "1.1-M7"
+
+
+

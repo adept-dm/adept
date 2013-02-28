@@ -16,6 +16,7 @@ object AddCommand extends Command {
     val repoArg = args.drop(0).take(1).headOption
     val coordsArg = args.drop(1).take(1).headOption
     val jarArg = args.drop(2).take(1).headOption
+    
     def parseInputModules: Either[String, List[Module]] = {
       val reader = {
 import java.io._

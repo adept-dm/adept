@@ -9,7 +9,8 @@ object Commands {
       InitCommand,
       AddCommand,
       ListCommand,
-      DescribeCommand).map(c => c.command -> c).toMap
+      DescribeCommand,
+      IvyAddCommand).map(c => c.command -> c).toMap
 }
 
 trait Command {
