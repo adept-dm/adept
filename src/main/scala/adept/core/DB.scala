@@ -2,7 +2,7 @@ package adept.core
 
 import java.io.{File => jFile}
 import slick.lifted.ForeignKeyAction
-import slick.session.Database
+import slick.session._
 
 object db {
   lazy val database = {
@@ -13,7 +13,18 @@ object db {
     
   lazy val allDDLs = {
     import driver._
-    Metadata.ddl ++ Modules.ddl ++ RepositoryMetadata.ddl ++ Dependencies.ddl ++ Artifacts.ddl
+    Metadata.ddl ++ Modules.ddl ++ RepositoryMetadata.ddl ++ Dependencies.ddl ++ Artifacts.ddl ++ StagedRepositories.ddl ++ RepositoriesModules.ddl
+  }
+  
+  
+  //true if DB exists here
+  def checkExistence(s: Session) = {
+    val currentRow = {
+      val tables = s.conn.getMetaData().getTables(s.conn.getCatalog(), null, null, null)
+      tables.last()
+      tables.getRow()
+    }
+    (currentRow > 28) //h2 has 28 rows on init
   }
 }
 import db.driver.simple._
@@ -50,63 +61,72 @@ case class Metadata(data: Map[String, String]) {
   override val toString = s"[${data.map(e => s"${e._1}=${e._2}")mkString(",")}]" 
 }
 
-object Metadata extends Table[(Int, String, String, String)]("METADATA") {
-  def id = column[Int]("METADATA_ID", O.PrimaryKey, O.AutoInc)
+object Metadata extends Table[(String, String, String)]("METADATA") {
   def key = column[String]("KEY", O.NotNull)
   def value = column[String]("VALUE", O.NotNull)
   def moduleHash = column[String]("MODULE_METADATA_HASH", O.NotNull)
-  def * = id ~ key ~ value ~ moduleHash
+  def * = key ~ value ~ moduleHash
 
   def idx = index("METADATA_INDEX", (moduleHash, key), unique = true)
-  def autoInc = key ~ value ~ moduleHash returning id 
 }
 
-object Dependencies extends Table[(Int, String, String)]("DEPENDENCIES") {
-  def id = column[Int]("DEP_ID", O.PrimaryKey, O.AutoInc)
+object Dependencies extends Table[(String, String)]("DEPENDENCIES") {
   def parentHash= column[String]("PARENT_HASH", O.NotNull)
   def childHash= column[String]("CHILD_HASH", O.NotNull)
-  def * = id ~ parentHash ~ childHash
+  def * = parentHash ~ childHash
   
   def child = foreignKey("DEP_CHILD_FK", parentHash, Modules)(_.hash, 
       onDelete = ForeignKeyAction.Cascade, onUpdate = ForeignKeyAction.Cascade)
   def parent = foreignKey("DEP_PARENT_FK", parentHash, Modules)(_.hash, 
       onDelete = ForeignKeyAction.Cascade, onUpdate = ForeignKeyAction.Cascade)
-      
-  def autoInc = parentHash ~ childHash returning id
 }
 
-object Artifacts extends Table[(Int, String, String)]("ARTIFACTS") {
-  def id = column[Int]("ARTIFACT_ID", O.AutoInc, O.PrimaryKey)
+object Artifacts extends Table[(String, String)]("ARTIFACTS") {
   def location = column[String]("LOCATION", O.NotNull)
   def hash = column[String]("MODULE_HASH", O.NotNull)
+
+  def idx = index("ARTIFACT_INDEX", (location, hash), unique = true)
   
   def hashFk = foreignKey("DEP_FK", hash, Modules)(_.hash, 
       onDelete = ForeignKeyAction.Cascade, onUpdate = ForeignKeyAction.Cascade)
       
-  def * = id ~ location ~ hash
+  def * = location ~ hash
 }
 
-object Modules extends Table[(Int, String, String, String, String, Int)]("MODULES") {
-  def id = column[Int]("MODULE_ID", O.AutoInc, O.PrimaryKey)
+object Modules extends Table[(String, String, String, String)]("MODULES") {
   def hash = column[String]("HASH", O.NotNull)
   def org = column[String]("ORG", O.NotNull)
   def name = column[String]("NAME", O.NotNull)
   def version = column[String]("VERSION", O.NotNull)
-  def repositoryMetadata = column[Int]("REPOSITORY_METADATA", O.NotNull)
+  def * = hash ~ org ~ name ~ version
   
   def hashIdx= index("MODULE_HASH_INDEX", hash, unique = true)
   
-  def * = id ~ hash ~ org ~ name ~ version ~ repositoryMetadata
-  
-  def autoInc = hash ~ org ~ name ~ version ~ repositoryMetadata returning id
-  
-  def toRow(d: Module, repoId: Int): (String, String, String, String, Int) = (d.hash.value, d.coords.org, d.coords.name, d.coords.version, repoId)
+  def toRow(d: Module): (String, String, String, String) = (d.hash.value, d.coords.org, d.coords.name, d.coords.version)
 }
 
-object RepositoryMetadata extends Table[(Int, String)]("REPOSITORY") {
-  def version = column[Int]("VERSION", O.PrimaryKey, O.AutoInc)
-  def name = column[String]("NAME", O.NotNull)
-  def * = version ~ name
+case class Repository(name: String, version: Int) {
+  override def toString = s"$name@$version"
+}
+
+object StagedRepositories extends Table[(String, Int)]("STAGED_REPOS"){
+  def name = column[String]("NAME", O.PrimaryKey)
+  def version = column[Int]("VERSION", O.NotNull)
+  def * = name ~ version
+}
+
+object RepositoriesModules extends Table[(String, Int, String)]("REPOS_MODULES"){
+  def name = column[String]("REPOS_MODULES_NAME", O.NotNull)
+  def version = column[Int]("REPOS_MODULES_VERSION", O.NotNull)
+  def hash = column[String]("REPOS_MODULES_HASH", O.NotNull)
   
-  def autoInc = name returning version
+  def * = name ~ version ~ hash
+}
+
+object RepositoryMetadata extends Table[(String, Int)]("REPOS") {
+  def name = column[String]("NAME", O.NotNull)
+  def version = column[Int]("VERSION", O.NotNull)
+  def * = name ~ version
+  
+  def nameVersionIdx= index("REPO_NAME_VERSION_INDEX", (name, version), unique = true)
 }

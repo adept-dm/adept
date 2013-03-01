@@ -18,12 +18,16 @@ object Main extends App {
       args match {  
         case command +: commandArgs =>
           Commands.all.get(command) match {
-            case Some(command) => 
-              command.execute(commandArgs)
-              .left.map{ error => 
-                println(s"Error: $error")
-              }.right.foreach{ msg => 
-                println(msg)
+            case Some(command) =>
+              if (command.checkDB(adept.core.db.database)) {
+                command.execute(commandArgs)
+                .left.map{ error => 
+                  println(s"Error: $error")
+                }.right.foreach{ msg => 
+                  println(msg)
+                }
+              } else {
+                println("Error: no adept here! run init to create a repository")
               }
             case _ => println(help(Some(s"unknown command: '$command'")))
           }

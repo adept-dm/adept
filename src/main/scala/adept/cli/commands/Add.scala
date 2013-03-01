@@ -19,7 +19,7 @@ object AddCommand extends Command {
     
     def parseInputModules: Either[String, List[Module]] = {
       val reader = {
-import java.io._
+        import java.io._
         new BufferedReader(new InputStreamReader(System.in));
       }
       @annotation.tailrec def slurpInput(lines: List[String]): List[String] = {
