@@ -167,7 +167,6 @@ object Adept {
             } yield {
               rm.hash
             }).firstOption.isDefined
-            println("inserting into: "+ repoName + " " + existsInRepo)
             
             if (existsInRepo) {
               Modules.insert(Modules.toRow(module))
