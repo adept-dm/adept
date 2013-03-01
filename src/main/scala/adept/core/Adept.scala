@@ -128,8 +128,6 @@ object Adept {
       
       (stagedRepository.map { case (repoName, repoVersion) =>
         val moduleExists = (for {
-          rm <- RepositoriesModules
-          if rm.name === repoName && rm.hash === module.hash.value
           dbModule <- Modules
           if dbModule.hash === module.hash.value
         } yield dbModule.hash).firstOption.isDefined
@@ -149,6 +147,15 @@ object Adept {
           }).list
           
           if (metadata.toMap == module.metadata.data && dependencyHashes == newDependencyHashes) {
+            val existsInRepo = (for {
+              rm <- RepositoriesModules
+              if rm.name === repoName && rm.hash === module.hash.value
+            } yield {
+              rm.hash
+            }).firstOption.isDefined
+            if (!existsInRepo) {
+              RepositoriesModules.insert(repoName, repoVersion, module.hash.value)
+            }
             Right(module)
           } else {
             Left(s"cannot insert ${module} with deps: {${newDependencyHashes.mkString(",")}} because ${module.hash} already has meta: ${Metadata(metadata.toMap)} and deps: {${dependencyHashes.mkString(",")}}" )
@@ -161,18 +168,9 @@ object Adept {
             module.hash
           }).list
           if (existingHashes.sorted == newDependencyHashes.sorted) {
-            val existsInRepo = (for {
-              rm <- RepositoriesModules
-              if rm.name === repoName && rm.hash === module.hash.value
-            } yield {
-              rm.hash
-            }).firstOption.isDefined
-            
-            if (existsInRepo) {
-              Modules.insert(Modules.toRow(module))
-              metadataInsert(module)
-              Dependencies.insertAll(dependencies.map(_.hash).map(childHash => module.hash.value -> childHash.value): _*)
-            }
+            Modules.insert(Modules.toRow(module))
+            metadataInsert(module)
+            Dependencies.insertAll(dependencies.map(_.hash).map(childHash => module.hash.value -> childHash.value): _*)
             RepositoriesModules.insert(repoName, repoVersion, module.hash.value)
             Right(module)
           } else {
