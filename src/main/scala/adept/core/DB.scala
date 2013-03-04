@@ -3,6 +3,7 @@ package adept.core
 import java.io.{File => jFile}
 import slick.lifted.ForeignKeyAction
 import slick.session._
+import java.sql.Timestamp
 
 object db {
   lazy val database = {
@@ -10,10 +11,10 @@ object db {
   }
 
   lazy val driver = slick.driver.H2Driver
-    
+  
   lazy val allDDLs = {
     import driver._
-    Metadata.ddl ++ Modules.ddl ++ RepositoryMetadata.ddl ++ Dependencies.ddl ++ Artifacts.ddl ++ StagedRepositories.ddl ++ RepositoriesModules.ddl
+    Modules.ddl ++ RepositoryVersions.ddl
   }
   
   
@@ -27,6 +28,7 @@ object db {
     (currentRow > 28) //h2 has 28 rows on init
   }
 }
+
 import db.driver.simple._
 
 case class Coordinates(org: String, name: String, version: String) {
@@ -51,82 +53,89 @@ object Hash {
     Hash(hash)
   }
 }
-case class Module(coords: Coordinates, metadata: Metadata, hash:Hash) {
-  override val toString = s"$coords$metadata@$hash" 
+
+case class Artifact(location: String) {
+  override def toString = location
+}
+
+case class Module(coords: Coordinates, metadata: Metadata, artifactHash: Hash, artifacts: Set[Artifact], hash:Hash, deps: Set[Hash] = Set.empty) {
+  val shortString = s"$coords$metadata@$hash" 
+  
+  override val toString = s"$coords$metadata@$hash$metadata;${artifacts.mkString(",")};${deps.mkString(",")}"
 }
 case class Metadata(data: Map[String, String]) {
-  def addScalaVersion(version: String): Metadata = { //TODO: as long we do not need it
-    this.copy(data = data + ("scala-version" -> version))
-  }
   override val toString = s"[${data.map(e => s"${e._1}=${e._2}")mkString(",")}]" 
 }
 
-object Metadata extends Table[(String, String, String)]("METADATA") {
-  def key = column[String]("KEY", O.NotNull)
-  def value = column[String]("VALUE", O.NotNull)
-  def moduleHash = column[String]("MODULE_METADATA_HASH", O.NotNull)
-  def * = key ~ value ~ moduleHash
-
-  def idx = index("METADATA_INDEX", (moduleHash, key), unique = true)
+object Changes {
+  val Insert: Option[Boolean] = None
+  val Updated: Option[Boolean] = Some(true)
+  val Deleted: Option[Boolean] = Some(false)
 }
 
-object Dependencies extends Table[(String, String)]("DEPENDENCIES") {
-  def parentHash= column[String]("PARENT_HASH", O.NotNull)
-  def childHash= column[String]("CHILD_HASH", O.NotNull)
-  def * = parentHash ~ childHash
-  
-  def child = foreignKey("DEP_CHILD_FK", parentHash, Modules)(_.hash, 
-      onDelete = ForeignKeyAction.Cascade, onUpdate = ForeignKeyAction.Cascade)
-  def parent = foreignKey("DEP_PARENT_FK", parentHash, Modules)(_.hash, 
-      onDelete = ForeignKeyAction.Cascade, onUpdate = ForeignKeyAction.Cascade)
-}
-
-object Artifacts extends Table[(String, String)]("ARTIFACTS") {
-  def location = column[String]("LOCATION", O.NotNull)
-  def hash = column[String]("MODULE_HASH", O.NotNull)
-
-  def idx = index("ARTIFACT_INDEX", (location, hash), unique = true)
-  
-  def hashFk = foreignKey("DEP_FK", hash, Modules)(_.hash, 
-      onDelete = ForeignKeyAction.Cascade, onUpdate = ForeignKeyAction.Cascade)
-      
-  def * = location ~ hash
-}
-
-object Modules extends Table[(String, String, String, String)]("MODULES") {
+object Modules extends Table[(String, String, String, String, String, String, String, String, String, Int, Option[Boolean])]("MODULES") {
   def hash = column[String]("HASH", O.NotNull)
   def org = column[String]("ORG", O.NotNull)
   def name = column[String]("NAME", O.NotNull)
   def version = column[String]("VERSION", O.NotNull)
-  def * = hash ~ org ~ name ~ version
+  def artifactHash = column[String]("ARTIFACT_HASH", O.NotNull)
+
+  //TODO: I am not sure about representing the ones below as strings instead of tables- it does save space and make it easier wrt versioning:
+  def metadata = column[String]("METADATA")
+  def childHashes = column[String]("CHILD_HASHES")
+  def artifacts = column[String]("ARTIFACTS", O.NotNull)
+
+  //see Changes
+  def change = column[Option[Boolean]]("MODULES_CHANGE")
+  def repoName = column[String]("MODULES_REPO_NAME", O.NotNull)
+  def repoVersion = column[Int]("MODULES_REPO_VERSION", O.NotNull)
   
-  def hashIdx= index("MODULE_HASH_INDEX", hash, unique = true)
+  def * = hash ~ org ~ name ~ version ~ artifactHash ~ artifacts ~ metadata ~ childHashes ~ repoName ~ repoVersion ~ change
+   
+  def hashIdx= index("MODULE_HASH_INDEX", (hash, repoName, repoVersion), unique = true)
   
-  def toRow(d: Module): (String, String, String, String) = (d.hash.value, d.coords.org, d.coords.name, d.coords.version)
+  def setToString(deps: Set[_]) = deps.mkString("[",",","]")
+  def setFromString(s: String) = {
+    val Expr = """\[(.*?)\]""".r
+    s match {
+      case Expr(list) => list.split(",").toSet.filter(_.trim.nonEmpty)
+      case something => throw new Exception(s"FATAL: could not parse sequence from DB. Got: $s")
+    }
+  }
+  type ModuleType = (String, String, String, String, String, String, String, String, String, Int, Option[Boolean])
+  
+  def toRow(module: Module, repoName: String, repoVersion: Int, change: Option[Boolean])
+  :  ModuleType = 
+    (module.hash.value, module.coords.org, module.coords.name, module.coords.version, module.artifactHash.value,
+        setToString(module.artifacts), module.metadata.toString, setToString(module.deps), 
+        repoName, repoVersion, change)
+        
+  def fromRow(t: ModuleType) = {
+    val (hashString, org, name, version, artifactHashString, artifactsString, metadataString, depsString, repoName, repoVersion, change) = t
+    
+    val hash = Hash(hashString)
+    val artifactHash = Hash(artifactHashString)
+    val coords = Coordinates(org, name, version)
+    val artifacts = setFromString(artifactsString).map( Artifact.apply )
+    val metadata = Parsers.metadata(metadataString).left.map{
+      _ => throw new Exception(s"FATAL: could not parse metadata in DB for: $hash. Got: $metadataString")
+    }.right.get
+    val deps = setFromString(depsString).map( Hash.apply )
+    
+    (Module(coords, metadata, artifactHash, artifacts, hash,  deps), Repository(repoName, repoVersion))
+  }
 }
 
 case class Repository(name: String, version: Int) {
   override def toString = s"$name@$version"
 }
 
-object StagedRepositories extends Table[(String, Int)]("STAGED_REPOS"){
-  def name = column[String]("NAME", O.PrimaryKey)
-  def version = column[Int]("VERSION", O.NotNull)
-  def * = name ~ version
-}
-
-object RepositoriesModules extends Table[(String, Int, String)]("REPOS_MODULES"){
-  def name = column[String]("REPOS_MODULES_NAME", O.NotNull)
-  def version = column[Int]("REPOS_MODULES_VERSION", O.NotNull)
-  def hash = column[String]("REPOS_MODULES_HASH", O.NotNull)
-  
-  def * = name ~ version ~ hash
-}
-
-object RepositoryMetadata extends Table[(String, Int)]("REPOS") {
+object RepositoryVersions extends Table[(String, Int, Boolean, Boolean)]("REPOSITORY_VERSIONS") {
   def name = column[String]("NAME", O.NotNull)
   def version = column[Int]("VERSION", O.NotNull)
-  def * = name ~ version
+  def active = column[Boolean]("ACTIVE", O.NotNull)
+  def stashed = column[Boolean]("STASHED", O.NotNull)
+  def * = name ~ version ~ active ~ stashed
   
-  def nameVersionIdx= index("REPO_NAME_VERSION_INDEX", (name, version), unique = true)
+  def hashIdx= index("REPOSITORY_UNIQUE_INDEX", (name, version), unique = true)
 }

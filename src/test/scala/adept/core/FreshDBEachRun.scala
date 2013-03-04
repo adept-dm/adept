@@ -17,7 +17,7 @@ trait FreshDBEachRun extends FunSpec with BeforeAndAfterEach {
   
   override def beforeEach = {
     connection = database.createSession.conn
-    Adept.init(repo)
+    Adept.init(repoName)
   }
   
   override def afterEach = {

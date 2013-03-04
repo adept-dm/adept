@@ -57,7 +57,8 @@ object IvyHelpers {
   
 
   
-  def add(repoName: String, coords: Coordinates, ivy: Ivy, conf: String)(implicit db: Database) = {
+  def add(repoName: String, coords: Coordinates, ivy: Ivy, conf: String)(implicit db: Database): Either[String, Seq[Module]] = {
+    /*
     val resolveOptions = {
       val resolveOptions = new ResolveOptions()
       resolveOptions.setConfs(Array(conf))
@@ -88,6 +89,8 @@ object IvyHelpers {
         
       }).right.map( _.flatten )
     }
-    addModules(tree(report, conf, module))
+    addModules(tree(report, conf, module))*/
+    
+    null
   }
 }

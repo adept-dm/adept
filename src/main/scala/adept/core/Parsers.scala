@@ -10,7 +10,7 @@ object Parsers {
     string match {
       case CoordsMetadataHashExpr(coordsMeta, hash) => {
         coordsMetadata(coordsMeta).right.map{ case (coords, meta) =>
-          Module(coords, meta, Hash(hash))
+          Module(coords, meta, Hash(""), Set.empty, Hash(hash)) //TODO: artifacts
         }
       }
       case noHash => Left(s"could not find required hash in $noHash")

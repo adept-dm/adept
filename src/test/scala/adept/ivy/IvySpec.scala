@@ -12,9 +12,9 @@ class IvySpec extends FreshDBEachRun with ShouldMatchers {
       val coords = Coordinates("commons-cli", "commons-cli", "1.0")
       val expectedScope = "master"
       val expectedMeta = Metadata(Map("scope"->expectedScope))
-      val expectedModule = Module(coords, expectedMeta, Hash("d70644c4fc5d2a171a70b4d65f5706173de64a5b"))
+      val expectedModule = Module(coords, expectedMeta, Hash("TODO"), Set.empty, Hash("d70644c4fc5d2a171a70b4d65f5706173de64a5b")) //TODO: artifact
       
-      val res = IvyHelpers.add(repo, coords, ivy, Configuration.defaultIvyConf)
+      val res = IvyHelpers.add(repoName, coords, ivy, Configuration.defaultIvyConf)
       res should be(Right(Seq(expectedModule)))
       
       val all = Adept.describe(coords, expectedMeta)

@@ -2,11 +2,12 @@ package adept.cli.commands
 
 import adept.core._
 
-object CommitCommand extends Command {
-  override val command = "commit"
+object ArtifactAddCommand extends Command {
+  override val command = "artifact-add"
   override def description = """todo"""
   override def help = s"""
-    |usage: adept $command <OPTIONAL: repo>
+    |usage: adept $command --server=<hostname> <repo name> <hash> <file>
+    |usage: adept $command <repo name> <hash> <file> <location>
     """.stripMargin
   override def execute(args: List[String]): Either[String, String]  = {
     val dir = Configuration.currentAdeptDir()
@@ -14,7 +15,7 @@ object CommitCommand extends Command {
       Left("too many args names for "+command)
     else {
       val repoName = args.headOption.getOrElse(Configuration.defaultRepoName)
-      Adept.commit(repoName)(db.database).right.map(_.toString)
+      Adept.diff(repoName)(db.database).right.map(modules => modules.map(m => "+"+m).mkString("\n"))
     }
   }
 }
