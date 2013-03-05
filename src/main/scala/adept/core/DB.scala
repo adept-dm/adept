@@ -92,6 +92,7 @@ object Modules extends Table[(String, String, String, String, String, String, St
   
   def * = hash ~ org ~ name ~ version ~ artifactHash ~ artifacts ~ metadata ~ childHashes ~ repoName ~ repoVersion ~ change
    
+  //TODO: add childHashes
   def hashIdx= index("MODULE_HASH_INDEX", (hash, repoName, repoVersion), unique = true)
   
   def setToString(deps: Set[_]) = deps.mkString("[",",","]")
