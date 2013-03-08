@@ -1,6 +1,5 @@
 package adept.core
 
-import java.io.{File => jFile}
 import slick.lifted.ForeignKeyAction
 import slick.session._
 import java.sql.Timestamp
@@ -17,7 +16,6 @@ object db {
     Modules.ddl ++ RepositoryVersions.ddl
   }
   
-  
   //true if DB exists here
   def checkExistence(s: Session) = {
     val currentRow = {
@@ -31,46 +29,11 @@ object db {
 
 import db.driver.simple._
 
-case class Coordinates(org: String, name: String, version: String) {
-  override val toString = s"$org:$name:$version" 
-}
-case class Hash(value: String) {
-  override val toString = value 
-}
-object Hash {
-  private lazy val md = java.security.MessageDigest.getInstance("SHA-1")
-  private def encode(bytes: Array[Byte]) = {
-    md.digest(bytes).map(b => "%02X" format b).mkString.toLowerCase
-  }
-  
-  def calculate(coords: Coordinates, jarFile: jFile): Hash = {
-    val jarSource = io.Source.fromFile(jarFile)
-    val hash = try {
-      encode(jarSource.map(_.toByte).toArray ++ (coords.org + coords.name + coords.version).getBytes)
-    } finally {
-      jarSource.close()
-    }
-    Hash(hash)
-  }
-}
-
-case class Artifact(location: String) {
-  override def toString = location
-}
-
-case class Module(coords: Coordinates, metadata: Metadata, artifactHash: Hash, artifacts: Set[Artifact], hash:Hash, deps: Set[Hash] = Set.empty) {
-  val shortString = s"$coords$metadata@$hash" 
-  
-  override val toString = s"$coords$metadata@$hash$metadata;${artifacts.mkString(",")};${deps.mkString(",")}"
-}
-case class Metadata(data: Map[String, String]) {
-  override val toString = s"[${data.map(e => s"${e._1}=${e._2}")mkString(",")}]" 
-}
-
-package object core {  
+package object types {  
   type ModulesType = (String, String, String, String, String, String, String, String, String, Int, Boolean)
+  type RepositoryVersionsType = (String, Int, Boolean, Boolean)
 }
-import core._
+import types._
 
 object Modules extends Table[ModulesType]("MODULES") {
   def hash = column[String]("HASH", O.NotNull)
@@ -120,15 +83,12 @@ object Modules extends Table[ModulesType]("MODULES") {
     }.right.get
     val deps = setFromString(depsString).map( Hash.apply )
     
+     //TODO: add delete here:
     (Module(coords, metadata, artifactHash, artifacts, hash,  deps), Repository(repoName, repoVersion))
   }
 }
 
-case class Repository(name: String, version: Int) {
-  override def toString = s"$name@$version"
-}
-
-object RepositoryVersions extends Table[(String, Int, Boolean, Boolean)]("REPOSITORY_VERSIONS") {
+object RepositoryVersions extends Table[RepositoryVersionsType]("REPOSITORY_VERSIONS") {
   def name = column[String]("NAME", O.NotNull)
   def version = column[Int]("VERSION", O.NotNull)
   def active = column[Boolean]("ACTIVE", O.NotNull)
@@ -136,4 +96,8 @@ object RepositoryVersions extends Table[(String, Int, Boolean, Boolean)]("REPOSI
   def * = name ~ version ~ active ~ stashed
   
   def hashIdx= index("REPOSITORY_UNIQUE_INDEX", (name, version), unique = true)
+  
+  def fromRow(t: RepositoryVersionsType) = {
+    (Repository(t._1, t._2), t._2, t._3)
+  }
 }

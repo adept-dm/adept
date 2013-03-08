@@ -64,22 +64,47 @@ object Adept {
     null
   }
 
-  def init(name: String)(implicit database: Database): Either[String, String]= {
+  def changes(repoName: String, from: Int = -1)(implicit database: Database): Either[String, Seq[ChangeSet]] ={
+    import Database.threadLocalSession
+
+    database.withTransaction{
+      val changesQ = for {
+        r <- RepositoryVersions if r.version >= from  
+        m <- Modules
+        if m.repoVersion === r.version &&
+           m.repoName === r.name
+      } yield {
+        r -> m
+      }
+      val changes = changesQ.list.groupBy(_._1).map{ case (repo, repoModuleRows) =>
+        RepositoryVersions.fromRow(repo)._1 -> {
+          repoModuleRows.map{ case (repo, moduleRow) =>
+            Modules.fromRow(moduleRow)._1 -> moduleRow._11 //FIXME: _11 is deleted but this will end up hurting you
+          }
+        }
+      }.toSeq
+      
+      Right(changes.map{ case (repo, moduleChanges) => ChangeSet(repo, moduleChanges) })
+    }
+  }
+  
+  
+  def init(repoName: String)(implicit database: Database): Either[String, String]= {
     import Database.threadLocalSession
 
     database.withTransaction{
       if (db.checkExistence(implicitly[Session])) {
-        val repository = Query(RepositoryVersions).filter(_.name === name).firstOption
+        val repository = Query(RepositoryVersions).filter(_.name === repoName).firstOption
         if (repository.isDefined) {
-          Left(s"repository $name is already defined")
+          Left(s"repository $repoName is already defined")
         } else {
-          RepositoryVersions.insert(name, 0, true, false)
-          Right(s"Initialized adept repository $name ")
+          RepositoryVersions.insert(repoName, 0, true, false)
+          Right(s"Initialized adept repository $repoName ")
         }
       } else {
         db.allDDLs.create
-        RepositoryVersions.insert(name, 0, true, false)
-        Right(s"Created new adept repository $name")
+        RepositoryVersions.insert(repoName, 0, true, false)
+        Right(s"Created new adept repository $repoName")
       }
     }
   }
