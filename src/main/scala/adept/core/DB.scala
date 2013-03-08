@@ -67,13 +67,12 @@ case class Metadata(data: Map[String, String]) {
   override val toString = s"[${data.map(e => s"${e._1}=${e._2}")mkString(",")}]" 
 }
 
-object Changes {
-  val Insert: Option[Boolean] = None
-  val Updated: Option[Boolean] = Some(true)
-  val Deleted: Option[Boolean] = Some(false)
+package object core {  
+  type ModulesType = (String, String, String, String, String, String, String, String, String, Int, Boolean)
 }
+import core._
 
-object Modules extends Table[(String, String, String, String, String, String, String, String, String, Int, Option[Boolean])]("MODULES") {
+object Modules extends Table[ModulesType]("MODULES") {
   def hash = column[String]("HASH", O.NotNull)
   def org = column[String]("ORG", O.NotNull)
   def name = column[String]("NAME", O.NotNull)
@@ -85,12 +84,11 @@ object Modules extends Table[(String, String, String, String, String, String, St
   def childHashes = column[String]("CHILD_HASHES")
   def artifacts = column[String]("ARTIFACTS", O.NotNull)
 
-  //see Changes
-  def change = column[Option[Boolean]]("MODULES_CHANGE")
+  def deleted = column[Boolean]("MODULES_DELETED")
   def repoName = column[String]("MODULES_REPO_NAME", O.NotNull)
   def repoVersion = column[Int]("MODULES_REPO_VERSION", O.NotNull)
   
-  def * = hash ~ org ~ name ~ version ~ artifactHash ~ artifacts ~ metadata ~ childHashes ~ repoName ~ repoVersion ~ change
+  def * = hash ~ org ~ name ~ version ~ artifactHash ~ artifacts ~ metadata ~ childHashes ~ repoName ~ repoVersion ~ deleted
    
   //TODO: add childHashes
   def hashIdx= index("MODULE_HASH_INDEX", (hash, repoName, repoVersion), unique = true)
@@ -103,16 +101,15 @@ object Modules extends Table[(String, String, String, String, String, String, St
       case something => throw new Exception(s"FATAL: could not parse sequence from DB. Got: $s")
     }
   }
-  type ModuleType = (String, String, String, String, String, String, String, String, String, Int, Option[Boolean])
   
-  def toRow(module: Module, repoName: String, repoVersion: Int, change: Option[Boolean])
-  :  ModuleType = 
+  def toRow(module: Module, repoName: String, repoVersion: Int, deleted: Boolean)
+  :  ModulesType = 
     (module.hash.value, module.coords.org, module.coords.name, module.coords.version, module.artifactHash.value,
         setToString(module.artifacts), module.metadata.toString, setToString(module.deps), 
-        repoName, repoVersion, change)
+        repoName, repoVersion, deleted)
         
-  def fromRow(t: ModuleType) = {
-    val (hashString, org, name, version, artifactHashString, artifactsString, metadataString, depsString, repoName, repoVersion, change) = t
+  def fromRow(t: ModulesType) = {
+    val (hashString, org, name, version, artifactHashString, artifactsString, metadataString, depsString, repoName, repoVersion, deleted) = t
     
     val hash = Hash(hashString)
     val artifactHash = Hash(artifactHashString)

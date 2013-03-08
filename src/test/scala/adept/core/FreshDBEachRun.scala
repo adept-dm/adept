@@ -14,7 +14,6 @@ trait FreshDBEachRun extends FunSpec with BeforeAndAfterEach {
   
   implicit lazy val database = Database.forURL("jdbc:h2:mem:adept-test-"+this.hashCode(), driver = "org.h2.Driver") 
   
-  
   override def beforeEach = {
     connection = database.createSession.conn
     Adept.init(repoName)

@@ -19,6 +19,11 @@ class ParserSpec extends FunSpec with ShouldMatchers {
       checkLeftContains(Parsers.coords("play:play2.2"), "not", "parse", "coordinates")
     }
     
+    it("should parse metadata correctly") {
+      val Right(m) = Parsers.metadata("[test=foo,fas=adfas]")
+      Parsers.metadata(m.toString) should equal(Right(m))
+    }
+    
     it("should parse correct coordinates with metadata") {
       val testCoords = Coordinates("play", "play", "2.142") 
       val singleTuple = "foo" -> "123"

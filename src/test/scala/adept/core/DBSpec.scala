@@ -8,16 +8,18 @@ class DBSpec extends FreshDBEachRun with ShouldMatchers {
   import Helpers._
   import TestData._
 
-  def printTest = database.withSession{  //TODO: remove
+  def allModules = database.withSession{
     import slick.session.Database.threadLocalSession
-    println("___________")
-    println((for{
+    
+    val foundModules = (for{
       m <- Modules
     } yield {
       m
-    }).list.mkString("\n\t", "\n\t", ""))
-    println("^^^^^^^^^^^^^")
-
+    }).list.map{ t => 
+      val (m, r) = Modules.fromRow(t)
+      (m, r, t._11)//_11 is deleted fix this!
+    }
+    foundModules
   }
 
   def expectRight[A, B](res:Either[A, B], reason: String) = {
@@ -26,7 +28,7 @@ class DBSpec extends FreshDBEachRun with ShouldMatchers {
   def expectLeft[A, B](res:Either[A, B], reason: String) = {
     assert(res.isLeft, "Expected Left, but got: "+res + ". Expected a Left because: "+reason)
   }
-  /*
+  
   describe("Adding modules") {
     it("should be work correctly when committing") {
       expectRight(Adept.add(repoName, parent), "adding should work")
@@ -70,17 +72,20 @@ class DBSpec extends FreshDBEachRun with ShouldMatchers {
       val commitedRes = Adept.commit(repoName)
       expectLeft(commitedRes, "we just removed a child dependency")
       commitedRes.left.foreach(_ should include(modules(parent).toSeq(1).hash.toString))
+      expectRight(Adept.remove(repoName, parent.hash), "removing should be fine")
+      val commitedResAfterFix = Adept.commit(repoName)
+      expectRight(commitedResAfterFix, "we just removed the module depending on the child deleted earlier")
     }
   }
-  */
-  describe("Updating modules") {
-    it("should fail when updating with missing deps and work if they are added") {
+  
+  describe("Setting modules") {
+    it("should fix if missing deps are added after an add") {
       expectRight(Adept.add(repoName, parent.copy(deps = modules(parent).map(_.hash))), "adding should work")
-      expectRight(Adept.update(repoName, parent.hash, parent), "updating are ok now")
-      println("--"+Adept.commit(repoName), "all requirements are fulfilled for committing")
+      expectRight(Adept.set(repoName, parent), "setting is always ok")
+      expectRight(Adept.commit(repoName), "all requirements are fulfilled for committing")
       
       
-      println(Adept.update(repoName, parent.hash, parent.copy(deps = modules(parent).map(_.hash))), "updating an existing module should work")
+      expectRight(Adept.set(repoName, parent.copy(deps = modules(parent).map(_.hash))), "updating an existing module should work")
       val commitedRes = Adept.commit(repoName)
       expectLeft(commitedRes, "we just added a missing child dependency")
       commitedRes.left.foreach(_ should include(modules(parent).toSeq(0).hash.toString))
@@ -89,30 +94,129 @@ class DBSpec extends FreshDBEachRun with ShouldMatchers {
       expectRight(Adept.add(repoName, modules(parent).toSeq(0)), "adding should work") 
       expectRight(Adept.add(repoName, modules(parent).toSeq(1)), "adding should work") 
       expectRight(Adept.commit(repoName), "all requirements are fulfilled for committing")
+    }
+  }
+
+  describe("Doing the same operation multiple times") {
+    it("should be end up in the correct state"){
+      val parentWithDeps = parent.copy(deps = modules(parent).map(_.hash))
       
-      //printTest
-      println("_________=======")
-      println("add"+Adept.add(repoName, parent)) //adding the same as we deleted in active, so we unmark it as deleted
-      
-      println(Adept.remove(repoName, parent.hash))
-      println(Adept.remove(repoName, parent.hash))
-      //printTest
-      println("up"+Adept.update(repoName, parent.hash, parent)) //not possible 
-      println("up"+Adept.update(repoName, parent.hash, parent)) //not possible 
-      println("add"+Adept.add(repoName, parent)) //adding the same as we deleted in active, so we unmark it as deleted
-      println("add"+Adept.add(repoName, parent)) //adding the same as we deleted in active, so we unmark it as deleted
+      Adept.add(repoName, parentWithDeps)
+      Adept.set(repoName, parent)
       Adept.commit(repoName)
+      val commit0Modules = Set((parent, Repository(repoName, 0), false))
+      allModules.toSet should equal(commit0Modules)
+      Adept.list(repoName).right.get.toSet should equal(commit0Modules.map{case (m,r,d) => m -> r})
+      
+      Adept.set(repoName, parentWithDeps)
+      expectLeft(Adept.commit(repoName), "we just added a missing child dependency")
+      allModules.toSet should equal(commit0Modules ++ Set((parentWithDeps, Repository(repoName, 1), false)))
+      Adept.list(repoName).right.get.toSet should equal(Set(
+        (parent, Repository(repoName, 0))
+      ))
+      
+      Adept.add(repoName, modules(parent).toSeq(0))
+      Adept.add(repoName, modules(parent).toSeq(1))
+      val commit1Modules = Set(
+        (parentWithDeps, Repository(repoName, 1), false),
+        (modules(parent).toSeq(0), Repository(repoName, 1), false),
+        (modules(parent).toSeq(1), Repository(repoName, 1), false)
+      )
+      Adept.commit(repoName)
+      allModules.toSet should equal(commit0Modules ++ commit1Modules)
+      Adept.list(repoName).right.get.toSet should equal(Set(
+        (parentWithDeps, Repository(repoName, 1)),
+        (modules(parent).toSeq(0), Repository(repoName, 1)),
+        (modules(parent).toSeq(1), Repository(repoName, 1))    
+      ))
+      
+      //multiple repetition
+      Adept.remove(repoName, parent.hash)
+      Adept.remove(repoName, parent.hash)
+      Adept.remove(repoName, parent.hash)
+      Adept.add(repoName, parent)
+      Adept.remove(repoName, parent.hash)
+      Adept.remove(repoName, parent.hash)
+      Adept.add(repoName, parent)
+      Adept.add(repoName, parent)
+      Adept.add(repoName, parent)
+      Adept.add(repoName, parent)
+      Adept.set(repoName, parent)
+      Adept.set(repoName, parent)
+      Adept.set(repoName, parent)
+      Adept.commit(repoName)
+      val commit2Modules = Set((parent, Repository(repoName, 2), false))
+      allModules.toSet should equal(commit0Modules ++ commit1Modules ++ commit2Modules)
+      Adept.list(repoName).right.get.toSet should equal(Set(
+        (parent, Repository(repoName, 2)),
+        (modules(parent).toSeq(0), Repository(repoName, 1)),
+        (modules(parent).toSeq(1), Repository(repoName, 1))    
+      ))
+      
+      
+      Adept.remove(repoName, parent.hash)
+      Adept.commit(repoName)
+      val commit3Modules = Set((parent, Repository(repoName, 3), true))
+      allModules.toSet should equal(commit0Modules ++ commit1Modules ++ commit2Modules ++ commit3Modules)
+      
+      Adept.list(repoName).right.get.toSet should equal(Set(
+        (modules(parent).toSeq(0), Repository(repoName, 1)),
+        (modules(parent).toSeq(1), Repository(repoName, 1))    
+      ))
+      
+      Adept.add(repoName, parent)
+      Adept.commit(repoName)
+            
+      val commit4Modules = Set((parent, Repository(repoName, 4), false))
+      allModules.toSet should equal(commit0Modules ++ commit1Modules ++ commit2Modules ++ commit3Modules ++ commit4Modules)
+      
+      Adept.list(repoName).right.get.toSet should equal(Set(
+        (parent, Repository(repoName, 4)),
+        (modules(parent).toSeq(0), Repository(repoName, 1)),
+        (modules(parent).toSeq(1), Repository(repoName, 1))    
+      ))
+      
+    }
+    
+    it("should be give the correct message"){
+      val parentWithDeps = parent.copy(deps = modules(parent).map(_.hash))
+      expectRight(Adept.add(repoName, parentWithDeps), "adding should work")
+      expectRight(Adept.set(repoName, parent), "updating are ok now")
+      expectRight(Adept.commit(repoName), "all requirements are fulfilled for committing")
+      
+      expectRight(Adept.set(repoName, parentWithDeps), "updating an existing module should work")
+      val commitedRes = Adept.commit(repoName)
+      
+      expectLeft(commitedRes, "we just added a missing child dependency")
+      commitedRes.left.foreach(_ should include(modules(parent).toSeq(0).hash.toString))
+      commitedRes.left.foreach(_ should include(modules(parent).toSeq(1).hash.toString))
+      
+      expectRight(Adept.add(repoName, modules(parent).toSeq(0)), "adding should work") 
+      expectRight(Adept.add(repoName, modules(parent).toSeq(1)), "adding should work") 
+      expectRight(Adept.commit(repoName), "all requirements are fulfilled for committing")
+      
+      expectRight(Adept.remove(repoName, parent.hash), "remove a known should work")
+      expectLeft(Adept.remove(repoName, parent.hash), "removing something again should not work")
+      expectLeft(Adept.remove(repoName, parent.hash), "removing two times in a row produces consistent results")
+      
+      expectRight(Adept.add(repoName, parent), "adding is ok, because it was just removed")
+      expectRight(Adept.remove(repoName, parent.hash), "removing is ok, because it was added")
+      expectLeft(Adept.remove(repoName, parent.hash), "removing something again should not work")
 
-      println(Adept.remove(repoName, parent.hash))
+      expectRight(Adept.set(repoName, parent), "set should always work") 
+      expectRight(Adept.set(repoName, parent), "set should always work") 
+      expectRight(Adept.set(repoName, parent), "set should always work") 
+      
+      expectRight(Adept.add(repoName, parent), "adding after removing should work")
+      expectRight(Adept.add(repoName, parent), "adding again should give the same response as before")
+      expectRight(Adept.commit(repoName), "we have some changes which should work")
+      
+      expectRight(Adept.remove(repoName, parent.hash), "should work since it was just added")
 
-      println(Adept.commit(repoName))
-      println("_!))___"+ Adept.add(repoName, parent))
+      expectRight(Adept.commit(repoName), "we have some changes and committing should work")
+      expectRight(Adept.add(repoName, parent), "adding again should also work")
       
-      println("=====>" + Adept.update(repoName, parent.hash, parent))
-      
-      printTest
-      
-      Adept.diff(repoName)
+      expectRight(Adept.set(repoName, parent), "set should always work")
     }
   }
 }

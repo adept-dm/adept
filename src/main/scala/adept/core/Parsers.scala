@@ -3,6 +3,7 @@ package adept.core
 object Parsers {
   val CoordsExpr = """\s*(.*):(.*):(.*)\s*""".r
   val CoordsMetadataExpr = """\s*(.*?)(\[(.*)\])?\s*""".r
+  val MetadataBracketsExpr = """\s*\[(.*)\]\s*""".r
   val MetadataExpr = """\s*(.*)=(.*)\s*""".r
   val CoordsMetadataHashExpr = """\s*(.*)@(.*)\s*""".r
   
@@ -28,29 +29,34 @@ object Parsers {
   }
   
   def metadata(string: String): Either[String, Metadata] = {
-    val foundMetaEntries = string.split(",").map{ entry =>
-      entry match {
-        case "" => Right(None)
-        case MetadataExpr(key, value) => Right(Some(key -> value))
-        case noMeta => Left(s"could not parse metadata $string because of syntax error around: '$noMeta'")
-      }
-    }
-    foundMetaEntries.foldLeft[Either[String, Metadata]](Right(Metadata(Map.empty))){ (product, current) =>
-      for {
-        p <- product.right
-        perhapsC <- current.right
-      } yield {
-        perhapsC.map { c => 
-          Metadata(p.data + c)
-        }.getOrElse {
-          Metadata(p.data)
+    string match {
+      case MetadataBracketsExpr(pairs) => {
+        val foundMetaEntries = pairs.split(",").map{ entry =>
+          entry match {
+            case "" => Right(None)
+            case MetadataExpr(key, value) => Right(Some(key -> value))
+            case noMeta => Left(s"could not parse metadata $string because of syntax error around: '$noMeta'")
+          }
+        }
+        foundMetaEntries.foldLeft[Either[String, Metadata]](Right(Metadata(Map.empty))){ (product, current) =>
+          for {
+            p <- product.right
+            perhapsC <- current.right
+          } yield {
+            perhapsC.map { c => 
+              Metadata(p.data + c)
+            }.getOrElse {
+              Metadata(p.data)
+            }
+          }
         }
       }
+      case noBrackets => Left(s"expected metadata to be closed by [ and ], instead found: $noBrackets") 
     }
   }
   
   def coordsMetadata(string: String): Either[String, (Coordinates, Metadata)] = string match {
-    case CoordsMetadataExpr(coordsString, _, metadataString) =>
+    case CoordsMetadataExpr(coordsString, metadataString, _) =>
       val foundCoords = Parsers.coords(coordsString)
       val foundMetadata = (for {
         metadata <- Option(metadataString)

@@ -7,9 +7,45 @@ import slick.session.Database
 import db.driver.simple._
 
 object Adept {
-  def list(name: String)(implicit database: Database): Either[String, Seq[(Module, Repository)]]= {
-    
-    null
+  
+  //TODO: create QueryTemplates
+  private def lastVersionFor(repoName: String, hash: Column[String], active: Boolean) = 
+    repositoriesFor(repoName, hash).filter(_.active === active).map(_.version).max
+
+  private def lastVersionFor(repoName: String, hash: Column[String]) = 
+    repositoriesFor(repoName, hash).map(_.version).max
+
+  private def repositoriesFor(repoName: String, hash: Column[String]) = 
+   for {
+     r <- RepositoryVersions if r.name === repoName
+     m <- Modules
+     if m.repoVersion === r.version && 
+        m.repoName === r.name && 
+        m.hash === hash
+   } yield {
+     r
+   }
+   
+  private def existingModules(repoName: String) = 
+    for{
+      m <- Modules 
+      if m.repoName === repoName &&
+         m.deleted === false &&
+         //only last ones:
+         m.repoVersion === lastVersionFor(repoName, m.hash, false)
+    } yield {
+      m
+    }
+  
+  def list(repoName: String)(implicit database: Database): Either[String, Seq[(Module, Repository)]]= {
+    database.withSession{
+      import slick.session.Database.threadLocalSession
+      val foundModules = existingModules(repoName).list.map{ t => 
+        val (m, r) = Modules.fromRow(t)
+        (m, r)
+      }
+      Right(foundModules)
+    }
   }
   
   def repoList(implicit database: Database): Seq[(Repository, Option[Int])]= {
@@ -73,49 +109,38 @@ object Adept {
   
   /** diffs  */
   def diff(repoName: String, from: Option[Int] = None, to: Option[Int] = None)(implicit database: Database): Either[String, Seq[Diff]] = {
+    /*TODO
     import Database.threadLocalSession
-    
     database.withTransaction{
       val inserts = (for {
-        m <- Modules
-        if m.repoVersion >= from.getOrElse(-1) && m.repoVersion <= to.getOrElse(Integer.MAX_VALUE) && 
-           m.change.isNull &&
-           m.repoName === repoName
+        m1 <- Modules
+        m2 <- Modules
+        if m1.repoName === repoName && m1.repoVersion >= from.getOrElse(-1) && m1.repoVersion <= to.getOrElse(Integer.MAX_VALUE) && 
+           m1.deleted === false
+        if m2.repoName === repoName && m2.hash === m1.hash && m2.repoVersion === maxForHash(m1.hash, m1.repoVersion)   
       } yield {
-        m
-      }).list.map(t => Modules.fromRow(t)).map{ case (m, r) => Inserted(m, r) }
+        m1
+      }).list
+        .map(t => Modules.fromRow(t) match { case (m, r) => Inserted(m, r) })
       
+        
       val deletes = (for {
         m <- Modules
         if m.repoVersion >= from.getOrElse(-1) && m.repoVersion <= to.getOrElse(Integer.MAX_VALUE) && 
-           m.change === Changes.Deleted &&
+           m.deleted === true &&
            m.repoName === repoName
       } yield {
         m
-      }).list.map(t => Modules.fromRow(t)).map{ case (m, r) => Deleted(m, r) }
-      
-      val updates = (for {
-        updatedModule <- Modules
-        originalModule <- Modules
-        if updatedModule.hash === originalModule.hash &&
-           updatedModule.repoName === repoName &&
-           originalModule.repoName === repoName &&
-           updatedModule.repoVersion >= from.getOrElse(-1) && updatedModule.repoVersion <= to.getOrElse(Integer.MAX_VALUE) &&
-           originalModule.repoVersion >= Query(originalModule.repoVersion).filter(_ < updatedModule.repoVersion).max && //original version is the highest one that is less then the updated version
-           updatedModule.change === Changes.Updated && originalModule.change.isNull
-      } yield { 
-        originalModule -> updatedModule 
       }).list
-        .map{ case (o, u) => 
-          val (om, or) = Modules.fromRow(o) 
-          val (um, ur) = Modules.fromRow(u)
-          Updated(om, or, um, ur)
-        } 
-      val diffs = (inserts ++ deletes ++ updates).sortBy(_.repo.version)
+        .map(t => Modules.fromRow(t) match { case (m, r) => Deleted(m, r) })
+     
       
-      println( diffs.mkString("\n") )
-      Right(diffs)
+      
+      
+     Right(Seq.empty)
     }
+     */
+    Left("not implemented")
   }
   
   private def currentVersion(repoName: String)(implicit session: Session): Option[Int] = { 
@@ -131,7 +156,6 @@ object Adept {
         .filter(r => r.name === repoName)
         .map(_.version).max).firstOption.flatten
       val currentVersion = last.map(_ + 1)
-      println("bumping version to " + currentVersion)
       currentVersion.map { v =>
         RepositoryVersions.insert(repoName, v, true, false)
         v
@@ -148,10 +172,10 @@ object Adept {
             latest.repoName === repoName &&
             latest.hash === module.hash.value &&
             latest.repoVersion <= repoVersion &&
-            (latest.change.isNull || latest.change === Changes.Updated)
+            latest.deleted === true
           }.map(_.repoVersion).max
           && m.hash === module.hash.value 
-          && m.change === Changes.Deleted
+          && m.deleted === true
      ).exists).firstOption.getOrElse(false)
   }
   
@@ -163,25 +187,26 @@ object Adept {
   class RemoveExecutor(hash: Hash, repoName: String) extends Operation {
     
     override def hashFoundInActive(activeModule: Module, activeRepoVersion: Int)(implicit session: Session): Either[String, (Module, Repository)] = {
-      Query(Modules)
-        .filter( m => m.hash === hash.value && m.repoVersion === activeRepoVersion && m.change =!= Changes.Deleted)
-        .delete
-      Right(activeModule -> Repository(repoName, activeRepoVersion))
+      val existingModulesQ = Query(Modules)
+        .filter( m => m.hash === hash.value && m.repoVersion === activeRepoVersion && m.deleted =!= true)
+      val existingModules = onlyOption(existingModulesQ)
+      existingModules.map{ _ =>
+        existingModulesQ.map(_.deleted).update(true)
+        Right(activeModule -> Repository(repoName, activeRepoVersion))
+      }.getOrElse{
+        Left(s"could not remove $hash because it has already been removed in $activeRepoVersion")
+      }
     }
     
     override def hashWasRemoved(lastModule: Module, previousRepo: Int)(implicit session: Session): Either[String, (Module, Repository)] = {
-      Left(s"could not remove $hash because it has already been removed")
+      Left(s"could not remove $hash because it has already been removed in $previousRepo")
     }
     
-    override def hashWasUpdated(lastModule: Module, previousRepo: Int)(implicit session: Session): Either[String, (Module, Repository)] = {
+    override def hashExists(lastModule: Module, previousRepo: Int)(implicit session: Session): Either[String, (Module, Repository)] = {
       currentVersion(repoName).map{ currentRepo =>
-        Modules.insert( Modules.toRow(lastModule, repoName, currentRepo, Changes.Deleted)  )
+        Modules.insert( Modules.toRow(lastModule, repoName, currentRepo, true)  )
         Right(lastModule -> Repository(repoName, previousRepo))
       }.toRight(s"could not find current version or stage a new version in $repoName (tried to remove $hash)").joinRight
-    }
-    
-    override def hashWasAdded(lastModule: Module, previousRepo: Int)(implicit session: Session): Either[String, (Module, Repository)] = {
-      hashWasUpdated(lastModule, previousRepo)
     }
     
     override def noHashFound(implicit session: Session): Either[String, (Module, Repository)] = {
@@ -189,47 +214,40 @@ object Adept {
     }
   }
   
-  /** updates the module with hash in a repository  */
-  def update(repoName: String, hash: Hash, newModule: Module)(implicit database: Database) = {
-    change(new UpdateExecutor(hash, newModule, repoName), repoName, hash)
+  /** set the module with hash in a repository  */
+  def set(repoName: String, newModule: Module)(implicit database: Database) = {
+    change(new SetExecutor(newModule, repoName), repoName, newModule.hash)
   }
   
-  class UpdateExecutor(hash: Hash, newModule: Module, repoName: String) extends Operation {
+  class SetExecutor(newModule: Module, repoName: String) extends Operation {
 
+    private def newVersion(module: Module)(implicit session: Session): Either[String, (Module, Repository)] = {
+      currentVersion(repoName).map{ currentRepo =>
+        Modules.insert(Modules.toRow(module, repoName, currentRepo, deleted = false))
+        Right(module -> Repository(repoName, currentRepo))
+      }.toRight(s"could not find current version or stage a new version in $repoName (tried to set $newModule)").joinRight
+    } 
+    
     override def hashFoundInActive(activeModule: Module, activeRepoVersion: Int)(implicit session: Session): Either[String, (Module, Repository)] = {
-      val thisModuleQ = Query(Modules)
-        .filter( m => m.hash === hash.value && m.repoVersion === activeRepoVersion )
-      val change = onlyOption(thisModuleQ.map(_.change)).get
-      if (change == Changes.Deleted) {
-        Left(s"could not update $hash to $newModule because this hash was removed in $activeRepoVersion")
-      } else {
+      if (activeModule.hash != newModule.hash) throw new Exception(s"FATAL: for $repoName believed active ($activeModule in $activeRepoVersion) has the same hash as new module ($newModule)")
+       val thisModuleQ = Query(Modules)
+        .filter( m => m.hash === newModule.hash.value && m.repoVersion === activeRepoVersion )
         thisModuleQ
-          .update(Modules.toRow(newModule, repoName, activeRepoVersion, change)) //insert is the same as adding when it is active
+          .update(Modules.toRow(newModule, repoName, activeRepoVersion, deleted = false))
         Right(activeModule -> Repository(repoName, activeRepoVersion))
-      }
     }
     
     override def hashWasRemoved(lastModule: Module, previousRepo: Int)(implicit session: Session): Either[String, (Module, Repository)] = {
-      Left(s"could not update $hash to $newModule because this hash was removed in $previousRepo")
+      newVersion(newModule)
     }
     
-    override def hashWasUpdated(lastModule: Module, previousRepo: Int)(implicit session: Session): Either[String, (Module, Repository)] = {
-      if (lastModule == newModule) {
-        Right(lastModule -> Repository(repoName, previousRepo))
-      } else {
-        currentVersion(repoName).map{ currentRepo =>
-          Modules.insert( Modules.toRow(newModule, repoName, currentRepo, Changes.Updated)  )
-          Right(lastModule -> Repository(repoName, currentRepo))
-        }.toRight(s"could not find current version or stage a new version in $repoName (tried to update $hash)").joinRight
-      }
-    }
-    
-    override def hashWasAdded(lastModule: Module, previousRepo: Int)(implicit session: Session): Either[String, (Module, Repository)] = {
-      hashWasUpdated(lastModule, previousRepo)
+    override def hashExists(lastModule: Module, previousRepo: Int)(implicit session: Session): Either[String, (Module, Repository)] = {
+      if (lastModule == newModule) Right(lastModule -> Repository(repoName, previousRepo))
+      else newVersion(newModule)
     }
     
     override def noHashFound(implicit session: Session): Either[String, (Module, Repository)] = {
-      Left(s"could not update $hash to $newModule because there is no hash like this")
+      newVersion(newModule)
     }
   }
   
@@ -239,37 +257,33 @@ object Adept {
   }
 
   class AddExecutor(module: Module, repoName: String) extends Operation {
-  
+
     override def hashFoundInActive(activeModule: Module, activeRepoVersion: Int)(implicit session: Session): Either[String, (Module, Repository)] = {
       val thisModuleQ = Query(Modules)
-        .filter( m => m.hash === module.hash.value && m.repoVersion === activeRepoVersion )
-      val change = onlyOption(thisModuleQ.map(_.change)).get
-      println("______" + thisModuleQ.list)
-      if (change != Changes.Deleted && module == activeModule) {
-        Right(module -> Repository(repoName, activeRepoVersion))
-      } else if (change == Changes.Deleted && module == activeModule) {
-        thisModuleQ.delete
-        Right(module -> Repository(repoName, activeRepoVersion))
-      } else {
+        .filter( m => m.hash === module.hash.value && m.repoVersion === activeRepoVersion && m.repoName === repoName)
+      thisModuleQ.firstOption.flatMap{ moduleRow =>
+        val deleted = moduleRow._11
+        val (module, repo) = Modules.fromRow(moduleRow)
+        if (deleted) {
+          thisModuleQ.update(Modules.toRow(module, repoName, activeRepoVersion, deleted = false))
+          Some(Right(module -> Repository(repoName, activeRepoVersion)))
+        } else if (module == activeModule)
+          Some(Right(module -> repo))
+        else None
+      }.getOrElse {
         Left(s"cannot add module $module to $activeRepoVersion because $activeModule already exists")
       }
     }
+    
     override def hashWasRemoved(lastModule: Module, previousRepo: Int)(implicit session: Session): Either[String, (Module, Repository)] = {
       currentVersion(repoName).map{ currentVersion => 
-        Modules.insert(Modules.toRow(module, repoName, currentVersion, Changes.Insert))
+        Modules.insert(Modules.toRow(module, repoName, currentVersion, deleted = false))
         Right(module -> Repository(repoName, currentVersion))
       }.toRight(s"could not stage a new version or find the existing in $repoName (adding $module after $lastModule was removed in $previousRepo)").joinRight
     }
     
-    override def hashWasUpdated(lastModule: Module, previousRepo: Int)(implicit session: Session): Either[String, (Module, Repository)] = {
-      if (module == lastModule) {
-        Right(module -> Repository(repoName, previousRepo))
-      } else {
-        Left(s"cannot add module $module because $lastModule already exists in $repoName for $previousRepo")
-      }
-    }
     
-    override def hashWasAdded(lastModule: Module, previousRepo: Int)(implicit session: Session): Either[String, (Module, Repository)] = {
+    override def hashExists(lastModule: Module, previousRepo: Int)(implicit session: Session): Either[String, (Module, Repository)] = {
       if (module == lastModule) {
         Right(module -> Repository(repoName, previousRepo))
       } else {
@@ -279,7 +293,7 @@ object Adept {
     
     override def noHashFound(implicit session: Session): Either[String, (Module, Repository)] = {
       currentVersion(repoName).map{ currentRepo =>
-        Modules.insert(Modules.toRow(module, repoName, currentRepo, Changes.Insert))
+        Modules.insert(Modules.toRow(module, repoName, currentRepo, deleted = false))
         Right(module -> Repository(repoName, currentRepo))
       }.toRight(s"could not find current version or stage a new version in $repoName (tried to add $module)" ).joinRight
     }
@@ -294,10 +308,7 @@ object Adept {
     def hashWasRemoved(lastModule: Module, previousRepo: Int)(implicit session: Session): Either[String, (Module, Repository)]
 
     /** this module was updated in a previous version */ 
-    def hashWasUpdated(lastModule: Module, previousRepo: Int)(implicit session: Session): Either[String, (Module, Repository)]
-    
-    /** this module was added in a previous version */ 
-    def hashWasAdded(lastModule: Module, previousRepo: Int)(implicit session: Session): Either[String, (Module, Repository)]
+    def hashExists(lastModule: Module, previousRepo: Int)(implicit session: Session): Either[String, (Module, Repository)]
 
     /** this hash does not exist in this repository */ 
     def noHashFound(implicit session: Session): Either[String, (Module, Repository)]
@@ -314,43 +325,48 @@ object Adept {
     import Database.threadLocalSession
   
     database.withTransaction{
-      val thisModuleQ = Query(Modules).filter(m => m.hash === hash.value && m.repoName === repoName).sortBy(_.repoVersion.desc)
-      val maybeFoundModuleRepo = thisModuleQ.take(1).firstOption.map(Modules.fromRow)
-      val maybeFoundVersion = maybeFoundModuleRepo.map{ case (n, r) => r.version}
-      println(maybeFoundModuleRepo)
-      maybeFoundVersion.map { foundVersion =>
-        
-        val maybeActiveRepoVersion = onlyOption(Query(RepositoryVersions).filter( r => r.name === repoName && r.version === foundVersion && r.active).map(_.version))
-        maybeActiveRepoVersion.map{ activeRepoVersion => //active repository
-          onlyOption(Query(Modules)
-              .filter(m => m.repoName === repoName && 
-                  m.hash === hash.value 
-                  && m.repoVersion === activeRepoVersion))
-              .map(Modules.fromRow)
-              .map{ 
-            case (activeModule, _)=>
-            execute.hashFoundInActive(activeModule, activeRepoVersion)
-          }.getOrElse{
-            throw new Exception(s"FATAL: expected to find on module ${hash.value} in repo version $activeRepoVersion")
-          }
+      notDirty(repoName){
+      
+        val thisModuleQ = Query(Modules).filter(m => m.hash === hash.value && m.repoName === repoName).sortBy(_.repoVersion.desc)
+        val maybeFoundModuleRepo = thisModuleQ.take(1).firstOption.map(Modules.fromRow)
+        val maybeFoundVersion = maybeFoundModuleRepo.map{ case (n, r) => r.version}
+        maybeFoundVersion.map { foundVersion =>
           
-        }.getOrElse { //no repository has been staged
-          val latestVersion = onlyOption(Query(Query(RepositoryVersions).filter(_.name === repoName).map(_.version).max)).get
-          val lastModuleQ = Query(Modules)
-            .filter(m => 
-              m.hash === hash.value && m.repoName === repoName && m.repoVersion === latestVersion)
-          val ((lastModule, lastRepo), lastChange) = onlyOption(lastModuleQ).map(t => Modules.fromRow(t) -> t._11).get
-          if (lastChange == Changes.Deleted) {
-            execute.hashWasRemoved(lastModule, lastRepo.version)
-          } else if (lastChange == Changes.Updated) {
-            execute.hashWasUpdated(lastModule, lastRepo.version)
-          } else if (lastChange == Changes.Insert) {
-            execute.hashWasAdded(lastModule, lastRepo.version)
-          } else throw new Exception(s"FATAL: could not find the type for the latest change: $lastChange in repo: $lastRepo")
+          val maybeActiveRepoVersion = onlyOption(Query(RepositoryVersions).filter( r => r.name === repoName && r.version === foundVersion && r.active).map(_.version))
+          
+          maybeActiveRepoVersion.map{ activeRepoVersion => //active repository
+            onlyOption(Query(Modules)
+                .filter(m => m.repoName === repoName && 
+                    m.hash === hash.value 
+                    && m.repoVersion === activeRepoVersion))
+                .map(Modules.fromRow)
+                .map{ 
+              case (activeModule, _)=>
+              execute.hashFoundInActive(activeModule, activeRepoVersion)
+            }.getOrElse{
+              throw new Exception(s"FATAL: expected to find on module ${hash.value} in repo version $activeRepoVersion")
+            }
+            
+          }.getOrElse { //no repository has been staged
+            val lastModuleQ = for{
+              m <- Modules 
+              if m.repoName === repoName &&
+                 m.hash === hash.value &&
+                 m.repoVersion === lastVersionFor(repoName, m.hash, false)
+            } yield {
+              m
+            }
+            val ((lastModule, lastRepo), deleted) = onlyOption(lastModuleQ).map(t => Modules.fromRow(t) -> t._11).get
+            if (deleted) {
+              execute.hashWasRemoved(lastModule, lastRepo.version)
+            } else {
+              execute.hashExists(lastModule, lastRepo.version)
+            }
+          }
+        }.getOrElse{
+          execute.noHashFound
         }
-      }.getOrElse{
-        execute.noHashFound
-      }
+      }.joinRight
     }
   }
   
@@ -364,49 +380,64 @@ object Adept {
   }
   
   
-  private def activeModulesForRepo(repo: Repository)(implicit session: Session): List[Module] = {
+  private def activeModulesForRepo(repo: Repository)(implicit session: Session): List[(Module, Boolean)] = {
     val modules = for {
       m <- Modules
       if m.repoName === repo.name &&
-        (m.repoVersion === repo.version && 
-        (m.change.isNull || m.change === Changes.Updated))
+        (m.repoVersion === repo.version)
     } yield m
     modules.list.map( t => Modules.fromRow(t) match { 
-      case (module, repo) => module 
+      case (module, repo) => module -> t._11
     })
   }
   
   private def verifyArtifacts(module: Module, doCheck: Boolean): Either[String, Unit] = {
-    Right() //TODO
+    Left("not implemented") //TODO
   }
   
-  private def verifyDeps(module: Module, repoName: String, activeVersion: Int)(implicit session: Session): Either[String, Unit] = {
-    val deletedHashes = Query(Modules).filter{ m => 
-      m.hash.inSet(module.deps.map(_.value)) && 
-      (m.change === Changes.Deleted) && 
-      m.repoName === repoName &&
-      (m.repoVersion === Query(m.repoVersion).max && m.repoVersion <= activeVersion)
-    }.map(m => m.hash).list
-    
-    val missingHashes = module.deps.filter{ depHash =>
-      val exists = Query(Query(Modules)
-          .filter(m => 
-            m.hash === depHash.value && 
-            m.repoName === repoName &&
-            (m.change === Changes.Updated || m.change.isNull))
-          .exists).firstOption.getOrElse(false)
-      !exists
-    } ++ deletedHashes
-    if (missingHashes.size > 0) {
-      Left(s"missing dependencies in test for versions up to 0. These hashes were not found: ${missingHashes.mkString(",")}")
-    } else Right()
+  private def activeModulesFor(hash: String, repoName: String, deleted: Boolean) = (for{
+    r <- RepositoryVersions
+    if r.name === repoName && r.active 
+    m <- Modules 
+    if m.repoName === repoName &&
+       m.hash === hash &&
+       m.deleted === deleted &&
+       m.repoVersion === r.version
+  } yield {
+    m
+  })
+  
+  private def verifyActiveDeps(moduleDeleted: (Module, Boolean), repoName: String, version: Int)(implicit session: Session): Either[String, Unit] = {
+    val (module, deleted) = moduleDeleted
+    if (deleted) {
+      val dependingOn = modulesDependingOn(module, repoName).map(_.hash).list
+      if (dependingOn.size > 0)
+        Left(s"cannot delete $module because these modules depend on it: ${dependingOn.mkString(",")}")
+      else Right()
+    } else {
+      val missingHashes = module.deps.filter{ depHash =>
+        Query(activeModulesFor(depHash.value, repoName, false).exists).firstOption.getOrElse(false) == false
+      }
+      
+      if (missingHashes.size > 0) {
+        Left(s"missing dependencies for $module in $repoName version $version. These hashes were not found: ${missingHashes.mkString(",")}")
+      } else Right()
+    }
   }
   
+  private def modulesDependingOn(module: Module, repoName: String) = for{
+    m <- Modules 
+    if m.repoName === repoName &&
+       m.deleted === false &&
+       m.repoVersion === lastVersionFor(repoName, m.hash) &&
+       m.childHashes.like("%"+module.hash.value+"%")
+  } yield {
+    m
+  }
   
   /** creates a new repository version from the currently staged repository */
   def commit(repoName: String, checkArtifacts: Boolean = true)(implicit database: Database): Either[String, Repository] = {
     import Database.threadLocalSession
-
     database.withTransaction{
       notDirty(repoName){
         val activeQ = Query(RepositoryVersions)
@@ -415,12 +446,11 @@ object Adept {
         if (active.length == 1) {
           val (name, activeVersion, _, _) = active.headOption.get
           val activeModules = activeModulesForRepo(Repository(name, activeVersion))
-          println(activeModules.mkString("\n"))
-          val modulesCheck = activeModules.foldLeft(Right(): Either[String, Unit])( (current, thisModule) => 
+          val modulesCheck = activeModules.foldLeft(Right(): Either[String, Unit])( (current, thisModuleDeleted) =>
             for {
               c <- current.right
               //TODO:_ <- verifyArtifacts(thisModule, checkArtifacts).right
-              _ <- verifyDeps(thisModule, name, activeVersion).right
+              _ <- verifyActiveDeps(thisModuleDeleted, name, activeVersion).right
             } yield ()
           ).right.map( _ => Repository(name, activeVersion))
           if (modulesCheck.isRight) {

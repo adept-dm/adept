@@ -24,5 +24,7 @@ resolvers += "spray repo" at "http://repo.spray.io"
 
 libraryDependencies += "io.spray" % "spray-can" % "1.1-M7"
 
+libraryDependencies += "com.github.scopt" %% "scopt" % "2.1.0"
 
+resolvers += "sonatype-public" at "https://oss.sonatype.org/content/groups/public"
 
