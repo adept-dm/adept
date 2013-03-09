@@ -64,7 +64,7 @@ object Adept {
     null
   }
 
-  def changes(repoName: String, from: Int = -1)(implicit database: Database): Either[String, Seq[ChangeSet]] ={
+  def changes(repoName: String, from: Int = -1, index: Int = 0, max: Int = Integer.MAX_VALUE)(implicit database: Database): Either[String, Seq[ChangeSet]] ={
     import Database.threadLocalSession
 
     database.withTransaction{
@@ -76,18 +76,20 @@ object Adept {
       } yield {
         r -> m
       }
-      val changes = changesQ.list.groupBy(_._1).map{ case (repo, repoModuleRows) =>
+      val changes = changesQ.drop(index).take(max).list.groupBy(_._1).map{ case (repo, repoModuleRows) =>
         RepositoryVersions.fromRow(repo)._1 -> {
           repoModuleRows.map{ case (repo, moduleRow) =>
-            Modules.fromRow(moduleRow)._1 -> moduleRow._11 //FIXME: _11 is deleted but this will end up hurting you
+            Change(Modules.fromRow(moduleRow)._1, moduleRow._11) //FIXME: _11 is deleted but this will end up hurting you
           }
         }
       }.toSeq
-      
       Right(changes.map{ case (repo, moduleChanges) => ChangeSet(repo, moduleChanges) })
     }
   }
   
+  def pull(repoName: String)(implicit database: Database): Either[String, Repository] = {
+    Left("not implemented")
+  }
   
   def init(repoName: String)(implicit database: Database): Either[String, String]= {
     import Database.threadLocalSession

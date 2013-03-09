@@ -51,25 +51,19 @@ object Modules extends Table[ModulesType]("MODULES") {
   def repoName = column[String]("MODULES_REPO_NAME", O.NotNull)
   def repoVersion = column[Int]("MODULES_REPO_VERSION", O.NotNull)
   
+  //TODO: fix the order of params so that it matches Module
   def * = hash ~ org ~ name ~ version ~ artifactHash ~ artifacts ~ metadata ~ childHashes ~ repoName ~ repoVersion ~ deleted
    
   //TODO: add childHashes
   def hashIdx= index("MODULE_HASH_INDEX", (hash, repoName, repoVersion), unique = true)
   
-  def setToString(deps: Set[_]) = deps.mkString("[",",","]")
-  def setFromString(s: String) = {
-    val Expr = """\[(.*?)\]""".r
-    s match {
-      case Expr(list) => list.split(",").toSet.filter(_.trim.nonEmpty)
-      case something => throw new Exception(s"FATAL: could not parse sequence from DB. Got: $s")
-    }
-  }
-  
   def toRow(module: Module, repoName: String, repoVersion: Int, deleted: Boolean)
-  :  ModulesType = 
+  :  ModulesType = {
     (module.hash.value, module.coords.org, module.coords.name, module.coords.version, module.artifactHash.value,
-        setToString(module.artifacts), module.metadata.toString, setToString(module.deps), 
+        Parsers.setToString(module.artifacts), module.metadata.toString, Parsers.setToString(module.deps), 
         repoName, repoVersion, deleted)
+  }
+    
         
   def fromRow(t: ModulesType) = {
     val (hashString, org, name, version, artifactHashString, artifactsString, metadataString, depsString, repoName, repoVersion, deleted) = t
@@ -77,14 +71,20 @@ object Modules extends Table[ModulesType]("MODULES") {
     val hash = Hash(hashString)
     val artifactHash = Hash(artifactHashString)
     val coords = Coordinates(org, name, version)
-    val artifacts = setFromString(artifactsString).map( Artifact.apply )
+    val artifacts = Parsers.setFromString(artifactsString).fold(
+        error => throw new Exception("FATAL: while parsing DB got: " + error),
+        strings => strings
+    ).map( Artifact.apply )
     val metadata = Parsers.metadata(metadataString).left.map{
       _ => throw new Exception(s"FATAL: could not parse metadata in DB for: $hash. Got: $metadataString")
     }.right.get
-    val deps = setFromString(depsString).map( Hash.apply )
+    val deps = Parsers.setFromString(depsString).fold(
+        error => throw new Exception("FATAL: while parsing DB got: " + error),
+        strings => strings
+    ).map( Hash.apply )
     
      //TODO: add delete here:
-    (Module(coords, metadata, artifactHash, artifacts, hash,  deps), Repository(repoName, repoVersion))
+    (Module(coords, metadata, hash, artifactHash, artifacts,  deps), Repository(repoName, repoVersion))
   }
 }
 

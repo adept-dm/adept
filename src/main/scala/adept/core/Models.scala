@@ -2,10 +2,8 @@ package adept.core
 
 import java.io.{File => jFile}
 
-case class Module(coords: Coordinates, metadata: Metadata, artifactHash: Hash, artifacts: Set[Artifact], hash:Hash, deps: Set[Hash] = Set.empty) {
-  val shortString = s"$coords$metadata@$hash" 
-  
-  override val toString = s"$coords$metadata@$hash$metadata;${artifacts.mkString(",")};${deps.mkString(",")}"
+case class Module(coords: Coordinates, metadata: Metadata, hash:Hash,  artifactHash: Hash, artifacts: Set[Artifact], deps: Set[Hash] = Set.empty) {
+  override def toString = s"$coords$metadata@$hash#$artifactHash!${artifacts.mkString(",")}%${deps.mkString(",")}"
 }
 
 case class Artifact(location: String) {
@@ -13,11 +11,11 @@ case class Artifact(location: String) {
 }
 
 case class Coordinates(org: String, name: String, version: String) {
-  override val toString = s"$org:$name:$version" 
+  override def toString = s"$org:$name:$version" 
 }
 
 case class Hash(value: String) {
-  override val toString = value 
+  override def toString = value 
 }
 
 object Hash {
@@ -45,7 +43,22 @@ case class Repository(name: String, version: Int) {
   override def toString = s"$name@$version"
 }
 
-case class ChangeSet(repo: Repository, moduleChanges: Seq[(Module, Boolean)])
+case class Change(module: Module, deleted: Boolean)
 
+case class ChangeSet(repo: Repository, moduleChanges: Seq[Change]) {
+  def toJson = {
+    import org.json4s.Extraction._
+    implicit val formats = org.json4s.DefaultFormats
+    import org.json4s.native.JsonMethods._
+    render(decompose(this))
+  }
+}
 
-
+object ChangeSet {
+  import org.json4s._
+  def fromJson(json: JValue): ChangeSet = {
+    import org.json4s.Extraction._
+    implicit val formats = org.json4s.DefaultFormats
+    extract[ChangeSet](json)
+  }
+}

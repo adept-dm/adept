@@ -13,7 +13,8 @@ object AddCommand extends Command {
     |       adept $command <repository name> <coordinates> <hash>
     """.stripMargin
   override def execute(args: List[String]): Either[String, String] = {
-    
+    null
+    /*
     def randomString = {
       import java.security.SecureRandom
       import java.math.BigInteger
@@ -34,7 +35,7 @@ object AddCommand extends Command {
       db.database.withSession{
         import Database.threadLocalSession
         Right("current count: " + Query(Query(Modules).length).firstOption)
-    }
+    }*/
     /*
     val repoDir = Configuration.currentAdeptDir()
     

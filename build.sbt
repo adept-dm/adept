@@ -28,3 +28,6 @@ libraryDependencies += "com.github.scopt" %% "scopt" % "2.1.0"
 
 resolvers += "sonatype-public" at "https://oss.sonatype.org/content/groups/public"
 
+libraryDependencies += "org.json4s" %% "json4s-native" % "3.1.0"
+
+

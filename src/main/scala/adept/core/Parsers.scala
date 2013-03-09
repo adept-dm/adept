@@ -7,11 +7,11 @@ object Parsers {
   val MetadataExpr = """\s*(.*)=(.*)\s*""".r
   val CoordsMetadataHashExpr = """\s*(.*)@(.*)\s*""".r
   
-  def module(string: String): Either[String, Module] = {
+  def shortModule(string: String): Either[String, (Coordinates, Metadata, Hash)] = {
     string match {
       case CoordsMetadataHashExpr(coordsMeta, hash) => {
         coordsMetadata(coordsMeta).right.map{ case (coords, meta) =>
-          Module(coords, meta, Hash(""), Set.empty, Hash(hash)) //TODO: artifacts
+          (coords, meta, Hash(hash))
         }
       }
       case noHash => Left(s"could not find required hash in $noHash")
@@ -69,6 +69,15 @@ object Parsers {
       } yield {
         coords -> metadata
       }
-    case somethingElse => Left(s"coult not parse coordinates in: $somethingElse")
+    case somethingElse => Left(s"could not parse coordinates in: $somethingElse")
   } 
+  
+  def setToString(set: Set[_]) = set.mkString("[",",","]")
+  def setFromString(s: String) = {
+    val Expr = """\[(.*?)\]""".r
+    s match {
+      case Expr(list) => Right(list.split(",").toSet.filter(_.trim.nonEmpty))
+      case something => Left(s"could not parse sequence: $s")
+    }
+  }
 }
