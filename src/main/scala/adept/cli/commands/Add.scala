@@ -13,7 +13,7 @@ object AddCommand extends Command {
     |       adept $command <repository name> <coordinates> <hash>
     """.stripMargin
   override def execute(args: List[String]): Either[String, String] = {
-    null
+    Left("TODO")
     /*
     def randomString = {
       import java.security.SecureRandom

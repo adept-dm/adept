@@ -19,6 +19,7 @@ object IvyAddCommand extends Command {
   }  
   
   override def execute(args: List[String]): Either[String, String] = {
+    /*
     val confArg = getOption("--conf", args)
     val settingsArg = getOption("--settings", args)
     val optsArgs = args.filter{ a =>  //TODO: This is present-fredrik writing to future-fredrik: I am sorry!
@@ -39,5 +40,7 @@ object IvyAddCommand extends Command {
     } yield {
       IvyHelpers.add(repoName, coords, ivy, conf)(db.database).right.map(_.mkString("\n"))
     }).joinRight
+    */
+    Left("TODO")
   }
 }

@@ -8,7 +8,8 @@ object ListCommand extends Command {
   override def help = s"""
     |usage: adept $command
     """.stripMargin
-  override def execute(args: List[String]): Either[String, String]  = {
+  override def execute(args: List[String]): Either[String, String] = {
+    /*
     val dir = Configuration.currentAdeptDir()
     if (args.size > 0)
       Left("too many args names for "+command)
@@ -20,5 +21,7 @@ object ListCommand extends Command {
       }.mkString("\n"))
       
     }
+    */
+    Left("TODO")
   }
 }

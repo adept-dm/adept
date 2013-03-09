@@ -15,6 +15,7 @@ object InitCommand extends Command {
   }  
   
   override def execute(args: List[String]): Either[String, String]  = {
+    /*
     val dir = Configuration.currentAdeptDir()
     if (args.size > 1)
       Left("too many repository names for "+command)
@@ -22,5 +23,7 @@ object InitCommand extends Command {
       val repoName = args.headOption.getOrElse(Configuration.defaultRepoName)
       Adept.init(repoName)(db.database)
     }
+    */
+    Left("TODO")
   }
 }

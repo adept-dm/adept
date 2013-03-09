@@ -9,6 +9,7 @@ object DescribeCommand extends Command {
     |usage: adept $command <coordinate[<metadata>]>
     """.stripMargin
   override def execute(args: List[String]): Either[String, String] = {
+    /*
     val coordsArg: Either[String, String] = if (args.size > 1)
       Left("too many coordinates for describe")
     else {
@@ -23,5 +24,7 @@ object DescribeCommand extends Command {
         (parent +: children).mkString("\n")
       }
     }).joinRight
+    */
+    Left("TODO")
   }
 }
