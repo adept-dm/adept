@@ -106,30 +106,30 @@ class DBSpec extends FreshDBEachRun with ShouldMatchers {
       Adept.add(repoName, parentWithDeps)
       Adept.set(repoName, parent)
       Adept.commit(repoName)
-      val commit0Modules = Set((parent, Repository(repoName, 0), false))
+      val commit0Modules = Set((parent, VersionId(repoName, 0), false))
       allModules.toSet should equal(commit0Modules)
       Adept.list(repoName).get.toSet should equal(commit0Modules.map{case (m,r,d) => m -> r})
       
       Adept.set(repoName, parentWithDeps)
       expectFailure(Adept.commit(repoName), "we just added a missing child dependency")
-      allModules.toSet should equal(commit0Modules ++ Set((parentWithDeps, Repository(repoName, 1), false)))
+      allModules.toSet should equal(commit0Modules ++ Set((parentWithDeps, VersionId(repoName, 1), false)))
       Adept.list(repoName).get.toSet should equal(Set(
-        (parent, Repository(repoName, 0))
+        (parent, VersionId(repoName, 0))
       ))
       
       Adept.add(repoName, modules(parent).toSeq(0))
       Adept.add(repoName, modules(parent).toSeq(1))
       val commit1Modules = Set(
-        (parentWithDeps, Repository(repoName, 1), false),
-        (modules(parent).toSeq(0), Repository(repoName, 1), false),
-        (modules(parent).toSeq(1), Repository(repoName, 1), false)
+        (parentWithDeps, VersionId(repoName, 1), false),
+        (modules(parent).toSeq(0), VersionId(repoName, 1), false),
+        (modules(parent).toSeq(1), VersionId(repoName, 1), false)
       )
       Adept.commit(repoName)
       allModules.toSet should equal(commit0Modules ++ commit1Modules)
       Adept.list(repoName).get.toSet should equal(Set(
-        (parentWithDeps, Repository(repoName, 1)),
-        (modules(parent).toSeq(0), Repository(repoName, 1)),
-        (modules(parent).toSeq(1), Repository(repoName, 1))    
+        (parentWithDeps, VersionId(repoName, 1)),
+        (modules(parent).toSeq(0), VersionId(repoName, 1)),
+        (modules(parent).toSeq(1), VersionId(repoName, 1))    
       ))
       
       //multiple repetition
@@ -147,35 +147,35 @@ class DBSpec extends FreshDBEachRun with ShouldMatchers {
       Adept.set(repoName, parent)
       Adept.set(repoName, parent)
       Adept.commit(repoName)
-      val commit2Modules = Set((parent, Repository(repoName, 2), false))
+      val commit2Modules = Set((parent, VersionId(repoName, 2), false))
       allModules.toSet should equal(commit0Modules ++ commit1Modules ++ commit2Modules)
       Adept.list(repoName).get.toSet should equal(Set(
-        (parent, Repository(repoName, 2)),
-        (modules(parent).toSeq(0), Repository(repoName, 1)),
-        (modules(parent).toSeq(1), Repository(repoName, 1))    
+        (parent, VersionId(repoName, 2)),
+        (modules(parent).toSeq(0), VersionId(repoName, 1)),
+        (modules(parent).toSeq(1), VersionId(repoName, 1))    
       ))
       
       
       Adept.remove(repoName, parent.hash)
       Adept.commit(repoName)
-      val commit3Modules = Set((parent, Repository(repoName, 3), true))
+      val commit3Modules = Set((parent, VersionId(repoName, 3), true))
       allModules.toSet should equal(commit0Modules ++ commit1Modules ++ commit2Modules ++ commit3Modules)
       
       Adept.list(repoName).get.toSet should equal(Set(
-        (modules(parent).toSeq(0), Repository(repoName, 1)),
-        (modules(parent).toSeq(1), Repository(repoName, 1))    
+        (modules(parent).toSeq(0), VersionId(repoName, 1)),
+        (modules(parent).toSeq(1), VersionId(repoName, 1))    
       ))
       
       Adept.add(repoName, parent)
       Adept.commit(repoName)
             
-      val commit4Modules = Set((parent, Repository(repoName, 4), false))
+      val commit4Modules = Set((parent, VersionId(repoName, 4), false))
       allModules.toSet should equal(commit0Modules ++ commit1Modules ++ commit2Modules ++ commit3Modules ++ commit4Modules)
       
       Adept.list(repoName).get.toSet should equal(Set(
-        (parent, Repository(repoName, 4)),
-        (modules(parent).toSeq(0), Repository(repoName, 1)),
-        (modules(parent).toSeq(1), Repository(repoName, 1))    
+        (parent, VersionId(repoName, 4)),
+        (modules(parent).toSeq(0), VersionId(repoName, 1)),
+        (modules(parent).toSeq(1), VersionId(repoName, 1))    
       ))
       
     }

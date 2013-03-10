@@ -31,7 +31,7 @@ import db.driver.simple._
 
 package object types {  
   type ModulesType = (String, String, String, String, String, String, String, String, String, Int, Boolean)
-  type RepositoryVersionsType = (String, Int, Boolean, Boolean)
+  type RepositoryVersionsType = (String, Int, Option[String], Boolean, Boolean)
 }
 import types._
 
@@ -84,20 +84,21 @@ object Modules extends Table[ModulesType]("MODULES") {
     ).map( Hash.apply )
     
      //TODO: add delete here:
-    (Module(coords, metadata, hash, artifactHash, artifacts,  deps), Repository(repoName, repoVersion))
+    (Module(coords, metadata, hash, artifactHash, artifacts,  deps), VersionId(repoName, repoVersion))
   }
 }
 
 object RepositoryVersions extends Table[RepositoryVersionsType]("REPOSITORY_VERSIONS") {
   def name = column[String]("NAME", O.NotNull)
   def version = column[Int]("VERSION", O.NotNull)
+  def hash = column[Option[String]]("REPO_HASH")
   def active = column[Boolean]("ACTIVE", O.NotNull)
   def stashed = column[Boolean]("STASHED", O.NotNull)
-  def * = name ~ version ~ active ~ stashed
+  def * = name ~ version ~ hash ~ active ~ stashed
   
-  def hashIdx= index("REPOSITORY_UNIQUE_INDEX", (name, version), unique = true)
+  def nameVersionIdx= index("R_NAME_VERSION_UNIQUE_INDEX", (name, version), unique = true)
   
   def fromRow(t: RepositoryVersionsType) = {
-    (Repository(t._1, t._2), t._2, t._3)
+    (Repository(VersionId(t._1, t._2), t._3.map(Hash.apply)), t._4, t._5)
   }
 }

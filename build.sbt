@@ -30,4 +30,4 @@ resolvers += "sonatype-public" at "https://oss.sonatype.org/content/groups/publi
 
 libraryDependencies += "org.json4s" %% "json4s-native" % "3.1.0"
 
-
+libraryDependencies += "com.ning" % "compress-lzf" % "0.9.7"

@@ -24,12 +24,26 @@ object Hash {
     md.digest(bytes).map(b => "%02X" format b).mkString.toLowerCase
   }
   
-  def calculate(coords: Coordinates, jarFile: jFile): Hash = {
-    val jarSource = io.Source.fromFile(jarFile)
+  def mix(hashes: Seq[Hash]): Hash = {
+    Hash(encode(hashes.map(_.value).toString.getBytes))
+  } 
+  
+  def calculate(hashes: Seq[Hash]): Hash = {
+    hashes.par.foldLeft(Hash("")){ case (current, next) =>
+      mix(Seq(current, next))
+    }
+  }
+  
+  def calculate(string: String): Hash = {
+    Hash(encode(string.getBytes))
+  }
+  
+   def calculate(file: jFile): Hash = {
+    val fileSource = io.Source.fromFile(file)
     val hash = try {
-      encode(jarSource.map(_.toByte).toArray ++ (coords.org + coords.name + coords.version).getBytes)
+      encode(fileSource.map(_.toByte).toArray)
     } finally {
-      jarSource.close()
+      fileSource.close()
     }
     Hash(hash)
   }
@@ -39,7 +53,9 @@ case class Metadata(data: Map[String, String]) {
   override val toString = s"[${data.map(e => s"${e._1}=${e._2}")mkString(",")}]" 
 }
 
-case class Repository(name: String, version: Int) {
+case class Repository(id: VersionId, hash: Option[Hash])
+
+case class VersionId(name: String, version: Int) {
   override def toString = s"$name@$version"
 }
 
