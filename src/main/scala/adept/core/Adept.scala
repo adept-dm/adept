@@ -73,7 +73,8 @@ object Adept {
       } yield {
         r -> m
       }
-      val changes = changesQ.drop(index).take(max).list.groupBy(_._1).map{ case (repo, repoModuleRows) =>
+      val changes = changesQ.drop(index).take(max).list
+          .groupBy(_._1).map{ case (repo, repoModuleRows) =>
         RepositoryVersions.fromRow(repo)._1 -> {
           repoModuleRows.map{ case (repo, moduleRow) =>
             Change(Modules.fromRow(moduleRow)._1, moduleRow._11) //FIXME: _11 is deleted but this will end up hurting you
@@ -101,27 +102,70 @@ object Adept {
         (acc, e) => for (xs <- acc; x <- e) yield x :: xs
       }.map(_.reverse)
 
+  
+  def stashApply(repoName: String, from: Database, to: Database): Try[Repository] = {
+    from.withTransaction{ s1: Session =>
+      to.withTransaction{ s2: Session =>
+        
+      }
+    }
+    null
+  }
+      
+  def stashSave(repoName: String, from: Database, to: Database): Try[Repository] = {
+    val notPushedReposQ = Query(RepositoryVersions).filter(r => r.pushed.isNull && r.name === repoName).sortBy(_.version.asc)
+    val notPushedModulesQ = for {
+      r <- notPushedReposQ
+      m <- Modules
+      if m.repoVersion === r.version && m.repoName === r.name
+    } yield {
+      m
+    }
+    from.withTransaction{ s1: Session =>
+      to.withTransaction{ s2: Session =>
+        notPushedModulesQ.list()(s1).foreach{ m =>
+          Modules.insert(m)(s2)
+        }
+        notPushedReposQ.list()(s1).foreach{ r =>
+          RepositoryVersions.insert(r)(s2)
+        }
+        notPushedModulesQ.delete(s1)
+        notPushedReposQ.delete(s2)
+      }
+    }
+    
+    null
+  }
+      
   def merge(changeSets: ParSeq[ChangeSet])(implicit database: Database): Try[Repository] = {
-    //val repositories = database.withTransaction{  implicit s: Session =>
-    //  changeSets.
-    //}
-    //repositories.map(_.maxBy(_.version))
+    database.withTransaction{ implicit s: Session =>
+      changeSets.foreach{ changeSet =>
+        //stash
+        val id = changeSet.repo.id
+        changeSet.moduleChanges.foreach{ c =>
+          Modules.insert(Modules.toRow(c.module, id.name, id.version, c.deleted))
+        }
+        Adept.commit(id.name)
+        //stash apply
+      }
+    }
+    
     null
   }
   
   def init(repoName: String)(implicit database: Database): Try[String]= {
     database.withTransaction{ implicit s: Session =>
       if (db.checkExistence(implicitly[Session])) {
-        val repository = Query(RepositoryVersions).filter(_.name === repoName).firstOption
+        val repository = Query(RepositoryVersions).filter(_.name === repoName).firstOption //TODO: exists did not work?
         if (repository.isDefined) {
           Failure(new Exception(s"repository $repoName is already defined"))
         } else {
-          RepositoryVersions.insert(repoName, 0, None, true, false)
+          RepositoryVersions.insert(repoName, 0, None, None, true, false)
           Success(s"Initialized adept repository $repoName ")
         }
       } else {
         db.allDDLs.create
-        RepositoryVersions.insert(repoName, 0, None, true, false)
+        RepositoryVersions.insert(repoName, 0, None, None, true, false)
         Success(s"Created new adept repository $repoName")
       }
     }
@@ -202,7 +246,7 @@ object Adept {
         .map(_.version).max).firstOption.flatten
       val currentVersion = last.map(_ + 1)
       currentVersion.map { v =>
-        RepositoryVersions.insert(repoName, v, None, true, false)
+        RepositoryVersions.insert(repoName, v, None, None, true, false)
         Try(v)
       }.getOrElse{
         Failure(new Exception(s"could not find or create a new version in $repoName"))
@@ -491,7 +535,7 @@ object Adept {
           .filter(r => r.name === repoName).filter(_.active)
         val active = activeQ.list
         if (active.length == 1) {
-          val (name, activeVersion, _, _, _) = active.headOption.get
+          val (name, activeVersion, _, _, _, _) = active.headOption.get
           val activeModules = activeModulesForVersion(VersionId(name, activeVersion))
           val modulesCheck = activeModules.foldLeft(Try(): Try[Unit])( (current, thisModuleDeleted) =>
             for {
@@ -505,7 +549,7 @@ object Adept {
           
           if (modulesCheck.isSuccess) {
             val repoHash = Hash.calculate(activeModules.map{ case (module, _) => module.hash })
-            activeQ.update(name, activeVersion, Some(repoHash.value), false, false)
+            activeQ.update(name, activeVersion, Some(repoHash.value), None, false, false)
           }
           modulesCheck
         } else if (active.length > 1) {

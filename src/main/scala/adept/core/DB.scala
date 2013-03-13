@@ -31,7 +31,7 @@ import db.driver.simple._
 
 package object types {  
   type ModulesType = (String, String, String, String, String, String, String, String, String, Int, Boolean)
-  type RepositoryVersionsType = (String, Int, Option[String], Boolean, Boolean)
+  type RepositoryVersionsType = (String, Int, Option[String], Option[Timestamp], Boolean, Boolean)
 }
 import types._
 
@@ -92,13 +92,14 @@ object RepositoryVersions extends Table[RepositoryVersionsType]("REPOSITORY_VERS
   def name = column[String]("NAME", O.NotNull)
   def version = column[Int]("VERSION", O.NotNull)
   def hash = column[Option[String]]("REPO_HASH")
-  def active = column[Boolean]("ACTIVE", O.NotNull)
-  def stashed = column[Boolean]("STASHED", O.NotNull)
-  def * = name ~ version ~ hash ~ active ~ stashed
+  def active = column[Boolean]("ACTIVE", O.NotNull) //TODO: change name to staged
+  def stashed = column[Boolean]("STASHED", O.NotNull) //TODO: remove
+  def pushed = column[Option[Timestamp]]("PUSHED")
+  def * = name ~ version ~ hash ~ pushed ~ active ~ stashed
   
   def nameVersionIdx= index("R_NAME_VERSION_UNIQUE_INDEX", (name, version), unique = true)
   
   def fromRow(t: RepositoryVersionsType) = {
-    (Repository(VersionId(t._1, t._2), t._3.map(Hash.apply)), t._4, t._5)
+    (Repository(VersionId(t._1, t._2), t._3.map(Hash.apply), t._4), t._5, t._6)
   }
 }

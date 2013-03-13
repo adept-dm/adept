@@ -1,6 +1,7 @@
 package adept.core
 
 import java.io.{File => jFile}
+import java.sql.Timestamp
 
 case class Module(coords: Coordinates, metadata: Metadata, hash:Hash,  artifactHash: Hash, artifacts: Set[Artifact], deps: Set[Hash] = Set.empty) {
   override def toString = s"$coords$metadata@$hash#$artifactHash!${artifacts.mkString(",")}%${deps.mkString(",")}"
@@ -53,7 +54,7 @@ case class Metadata(data: Map[String, String]) {
   override val toString = s"[${data.map(e => s"${e._1}=${e._2}")mkString(",")}]" 
 }
 
-case class Repository(id: VersionId, hash: Option[Hash])
+case class Repository(id: VersionId, hash: Option[Hash], pushed: Option[Timestamp])
 
 case class VersionId(name: String, version: Int) {
   override def toString = s"$name@$version"
