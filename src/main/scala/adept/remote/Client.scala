@@ -30,7 +30,7 @@ class Client(dir: File) {
     }
     val unzippedFiles = downloadedFiles.map(f => unzip(f))
     val adeptDir = createAdeptDir()
-    Adept.repoList(databaseFor(moveToAdeptDir(adeptDir, unzippedFiles)))
+    //Adept.repoList(databaseFor(moveToAdeptDir(adeptDir, unzippedFiles)))
     null
   }
   
@@ -51,7 +51,9 @@ class Client(dir: File) {
   }
   
   def pull(repoName: String)(implicit database: Database): Try[Repository] = {
-    
+        //send last pushed hash
+    //download changesets
+
     for {
       url <- repoUrlFor(repoName)
     } yield {
@@ -63,7 +65,7 @@ class Client(dir: File) {
         
         readChangeSets(f)
       }
-      Adept.merge(changeSets)(database)
+      //Adept.merge(changeSets)(database)
     }
    
      //Adept.merge(repoName, changeSet)

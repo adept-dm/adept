@@ -5,9 +5,7 @@ import slick.session._
 import java.sql.Timestamp
 
 object db {
-  lazy val database = {
-    Database.forURL("jdbc:h2:"+Configuration.currentAdeptDir()+"/adept", driver = "org.h2.Driver") 
-  }
+
 
   lazy val driver = slick.driver.H2Driver
   

@@ -6,7 +6,7 @@ import util._
 import db.driver.simple._
 import scala.collection.parallel.ParSeq
 
-object Adept {
+class Adept(dir: jFile) {
   
   //TODO: create QueryTemplates
   private def lastVersionFor(repoName: String, hash: Column[String], active: Boolean) = 
@@ -36,9 +36,18 @@ object Adept {
     } yield {
       m
     }
+    
+  protected def database(prefixFile: jFile) = {
+    //TODO: the uri might be wrong:
+    Database.forURL("jdbc:h2:!jar:"+ prefixFile.toURI, driver = "org.h2.Driver") 
+  } 
+    
+  protected lazy val mainDB = database(new jFile(dir, "main"))
   
-  def list(repoName: String)(implicit database: Database): Try[Seq[(Module, VersionId)]] = {
-    database.withSession{ implicit s: Session =>
+  protected def newStash = jFile.createTempFile("stash-", "", dir.getAbsoluteFile)
+  
+  def list(repoName: String): Try[Seq[(Module, VersionId)]] = {
+    mainDB.withSession{ implicit s: Session =>
       val foundModules = existingModules(repoName).list.map{ t => 
         val (m, r) = Modules.fromRow(t)
         (m, r)
@@ -46,25 +55,9 @@ object Adept {
       Success(foundModules)
     }
   }
-  
-  def repoList(implicit database: Database): Seq[(Repository, Option[Int])]= {
-    /*
-    database.withSession{
-      val q = for {
-        (repo, staged) <- RepositoryMetadata leftJoin StagedRepositories on ( (r, s) => r.name === s.name)
-      } yield {
-        repo -> staged.version.?
-      }
-      val all = q.list.map{ case ((name, version), staged) => Repository(name, version) -> staged}
-      all.groupBy(_._1.name).map{ case (name, all) => //TODO: do this in DB?
-        all.maxBy(_._1.version)
-      }.toSeq
-    }*/
-    null
-  }
 
-  def changes(repoName: String, from: Int = -1, index: Int = 0, max: Int = Integer.MAX_VALUE)(implicit database: Database): Try[Seq[ChangeSet]] ={
-    database.withTransaction{ implicit session: Session =>
+  def changes(repoName: String, from: Int = -1, index: Int = 0, max: Int = Integer.MAX_VALUE): Try[Seq[ChangeSet]] ={
+    mainDB.withTransaction{ implicit session: Session =>
       val changesQ = for {
         r <- RepositoryVersions if r.version >= from  
         m <- Modules
@@ -85,10 +78,10 @@ object Adept {
     }
   }
   
-  def applyChangeSet(changeSet: ChangeSet)(implicit database: Database): Try[Repository] = {
+  def applyChangeSet(changeSet: ChangeSet): Try[Repository] = {
     val repo = changeSet.repo
   
-    database.withTransaction{ implicit s: Session =>
+    mainDB.withTransaction{ implicit s: Session =>
       changeSet.moduleChanges.par
         .map(c => Modules.toRow(c.module, repo.id.name, repo.id.version, c.deleted))
         .foreach(Modules.insert)
@@ -103,17 +96,27 @@ object Adept {
       }.map(_.reverse)
 
   
-  def stashApply(repoName: String, from: Database, to: Database): Try[Repository] = {
-    from.withTransaction{ s1: Session =>
-      to.withTransaction{ s2: Session =>
-        
+  def stashApply(stash: jFile): Try[Repository] = {
+    val allReposQ = Query(RepositoryVersions).sortBy(_.version.asc)
+    val allModulesQ = Query(Modules)
+    mainDB.withTransaction{ s1: Session =>
+      database(stash).withTransaction{ s2: Session =>
+        val allRepos = allReposQ.list()(s2)
+        RepositoryVersions.insertAll(allRepos: _*)(s1)
+        Modules.insertAll(allModulesQ.list()(s2): _*)(s1)
+        val (repo, _, _) = RepositoryVersions.fromRow(allRepos.last)
+        Success(repo)
       }
     }
-    null
   }
       
-  def stashSave(repoName: String, from: Database, to: Database): Try[Repository] = {
-    val notPushedReposQ = Query(RepositoryVersions).filter(r => r.pushed.isNull && r.name === repoName).sortBy(_.version.asc)
+  def stashSave(repoName: String): Try[jFile] = {
+    val stashFile = newStash
+    val to: Database = database(stashFile)
+    
+    val notPushedReposQ = Query(RepositoryVersions)
+      .filter(r => r.pushed.isNull && r.name === repoName)
+      .sortBy(_.version.asc)
     val notPushedModulesQ = for {
       r <- notPushedReposQ
       m <- Modules
@@ -121,40 +124,42 @@ object Adept {
     } yield {
       m
     }
-    from.withTransaction{ s1: Session =>
+    mainDB.withTransaction{ s1: Session =>
       to.withTransaction{ s2: Session =>
+        (Modules.ddl ++ RepositoryVersions.ddl).create(s2)
+        
         notPushedModulesQ.list()(s1).foreach{ m =>
           Modules.insert(m)(s2)
         }
-        notPushedReposQ.list()(s1).foreach{ r =>
+        val notPushedRepos = notPushedReposQ.list()(s1)
+        notPushedRepos.foreach{ r =>
           RepositoryVersions.insert(r)(s2)
         }
         notPushedModulesQ.delete(s1)
         notPushedReposQ.delete(s2)
+        val (repo, _, _) = RepositoryVersions.fromRow(notPushedRepos.last)
+        Success(stashFile)
       }
     }
-    
-    null
   }
       
-  def merge(changeSets: ParSeq[ChangeSet])(implicit database: Database): Try[Repository] = {
-    database.withTransaction{ implicit s: Session =>
-      changeSets.foreach{ changeSet =>
-        //stash
+  def merge(changeSets: ParSeq[ChangeSet]): Try[Unit] = {
+    mainDB.withTransaction{ implicit s: Session =>
+      reduce(changeSets.map{ changeSet =>
         val id = changeSet.repo.id
-        changeSet.moduleChanges.foreach{ c =>
-          Modules.insert(Modules.toRow(c.module, id.name, id.version, c.deleted))
-        }
-        Adept.commit(id.name)
-        //stash apply
-      }
+        stashSave(id.name).map{ stashFile =>
+          changeSet.moduleChanges.foreach{ c =>
+            Modules.insert(Modules.toRow(c.module, id.name, id.version, c.deleted))
+          }
+          commit(id.name)
+          stashApply(stashFile)
+        }.flatten
+      }).map( _ => () ) //TODO: add repository instead
     }
-    
-    null
   }
   
-  def init(repoName: String)(implicit database: Database): Try[String]= {
-    database.withTransaction{ implicit s: Session =>
+  def init(repoName: String): Try[String]= {
+    mainDB.withTransaction{ implicit s: Session =>
       if (db.checkExistence(implicitly[Session])) {
         val repository = Query(RepositoryVersions).filter(_.name === repoName).firstOption //TODO: exists did not work?
         if (repository.isDefined) {
@@ -192,42 +197,6 @@ object Adept {
     override def toString = {
       s"""added       : $module ($repo)"""
     }
-  }
-  
-  /** diffs  */
-  def diff(repoName: String, from: Option[Int] = None, to: Option[Int] = None)(implicit database: Database): Try[Seq[Diff]] = {
-    /*TODO
-    import Database.threadLocalSession
-    database.withTransaction{
-      val inserts = (for {
-        m1 <- Modules
-        m2 <- Modules
-        if m1.repoName === repoName && m1.repoVersion >= from.getOrElse(-1) && m1.repoVersion <= to.getOrElse(Integer.MAX_VALUE) && 
-           m1.deleted === false
-        if m2.repoName === repoName && m2.hash === m1.hash && m2.repoVersion === maxForHash(m1.hash, m1.repoVersion)   
-      } yield {
-        m1
-      }).list
-        .map(t => Modules.fromRow(t) match { case (m, r) => Inserted(m, r) })
-      
-        
-      val deletes = (for {
-        m <- Modules
-        if m.repoVersion >= from.getOrElse(-1) && m.repoVersion <= to.getOrElse(Integer.MAX_VALUE) && 
-           m.deleted === true &&
-           m.repoName === repoName
-      } yield {
-        m
-      }).list
-        .map(t => Modules.fromRow(t) match { case (m, r) => Deleted(m, r) })
-     
-      
-      
-      
-     Success(Seq.empty)
-    }
-     */
-    Failure(new Exception("not implemented"))
   }
   
   private def currentVersion(repoName: String)(implicit session: Session): Try[Int] = { 
@@ -271,8 +240,8 @@ object Adept {
   }
   
   /** removes the module with hash from a repository  */
-  def remove(repoName: String, hash: Hash)(implicit database: Database) = {
-    change(new RemoveExecutor(hash, repoName), repoName, hash)
+  def remove(repoName: String, hash: Hash) = {
+    change(new RemoveExecutor(hash, repoName), repoName, hash)(mainDB)
   }
   
   class RemoveExecutor(hash: Hash, repoName: String) extends Operation {
@@ -306,8 +275,8 @@ object Adept {
   }
   
   /** set the module with hash in a repository  */
-  def set(repoName: String, newModule: Module)(implicit database: Database) = {
-    change(new SetExecutor(newModule, repoName), repoName, newModule.hash)
+  def set(repoName: String, newModule: Module) = {
+    change(new SetExecutor(newModule, repoName), repoName, newModule.hash)(mainDB)
   }
   
   class SetExecutor(newModule: Module, repoName: String) extends Operation {
@@ -343,8 +312,8 @@ object Adept {
   }
   
   /** adds a module to a repository  */
-  def add(repoName: String, module: Module)(implicit database: Database) = {
-    change(new AddExecutor(module, repoName), repoName, module.hash)
+  def add(repoName: String, module: Module) = {
+    change(new AddExecutor(module, repoName), repoName, module.hash)(mainDB)
   }
 
   class AddExecutor(module: Module, repoName: String) extends Operation {
@@ -411,11 +380,8 @@ object Adept {
     all.headOption
   }
   
-  private def change(execute: Operation, repoName: String, hash: Hash)
-    (implicit database: Database): Try[(Module, VersionId)] = {
-    import Database.threadLocalSession
-  
-    database.withTransaction{
+  private def change(execute: Operation, repoName: String, hash: Hash)(db: Database): Try[(Module, VersionId)] = {
+    db.withTransaction{ implicit session: Session =>
       notDirty(repoName){
       
         val thisModuleQ = Query(Modules).filter(m => m.hash === hash.value && m.repoName === repoName).sortBy(_.repoVersion.desc)
@@ -462,8 +428,7 @@ object Adept {
   }
   
   /** checks if this is a repository where there is work */
-  private def notDirty[A](repoName: String)(block: => A): Try[A] = {
-    import Database.threadLocalSession
+  private def notDirty[A](repoName: String)(block: => A)(implicit session: Session): Try[A] = {
     val dirty = Query(Query(RepositoryVersions).filter(r => r.name === repoName && r.stashed).exists)
       .firstOption.getOrElse(true)
     if (dirty) Failure(new Exception(s"cannot use repository $repoName, because it contains stashed versions and is considered dirty"))
@@ -527,9 +492,8 @@ object Adept {
   }
   
   /** creates a new repository version from the currently staged repository */
-  def commit(repoName: String, checkArtifacts: Boolean = true)(implicit database: Database): Try[VersionId] = {
-    import Database.threadLocalSession
-    database.withTransaction{
+  def commit(repoName: String, checkArtifacts: Boolean = true): Try[VersionId] = {
+    mainDB.withTransaction{ implicit session: Session =>
       notDirty(repoName){
         val activeQ = Query(RepositoryVersions)
           .filter(r => r.name === repoName).filter(_.active)
@@ -562,7 +526,7 @@ object Adept {
   }
   
   /** returns the module and all its dependencies matching the coordinates and metadata */
-  def describe(coords: Coordinates, meta: Metadata)(implicit database: Database): Try[(Module, Seq[Module])] = {
+  def describe(coords: Coordinates, meta: Metadata): Try[(Module, Seq[Module])] = {
     
     null
   }
