@@ -1,29 +1,22 @@
 package adept.cli.commands
 
 import adept.core._
-import scala.slick.session.Database
+import java.io.File
 
-object InitCommand extends Command {
+object ServerCommand extends Command {
+  
   override val command = "init"
-  override def description = """initialises current directory with a new repository"""
+  override def description = """init adept here"""
+   
   override def help = s"""
-    |usage: adept $command <OPTIONAL: name>
+    |usage: adept $command
     """.stripMargin
-  
-  override def checkDB(implicit db: Database): Boolean = {
-    true //no need for init
-  }  
-  
-  override def execute(args: List[String]): Either[String, String]  = {
-    /*
-    val dir = Configuration.currentAdeptDir()
-    if (args.size > 1)
-      Left("too many repository names for "+command)
-    else {
-      val repoName = args.headOption.getOrElse(Configuration.defaultRepoName)
-      Adept.init(repoName)(db.database)
-    }
-    */
-    Left("TODO")
+    
+ 
+  override def execute(args: List[String]): Either[String, String] = {
+    val dir = new File(Configuration.currentAdeptDir(), Configuration.defaultRepoName)
+    val a = Adept.init(dir)
+    if (a.isSuccess) Right("initialized in: " + dir.toString)
+    else Left(a.failed.get.getMessage) 
   }
 }

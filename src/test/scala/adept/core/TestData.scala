@@ -1,5 +1,7 @@
 package adept.core
 
+import adept.core.models._
+
 object TestData {
   val modules = Map(
       Module(Coordinates("test", "upper","1.0"), Metadata(Map("test" -> "yes")), Hash("unique1"), Hash("artifactHashUpper"), Set(Artifact("http://test.com/upper/location1.jar"))) -> 
@@ -8,4 +10,5 @@ object TestData {
   )
   val repoName = "test"
   val parent: Module = modules.head._1
+  
 }

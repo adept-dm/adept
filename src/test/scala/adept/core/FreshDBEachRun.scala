@@ -2,28 +2,34 @@ package adept.core
 
 import java.sql.Connection
 import org.scalatest._
-
-
-trait FreshDBEachRun extends FunSpec with BeforeAndAfterEach {
-  import db.driver.simple._
+import java.io.File
+import org.junit.rules.TemporaryFolder
+import adept.core.db.DAO.driver.simple._
+  
+trait FreshDBEachRun extends FunSuite with BeforeAndAfterEach {
   import Helpers._
   import TestData._
 
-  //FIXME: hack to leave in memory database running without having a session
-  var connection: Connection = null
+  var tmpFolder = {
+    val f = new TemporaryFolder
+    f.create()
+    f.getRoot().deleteOnExit()
+    f
+  }
+  var adept: TestAdept = null
   
-  implicit lazy val database = Database.forURL("jdbc:h2:mem:adept-test-"+this.hashCode(), driver = "org.h2.Driver") 
+  class TestAdept(dir: File) extends Adept(dir) {
+    def testInit() = init()
+    val mainDBpublic = mainDB
+    val stagedDBpublic = stagedDB
+  }
   
   override def beforeEach = {
-    connection = database.createSession.conn
-    Adept.init(repoName)
+    adept = new TestAdept(tmpFolder.getRoot())
+    adept.testInit()
   }
   
   override def afterEach = {
-    database.withSession{ 
-import Database.threadLocalSession
-      db.allDDLs.drop
-    }
-    connection = null
+    tmpFolder.delete()
   }
 }

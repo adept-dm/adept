@@ -1,4 +1,4 @@
-package adept.ivy
+package adept.core.ivy
 
 import adept.core._
 import java.io.{File => jFile}
@@ -56,7 +56,7 @@ object IvyHelpers {
   }
   
 
-  
+  import adept.core.models._
   def add(repoName: String, coords: Coordinates, ivy: Ivy, conf: String)(implicit db: Database): Either[String, Seq[Module]] = {
     /*
     val resolveOptions = {

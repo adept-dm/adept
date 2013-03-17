@@ -1,4 +1,6 @@
-package adept.core
+package adept.core.parsers
+
+import adept.core.models._
 
 object Parsers {
   val CoordsExpr = """\s*(.*):(.*):(.*)\s*""".r

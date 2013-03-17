@@ -1,4 +1,4 @@
-package adept.remote
+package adept.core.remote
 
 import scala.slick.session.Database
 import akka.actor._

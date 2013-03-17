@@ -12,7 +12,7 @@ object Main extends App {
   """.stripMargin
   
   def commandParser(args: List[String]) = {
-    if (args.contains("-h") || args.contains("--help"))
+    if (args.headOption == Some("-h") || args.headOption == Some("--help"))
       println(help(None))
     else
       args match {  

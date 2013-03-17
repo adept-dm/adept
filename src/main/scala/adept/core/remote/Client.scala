@@ -1,4 +1,4 @@
-package adept.remote
+package adept.core.remote
 
 import adept.core._
 import util._
@@ -24,6 +24,7 @@ class Client(dir: File) {
   
   def databaseFor(dir: File): Database = null
   
+  /*
   def clone(url: String): Try[Repository]= {
     val downloadedFiles = databaseParts(url).par.map{ file => 
       download(file)
@@ -73,4 +74,5 @@ class Client(dir: File) {
     
     null
   }
+  */
 }
