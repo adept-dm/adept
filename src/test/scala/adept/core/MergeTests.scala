@@ -20,9 +20,8 @@ class MergeTests extends FreshDBEachRun with ShouldMatchers {
     adept.set(modules(parent).toSeq(0))
     adept.commit
     val adept2Dir = createTmpFolder().getRoot
-    println(adept2Dir)
+    val checkpoint = Adept.clone(adept2Dir, adept.dir, repoName).get
     val adept2 = Adept(adept2Dir, repoName)
-    val checkpoint = adept2.clone(adept.dir, repoName).get
     
     
     adept.set(modules(parent).toSeq(1))

@@ -20,25 +20,19 @@ object CloneCommand extends Command {
     arg("<dir>", "from directory") { (v: String, c: CloneConfig) => c.copy(fromDirString = v) }
   ) }
   
-    
   override def execute(args: List[String]): Either[String, String] = {
     val repoName = Configuration.defaultRepoName //TODO: repoName as a arg
-    val dir = new File(Configuration.currentAdeptDir(), repoName)
-    if (dir.exists) {
-      Left(s"cannot clone since directory ${dir.getAbsolutePath} already exists") 
-    } else {
-      val a = Adept(dir, repoName)
-      simpleParser.parse(args, CloneConfig()).map{ config =>
-        val fromDir = new File(new File(config.fromDirString), Configuration.adeptDir)
-        if (fromDir.exists && fromDir.isDirectory) {
-          val result = a.clone(fromDir, repoName)
-          result.map(r => "cloned with hash " + r): Either[String, String]
-        } else{
-          Left("could not find an existing directory in: " + fromDir.getAbsolutePath)
-        }
-      }.getOrElse{
-        Left("could not find the correct arguments and options")
+    val dir = Configuration.currentAdeptDir()
+    simpleParser.parse(args, CloneConfig()).map{ config =>
+      val fromDir = new File(new File(config.fromDirString), Configuration.adeptDir)
+      if (fromDir.exists && fromDir.isDirectory) {
+        val result = Adept.clone(dir, fromDir, repoName)
+        result.map(r => "cloned with hash " + r): Either[String, String]
+      } else{
+        Left("could not find an existing directory in: " + fromDir.getAbsolutePath)
       }
+    }.getOrElse{
+      Left("could not find the correct arguments and options")
     }
   }
 }

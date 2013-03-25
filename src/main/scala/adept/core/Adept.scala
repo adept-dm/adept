@@ -10,63 +10,34 @@ import adept.core.db.Checkpoints
 import scala.concurrent.duration.Duration
 
 object Adept {
+  
   def apply(dir: File, repoName: String): Adept = {
     new Adept(dir, repoName)
   }
+  
   def init(dir: File, repoName: String): Try[Adept] = {
     if (dir.exists)
      Failure(new Exception(s"cannot init adept in $dir because it exists already"))
     else 
      Success((new Adept(dir, repoName)).init())
   }
-}
-
-class Adept protected(val dir: File, repoName: String) {
-  import adept.core.db.DAO.driver.simple._
-  private val workingDir = new File(dir, repoName)
   
-  protected def database(prefixFile: File) = {
+  import adept.core.db.DAO.driver.simple._
+  
+  private def database(prefixFile: File) = {
     //21 == 2**21 bytes == 2 Mb
     Database.forURL("jdbc:h2:split:21:"+ prefixFile.toURI, driver = "org.h2.Driver") 
   } 
   
-  protected def openMainDB(workingDir: File) = database(new File(workingDir, "main"))
-  protected def openStagedDB(workingDir: File) = database(new File(workingDir, "staged"))
-  
-  protected[core] lazy val mainDB = openMainDB(workingDir)
-  protected[core] lazy val stagedDB = openStagedDB(workingDir)
-  
-  protected def init(): Adept = {
-    mainDB.withSession{s: Session => adept.core.db.DAO.mainDDLs.create(s) }
-    stagedDB.withSession{s: Session => adept.core.db.DAO.stagedDDLs.create(s) }
-    this
-  }
-  
-  def commit(): Try[Hash] = {
-    Commit(stagedDB, mainDB)
-  }
-  
-  def delete(hash: Hash): Try[Hash] = {
-    Delete(hash, stagedDB, mainDB)
-  }
-  
-  def set(module: Module): Try[Hash] = {
-    Set(module, stagedDB, mainDB)
-  }
-  
-  def pull(remoteRepoName: String, host: String, port: Int, timeout: Duration): Try[Hash] = {
-    Pull(mainDB, stagedDB, remoteRepoName, host, port, timeout)
-  }
-  
-  def server(repoName: String) = {
-    val adeptServer = Server(mainDB, repoName)
-    adeptServer.start(1337)
-  }
-  
-  def clone(fromBaseDir: File, repoName: String): Try[Hash] = {
-    val fromDir = new File(fromBaseDir, repoName)
+  private def openMainDB(workingDir: File) = database(new File(workingDir, "main"))
+  private def openStagedDB(workingDir: File) = database(new File(workingDir, "staged"))
+    
+  def clone(destDir: File, srcDir: File, repoName: String): Try[Hash] = {
+    val adept = new Adept(destDir, repoName)
+    val workingDir = adept.workingDir
+    val fromDir = new File(srcDir, repoName)
     if (workingDir.exists) {
-      Failure(new Exception(s"Cannot clone $repoName to $dir because $workingDir exists already"))
+      Failure(new Exception(s"Cannot clone $repoName to $destDir because $workingDir exists already"))
     } else if (!fromDir.exists || !fromDir.isDirectory) {
       Failure(new Exception("Could not find expected directory: " + fromDir.getAbsolutePath))
     } else {
@@ -103,4 +74,41 @@ class Adept protected(val dir: File, repoName: String) {
     
   }
   
+  
+}
+
+class Adept protected(val dir: File, repoName: String) {
+  import adept.core.db.DAO.driver.simple._
+  private[core] val workingDir = new File(dir, repoName)
+  
+  
+  protected[core] lazy val mainDB = Adept.openMainDB(workingDir)
+  protected[core] lazy val stagedDB = Adept.openStagedDB(workingDir)
+  
+  protected def init(): Adept = {
+    mainDB.withSession{s: Session => adept.core.db.DAO.mainDDLs.create(s) }
+    stagedDB.withSession{s: Session => adept.core.db.DAO.stagedDDLs.create(s) }
+    this
+  }
+  
+  def commit(): Try[Hash] = {
+    Commit(stagedDB, mainDB)
+  }
+  
+  def delete(hash: Hash): Try[Hash] = {
+    Delete(hash, stagedDB, mainDB)
+  }
+  
+  def set(module: Module): Try[Hash] = {
+    Set(module, stagedDB, mainDB)
+  }
+  
+  def pull(remoteRepoName: String, host: String, port: Int, timeout: Duration): Try[Hash] = {
+    Pull(mainDB, stagedDB, remoteRepoName, host, port, timeout)
+  }
+  
+  def server(repoName: String) = {
+    val adeptServer = Server(mainDB, repoName)
+    adeptServer.start(1337)
+  }
 }
