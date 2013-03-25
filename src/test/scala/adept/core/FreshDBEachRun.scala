@@ -5,28 +5,27 @@ import org.scalatest._
 import java.io.File
 import org.junit.rules.TemporaryFolder
 import adept.core.db.DAO.driver.simple._
-  
+
+class TestAdept(dir: File, repoName: String) extends Adept(dir, repoName) {
+  def testInit() = {
+    init()
+  }
+}
+
 trait FreshDBEachRun extends FunSuite with BeforeAndAfterEach {
   import Helpers._
   import TestData._
 
-  var tmpFolder = {
-    val f = new TemporaryFolder
-    f.create()
-    f.getRoot().deleteOnExit()
-    f
-  }
+  var tmpFolder: TemporaryFolder = null
   var adept: TestAdept = null
   
-  class TestAdept(dir: File) extends Adept(dir) {
-    def testInit() = init()
-    val mainDBpublic = mainDB
-    val stagedDBpublic = stagedDB
-  }
-  
   override def beforeEach = {
-    adept = new TestAdept(tmpFolder.getRoot())
-    adept.testInit()
+    newTestAdept(repoName) match {
+      case (a, t) => {
+        adept = a
+        tmpFolder = t 
+      } 
+    }
   }
   
   override def afterEach = {

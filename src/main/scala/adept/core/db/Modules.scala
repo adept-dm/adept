@@ -10,7 +10,7 @@ import slick.session._
 import java.sql.Timestamp
 
 
-object Modules extends Table[ModulesType]("MODULES") {
+object Modules extends Table[ModulesType]("MODULES") { //TODO: rename to changes
   def hash = column[String]("HASH", O.NotNull)
   def org = column[String]("ORG", O.NotNull)
   def name = column[String]("NAME", O.NotNull)
@@ -22,7 +22,7 @@ object Modules extends Table[ModulesType]("MODULES") {
   def depHashes = column[String]("DEPS")
   def artifacts = column[String]("ARTIFACTS", O.NotNull)
 
-  def deleted = column[Boolean]("MODULES_DELETED")
+  def deleted = column[Boolean]("MODULES_DELETED") //TODO: deleted should not be in a module - deletes should be a separate entity because we do not need it for versioning anymore
   def commitHash = column[Option[String]]("MODULES_COMMIT_HASH")
   
   def * = org ~ name ~ version ~ metadata ~ hash ~ artifactHash ~ artifacts ~ depHashes ~ commitHash ~ deleted

@@ -1,23 +1,22 @@
 package adept.cli.commands
 
 import adept.core._
-import java.io.{ File => jFile }
+import java.io.File
 
-object InitCommand extends Command {
+object ServerCommand extends Command {
   
   override val command = "server"
   override def description = """start serving adept from this folder"""
   
-    
   override def help = s"""
     |usage: adept $command
     """.stripMargin
     
- 
   override def execute(args: List[String]): Either[String, String] = {
-    val dir = new jFile(Configuration.currentAdeptDir(), Configuration.defaultRepoName)
-    val a = Adept(dir)
-    a.server
-    Right("adept started!")
+    val repoName = Configuration.defaultRepoName
+    val dir = Configuration.currentAdeptDir()
+    val a = Adept(dir, repoName)
+    a.server(repoName)
+    Right(s"serving $repoName...")
   }
 }

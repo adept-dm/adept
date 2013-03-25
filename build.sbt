@@ -12,8 +12,6 @@ libraryDependencies += "com.typesafe.slick" %% "slick" % "1.0.0"
 
 libraryDependencies += "com.typesafe.akka" %% "akka-actor" % "2.1.0"
 
-libraryDependencies += "org.slf4j" % "slf4j-nop" % "1.6.4"
-
 libraryDependencies += "junit" % "junit" % "4.7" % "test"
 
 libraryDependencies += "org.scalatest" % "scalatest_2.10" % "2.0.M5b" % "test"
@@ -33,3 +31,9 @@ libraryDependencies += "com.github.scopt" %% "scopt" % "2.1.0"
 libraryDependencies += "org.json4s" %% "json4s-native" % "3.1.0"
 
 libraryDependencies += "com.ning" % "compress-lzf" % "0.9.7"
+
+//testOptions in Test += Tests.Argument("-oDF") //show full stack traces and durations (the amount of time spent in each test).
+
+libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.0.9"
+
+libraryDependencies += "com.typesafe" %% "scalalogging-slf4j" % "1.0.1"

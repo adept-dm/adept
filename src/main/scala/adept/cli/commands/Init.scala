@@ -3,7 +3,7 @@ package adept.cli.commands
 import adept.core._
 import java.io.File
 
-object ServerCommand extends Command {
+object InitCommand extends Command {
   
   override val command = "init"
   override def description = """init adept here"""
@@ -12,11 +12,10 @@ object ServerCommand extends Command {
     |usage: adept $command
     """.stripMargin
     
- 
   override def execute(args: List[String]): Either[String, String] = {
-    val dir = new File(Configuration.currentAdeptDir(), Configuration.defaultRepoName)
-    val a = Adept.init(dir)
-    if (a.isSuccess) Right("initialized in: " + dir.toString)
-    else Left(a.failed.get.getMessage) 
+    val repoName = Configuration.defaultRepoName //TODO: repoName as a arg
+    val dir = new File(Configuration.currentAdeptDir(), repoName)
+    val a = Adept.init(dir, repoName)
+    a.map(_ => ("initialized in: " + dir.toString) )
   }
 }

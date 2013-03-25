@@ -13,7 +13,8 @@ object Hash {
   }
   
   def mix(hashes: Seq[Hash]): Hash = {
-    Hash(encode(hashes.map(_.value).toString.getBytes))
+    val mixString = hashes.map(_.value).mkString(",")
+    Hash(encode(mixString.getBytes))
   } 
   
   def calculate(hashes: Seq[Hash]): Hash = {

@@ -16,7 +16,7 @@ private[core] object Queries {
      c.version
   }
   
-  def lastCommitedVersion(hash: Hash) = for {
+  def lastCommittedVersion(hash: Hash) = for {
     c <- Commits if c.version === committedVersionsQ(hash).max
     m <- Modules if m.hash === hash.value && m.commitHash === c.hash
   } yield {
@@ -28,4 +28,16 @@ private[core] object Queries {
   } yield {
     c
   }
+  
+  def commitsFromHash(hash: Hash) = for{
+    fromCommit <- Commits.filter(_.hash === hash.value)
+    c <- Commits 
+    if c.version > fromCommit.version
+  } yield c
+  
+  def modulesCommitsFromHash(hash: Hash) = for {
+    c <- commitsFromHash(hash) 
+    m <- Modules if m.commitHash === c.hash 
+  } yield (m, c)
+  
 }

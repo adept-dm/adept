@@ -18,19 +18,20 @@ object SetCommand extends Command {
     |usage: adept $command <coordinates> <jar file>
     """.stripMargin
     
-  case class SimpleConfig(
+  case class SetConfig(
       coordsString: String = null, 
       jarFileString: String = null)
   
-  val simpleParser = new scopt.immutable.OptionParser[SimpleConfig](s"adept $command", Commands.Version) { def options = Seq(
-    arg("<coords>", "coordinates") { (v: String, c: SimpleConfig) => c.copy(coordsString = v) },
-    arg("<jar file>", "jar file path") { (v: String, c: SimpleConfig) => c.copy(jarFileString = v) }
+  val simpleParser = new scopt.immutable.OptionParser[SetConfig](s"adept $command", Commands.Version) { def options = Seq(
+    arg("<coords>", "coordinates") { (v: String, c: SetConfig) => c.copy(coordsString = v) },
+    arg("<jar file>", "jar file path") { (v: String, c: SetConfig) => c.copy(jarFileString = v) }
   ) }
   
   override def execute(args: List[String]): Either[String, String] = {
-    val dir = new File(Configuration.currentAdeptDir(), Configuration.defaultRepoName)
+    val repoName = Configuration.defaultRepoName
+    val dir = Configuration.currentAdeptDir()
     
-    simpleParser.parse(args, SimpleConfig()) map { config =>
+    simpleParser.parse(args, SetConfig()) map { config =>
       (for {
         coordsMetadata <- Parsers.coordsMetadata(config.coordsString).right
         jarFile <- { 
@@ -43,7 +44,7 @@ object SetCommand extends Command {
       } yield {
         val (coords, metadata) = coordsMetadata
         val module = Module.fromFile(jarFile, coords, metadata, Set.empty)
-        Adept(dir)
+        Adept(dir, repoName)
           .set(module)
           .toOption
           .toRight(s"could not set module: $module").right

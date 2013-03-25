@@ -1,7 +1,6 @@
 package adept.core
 
 import org.scalatest._
-import java.sql.Connection
 import util._
 import adept.core.db.Types._
 
@@ -9,29 +8,22 @@ import adept.core.models._
 import adept.core.db._
 import adept.core.db.DAO.driver.simple._
   
-class DBSpec extends FreshDBEachRun with ShouldMatchers {
+class DBTests extends FreshDBEachRun with ShouldMatchers {
   import TestData._
-  
-  def modules(adept: TestAdept): (List[ModuleRowType], List[ModuleRowType]) = {
-    adept.stagedDBpublic.withSession{ implicit s: Session =>
-      Query(Modules).list.map(Modules.fromRow)
-    } -> adept.mainDBpublic.withSession{ implicit s: Session =>
-      Query(Modules).list.map(Modules.fromRow)
-    }
-  }
-  
-  val firstCommitHash = "8b0e6a8e1d4f6a357bf343a23e93abc8b1e7213e"
+  import Helpers._
+
+  val firstCommitHash = "58b9f19bc667dd5049d916486c280195405a1fee"
 
   test("set should write to staged") {
     adept.set(parent)
-    val (stagedRes, _) = modules(adept) 
+    val (stagedRes, _) = listChanges(adept) 
     stagedRes should be === Seq((parent, None, false))
   }
 
   test("committing should move from staged to main") {
     adept.set(parent)
     adept.commit()
-    val (stagedRes, mainRes) = modules(adept) 
+    val (stagedRes, mainRes) = listChanges(adept) 
     stagedRes should have size(0)
     mainRes should be === Seq((parent, Some(firstCommitHash), false))
   }
@@ -40,7 +32,7 @@ class DBSpec extends FreshDBEachRun with ShouldMatchers {
     adept.set(parent)
     adept.commit()
     adept.delete(parent.hash)
-    val (stagedRes, mainRes) = modules(adept) 
+    val (stagedRes, mainRes) = listChanges(adept) 
     stagedRes should be === Seq((parent, None, true))
     mainRes should be === Seq((parent, Some(firstCommitHash), false))
   }
@@ -50,16 +42,16 @@ class DBSpec extends FreshDBEachRun with ShouldMatchers {
     adept.commit()
     adept.delete(parent.hash)
     adept.commit()
-    val (stagedRes, mainRes) = modules(adept) 
+    val (stagedRes, mainRes) = listChanges(adept) 
     stagedRes should have size(0)
-    mainRes should be === Seq((parent, Some(firstCommitHash), false), (parent, Some("ac088075ad783b3d071ee553cb2f6b70b294c301"), true))
+    mainRes should be === Seq((parent, Some(firstCommitHash), false), (parent, Some("4f2319b35ac37ca6731b336e17f55d22311ef395"), true))
   }
   
   test("multiple set pre-commit") {
     adept.set(parent)
     adept.set(parent)
     adept.set(parent)
-    val (stagedRes, _) = modules(adept)
+    val (stagedRes, _) = listChanges(adept)
     stagedRes should have size(1)
   }
   
@@ -67,7 +59,7 @@ class DBSpec extends FreshDBEachRun with ShouldMatchers {
     adept.delete(parent.hash)
     adept.delete(parent.hash)
     adept.delete(parent.hash)
-    val (stagedRes, _) = modules(adept)
+    val (stagedRes, _) = listChanges(adept)
     stagedRes should have size(0)
   }
   
@@ -79,7 +71,7 @@ class DBSpec extends FreshDBEachRun with ShouldMatchers {
     adept.set(parent)
     adept.set(parent)
     adept.set(parent)
-    modules(adept) match { case(stagedRes, mainRes) =>
+    listChanges(adept) match { case(stagedRes, mainRes) =>
       stagedRes should have size(0)
       mainRes should have size(1)
     }
@@ -90,7 +82,7 @@ class DBSpec extends FreshDBEachRun with ShouldMatchers {
     adept.commit()
     adept.delete(parent.hash)
     adept.commit()
-    modules(adept) match { case(stagedRes, mainRes) =>
+    listChanges(adept) match { case(stagedRes, mainRes) =>
       stagedRes should have size(0)
       mainRes should have size(2)
     }
@@ -98,7 +90,7 @@ class DBSpec extends FreshDBEachRun with ShouldMatchers {
     adept.commit()
     adept.commit()
     adept.commit()
-    modules(adept) match { case(stagedRes, mainRes) =>
+    listChanges(adept) match { case(stagedRes, mainRes) =>
       stagedRes should have size(0)
       mainRes should have size(2)
     }
@@ -110,13 +102,13 @@ class DBSpec extends FreshDBEachRun with ShouldMatchers {
     adept.delete(parent.hash)
     adept.delete(parent.hash)
     adept.delete(parent.hash)
-    modules(adept) match { case(stagedRes, mainRes) =>
+    listChanges(adept) match { case(stagedRes, mainRes) =>
       stagedRes should have size(1)
       mainRes should have size(1)
     }
     
     adept.commit()
-    modules(adept) match { case(stagedRes, mainRes) =>
+    listChanges(adept) match { case(stagedRes, mainRes) =>
       stagedRes should have size(0)
       mainRes should have size(2)
     }
@@ -124,7 +116,7 @@ class DBSpec extends FreshDBEachRun with ShouldMatchers {
     adept.delete(parent.hash)
     adept.delete(parent.hash)
     adept.delete(parent.hash)
-    modules(adept) match { case(stagedRes, mainRes) =>
+    listChanges(adept) match { case(stagedRes, mainRes) =>
       stagedRes should have size(0)
       mainRes should have size(2)
     }

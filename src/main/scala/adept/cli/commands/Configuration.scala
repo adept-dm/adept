@@ -1,15 +1,21 @@
 package adept.cli.commands
 
-import java.io.{File => jFile} 
-import java.io.{File => jFile}
+import java.io.File
+import scala.concurrent.duration.Duration
+import java.util.concurrent.TimeUnit
 
 object Configuration {
 
+  val defaultTimeout = Duration(5, TimeUnit.MINUTES)
+  val pullTimeout = defaultTimeout
+  
   
   val defaultRepoName = "local"
   
-  def workingDir = new jFile(".").getCanonicalPath()
+  def workingDir = new File(".").getCanonicalPath()
   
-  def currentAdeptDir(dir: String = workingDir) = new jFile(dir, ".adept")  
+  val adeptDir = ".adept"
+    
+  def currentAdeptDir(dir: String = workingDir) = new File(dir, adeptDir)  
 
 }
