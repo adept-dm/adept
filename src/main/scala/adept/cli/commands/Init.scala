@@ -7,10 +7,6 @@ object InitCommand extends Command {
   
   override val command = "init"
   override def description = """init adept here"""
-   
-  override def help = s"""
-    |usage: adept $command
-    """.stripMargin
     
   override def execute(args: List[String]): Either[String, String] = {
     val repoName = Configuration.defaultRepoName //TODO: repoName as a arg

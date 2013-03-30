@@ -7,12 +7,7 @@ object CloneCommand extends Command {
   
   override val command = "clone"
   override def description = """clone from one directory to another"""
-   
-  override def help = s"""
-    |usage: adept $command
-    """.stripMargin
- 
-      
+
   case class CloneConfig(
       fromDirString: String = null)
   

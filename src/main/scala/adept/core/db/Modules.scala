@@ -38,8 +38,7 @@ object Modules extends Table[ModulesType]("MODULES") { //TODO: rename to changes
         Parsers.setToString(module.deps), 
         commitHash.map(_.value), deleted)
   }
-    
-        
+  
   def fromRow(t: ModulesType): ModuleRowType = {
     val (org, name, version, metadataString, hashString, artifactHashString, artifactsString, depsString, commitHash, deleted) = t
     

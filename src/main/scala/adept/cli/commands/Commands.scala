@@ -11,11 +11,14 @@ object Commands {
   
   def all: Map[String, Command] = Seq(
       SetCommand,
+      GetCommand,
       ServerCommand,
       CommitCommand,
       PullCommand,
+      IvyCommand,
       CloneCommand,
-      InitCommand
+      InitCommand,
+      DownloadCommand
       ).map(c => c.command -> c).toMap
 }
 
@@ -31,7 +34,6 @@ trait Command {
 
   def execute(args: List[String]): Either[String, String] 
   def description: String
-  def help: String
 }
 
 

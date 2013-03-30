@@ -3,8 +3,11 @@ package adept.core.operations
 import adept.core.db._
 import adept.core.db.DAO.driver.simple._
 import adept.core.models._
+import adept.core.db.Types.ModulesType
 
 private[core] object Queries {
+  
+  //TODO: change names here. names could start with the return table
   def moduleQ(hash: Hash) = Query(Modules).filter(_.hash === hash.value)
   
   def committedVersionsQ(hash: Hash) = for {
@@ -40,4 +43,50 @@ private[core] object Queries {
     m <- Modules if m.commitHash === c.hash 
   } yield (m, c)
   
+  
+  def moduleQ(thisModuleQ: Query[Modules.type, ModulesType]) = {
+    val latestVersionQ = (for {
+      m <- thisModuleQ
+      c <- Commits if c.hash === m.commitHash
+    } yield {
+      c.version
+    }).max
+    
+    val moduleQ = for {
+      c <- Commits if c.version === latestVersionQ
+      m <- thisModuleQ if m.commitHash === c.hash
+    } yield {
+      m
+    }
+    moduleQ
+  }
+  
+  def thisModuleQ(coords: Coordinates, hash: Option[Hash])= {
+    val thisModuleQ = Query(Modules).filter{m =>
+      !m.deleted &&
+      m.org === coords.org &&
+      m.name === coords.name &&  
+      m.version === coords.version
+    }
+    hash.map{ hash =>
+       thisModuleQ.filter(_.hash === hash.value)
+    }.getOrElse{
+       thisModuleQ
+    }
+  }
+
+  def moduleForCoordsQ(coords: Coordinates, hash: Option[Hash]) = {
+    moduleQ(thisModuleQ(coords, hash))
+  }
+  
+  def modulesForHashQ(hash: Hash) = {
+    Query(Modules).filter{m =>
+      !m.deleted &&
+      m.hash === hash.value
+    }
+  }
+  
+  def committedModulesForHashQ(hash: Hash) = {
+    moduleQ(modulesForHashQ(hash))
+  }
 }

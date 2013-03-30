@@ -9,9 +9,11 @@ import org.apache.ivy.core.resolve._
 import org.apache.ivy.core.retrieve.RetrieveOptions
 import org.apache.ivy.core.report.ResolveReport
 import slick.session.Database
+import scala.util._
+import java.io.File
 
 object IvyHelpers {
-  def load(path: Option[String] = None): Either[String, Ivy] = {
+  def load(path: Option[String] = None): Either[String, Ivy] = { //TODO make this a Try instead
     val ivy = IvyContext.getContext.getIvy
     path.map{ path =>
     val ivySettings = new jFile(path)
@@ -34,7 +36,7 @@ object IvyHelpers {
     
     val nodes = report.getDependencies().asScala.map(_.asInstanceOf[IvyNode])
     val dependencies: Map[ModuleRevisionId, Seq[IvyNode]] = {
-      //TODO: this code was ported from java and is mutable :( 
+      //TODO: this code was ported from java and is mutable - consider revising
       val mutableDeps = collection.mutable.Map[ModuleRevisionId, collection.mutable.ListBuffer[IvyNode]]()
       nodes.foreach{ ivyNode =>
         if (!mutableDeps.isDefinedAt(ivyNode.getId)) mutableDeps += (ivyNode.getId -> collection.mutable.ListBuffer())
@@ -57,8 +59,9 @@ object IvyHelpers {
   
 
   import adept.core.models._
-  def add(repoName: String, coords: Coordinates, ivy: Ivy, conf: String)(implicit db: Database): Either[String, Seq[Module]] = {
-    /*
+  import adept.core.TryHelpers._
+    
+  def set(coords: Coordinates, ivy: Ivy, conf: String, adept: Adept): Try[Seq[Module]] = {
     val resolveOptions = {
       val resolveOptions = new ResolveOptions()
       resolveOptions.setConfs(Array(conf))
@@ -70,27 +73,22 @@ object IvyHelpers {
 
     val artifacts = report.getAllArtifactsReports().toList.map( r => r.getArtifact() -> (r.getLocalFile(), r.getArtifactOrigin().getLocation())).toMap
     
-    def addModules(trees: Seq[IvyTree]): Either[String, Seq[Module]] = {
-      import EitherUtils._
+    def addModules(trees: Seq[IvyTree]): Try[Seq[Module]] = {
       reduce(trees.map{ tree =>
-        
         val depsRes = addModules(tree.children)
-        depsRes.right.map{ deps =>
-          reduce(tree.node.getAllArtifacts().toSeq.map{ artifact =>
+        depsRes.map{ deps =>
+          tree.node.getAllArtifacts().toSeq.map{ artifact =>
             val (localFile, location) = artifacts(artifact)
             val ivyId = tree.node.getId
             val coords = Coordinates(ivyId.getOrganisation, ivyId.getName, ivyId.getRevision)
-            
-            val module = Module(coords, Metadata(Map("scope" -> artifact.getConfigurations().mkString(","))), Hash.calculate(coords, localFile))
-            val res = Adept.add(repoName, module, deps)
-            res
-          })
-        }.joinRight
-        
-      }).right.map( _.flatten )
+            val metadata = Metadata(Map("ivy-configurations" -> artifact.getConfigurations().mkString(","))) //TODO: add resolver to metadata?
+            val module = Module.fromFile(localFile, coords, metadata, Set(Artifact(location)), deps.map(_.hash).toSet)
+            val res = adept.set(module)
+            module
+          }
+        }
+      }).map(_.flatten)
     }
-    addModules(tree(report, conf, module))*/
-    
-    null
+    addModules(tree(report, conf, module))
   }
 }

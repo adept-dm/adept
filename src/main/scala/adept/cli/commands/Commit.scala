@@ -7,10 +7,6 @@ object CommitCommand extends Command {
   
   override val command = "commit"
   override def description = """commit current changes"""
-   
-  override def help = s"""
-    |usage: adept $command
-    """.stripMargin
  
   override def execute(args: List[String]): Either[String, String] = {
     val repoName = Configuration.defaultRepoName //TODO: repoName as a arg

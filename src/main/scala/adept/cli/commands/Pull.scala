@@ -7,10 +7,6 @@ object PullCommand extends Command {
   
   override val command = "pull"
   override def description = """download and merge data from remote repository"""
-   
-  override def help = s"""
-    |usage: adept $command
-    """.stripMargin
     
   override def execute(args: List[String]): Either[String, String] = {
     val repoName = Configuration.defaultRepoName //TODO: repoName as a arg
@@ -21,6 +17,6 @@ object PullCommand extends Command {
     val dir = Configuration.currentAdeptDir()
     val a = Adept(dir, repoName)
     
-    a.pull(repoName, host, port, timeout).map(hash => s"updated $repoName to $hash")
+    a.pull(repoName, host, port)(timeout).map(hash => s"updated $repoName to $hash")
   }
 }

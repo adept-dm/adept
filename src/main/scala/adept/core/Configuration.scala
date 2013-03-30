@@ -5,6 +5,10 @@ import java.util.concurrent.TimeUnit
 
 object Configuration {
   
+  val defaultArtifactDirPath = {
+    "artifacts"
+  }
+  
   val defaultIvyConf = {
     "default"
   }

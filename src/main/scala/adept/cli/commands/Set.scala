@@ -13,11 +13,7 @@ object SetCommand extends Command {
     |       adept $command <repository name> <coordinates> <jar file> <jar url>
     |       adept $command <repository name> <coordinates> <hash>
     """.stripMargin*/
-  
-  override def help = s"""
-    |usage: adept $command <coordinates> <jar file>
-    """.stripMargin
-    
+
   case class SetConfig(
       coordsString: String = null, 
       jarFileString: String = null)
@@ -28,6 +24,7 @@ object SetCommand extends Command {
   ) }
   
   override def execute(args: List[String]): Either[String, String] = {
+    throw new Exception("NOT IMPLEMENTED YET, USE IVY-SET") //TODO: remove when we have support for artifacts 
     val repoName = Configuration.defaultRepoName
     val dir = Configuration.currentAdeptDir()
     

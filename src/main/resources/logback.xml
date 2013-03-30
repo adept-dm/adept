@@ -9,9 +9,9 @@
   </appender>
   
   <logger name="spray.io" level="INFO" />
-  <logger name="scala.slick" level="INFO" />
+  <logger name="scala.slick" level="OFF" />
   
-  <root level="TRACE">
+  <root level="OFF">
     <appender-ref ref="STDOUT" />
   </root>
 </configuration>
