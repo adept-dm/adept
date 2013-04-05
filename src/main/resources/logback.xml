@@ -9,6 +9,7 @@
   </appender>
   
   <logger name="spray.io" level="INFO" />
+  <logger name="akka" level="OFF" />
   <logger name="scala.slick" level="OFF" />
   
   <root level="OFF">

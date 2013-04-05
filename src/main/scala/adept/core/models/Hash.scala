@@ -1,15 +1,21 @@
 package adept.core.models
 
 import java.io.File
+import scala.util.DynamicVariable
+import java.security.MessageDigest
 
 case class Hash(value: String) {
   override def toString = value 
 }
 
 object Hash {
-  private lazy val md = java.security.MessageDigest.getInstance("SHA-1")
+  private lazy val md: ThreadLocal[MessageDigest] = new ThreadLocal[MessageDigest]{ //make message digest thread-"safe"
+    override def initialValue() = {
+      MessageDigest.getInstance("SHA-1")
+    }
+  }
   private def encode(bytes: Array[Byte]) = {
-    md.digest(bytes).map(b => "%02X" format b).mkString.toLowerCase
+    md.get().digest(bytes).map(b => "%02X" format b).mkString.toLowerCase
   }
   
   def mix(hashes: Seq[Hash]): Hash = {

@@ -30,10 +30,11 @@ object IvyCommand extends Command {
     val repoName = Configuration.defaultRepoName
     val dir = Configuration.currentAdeptDir()
     val ivyConf = adept.core.Configuration.defaultIvyConf
+    val ivyRoot = Some(new File(dir, ".ivy2"))
     
     simpleParser.parse(args, IvyConfig()) map { config =>
       (for {
-        ivy <- IvyHelpers.load(Option(config.ivySettingsString)).right
+        ivy <- IvyHelpers.load(Option(config.ivySettingsString), ivyRoot).right
         coords <- Parsers.coords(config.coordsString).right
       } yield {
         IvyHelpers.set(coords, ivy, ivyConf, Adept(dir, repoName)): Either[String, Seq[Module]]

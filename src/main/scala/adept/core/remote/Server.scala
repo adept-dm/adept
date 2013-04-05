@@ -6,28 +6,65 @@ import spray.can.server.SprayCanHttpServerApp
 import spray.http._
 import spray.http.HttpMethods._
 import spray.http.MediaTypes._
-import java.io.File
+import java.io._
 import adept.core.models._
 import adept.core.models._
 import util._
 import adept.core.operations.Queries
 import adept.core.operations.Merge
+import java.util.zip._
+import com.sun.xml.internal.messaging.saaj.util.ByteOutputStream
+import spray.httpx.encoding.GzipCompressor
+import org.h2.tools.Backup
+import scala.slick.session.Session
+import com.typesafe.scalalogging.slf4j.Logging
+import scala.collection.mutable.ArrayBuffer
+import spray.util.SprayActorLogging
 
 object AdeptService {
   def changesPrefix(repoName: String) = "/" + repoName+ "/changes"
+  def clonePrefix(repoName: String) = "/" + repoName+ "/clone"
 }
 
-private[remote] class AdeptService(mainDB: Database, repoName: String) extends Actor {
+private[remote] class AdeptService(mainDB: Database, repoName: String) extends Actor with Logging with SprayActorLogging {
+  override val log = akka.event.NoLogging
   import AdeptService._
   
   def jsonResponse(jsonString: String) = 
-    HttpResponse(status = StatusCodes.BadRequest, 
+    HttpResponse(status = StatusCodes.Accepted, 
       entity = HttpBody(`application/json`,
           jsonString
         )
       )
 
+      
   def receive = {
+    case HttpRequest(GET, uri, headers, entity, protocol) if uri.startsWith(clonePrefix(repoName)) => {
+      val zipFile = File.createTempFile("adept-"+repoName + "-backup-", ".zip")
+      logger.trace(s"zipping to ${zipFile.getAbsolutePath}")
+      //TODO: no this is not right: we are BLOCKING like hell here! ok only in POC
+      mainDB.withSession{ implicit session: Session =>
+        import scala.slick.jdbc.{StaticQuery => Q}
+        Q.updateNA(s"""BACKUP TO '${zipFile.getAbsolutePath}'""").execute
+      }
+      //TODO: AGAIN! not right!! blocking on IO, we should be streaming here...
+      val dis = new DataInputStream(new FileInputStream(zipFile));
+      val buffer= new Array[Byte](2048)
+      val bytes = new ArrayBuffer[Byte]()
+      var bytesRead = dis.read(buffer)
+      while(bytesRead != -1) {
+        bytes ++= buffer
+        bytesRead = dis.read(buffer)
+      }
+      //TODO: we should have a response/request pattern where the client does this instead:
+      //- ask for last commit
+      //- download last commit
+      logger.trace(s"sending ${bytes.length} bytes...")
+      sender ! HttpResponse(
+          status = StatusCodes.Accepted,
+          entity = HttpBody(`application/zip`, bytes.toArray) //TODO: do this some where else where you can stream!
+         )
+    }
     case HttpRequest(GET, uri, headers, entity, protocol) if uri.startsWith(changesPrefix(repoName)) => {
       val HashRegExp = s"""${changesPrefix(repoName)}/(.*?)""".r
         
@@ -60,6 +97,7 @@ private[core] object Server {
   import adept.core.db.DAO.driver.simple._
   import adept.core.db.Types._
   
+  //TODO: remove either db or dbFiles both are not needed?
   def apply(db: Database, repoName: String) = new Server(db, repoName)
 }
 

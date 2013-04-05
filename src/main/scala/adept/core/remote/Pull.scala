@@ -19,28 +19,32 @@ import java.net.URL
 private[core] object Pull extends Logging {
   import adept.core.db._
   import adept.core.db.DAO.driver.simple._
-
-  def apply(repoName: String, host: String, port: Int, timeout: FiniteDuration, mainDB: Database, stagedDB: Database): Try[Hash] = {
-    logger.trace(s"pull: $repoName from $host:$port")
+  def apply(repoName: String, url: URL, commitHash: Hash, timeout: FiniteDuration, checkpointFile: File, mainDB: Database, stagedDB: Database): Try[Hash] = {
+     mainDB.withSession{ implicit session: Session =>
+       Common.onlyOption(Query(Commits).filter(_.hash === commitHash.value)).map{ commit =>
+         Success(commit.hash)
+       }.getOrElse{
+         Pull(repoName, url, timeout, checkpointFile, mainDB, stagedDB)
+       }
+     }
+  }
+    
+  def apply(repoName: String, url: URL, timeout: FiniteDuration, checkpointFile: File, mainDB: Database, stagedDB: Database): Try[Hash] = {
+    logger.trace(s"pull: $repoName from $url")
+    
     val system = ActorSystem("adept-pull")
     try {
       stagedDB.withTransaction{ implicit session: Session => 
-        val maybeHead = {
-          val commitHashQ = for {
-            checkpoint <- Checkpoints if checkpoint.id === Checkpoints.map(_.id).max
-          } yield checkpoint.commitHash
-          Common.onlyOption(commitHashQ)
-        }
+        val maybeHead = Checkpoint.read(checkpointFile)
         logger.trace(s"last checkpoint: $maybeHead")
-        maybeHead.map{ headString =>
-          val head = Hash(headString)
+        maybeHead.map{ head =>
           logger.trace(s"fetching from client...")
-          val perhapsChangeSets = Await.result(Client.fetch(head, repoName, host, port)(system), timeout)
+          val perhapsChangeSets = Await.result(Client.fetch(head, repoName, url)(system), timeout)
           perhapsChangeSets.map{ changeSets =>
             logger.trace(s"starting merge of ${changeSets.length} change sets...")
             val checkpoint = Merge.fastForward(head, changeSets, mainDB)
             logger.trace(s"new checkpoint could be: $checkpoint")
-            checkpoint.foreach{ h => Checkpoints.autoInc.insert(h.value) }
+            checkpoint.foreach{ h => Checkpoint.write(checkpointFile, h) }
             checkpoint
           }.flatten
         }.getOrElse{

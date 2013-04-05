@@ -42,7 +42,7 @@ object Helpers {
   
   def newTestAdept(newRepoName: String) = {
     val tmpFolder = createTmpFolder()
-    val a = new TestAdept(tmpFolder.getRoot(), newRepoName)
+    val a = new TestAdept(tmpFolder.getRoot(), Repository(newRepoName, None))
     a.testInit()
     (a -> tmpFolder)
   }

@@ -17,11 +17,16 @@ object DownloadCommand extends Command {
       val hashes = args.map(Hash.apply)
       val adept = Adept(dir, repoName)
       val timeout = Configuration.defaultTimeout
-      val modules = hashes.map(adept.moduleFromHash).map(m => m.map(_ -> None)).flatten
-      val perhapsFiles = adept.download(modules)(timeout)
-      perhapsFiles.map { files =>
-        files.map(_.getAbsolutePath).mkString("\n")
-      }: Either[String, String]
+      val modules = adept.moduleFromHashes(hashes.toSet).toSeq
+      val nonFound = hashes.toSeq.map(_.value).diff(modules.map(_.hash.value))
+      if (nonFound.isEmpty) {
+        val perhapsFiles = adept.download(modules.map(m => m -> None))(timeout)
+        perhapsFiles.map { files =>
+          files.map(_.getAbsolutePath).mkString("\n")
+        }: Either[String, String]
+      } else {
+        Left(s"could not find modules for the following hashes: ${nonFound.mkString(",")}")
+      }
     } else {
       Left("could not find the correct arguments and options")
     }

@@ -22,7 +22,7 @@ import spray.http._
 import spray.util._
 import java.io._
 
-case class DownloadFile(url: String, file: File)
+case class DownloadFile(url: URL, file: File)
 
 class DownloadActor(progressActor: ActorRef) extends Actor {
   def receive = {
@@ -31,7 +31,7 @@ class DownloadActor(progressActor: ActorRef) extends Actor {
       var rd: DataInputStream= null
       val bufferSize = 2048 
       try {
-        val conn = new URL(url).openConnection();
+        val conn = url.openConnection();
         val length = conn.getContentLength()
         rd = new DataInputStream(conn.getInputStream())
         progressActor ! Initialized(length)
@@ -63,7 +63,7 @@ class DownloadActor(progressActor: ActorRef) extends Actor {
 }
 
 private[core] object Client extends Logging {
-  def download(url: String, file: File, progressActor: ActorRef)(implicit timeout: Timeout, system: ActorSystem): Future[Try[File]] = {
+  def download(url: URL, file: File, progressActor: ActorRef)(implicit timeout: Timeout, system: ActorSystem): Future[Try[File]] = {
     logger.trace(s"client is fetching $url to $file..")
     
     val downloader = system.actorOf(Props(new DownloadActor(progressActor)))
@@ -71,11 +71,12 @@ private[core] object Client extends Logging {
     ask(downloader, DownloadFile(url, file)).mapTo[Try[File]]
   }
   
-  def fetch(fromHash: Hash, repoName: String, host: String, port: Int)(implicit system: ActorSystem): Future[Try[Seq[ChangeSet]]] = {
-    logger.trace(s"fetching from $fromHash in $repoName in $host:$port...")
+  def fetch(fromHash: Hash, repoName: String, url: URL)(implicit system: ActorSystem): Future[Try[Seq[ChangeSet]]] = {
+    logger.trace(s"fetching from $fromHash in $repoName in $url...")
     val httpClient = DefaultHttpClient(system)
+    val path = if (url.getPath().isEmpty) "" else url.getPath() + "/"
     val responseFuture =
-      HttpDialog(httpClient, host, port = port)
+      HttpDialog(httpClient, url.getHost, port = url.getPort)
         .send(HttpRequest(uri = AdeptService.changesPrefix(repoName) + "/" + fromHash))
         .end
     responseFuture.map{ response =>

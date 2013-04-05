@@ -7,11 +7,11 @@ import scala.slick.session.Session
 import scala.util.Try
 
 object Commands {
-  val Version = "1.0"
+  val Version = "1.0" //TODO: get version from sbt
   
   def all: Map[String, Command] = Seq(
       SetCommand,
-      GetCommand,
+      DependenciesCommand,
       ServerCommand,
       CommitCommand,
       PullCommand,
@@ -21,7 +21,6 @@ object Commands {
       DownloadCommand
       ).map(c => c.command -> c).toMap
 }
-
   
 trait Command {
   import scala.language.implicitConversions

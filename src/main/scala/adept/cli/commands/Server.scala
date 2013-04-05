@@ -12,7 +12,7 @@ object ServerCommand extends Command {
     val repoName = Configuration.defaultRepoName
     val dir = Configuration.currentAdeptDir()
     val a = Adept(dir, repoName)
-    a.server(repoName)
+    a.server
     Right(s"serving $repoName...")
   }
 }

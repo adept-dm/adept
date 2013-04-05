@@ -13,10 +13,10 @@ import scala.util._
 import java.io.File
 
 object IvyHelpers {
-  def load(path: Option[String] = None): Either[String, Ivy] = { //TODO make this a Try instead
+  def load(path: Option[String] = None, ivyRoot: Option[File] = None): Either[String, Ivy] = { //TODO make this a Try instead
     val ivy = IvyContext.getContext.getIvy
-    path.map{ path =>
-    val ivySettings = new jFile(path)
+    val res = path.map{ path =>
+      val ivySettings = new jFile(path)
       if (!ivySettings.isFile) {
         Left(s"$ivySettings is not a file")
       } else {
@@ -27,6 +27,12 @@ object IvyHelpers {
       ivy.configureDefault()
       Right(ivy)
     }
+    res.right.map{ ivy =>
+      val settings = ivy.getSettings()
+      ivyRoot.foreach{ ivyRoot => settings.setDefaultIvyUserDir(ivyRoot) }
+      ivy.setSettings(settings)
+    }
+    res
   }
   
   case class IvyTree(node: IvyNode, children: Seq[IvyTree])
@@ -34,7 +40,7 @@ object IvyHelpers {
   private[ivy] def tree(report: ResolveReport, rootModuleConf: String, moduleRevisionId: ModuleRevisionId): Seq[IvyTree] = {
     import collection.JavaConverters._
     
-    val nodes = report.getDependencies().asScala.map(_.asInstanceOf[IvyNode])
+    val nodes = report.getDependencies().asScala.map(_.asInstanceOf[IvyNode]).filter(!_.isEvicted(rootModuleConf))
     val dependencies: Map[ModuleRevisionId, Seq[IvyNode]] = {
       //TODO: this code was ported from java and is mutable - consider revising
       val mutableDeps = collection.mutable.Map[ModuleRevisionId, collection.mutable.ListBuffer[IvyNode]]()
@@ -70,8 +76,8 @@ object IvyHelpers {
     val changing = true
     val module = ModuleRevisionId.newInstance(coords.org, coords.name, coords.version)
     val report = ivy.resolve(module, resolveOptions, changing)
-
-    val artifacts = report.getAllArtifactsReports().toList.map( r => r.getArtifact() -> (r.getLocalFile(), r.getArtifactOrigin().getLocation())).toMap
+    val resolveEngine = ivy.getResolveEngine()
+    val artifacts = report.getAllArtifactsReports().toList.map( r => r.getArtifact() -> (r.getLocalFile(), resolveEngine.locate(r.getArtifact()).getLocation())).toMap
     
     def addModules(trees: Seq[IvyTree]): Try[Seq[Module]] = {
       reduce(trees.map{ tree =>

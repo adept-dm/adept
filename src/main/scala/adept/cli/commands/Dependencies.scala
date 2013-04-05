@@ -5,8 +5,8 @@ import java.io.File
 import adept.core.parsers.Parsers
 import adept.core.models._
 
-object GetCommand extends Command {
-  override val command = "get"
+object DependenciesCommand extends Command {
+  override val command = "dependencies"
   override def description = """get all dependencies"""
 
   case class GetConfig(
@@ -25,7 +25,9 @@ object GetCommand extends Command {
         coords <- Parsers.coords(config.coordsString).right
       } yield {
         Adept(dir, repoName)
-          .get(coords).map(_.mkString("\n")): Either[String, String]
+          .dependencies(coords)
+          .map(_.map{ case (module, commit) => module }
+                .mkString("\n")): Either[String, String]
       }).joinRight
     } getOrElse {
       Left("could not find the correct arguments and options")

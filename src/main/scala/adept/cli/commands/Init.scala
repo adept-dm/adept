@@ -10,8 +10,8 @@ object InitCommand extends Command {
     
   override def execute(args: List[String]): Either[String, String] = {
     val repoName = Configuration.defaultRepoName //TODO: repoName as a arg
-    val dir = new File(Configuration.currentAdeptDir(), repoName)
-    val a = Adept.init(dir, repoName)
+    val dir = Configuration.currentAdeptDir()
+    val a = Adept.init(dir, repoName, None)
     a.map(_ => ("initialized in: " + dir.toString) )
   }
 }

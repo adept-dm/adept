@@ -1,30 +1,24 @@
 package adept.core.ivy
 import org.scalatest._
-import adept.core._
+import adept.core.models._
 import org.apache.ivy.core.module.id.ModuleRevisionId
+import adept.core.FreshDBEachRun
+import adept.core.TestData
+import adept.core.Configuration
 
 class IvySpec extends FreshDBEachRun with ShouldMatchers {
   import TestData._
   
   test("ivy") {
     
-      /*
       val ivy = IvyHelpers.load().right.get
       val coords = Coordinates("commons-cli", "commons-cli", "1.0")
-      val expectedScope = "master"
-      val expectedMeta = Metadata(Map("scope"->expectedScope))
-      val expectedModule = Module(coords, expectedMeta, Hash("d70644c4fc5d2a171a70b4d65f5706173de64a5b"), Hash("TODOartifacthash"), Set.empty) //TODO: artifact
       
-      val res = IvyHelpers.add(repoName, coords, ivy, Configuration.defaultIvyConf)
-      res should be(Right(Seq(expectedModule)))
+      val res = IvyHelpers.set(coords, ivy, Configuration.defaultIvyConf, adept)
+      println(res)
+      throw new Exception("not completed")
+      //res should be(Right(Seq(expectedModule)))
       
-      val all = Adept.describe(coords, expectedMeta)
-
-      all.isSuccess should be(true)
-      all.get._1 should be(expectedModule)
-      val deps = all.get._2
-      deps.mkString(",") should be(s"commons-logging:commons-logging:1.0[scope=$expectedScope]@7b6b102882d308ade8f5a61aea124a093d089b94,junit:junit:3.7[scope=$expectedScope]@4c10115ce4a66064d2b4e57ae58c126020c312cd,commons-lang:commons-lang:1.0[scope=$expectedScope]@eeb27b2091484a9126bdecf220d3a27a6e839508")
-      */
-    
+          
   }
 }

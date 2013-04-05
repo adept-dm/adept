@@ -17,6 +17,6 @@ object PullCommand extends Command {
     val dir = Configuration.currentAdeptDir()
     val a = Adept(dir, repoName)
     
-    a.pull(repoName, host, port)(timeout).map(hash => s"updated $repoName to $hash")
+    a.pull(timeout).map(hash => s"updated $repoName to $hash")
   }
 }

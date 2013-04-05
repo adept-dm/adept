@@ -6,7 +6,7 @@ import java.io.File
 import org.junit.rules.TemporaryFolder
 import adept.core.db.DAO.driver.simple._
 
-class TestAdept(dir: File, repoName: String) extends Adept(dir, repoName) {
+class TestAdept(dir: File, repo: Repository) extends Adept(dir, repo) {
   def testInit() = {
     init()
   }

@@ -10,6 +10,19 @@ private[core] object Queries {
   //TODO: change names here. names could start with the return table
   def moduleQ(hash: Hash) = Query(Modules).filter(_.hash === hash.value)
   
+  def commitsWithHashes(commits: Set[Hash]) = {
+    for {
+      commit <- Commits
+      if commit.hash.inSet(commits.map(_.value))
+    } yield {
+      commit.version
+    }
+  }    
+      
+  def maxCommitWithHashes(commits: Set[Hash]) = {
+    Query(Commits).filter(_.version === commitsWithHashes(commits).max)
+  }
+  
   def committedVersionsQ(hash: Hash) = for {
     m <- Modules
     c <- Commits
@@ -88,5 +101,15 @@ private[core] object Queries {
   
   def committedModulesForHashQ(hash: Hash) = {
     moduleQ(modulesForHashQ(hash))
+  }
+  
+  
+  def committedModulesForHashesQ(hashes: Set[Hash]) = {
+    moduleQ{
+      Query(Modules).filter{m =>
+        !m.deleted &&
+        m.hash.inSet(hashes.map(_.value))
+      }
+    }
   }
 }
