@@ -12,6 +12,7 @@ object Commands {
   def all: Map[String, Command] = Seq(
       SetCommand,
       DependenciesCommand,
+      DumpCommand,
       ServerCommand,
       CommitCommand,
       PullCommand,

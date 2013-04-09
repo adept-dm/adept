@@ -41,29 +41,34 @@ private[remote] class AdeptService(mainDB: Database, repoName: String) extends A
   def receive = {
     case HttpRequest(GET, uri, headers, entity, protocol) if uri.startsWith(clonePrefix(repoName)) => {
       val zipFile = File.createTempFile("adept-"+repoName + "-backup-", ".zip")
-      logger.trace(s"zipping to ${zipFile.getAbsolutePath}")
-      //TODO: no this is not right: we are BLOCKING like hell here! ok only in POC
-      mainDB.withSession{ implicit session: Session =>
-        import scala.slick.jdbc.{StaticQuery => Q}
-        Q.updateNA(s"""BACKUP TO '${zipFile.getAbsolutePath}'""").execute
+      try {
+        logger.trace(s"zipping to ${zipFile.getAbsolutePath}")
+      
+        //TODO: no this is not right: we are BLOCKING like hell here! ok only in POC
+        mainDB.withSession{ implicit session: Session =>
+          import scala.slick.jdbc.{StaticQuery => Q}
+          Q.updateNA(s"""BACKUP TO '${zipFile.getAbsolutePath}'""").execute
+        }
+        //TODO: AGAIN! not right!! blocking on IO, we should be streaming here...
+        val dis = new DataInputStream(new FileInputStream(zipFile));
+        val buffer= new Array[Byte](2048)
+        val bytes = new ArrayBuffer[Byte]()
+        var bytesRead = dis.read(buffer)
+        while(bytesRead != -1) {
+          bytes ++= buffer
+          bytesRead = dis.read(buffer)
+        }
+        //TODO: we should have a response/request pattern where the client does this instead:
+        //- ask for last commit
+        //- download last commit
+        logger.trace(s"sending ${bytes.length} bytes...")
+        sender ! HttpResponse(
+            status = StatusCodes.Accepted,
+            entity = HttpBody(`application/zip`, bytes.toArray) //TODO: do this some where else where you can stream!
+           )
+      } finally {
+        zipFile.delete() //TODO: cache instead of deleting?
       }
-      //TODO: AGAIN! not right!! blocking on IO, we should be streaming here...
-      val dis = new DataInputStream(new FileInputStream(zipFile));
-      val buffer= new Array[Byte](2048)
-      val bytes = new ArrayBuffer[Byte]()
-      var bytesRead = dis.read(buffer)
-      while(bytesRead != -1) {
-        bytes ++= buffer
-        bytesRead = dis.read(buffer)
-      }
-      //TODO: we should have a response/request pattern where the client does this instead:
-      //- ask for last commit
-      //- download last commit
-      logger.trace(s"sending ${bytes.length} bytes...")
-      sender ! HttpResponse(
-          status = StatusCodes.Accepted,
-          entity = HttpBody(`application/zip`, bytes.toArray) //TODO: do this some where else where you can stream!
-         )
     }
     case HttpRequest(GET, uri, headers, entity, protocol) if uri.startsWith(changesPrefix(repoName)) => {
       val HashRegExp = s"""${changesPrefix(repoName)}/(.*?)""".r

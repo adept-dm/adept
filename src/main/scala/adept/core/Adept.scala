@@ -11,6 +11,7 @@ import adept.core.reads._
 import adept.core.models.Checkpoint
 import java.net.URL
 import com.typesafe.scalalogging.slf4j.Logging
+import akka.actor.ActorSystem
 
 object Adept {
   import adept.core.db.DAO.driver.simple._
@@ -36,7 +37,7 @@ object Adept {
   }
   
   def exists(dir: File, repoName: String): Boolean = {
-    if (dir.exists) {
+    if (dir.exists && Configuration.configFile(dir).exists) {
       val a = Adept(dir, repoName)
       val workingDir = a.workingDir
       
@@ -50,9 +51,13 @@ object Adept {
     } else false
   }
   
+  private[core] def clonedInit(dir: File, repoName: String, url: Option[String]): Adept = {
+    (new Adept(dir, Repository(repoName, url))).clonedInit()
+  }
+  
   def init(dir: File, repoName: String, url: Option[String]): Try[Adept] = {
-    if (dir.exists)
-     Failure(new Exception(s"cannot init adept in $dir because it exists already"))
+    if (exists(dir, repoName))
+     Failure(new Exception(s"cannot init adept $repoName in $dir because it exists already"))
     else 
      Success((new Adept(dir, Repository(repoName, url))).init())
   }
@@ -64,66 +69,35 @@ object Adept {
   
   val mainDBName = "main"
   val stagedDBName = "staged"
-  private def openMainDB(workingDir: File) = database(new File(workingDir, mainDBName))
-  private def openStagedDB(workingDir: File) = database(new File(workingDir, stagedDBName))
-  private def checkpointFile(workingDir: File): File = new File(workingDir, "CHECKPOINT") 
-  
-  def clone(destDir: File, src: String, repoName: String): Try[Hash] = {
-    val exists = Adept.exists(destDir, repoName)
-    val adept = if (exists) {
-      Failure(new Exception(s"cannot clone $repoName to $destDir because it exists already"))
-    } else if (src.startsWith("http")) {
-      val url = src
-      import concurrent.duration._
-      Adept.init(destDir, repoName, Some(src)).flatMap{ adept =>
-        Clone.remote(src, adept.workingDir, 5 minutes span).map{ _ =>
-          adept
-        }
-      }
-    } else if (destDir.exists && !destDir.isDirectory) {
-      Failure(new Exception(s"cannot clone from $destDir because it is not a directory"))
-    } else {
-      Adept.init(destDir, repoName, Some(src)).flatMap{ adept =>
-        val fromDir = new File(src)
-        Clone.local(fromDir, adept.workingDir).map{ _ =>
-          adept
-        }
-      }
-    }
-    
-    val checkpoint = adept.flatMap{ adept => //writing checkpoint...
-      openMainDB(adept.workingDir).withTransaction{ mainSession: Session =>
-        Common.onlyOption(Queries.lastCommit)(mainSession).map{ lastCommit =>
-          Checkpoint.write(checkpointFile(adept.workingDir), lastCommit.hash)
-          Success(lastCommit.hash)
-        }.getOrElse{
-          Failure(new Exception("Could not find a commit to clone from: " + src))
-        }
-      }
-    }
-    /*TODO: cleanup and use a temp file which is moved into place
-     checkpoint.failed.foreach{ _ =>
-      destDir.delete
-    }*/
-    checkpoint
+  private[core] def openMainDB(workingDir: File) = {
+    database(new File(workingDir, mainDBName))
   }
+  private[core] def openStagedDB(workingDir: File) = database(new File(workingDir, stagedDBName))
+  private[core] def checkpointFile(workingDir: File): File = new File(workingDir, "CHECKPOINT") 
+  private[core] def workingDir(dir: File, repoName: String) = new File(dir, repoName)
   
-  
+  def clone(baseDir: File, src: String, repoName: String): Try[Hash] = {
+    Clone(baseDir, src, repoName, workingDir(baseDir, repoName))  
+  }
 }
 
 class Adept protected(val dir: File, val repo: Repository) extends Logging {
   import adept.core.db.DAO.driver.simple._
-  private[core] val workingDir = new File(dir, repo.name)
-  
+  private[core] val workingDir = Adept.workingDir(dir, repo.name)
   
   protected[core] lazy val mainDB = Adept.openMainDB(workingDir)
   protected[core] lazy val stagedDB = Adept.openStagedDB(workingDir)
   protected[core] lazy val checkpointFile = Adept.checkpointFile(workingDir)
   
-  protected def init(): Adept = {
+  private[core] def clonedInit() = {
     Configuration.addRepository(dir, repo)
-    mainDB.withSession{s: Session => adept.core.db.DAO.mainDDLs.create(s) }
     stagedDB.withSession{s: Session => adept.core.db.DAO.stagedDDLs.create(s) }
+    this
+  }
+  
+  protected def init(): Adept = {
+    clonedInit()
+    mainDB.withSession{s: Session => adept.core.db.DAO.mainDDLs.create(s) }
     this
   }
   
@@ -168,7 +142,6 @@ class Adept protected(val dir: File, val repo: Repository) extends Logging {
   }
   
   def download(modulesDest: Seq[(Module, Option[File])])(implicit timeout: FiniteDuration): Try[Seq[File]] ={
-    
     val modulesFiles = modulesDest.map{ case (module, dest) =>
       module -> dest.getOrElse{
         val artifactDir = new File(dir, Configuration.defaultArtifactDirPath)
@@ -185,6 +158,10 @@ class Adept protected(val dir: File, val repo: Repository) extends Logging {
     } yield {
       existingFiles ++ downloadedFiles
     }
+  }
+  
+  def dump: List[(Module, Option[Hash], Boolean)] = {
+    Dump(mainDB)
   }
   
   def server = {

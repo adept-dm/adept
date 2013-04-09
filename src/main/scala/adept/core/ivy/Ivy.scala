@@ -11,8 +11,9 @@ import org.apache.ivy.core.report.ResolveReport
 import slick.session.Database
 import scala.util._
 import java.io.File
+import com.typesafe.scalalogging.slf4j.Logging
 
-object IvyHelpers {
+object IvyHelpers extends Logging {
   def load(path: Option[String] = None, ivyRoot: Option[File] = None): Either[String, Ivy] = { //TODO make this a Try instead
     val ivy = IvyContext.getContext.getIvy
     val res = path.map{ path =>
@@ -29,10 +30,10 @@ object IvyHelpers {
     }
     res.right.map{ ivy =>
       val settings = ivy.getSettings()
-      ivyRoot.foreach{ ivyRoot => settings.setDefaultIvyUserDir(ivyRoot) }
+      ivyRoot.foreach(settings.setDefaultIvyUserDir) //FIXME: TODO this does not WORK?!?!
       ivy.setSettings(settings)
+      ivy
     }
-    res
   }
   
   case class IvyTree(node: IvyNode, children: Seq[IvyTree])
@@ -71,6 +72,9 @@ object IvyHelpers {
     val resolveOptions = {
       val resolveOptions = new ResolveOptions()
       resolveOptions.setConfs(Array(conf))
+      resolveOptions.setCheckIfChanged(true)
+      resolveOptions.setRefresh(true)
+      resolveOptions.setDownload(true)
       resolveOptions
     }
     val changing = true
@@ -78,7 +82,7 @@ object IvyHelpers {
     val report = ivy.resolve(module, resolveOptions, changing)
     val resolveEngine = ivy.getResolveEngine()
     val artifacts = report.getAllArtifactsReports().toList.map( r => r.getArtifact() -> (r.getLocalFile(), resolveEngine.locate(r.getArtifact()).getLocation())).toMap
-    
+        
     def addModules(trees: Seq[IvyTree]): Try[Seq[Module]] = {
       reduce(trees.map{ tree =>
         val depsRes = addModules(tree.children)
@@ -95,6 +99,7 @@ object IvyHelpers {
         }
       }).map(_.flatten)
     }
+    logger.trace("building dependency tree from ivy...")
     addModules(tree(report, conf, module))
   }
 }
