@@ -14,18 +14,6 @@ Discuss existing ideas and propose new ones on the development mailing list:
 
 Although hosted on the sbt organization, adept is intended to be build tool agnostic.
 
-## Trying it out ##
-Trying it out is simple, just run this in the working dir:
-```bash
-sbt adept-create-script
-```
-Add the `bin` directory to your PATH and you are good to go!
-
-This script uses latest compiled version, so you can do changes to see how it works.
-
-It requires bash and sbt (see build.properties for version). 
-
-If you are on Windows and this is of interest to you, please open an issue (PRs are of course also welcome :).
 
 ## Scope ##
 
@@ -83,54 +71,3 @@ The cons are:
 
 ## Command line commands ##
 To give you an idea of how adept will work, below are some examples of how to do stuff on the commandline (I think there will be modifications as we go along though). 
-
-### Starting from scratch: ###
-Initialize a new repo in current folder: 
-```bash
-adept init
-```
-
-Get and merge data from remote repos: 
-```bash
-adept pull local http://adept.othercompany.com/ typesafe
-```
-`typesafe` and `local` are alias in a known_repositories file in `.adept`
-
-### Finding hashes in repo: ###
-Outputs it self and all its deps: 
-```bash
-adept describe play:play:2.1.0
-```
-Imagine doing this with bash completion.
-
-Output will look something like this: 
-```bash
-play:play:2.1.0[scala-version=2.10.0]@124192313
-com.typesafe.akka:akka-actor:2.1.0@1231251231
-junit:junit:4.10[scope=test]@12425123412
-...
-```
-
-### Publishing: ###
-First add deps in current repo: 
-```bash
-adept describe $(echo my_deps) | adept add --scala-version=2.10.0 typesafe play:play:2.1.0 target/play.jar
-```
-Notice: `--scala-version=2.10.0` adds the scala jars and some tags (in the []s)
-
-This is shorthand for: 
-```bash
-adept describe  $(echo my_deps) scala:scala-library:2.10.0 | adept add typesafe play:play:2.1.0[scala-version=2.10.0] target/play.jar
-```
-
-Push dependencies and jars to remote repo: 
-```bash
-adept push typesafe
-```
-This fails if you do not have the rights or are not up-to-date.
-
-### Integrating with Ivy: ###
-Adds the ivy deps to the current repo: 
-```bash
-adept ivy-add --settings=typesafe-settings.xml typesafe play:play:2.1.0
-```
