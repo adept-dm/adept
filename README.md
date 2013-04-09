@@ -20,7 +20,7 @@ Although hosted on the sbt organization, adept is intended to be build tool agno
 What adept does is to download your jars in a quick and reliable manner.
 adept will also be linked to adept servers, which gives you among other things easy-to-find dependencies and browsable dependencies.
 
-adept does not build your files or have plugins. It will be extensible through an api though.
+adept does not build your project or have plugins. It will be extensible through an api though.
 
 ## Workflow ##
 
@@ -46,7 +46,7 @@ The cons are:
 
 ## Core features ##
 
-- downloads a LOT faster than maven's dependency manager and ivy
+- downloads faster than maven's dependency manager and ivy
 - never-fail caching, using hashes
 - easy to get started like normal, but also easy to debug
 - 100% predicable builds
@@ -59,15 +59,13 @@ The cons are:
 ## Roadmap ##
 
 1. stabilize core features
-2. next gen repository server: class search, source code search, better jar search (did you mean support), nicer ui
-3. easy to use java api
-4. a server side rest api
-5. advanced command line tooling
-6. gradle support
-7. ant support
-8. secured, enterprise version
-9. gui command line tooling
-10. maven support???
+2. advanced command line tooling
+3. gradle support
+4. ant support
+5. easy to use java api
+6. secured, enterprise version
+7. gui command line tooling
+8. maven support???
 
 ## Command line commands ##
 To give you an idea of how adept will work, below are some examples of how to do stuff on the commandline (I think there will be modifications as we go along though). 
