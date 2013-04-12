@@ -67,5 +67,32 @@ The cons are:
 7. gui command line tooling
 8. maven support???
 
-## Command line commands ##
-To give you an idea of how adept will work, below are some examples of how to do stuff on the commandline (I think there will be modifications as we go along though). 
+## Building it ##
+To start using adept from the command line you can run `sbt adept-create-script`. 
+This will build and create a file in the `bin` folder.
+
+## Trying it out ##
+Here are some commands you can try:
+
+```bash
+adept init # initializes a repo
+
+adept ivy-set commons-lang:commons-lang:1.0 # add commons-lang from ivy
+
+adept commit # commit all staged
+
+adept dependencies commons-lang:commons-lang:1.0 # see the module and all dependencies
+
+
+adept server # start up server
+```
+
+In another view you can now try:
+```
+adept clone http://localhost:1337/local # clone
+
+adept dependencies commons-lang:commons-lang:1.0 # see the module and all dependencies
+
+adept download 80e01374509628eb415d12f080075b9baba5a3df 0bb929fa59bec92a1555d668ee2ad494aae5c5e9  # download the dependencies
+
+```
