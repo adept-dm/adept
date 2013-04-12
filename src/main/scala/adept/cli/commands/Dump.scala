@@ -6,7 +6,7 @@ import java.io.File
 object DumpCommand extends Command {
   
   override val command = "dump"
-  override def description = """dimp"""
+  override def description = """dumps the current state"""
     
   override def execute(args: List[String]): Either[String, String] = {
     val repoName = Configuration.defaultRepoName //TODO: repoName as a arg
