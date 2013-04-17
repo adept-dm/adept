@@ -72,27 +72,10 @@ To start using adept from the command line you can run `sbt adept-create-script`
 This will build and create a file in the `bin` folder.
 
 ## Trying it out ##
-Here are some commands you can try:
+Try out the adept-sbt plugin
 
+Go to the adept-sbt test project:
 ```bash
-adept init # initializes a repo
-
-adept ivy-set commons-lang:commons-lang:1.0 # add commons-lang from ivy
-
-adept commit # commit all staged
-
-adept dependencies commons-lang:commons-lang:1.0 # see the module and all dependencies
-
-
-adept server # start up server
-```
-
-In another view you can now try:
-```
-adept clone http://localhost:1337/local # clone
-
-adept dependencies commons-lang:commons-lang:1.0 # see the module and all dependencies
-
-adept download 80e01374509628eb415d12f080075b9baba5a3df 0bb929fa59bec92a1555d668ee2ad494aae5c5e9  # download the dependencies
-
+cd adept-sbt/test-project;
+sbt compile #compile with sbt
 ```
