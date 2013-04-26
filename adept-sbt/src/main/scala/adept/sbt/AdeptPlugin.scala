@@ -95,7 +95,9 @@ object AdeptPlugin extends Plugin {
           }
         }
 
-        val mergedLocations = allWithDependencies.seq.groupBy(_.coords).map{ case (coords, modules) =>
+        val prunedModules = adept.operations.Prune(allWithDependencies.seq)
+
+        val mergedLocations = prunedModules.groupBy(_.coords).map{ case (coords, modules) =>
           val hashes = modules.map(_.artifact.hash).distinct
           if (hashes.size != 1){
             val msg = "found more than 1 hash for what should be the modules: "+modules+". These were found: " + hashes.mkString(",")

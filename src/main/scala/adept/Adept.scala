@@ -87,6 +87,10 @@ object Adept {
       existingFiles ++ downloadedFiles
     }
   }
+  
+  def prune(modules: Seq[Module]): Seq[Module] = {
+    Prune(modules)
+  }
 }
 
 class Adept private[adept](val dir: File, val name: String) {
