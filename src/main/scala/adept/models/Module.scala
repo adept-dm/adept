@@ -5,7 +5,7 @@ import org.json4s.JValue
 
 case class Module(
     coords: Coordinates,
-    artifact: Artifact,
+    artifacts: Set[Artifact],
     dependencies: Set[Dependency]
 )
 

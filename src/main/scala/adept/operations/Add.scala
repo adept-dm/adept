@@ -6,14 +6,14 @@ import org.eclipse.jgit.api.Git
 import org.json4s.native.JsonMethods._
 import org.json4s.JsonDSL._
 import org.json4s.JArray
-      
+
 private[adept] object Add {
   def getModuleDir(dir: File, coords: Coordinates): File = { //TODO: factor out
     List(coords.org, coords.name, coords.version).foldLeft(dir){ (last,current) =>
       new File(last, current)
     }
   }
-  
+
   def createDir(dir: File): Either[File, File] = {
     if (dir.exists && dir.isDirectory) {
       Right(dir)
@@ -26,7 +26,7 @@ private[adept] object Add {
     }
   }
   val modulesFilename = "modules.json"
-  
+
   def apply(baseDir: File, module: Module): Either[File, File] = {
     val git = Git.open(baseDir)
     val moduleDir = getModuleDir(baseDir, module.coords)
@@ -36,7 +36,9 @@ private[adept] object Add {
       val file = new File(dir, modulesFilename)
       val modules = if (file.exists) {
         val string = io.Source.fromFile(file).getLines.mkString("\n")
-        val modules = (module +: Module.read(parse(string))).sortBy(_.artifact.hash.value)
+        val modules = (module +: Module.read(parse(string))).sortBy(
+          _.artifacts.toSeq.sortBy(_.hash.value).head.hash.value
+        )
         modules.distinct
       } else {
         List(module)
