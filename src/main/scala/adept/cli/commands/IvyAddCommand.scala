@@ -12,7 +12,6 @@ object IvyAddCommand extends Command {
   override def execute(args: List[String]): Either[String, String] ={
     val dir = Defaults.dir
     val name = Defaults.name
-    val conf = Defaults.conf
     
     val coordsArg = args.drop(0).headOption.toRight("could not find coords argument")
     val settingsArg = args.drop(1).headOption
@@ -23,7 +22,7 @@ object IvyAddCommand extends Command {
       coords <- Coordinates.parse(coordsString).right
       ivy <- IvyHelpers.load(settingsArg).right
     } yield{
-      IvyHelpers.add(coords, ivy, conf, adept).mkString("\n")
+      IvyHelpers.add(coords, ivy, adept).mkString("\n")
     }
   }
   

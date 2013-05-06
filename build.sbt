@@ -24,5 +24,5 @@ libraryDependencies += "com.typesafe.akka" % "akka-actor" % "2.0.5"
 
 resolvers += "spray repo" at "http://repo.spray.io"
 
-libraryDependencies += "io.spray" % "spray-can" % "1.0-M7" //2.9.3 ==1.0x 2.10 == 1.1x currentyly
+libraryDependencies += "io.spray" % "spray-can" % "1.0-M7" //2.9.3 ==1.0x 2.10 == 1.1x currently
 

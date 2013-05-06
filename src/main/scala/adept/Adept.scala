@@ -114,7 +114,7 @@ class Adept private[adept](val dir: File, val name: String) {
       import org.json4s.native.JsonMethods._
       val modules = Module.read(parse(file))
       hash.map{ hash =>
-        val filtered = modules.filter(_.artifact.hash == hash)
+        val filtered = modules.filter(_.artifacts.map(_.hash).contains(hash))
         assert(filtered.size < 2, "found more than 1 module with hash: " + hash + " in " + file + " found: " + filtered)
         filtered.headOption
       }.getOrElse{
@@ -127,7 +127,7 @@ class Adept private[adept](val dir: File, val name: String) {
   }
   
   def dependencies(module: Module): Set[Module] = {
-    Set(module) ++ module.dependencies.par.flatMap{ case Dependency(coords, hash)  => //TODO: check if par gives us anything!
+    Set(module) ++ module.dependencies.par.flatMap{ case Dependency(coords, hash, _)  => //TODO: check if par gives us anything!
       findModule(coords, Some(hash)).toSet.flatMap{ m: Module =>
         dependencies(m)
       }

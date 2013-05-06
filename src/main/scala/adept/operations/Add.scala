@@ -36,7 +36,7 @@ private[adept] object Add {
       val file = new File(dir, modulesFilename)
       val modules = if (file.exists) {
         val string = io.Source.fromFile(file).getLines.mkString("\n")
-        val modules = (module +: Module.read(parse(string))).sortBy(_.artifact.hash.value)
+        val modules = (module +: Module.read(parse(string))).sortBy(_.artifacts.hashCode)
         modules.distinct
       } else {
         List(module)

@@ -13,11 +13,20 @@ import scala.util._
 import java.io.File
 import org.slf4j.LoggerFactory
 import adept.Adept
+import org.apache.ivy.util.Message
+import org.apache.ivy.util.MessageLogger
+import org.apache.ivy.util.DefaultMessageLogger
+import org.apache.ivy.core.module.descriptor.ModuleDescriptor
 
 object IvyHelpers {
   protected val logger = LoggerFactory.getLogger(this.getClass)
-  
-  def load(path: Option[String] = None): Either[String, Ivy] = {
+ 
+  def load(path: Option[String] = None, logLevel: Int = Message.MSG_ERR): Either[String, Ivy] = {
+    //setting up logging
+    val ivyLogger = new DefaultMessageLogger(logLevel)
+    //ivyLogger.setShowProgress(false);
+    Message.setDefaultLogger(ivyLogger)
+    
     val ivy = IvyContext.getContext.getIvy
     val res = path.map{ path =>
       val ivySettings = new jFile(path)
@@ -41,10 +50,9 @@ object IvyHelpers {
   
   case class IvyTree(node: IvyNode, children: Seq[IvyTree])
   
-  private[ivy] def tree(report: ResolveReport, rootModuleConf: String, moduleRevisionId: ModuleRevisionId): Seq[IvyTree] = {
+  private[ivy] def tree(report: ResolveReport, moduleRevisionId: ModuleRevisionId): Seq[IvyTree] = {
     import collection.JavaConverters._
-    
-    val nodes = report.getDependencies().asScala.map(_.asInstanceOf[IvyNode]).filter(!_.isEvicted(rootModuleConf))
+    val nodes = report.getDependencies().asScala.map(_.asInstanceOf[IvyNode]).filter(!_.isCompletelyEvicted())
     val dependencies: Map[ModuleRevisionId, Seq[IvyNode]] = {
       //TODO: this code was ported from java and is mutable - consider revising
       val mutableDeps = collection.mutable.Map[ModuleRevisionId, collection.mutable.ListBuffer[IvyNode]]()
@@ -66,38 +74,110 @@ object IvyHelpers {
     }
     tree(dependencies(report.getModuleDescriptor.getModuleRevisionId))
   }
-      
-  def add(coords: Coordinates, ivy: Ivy, conf: String, adept: Adept): Seq[Module] = {
-    val resolveOptions = {
-      val resolveOptions = new ResolveOptions()
-      resolveOptions.setConfs(Array(conf))
-      resolveOptions.setCheckIfChanged(true)
-      resolveOptions.setRefresh(true)
-      resolveOptions.setDownload(true)
-      resolveOptions
+  
+  def resolveOptions(confs: String*) = {
+    val resolveOptions = new ResolveOptions()
+    if (confs.nonEmpty) resolveOptions.setConfs(confs.toArray)
+    resolveOptions.setCheckIfChanged(true)
+    resolveOptions.setRefresh(true)
+    resolveOptions.setDownload(true)
+    resolveOptions.setOutputReport(false) //TODO: to true?
+    resolveOptions
+  }
+
+  def confString(modConf: String, depConfs: Array[String]) = {
+    modConf + "->" + depConfs.mkString(",")
+  } 
+  private val changing = true
+
+  def adeptModule(coords: Coordinates, ivy: Ivy): Seq[Module] = {
+    import collection.JavaConverters._
+    import org.apache.ivy.core.report.ResolveReport
+    import org.apache.ivy.core.module.descriptor.{ Artifact => IvyArtifact }
+    import org.apache.ivy.core.module.descriptor.{ Configuration => IvyConfiguration }
+    
+    def parent(report: ResolveReport): IvyNode = {
+       report.getDependencies().asScala.map{ case i: IvyNode => i }.head
     }
-    val changing = true
+    
     val module = ModuleRevisionId.newInstance(coords.org, coords.name, coords.version)
-    val report = ivy.resolve(module, resolveOptions, changing)
+    val report = ivy.resolve(module, resolveOptions(), changing)
     val resolveEngine = ivy.getResolveEngine()
-    val artifacts = report.getAllArtifactsReports().toList.map( r => r.getArtifact() -> (r.getLocalFile(), resolveEngine.locate(r.getArtifact()).getLocation())).toMap
-        
-    def addModules(trees: Seq[IvyTree]): Seq[Module] = {
-      trees.flatMap{ tree =>
-        val deps = addModules(tree.children)
-        tree.node.getAllArtifacts().toSeq.map{ artifact =>
-          val (localFile, location) = artifacts(artifact)
-          val ivyId = tree.node.getId
-          val coords = Coordinates(ivyId.getOrganisation, ivyId.getName, ivyId.getRevision)
-          val strippedDeps = deps.map(d => Dependency(d.coords, d.artifact.hash)).toSet
-          val module: Module = Module(coords, Artifact.fromFile(localFile, Set(location)), strippedDeps)
-          val res = adept.add(module)
-          module
-        }
-      
-      }
+    
+    val depNodes = report.getDependencies().asScala.map{ case i: IvyNode => i }
+    
+    val moduleDescriptor = report.getModuleDescriptor()
+    
+    val configurations = moduleDescriptor.getConfigurations().toSet.map{ c:IvyConfiguration =>
+      Configuration(
+          name = c.getName(),
+          description = Option(c.getDescription()),
+          extendsFrom = c.getExtends().toSet,
+          /*TODOvisibility = c.getVisibility match { 
+            case c if c == IvyConfiguration.Visibility.PUBLIC=> Visibility.Public
+            case c if c == IvyConfiguration.Visibility.PRIVATE => Visibility.Private
+            case somethingElse => throw new Exception("Got unexpected visibility: " + somethingElse)
+          },*/
+          deprecated = Option(c.getDeprecated())
+      )
     }
+    
+    val attributes: Map[String, Seq[String]] = Map.empty ++ 
+        Option(moduleDescriptor.getDescription()).map(a => "description"->Seq(a)).toMap ++
+        Option(moduleDescriptor.getHomePage()).map(a => "home-page"->Seq(a)).toMap
+    
+    val parentNode = parent(report)
+    val artifacts = {
+      val artifacts = configurations.flatMap{ c =>
+        parentNode.getArtifacts(c.name).toList.flatMap{ case a: IvyArtifact =>
+          ivy.resolve(module, resolveOptions(c.name), changing).getAllArtifactsReports().map{ r =>
+            val artifact = r.getArtifact()
+            val location = resolveEngine.locate(artifact).getLocation()
+            val file = r.getLocalFile()
+            val artifactType = artifact.getType() 
+            (file, location, artifactType) -> artifact.getConfigurations().toList
+          }
+        }
+      }.toSet
+      artifacts.groupBy(_._1).map{ case ((file, location, artifactType), all) => 
+        Artifact.fromFile(file, artifactType, all.flatMap{case (_, c) => c}, Set(location))
+      }
+    }.toSet
+    
+    val ivyArtifacts = report.getAllArtifactsReports.toList.map( r => r.getArtifact() -> (r.getLocalFile(), resolveEngine.locate(r.getArtifact()).getLocation())).toMap
+    val deps = depNodes.map{ node => node -> node.getDependencyDescriptor(parentNode) }.filter{ case (node, depDescriptor) => depDescriptor != null }.map{ case (node, depDescriptor) =>
+      val org = node.getId.getOrganisation()
+      val name = node.getId.getName()
+      val version = node.getId.getRevision()
+      val coords = Coordinates(org, name, version)
+      println(node)
+      val depReport = ivy.resolve(ModuleRevisionId.newInstance(coords.org, coords.name, coords.version), resolveOptions(), changing) //make sure this artifact has been resolved 
+      //println(depReport.getUnresolvedDependencies().toList)
+      
+      val jarFile = {
+        val jarFiles = parent(depReport).getAllArtifacts().toList.filter(a => ivyArtifacts.keySet.contains(a)).map(a => ivyArtifacts(a)._1)
+        if (jarFiles.size != 1) throw new Exception("while getting artifact for " + node + " - did not get exactly one: " + jarFiles)
+        jarFiles.head
+      }
+      
+      val hash = Hash.calculate(jarFile) 
+      val modConfs = depDescriptor.getModuleConfigurations
+      val configuration = modConfs.map{ modConf =>
+        val depConfs = depDescriptor.getDependencyConfigurations(modConf)
+        confString(modConf, depConfs)
+      }.mkString(";")
+      Dependency(coords, hash, configuration)
+    }.toSet
+    Seq(Module(coords, artifacts, configurations, attributes, deps))
+  }
+  
+  def add(coords: Coordinates, ivy: Ivy, adept: Adept): Seq[Module] = {
     logger.trace("building dependency tree from ivy...")
-    addModules(tree(report, conf, module))
+    val modules = adeptModule(coords, ivy)
+    modules.foreach(adept.add)
+    
+    modules.flatMap{ module =>
+      module.dependencies.flatMap{ dep => add(dep.coords, ivy, adept) }
+    }
   }
 }
