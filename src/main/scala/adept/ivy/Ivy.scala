@@ -48,33 +48,6 @@ object IvyHelpers {
     }
   }
   
-  case class IvyTree(node: IvyNode, children: Seq[IvyTree])
-  
-  private[ivy] def tree(report: ResolveReport, moduleRevisionId: ModuleRevisionId): Seq[IvyTree] = {
-    import collection.JavaConverters._
-    val nodes = report.getDependencies().asScala.map(_.asInstanceOf[IvyNode]).filter(!_.isCompletelyEvicted())
-    val dependencies: Map[ModuleRevisionId, Seq[IvyNode]] = {
-      //TODO: this code was ported from java and is mutable - consider revising
-      val mutableDeps = collection.mutable.Map[ModuleRevisionId, collection.mutable.ListBuffer[IvyNode]]()
-      nodes.foreach{ ivyNode =>
-        if (!mutableDeps.isDefinedAt(ivyNode.getId)) mutableDeps += (ivyNode.getId -> collection.mutable.ListBuffer())
-        ivyNode.getAllCallers.foreach{ c =>
-          if (!mutableDeps.isDefinedAt(c.getModuleRevisionId)) mutableDeps += (c.getModuleRevisionId -> collection.mutable.ListBuffer())
-          val deps = mutableDeps.getOrElse(c.getModuleRevisionId, collection.mutable.ListBuffer())
-          deps += ivyNode
-        }
-      }
-      mutableDeps.map{ case (id, deps) => id -> deps.toSeq }.toMap
-    }
-    def tree(ivyNodes: Seq[IvyNode]): Seq[IvyTree]= {
-      ivyNodes.map{ ivyNode =>
-        val children = dependencies(ivyNode.getId)
-        IvyTree(ivyNode, children = tree(children))
-      }
-    }
-    tree(dependencies(report.getModuleDescriptor.getModuleRevisionId))
-  }
-  
   def resolveOptions(confs: String*) = {
     val resolveOptions = new ResolveOptions()
     if (confs.nonEmpty) resolveOptions.setConfs(confs.toArray)
@@ -90,7 +63,7 @@ object IvyHelpers {
   } 
   private val changing = true
 
-  def adeptModule(coords: Coordinates, ivy: Ivy): Seq[Module] = {
+  def adeptModule(coords: Coordinates, ivy: Ivy): Module = {
     import collection.JavaConverters._
     import org.apache.ivy.core.report.ResolveReport
     import org.apache.ivy.core.module.descriptor.{ Artifact => IvyArtifact }
@@ -128,15 +101,15 @@ object IvyHelpers {
     
     val parentNode = parent(report)
     val artifacts = {
-      val artifacts = configurations.flatMap{ c =>
-        parentNode.getArtifacts(c.name).toList.flatMap{ case a: IvyArtifact =>
-          ivy.resolve(module, resolveOptions(c.name), changing).getAllArtifactsReports().map{ r =>
-            val artifact = r.getArtifact()
-            val location = resolveEngine.locate(artifact).getLocation()
-            val file = r.getLocalFile()
-            val artifactType = artifact.getType() 
-            (file, location, artifactType) -> artifact.getConfigurations().toList
-          }
+      val artifacts = parentNode.getAllArtifacts.toList.flatMap{ case a: IvyArtifact =>
+        val artifactReports = ivy.resolve(parentNode.getId(), resolveOptions(a.getConfigurations().toList: _*), changing).getAllArtifactsReports()
+        val thisModuleArtifactReports = artifactReports.filter(_.getArtifact().getId() == a.getId())
+        thisModuleArtifactReports.map{ r =>
+          val artifact = r.getArtifact()
+          val location = resolveEngine.locate(artifact).getLocation()
+          val file = r.getLocalFile()
+          val artifactType = artifact.getType() 
+          (file, location, artifactType) -> artifact.getConfigurations().toList
         }
       }.toSet
       artifacts.groupBy(_._1).flatMap{ case ((file, location, artifactType), all) => 
@@ -146,7 +119,8 @@ object IvyHelpers {
       }
     }.toSet
     
-    val ivyArtifacts = report.getAllArtifactsReports.toList.map( r => r.getArtifact() -> (r.getLocalFile(), resolveEngine.locate(r.getArtifact()).getLocation())).toMap
+    val allArtifactReports = report.getAllArtifactsReports.toList
+    val ivyArtifacts = allArtifactReports.map( r => r.getArtifact() -> (r.getLocalFile(), resolveEngine.locate(r.getArtifact()).getLocation())).toMap
     val deps = depNodes.map{ node => node -> node.getDependencyDescriptor(parentNode) }.filter{ case (node, depDescriptor) => depDescriptor != null }.flatMap{ case (node, depDescriptor) =>
       val org = node.getId.getOrganisation()
       val name = node.getId.getName()
@@ -175,16 +149,16 @@ object IvyHelpers {
         Dependency(coords, hash, configuration)
       }
     }.toSet
-    Seq(Module(coords, artifacts, configurations, attributes, deps))
+    Module(coords, artifacts, configurations, attributes, deps)
   }
   
-  def add(coords: Coordinates, ivy: Ivy, adept: Adept): Seq[Module] = {
+  def add(coords: Coordinates, ivy: Ivy, adept: Adept): Set[Module] = {
     logger.trace("building dependency tree from ivy...")
-    val modules = adeptModule(coords, ivy)
-    val all = modules ++ modules.flatMap{ module =>
-      module.dependencies.flatMap{ dep => adeptModule(dep.coords, ivy) }
-    }
+    val module = adeptModule(coords, ivy)
+    val all = Set(module) ++ module.dependencies.map{ dep => adeptModule(dep.coords, ivy) }
+    
     all.foreach(adept.add)
+    //println("******" + modules.map(_.artifacts).mkString("\n\n") + "******")
     all
   }
 }

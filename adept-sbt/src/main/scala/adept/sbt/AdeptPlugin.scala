@@ -11,6 +11,7 @@ object AdeptPlugin extends Plugin {
   val adeptLocalRepository = TaskKey[Option[Adept]]("adept-local-repository", "the local repository for adept")
   val adeptClasspath = TaskKey[Classpath]("adept-classpath")
   val adeptDirectory = SettingKey[File]("adept-directory")
+  val adeptArtifactTypes = SettingKey[Seq[String]]("adept-artifact-types")
 
 
   //TODO: adept-describe-classpath
@@ -29,7 +30,7 @@ object AdeptPlugin extends Plugin {
     }
   }
 
-  val adeptClasspathTask = (adeptRepositories, adeptDirectory, adeptDependencies, adeptLocalRepository, streams) map { (adeptRepositories, adeptDirectory, deps, localRepo, s) => 
+  val adeptClasspathTask = (adeptRepositories, adeptDirectory, adeptDependencies, adeptLocalRepository, adeptArtifactTypes, streams) map { (adeptRepositories, adeptDirectory, deps, localRepo, artifactTypes, s) => 
     withAdeptClassloader{
       import akka.util.duration._
 
@@ -65,8 +66,9 @@ object AdeptPlugin extends Plugin {
             (dep, adept, adept.findModule(coords, hash = None).toSeq) //TODO: hash 
           }
         }
-        val modulesOverAllRepos = depModules.seq.groupBy{ case (dep, adept, modules) => dep }.map{ case (dep, allDepsModules) => dep -> allDepsModules.map(_._3).flatten  }
 
+        val modulesOverAllRepos = depModules.seq.groupBy{ case (dep, adept, modules) => dep }.map{ case (dep, allDepsModules) => dep -> allDepsModules.map(_._3).flatten  }
+        
         //verify declared dependencies:
         modulesOverAllRepos.foreach{ case (dep, modules) =>
           //check coords:
@@ -81,7 +83,7 @@ object AdeptPlugin extends Plugin {
             throw new Exception("cannot load adept dependencies because: "+msg)
           }
           //check hashes:
-          val allHashes = modules.map(_.artifact.hash).distinct
+          val allHashes = modules.map(_.hash).distinct
           if (allHashes.size > 1) {
             val msg = "found more than 1 hash for same dependency: "+dep+". These were found: " + allHashes.mkString(",")
             s.log.error(msg)
@@ -95,16 +97,13 @@ object AdeptPlugin extends Plugin {
           }
         }
 
-        val prunedModules = adept.operations.Prune(allWithDependencies.seq)
+        val prunedModules = Adept.prune(allWithDependencies.seq)
 
-        val mergedLocations = prunedModules.groupBy(_.coords).map{ case (coords, modules) =>
-          val hashes = modules.map(_.artifact.hash).distinct
-          if (hashes.size != 1){
-            val msg = "found more than 1 hash for what should be the modules: "+modules+". These were found: " + hashes.mkString(",")
-            s.log.error(msg)
-            throw new Exception("cannot load dependencies because: "+msg)
+        val mergedLocations = prunedModules.groupBy(_.coords).flatMap{ case (coords, modules) =>
+          val currentArtifacts = modules.flatMap(_.artifacts.filter(a => artifactTypes.contains(a.artifactType)))
+          currentArtifacts.map{ currentArtifact =>
+            (currentArtifact.hash, coords , currentArtifact.locations) -> None
           }
-          (hashes.head, coords , modules.flatMap(_.artifact.locations).toSet) -> None
         }
 
         val res = Adept.artifact(adeptDirectory, mergedLocations.toSeq, timeout)
@@ -118,6 +117,7 @@ object AdeptPlugin extends Plugin {
   }
   
   override val settings = Seq(
+    adeptArtifactTypes := Seq("jar", "bundle"),
     adeptDirectory := Path.userHome / ".adept",
     adeptRepositories := Map(
       

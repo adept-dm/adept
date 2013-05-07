@@ -92,7 +92,7 @@ object Adept {
     }
   }
   
-  def prune(modules: Seq[Module]): Seq[Module] = {
+  def prune(modules: Seq[Module]): Seq[Module] = { //TODO: rename to resolveConflicts
     Prune(modules)
   }
 }
