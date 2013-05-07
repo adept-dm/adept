@@ -25,7 +25,7 @@ object IvyHelpers {
     //setting up logging
     val ivyLogger = new DefaultMessageLogger(logLevel)
     //ivyLogger.setShowProgress(false);
-    Message.setDefaultLogger(ivyLogger)
+    //Message.setDefaultLogger(ivyLogger)
     
     val ivy = IvyContext.getContext.getIvy
     val res = path.map{ path =>
@@ -113,7 +113,7 @@ object IvyHelpers {
           name = c.getName(),
           description = Option(c.getDescription()),
           extendsFrom = c.getExtends().toSet,
-          /*TODOvisibility = c.getVisibility match { 
+          /*TODO: visibility = c.getVisibility match { 
             case c if c == IvyConfiguration.Visibility.PUBLIC=> Visibility.Public
             case c if c == IvyConfiguration.Visibility.PRIVATE => Visibility.Private
             case somethingElse => throw new Exception("Got unexpected visibility: " + somethingElse)
@@ -139,34 +139,41 @@ object IvyHelpers {
           }
         }
       }.toSet
-      artifacts.groupBy(_._1).map{ case ((file, location, artifactType), all) => 
-        Artifact.fromFile(file, artifactType, all.flatMap{case (_, c) => c}, Set(location))
+      artifacts.groupBy(_._1).flatMap{ case ((file, location, artifactType), all) => 
+        if (file != null && file.exists)
+          Set(Artifact.fromFile(file, artifactType, all.flatMap{case (_, c) => c}, Set(location)))
+        else Set.empty[Artifact]
       }
     }.toSet
     
     val ivyArtifacts = report.getAllArtifactsReports.toList.map( r => r.getArtifact() -> (r.getLocalFile(), resolveEngine.locate(r.getArtifact()).getLocation())).toMap
-    val deps = depNodes.map{ node => node -> node.getDependencyDescriptor(parentNode) }.filter{ case (node, depDescriptor) => depDescriptor != null }.map{ case (node, depDescriptor) =>
+    val deps = depNodes.map{ node => node -> node.getDependencyDescriptor(parentNode) }.filter{ case (node, depDescriptor) => depDescriptor != null }.flatMap{ case (node, depDescriptor) =>
       val org = node.getId.getOrganisation()
       val name = node.getId.getName()
       val version = node.getId.getRevision()
       val coords = Coordinates(org, name, version)
-      println(node)
+      
       val depReport = ivy.resolve(ModuleRevisionId.newInstance(coords.org, coords.name, coords.version), resolveOptions(), changing) //make sure this artifact has been resolved 
-      //println(depReport.getUnresolvedDependencies().toList)
       
-      val jarFile = {
-        val jarFiles = parent(depReport).getAllArtifacts().toList.filter(a => ivyArtifacts.keySet.contains(a)).map(a => ivyArtifacts(a)._1)
-        if (jarFiles.size != 1) throw new Exception("while getting artifact for " + node + " - did not get exactly one: " + jarFiles)
-        jarFiles.head
+      val maybeJarFile = {
+        if (node.isLoaded) {
+          val jarFiles = parent(depReport).getAllArtifacts().toList.filter(a => ivyArtifacts.contains(a)).map(a => ivyArtifacts(a)._1)
+          if (jarFiles.size != 1) throw new Exception("while getting artifact for " + node + " - did not get exactly one: " + jarFiles  + ". parent: " + parentNode)
+          jarFiles.headOption
+        } else {
+          logger.warn("node " + node + " was not loaded. parent: " + parentNode)
+          None
+        }
       }
-      
-      val hash = Hash.calculate(jarFile) 
-      val modConfs = depDescriptor.getModuleConfigurations
-      val configuration = modConfs.map{ modConf =>
-        val depConfs = depDescriptor.getDependencyConfigurations(modConf)
-        confString(modConf, depConfs)
-      }.mkString(";")
-      Dependency(coords, hash, configuration)
+      maybeJarFile.map{ jarFile =>
+        val hash = Hash.calculate(jarFile) 
+        val modConfs = depDescriptor.getModuleConfigurations
+        val configuration = modConfs.map{ modConf =>
+          val depConfs = depDescriptor.getDependencyConfigurations(modConf)
+          confString(modConf, depConfs)
+        }.mkString(";")
+        Dependency(coords, hash, configuration)
+      }
     }.toSet
     Seq(Module(coords, artifacts, configurations, attributes, deps))
   }
@@ -174,10 +181,10 @@ object IvyHelpers {
   def add(coords: Coordinates, ivy: Ivy, adept: Adept): Seq[Module] = {
     logger.trace("building dependency tree from ivy...")
     val modules = adeptModule(coords, ivy)
-    modules.foreach(adept.add)
-    
-    modules.flatMap{ module =>
-      module.dependencies.flatMap{ dep => add(dep.coords, ivy, adept) }
+    val all = modules ++ modules.flatMap{ module =>
+      module.dependencies.flatMap{ dep => adeptModule(dep.coords, ivy) }
     }
+    all.foreach(adept.add)
+    all
   }
 }

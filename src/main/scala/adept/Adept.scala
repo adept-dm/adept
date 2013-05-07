@@ -15,7 +15,11 @@ object Adept {
   def dir(baseDir: File, name: String) = new File(baseDir, name)
   
   def open(baseDir: File, name: String): Either[String, Adept] = {
-    Right(new Adept(dir(baseDir, name), name))
+    if (exists(baseDir)) {
+      Right(new Adept(dir(baseDir, name), name))
+    } else {
+      Left("no adept directory here: " + baseDir)
+    }
   }
   
   def exists(baseDir: File): Boolean = {
