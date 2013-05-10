@@ -89,12 +89,18 @@ object IvyHelpers {
           val (localFile, location) = artifacts(artifact)
           val ivyId = tree.node.getId
           val coords = Coordinates(ivyId.getOrganisation, ivyId.getName, ivyId.getRevision)
-          val strippedDeps = deps.map(d => Dependency(d.coords, d.artifact.hash)).toSet
-          val module: Module = Module(coords, Artifact.fromFile(localFile, Set(location)), strippedDeps)
+          val strippedDeps = (for {
+            d <- deps;
+            a <- d.artifacts
+          } yield { Dependency(d.coords, a.hash) }) toSet
+
+          val module: Module = Module(coords,
+            Set(Artifact.fromFile(localFile, Set(location))), strippedDeps)
+
           val res = adept.add(module)
           module
         }
-      
+     
       }
     }
     logger.trace("building dependency tree from ivy...")
