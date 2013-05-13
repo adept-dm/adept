@@ -81,6 +81,7 @@ sbt adept-create-script
 ```
 
 This will create an `adept` script in the `bin/` folder.
+Put this folder in your PATH, by following the instructions from the task.
 
 Move to you home-directory (`cd ~`) and initialize adept:
 ```bash
@@ -92,7 +93,9 @@ Add some dependencies to your adept directory using Ivy:
 ```bash
 adept ivy-add com.typesafe.akka:akka-actor_2.10:2.1.0
 ```
+
 You should now see some files appearing in: `.adept/local`
+
 
 You can also try committing by doing:
 ```bash
