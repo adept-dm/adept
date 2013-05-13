@@ -30,7 +30,7 @@ private[adept] object Add {
   def apply(baseDir: File, module: Module): Either[File, File] = {
     val git = Git.open(baseDir)
     val moduleDir = getModuleDir(baseDir, module.coordinates)
-    for {
+    val res = for {
       dir <- createDir(moduleDir).right
     } yield {
       val file = new File(dir, modulesFilename)
@@ -46,24 +46,26 @@ private[adept] object Add {
       } else {
         List(module)
       }
-      import org.json4s.Extraction._
-      implicit val formats = org.json4s.DefaultFormats
-      import org.json4s.native.JsonMethods._
-      import org.json4s.JsonDSL._
-
-      val json = decompose(modules)
-      val writer = new FileWriter(file)
-      try {
-        writer.write(pretty(render(json)))
-      } finally {
-        writer.close()
+      val grouped = modules.groupBy(_.coordinates)
+      if (grouped.size > 1) throw new Exception("did not expect to have more than one coords: " + modules) 
+      grouped.headOption.map{ case (coords, modules) =>
+        val json = Module.writeJsonForSameCoords(coords, modules)
+        val writer = new FileWriter(file)
+        try {
+          writer.write(pretty(render(json)))
+        } finally {
+          writer.close()
+        }
+        val filepattern = file.getAbsolutePath.replace(baseDir.getAbsolutePath + File.separatorChar, "")
+        git.add()
+          .addFilepattern(filepattern)
+          .call()
+        Right(file)
+      }.getOrElse{
+        Left(file) 
       }
-      val filepattern = file.getAbsolutePath.replace(baseDir.getAbsolutePath + File.separatorChar, "")
-      git.add()
-        .addFilepattern(filepattern)
-        .call()
-      file
     }
+    res.joinRight
   }
 
 }

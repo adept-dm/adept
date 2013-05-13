@@ -72,10 +72,57 @@ To start using adept from the command line you can run `sbt adept-create-script`
 This will build and create a file in the `bin` folder.
 
 ## Trying it out ##
-Try out the adept-sbt plugin
 
-Go to the adept-sbt test project:
+### Command line ###
+Go to the adept directory and run:
+
+```bash
+sbt adept-create-script
+```
+
+This will create an `adept` script in the `bin/` folder.
+
+Move to you home-directory (`cd ~`) and initialize adept:
+```bash
+adept init
+```
+This will create an `.adept` directory.
+
+Add some dependencies to your adept directory using Ivy:
+```bash
+adept ivy-add com.typesafe.akka:akka-actor_2.10:2.1.0
+```
+You should now see some files appearing in: `.adept/local`
+
+You can also try committing by doing:
+```bash
+adept commit "message"
+```
+
+If you move to the `.adept/local/` directory you can see that this is a regular git repository, where you can push, pull etc etc as you want. 
+
+Now it is time to try the adept SBT plugin.
+
+### The SBT plugin ###
+
+Go to the adept-sbt test project, by:
 ```bash
 cd adept-sbt/test-project;
+```
+
+Then run:
+```bash
 sbt compile #compile with sbt
 ```
+This will clone the repository here:
+```
+https://github.com/freekh/adept-central
+```
+then start downloading the dependencies it needs.
+
+Notice that there are 2 versions of Play. 
+If you do:
+```
+sbt "show full-classpath"
+```
+You should see that only the latest version of Play is there.

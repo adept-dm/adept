@@ -72,7 +72,7 @@ object AdeptPlugin extends Plugin {
         //verify declared dependencies:
         modulesOverAllRepos.foreach{ case (dep, modules) =>
           //check coords:
-          val allCoords = modules.map(_.coords).distinct
+          val allCoords = modules.map(_.coordinates).distinct
           if (allCoords.size > 1) {
             val msg = "found more than one set of coordinates for same dependency: "+dep+". These were found: " + allCoords.mkString(",")
             s.log.error(msg)
@@ -99,7 +99,7 @@ object AdeptPlugin extends Plugin {
 
         val prunedModules = Adept.prune(allWithDependencies.seq)
 
-        val mergedLocations = prunedModules.groupBy(_.coords).flatMap{ case (coords, modules) =>
+        val mergedLocations = prunedModules.groupBy(_.coordinates).flatMap{ case (coords, modules) =>
           val currentArtifacts = modules.flatMap(_.artifacts.filter(a => artifactTypes.contains(a.artifactType)))
           currentArtifacts.map{ currentArtifact =>
             (currentArtifact.hash, coords , currentArtifact.locations) -> None
