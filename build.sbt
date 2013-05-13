@@ -14,6 +14,8 @@ libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.0.9"
 
 libraryDependencies += "org.json4s" %% "json4s-native" % "3.2.4"
 
+libraryDependencies += "org.scalatest" %% "scalatest" % "2.0.M5b" % "test"
+
 //akka:
 
 resolvers += "Typesafe Repository" at "http://repo.typesafe.com/typesafe/releases/"
@@ -25,4 +27,5 @@ libraryDependencies += "com.typesafe.akka" % "akka-actor" % "2.0.5"
 resolvers += "spray repo" at "http://repo.spray.io"
 
 libraryDependencies += "io.spray" % "spray-can" % "1.0-M7" //2.9.3 ==1.0x 2.10 == 1.1x currently
+
 

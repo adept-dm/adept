@@ -6,14 +6,14 @@ import org.eclipse.jgit.api.Git
 import org.json4s.native.JsonMethods._
 import org.json4s.JsonDSL._
 import org.json4s.JArray
-      
+
 private[adept] object Add {
   def getModuleDir(dir: File, coords: Coordinates): File = { //TODO: factor out
-    List(coords.org, coords.name, coords.version).foldLeft(dir){ (last,current) =>
+    List(coords.org, coords.name, coords.version).foldLeft(dir) { (last, current) =>
       new File(last, current)
     }
   }
-  
+
   def createDir(dir: File): Either[File, File] = {
     if (dir.exists && dir.isDirectory) {
       Right(dir)
@@ -26,18 +26,23 @@ private[adept] object Add {
     }
   }
   val modulesFilename = "modules.json"
-  
+
   def apply(baseDir: File, module: Module): Either[File, File] = {
     val git = Git.open(baseDir)
-    val moduleDir = getModuleDir(baseDir, module.coords)
+    val moduleDir = getModuleDir(baseDir, module.coordinates)
     for {
       dir <- createDir(moduleDir).right
     } yield {
       val file = new File(dir, modulesFilename)
       val modules = if (file.exists) {
         val string = io.Source.fromFile(file).getLines.mkString("\n")
-        val modules = (module +: Module.read(parse(string))).sortBy(_.artifacts.hashCode)
-        modules.distinct
+        val maybeReadModules = Module.readSameCoordinates(parse(string))
+        maybeReadModules.fold(
+          error => throw new Exception(error),
+          readModules => {
+            val modules = (module +: readModules).sortBy(_.artifacts.hashCode)
+            modules.distinct
+          })
       } else {
         List(module)
       }
@@ -48,7 +53,7 @@ private[adept] object Add {
 
       val json = decompose(modules)
       val writer = new FileWriter(file)
-      try{
+      try {
         writer.write(pretty(render(json)))
       } finally {
         writer.close()

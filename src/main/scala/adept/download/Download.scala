@@ -10,11 +10,10 @@ import akka.dispatch.ExecutionContext
 import akka.dispatch.Await
 import akka.util.Timeout
 import java.net.URL
-import org.slf4j.LoggerFactory
 import akka.util._
+import adept.utils.Logging
 
-private[adept] object Download  {
-  private val logger = LoggerFactory.getLogger(this.getClass) 
+private[adept] object Download extends Logging {
   
   def apply(downloadbles: Seq[(Hash, Coordinates, Set[String], File)], timeout: FiniteDuration): Seq[Either[String, File]] = {
     if (downloadbles.nonEmpty) {

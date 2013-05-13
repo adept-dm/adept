@@ -5,11 +5,11 @@ import org.eclipse.jgit.api.Git
 import adept.operations._
 import adept.models._
 import akka.util.FiniteDuration
-import org.slf4j.LoggerFactory
 import adept.utils.EitherUtils
 import org.eclipse.jgit.lib.Constants
 import org.eclipse.jgit.lib.ConfigConstants
 import org.eclipse.jgit.lib.TextProgressMonitor
+import adept.utils.Logging
 
 object Adept {
   def dir(baseDir: File, name: String) = new File(baseDir, name)
@@ -97,8 +97,7 @@ object Adept {
   }
 }
 
-class Adept private[adept](val dir: File, val name: String) {
-  protected val logger = LoggerFactory.getLogger(this.getClass)
+class Adept private[adept](val dir: File, val name: String) extends Logging {
   
   override def toString = {
     "Adept("+name+","+dir.getAbsolutePath+","+ lastCommit+")"
@@ -112,19 +111,23 @@ class Adept private[adept](val dir: File, val name: String) {
   }
 
   
-  def findModule(coords: Coordinates, hash: Option[Hash]): Option[Module] = {
+  def findModule(coords: Coordinates, hash: Option[Hash] = None): Option[Module] = {
     val file = new File(Add.getModuleDir(dir, coords), Add.modulesFilename)
+    
     if (file.exists && file.isFile) {
       import org.json4s.native.JsonMethods._
-      val modules = Module.read(parse(file))
-      hash.map{ hash =>
-        val filtered = modules.filter(_.artifacts.map(_.hash).contains(hash))
-        assert(filtered.size < 2, "found more than 1 module with hash: " + hash + " in " + file + " found: " + filtered)
-        filtered.headOption
-      }.getOrElse{
-        if (modules.size > 1) throw new Exception("found more than 1 module: " + hash + " in " + file + " found: " + modules) //TODO: either instead of option as return type and return all the failed modules
-        modules.headOption
-      }
+      val maybeModules = Module.readSameCoordinates(parse(file))
+      maybeModules.fold(
+          error => throw new Exception(error),
+          modules => hash.map{ hash =>
+            val filtered = modules.filter(_.artifacts.map(_.hash).contains(hash))
+            assert(filtered.size < 2, "found more than 1 module with hash: " + hash + " in " + file + " found: " + filtered)
+            filtered.headOption
+          }.getOrElse{
+            if (modules.size > 1) throw new Exception("found more than 1 module: " + hash + " in " + file + " found: " + modules) //TODO: either instead of option as return type and return all the failed modules
+            modules.headOption
+          }
+      )
     } else {
       None
     }

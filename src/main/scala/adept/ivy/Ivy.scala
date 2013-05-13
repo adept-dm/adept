@@ -11,22 +11,20 @@ import org.apache.ivy.core.retrieve.RetrieveOptions
 import org.apache.ivy.core.report.ResolveReport
 import scala.util._
 import java.io.File
-import org.slf4j.LoggerFactory
 import adept.Adept
 import org.apache.ivy.util.Message
 import org.apache.ivy.util.MessageLogger
 import org.apache.ivy.util.DefaultMessageLogger
 import org.apache.ivy.core.module.descriptor.ModuleDescriptor
+import adept.utils.Logging
 
-object IvyHelpers {
-  protected val logger = LoggerFactory.getLogger(this.getClass)
- 
+object IvyHelpers extends Logging{
+  
   def load(path: Option[String] = None, logLevel: Int = Message.MSG_ERR): Either[String, Ivy] = {
     //setting up logging
     val ivyLogger = new DefaultMessageLogger(logLevel)
     //ivyLogger.setShowProgress(false);
     //Message.setDefaultLogger(ivyLogger)
-    
     val ivy = IvyContext.getContext.getIvy
     val res = path.map{ path =>
       val ivySettings = new jFile(path)
@@ -86,17 +84,17 @@ object IvyHelpers {
           name = c.getName(),
           description = Option(c.getDescription()),
           extendsFrom = c.getExtends().toSet,
-          /*TODO: visibility = c.getVisibility match { 
+          visibility = c.getVisibility match { 
             case c if c == IvyConfiguration.Visibility.PUBLIC=> Visibility.Public
             case c if c == IvyConfiguration.Visibility.PRIVATE => Visibility.Private
             case somethingElse => throw new Exception("Got unexpected visibility: " + somethingElse)
-          },*/
+          },
           deprecated = Option(c.getDeprecated())
       )
     }
     
     val attributes: Map[String, Seq[String]] = Map.empty ++ 
-        Option(moduleDescriptor.getDescription()).map(a => "description"->Seq(a)).toMap ++
+        Option(moduleDescriptor.getDescription()).filter(_.nonEmpty).map(a => "description"->Seq(a)).toMap ++
         Option(moduleDescriptor.getHomePage()).map(a => "home-page"->Seq(a)).toMap
     
     val parentNode = parent(report)
@@ -113,9 +111,10 @@ object IvyHelpers {
         }
       }.toSet
       artifacts.groupBy(_._1).flatMap{ case ((file, location, artifactType), all) => 
-        if (file != null && file.exists)
-          Set(Artifact.fromFile(file, artifactType, all.flatMap{case (_, c) => c}, Set(location)))
-        else Set.empty[Artifact]
+        if (file != null && file.exists) {
+          val confs =  all.flatMap{case (_, c) => c }
+          Set(Artifact.fromFile(file, artifactType, confs, Set(location)))
+        } else Set.empty[Artifact]
       }
     }.toSet
     
@@ -157,7 +156,7 @@ object IvyHelpers {
     val module = adeptModule(coords, ivy)
     val all = Set(module) ++ module.dependencies.map{ dep => adeptModule(dep.coords, ivy) }
     
-    all.foreach(adept.add)
+    all.foreach( adept.add )
     //println("******" + modules.map(_.artifacts).mkString("\n\n") + "******")
     all
   }

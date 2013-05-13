@@ -17,8 +17,8 @@ import akka.util.Timeout
 import spray.http._
 import spray.util._
 import java.io._
-import org.slf4j.LoggerFactory
 import akka.dispatch.Future
+import adept.utils.Logging
 
 case class DownloadFile(url: URL, file: File)
 
@@ -60,8 +60,7 @@ class DownloadActor(progressActor: ActorRef) extends Actor {
   }
 }
 
-private[adept] object Client {
-  protected val logger = LoggerFactory.getLogger(this.getClass)
+private[adept] object Client extends Logging {
   
   def download(url: URL, file: File, progressActor: ActorRef)(implicit timeout: Timeout, system: ActorSystem): Future[Either[Exception, File]] = {
     logger.trace("client is fetching "+url+" to "+file+"..")

@@ -14,7 +14,7 @@ private[adept] object Version {
   
   /**
    Compares versions as in LatestVersionStrategy.MridComparator in Ivy.
-   This is again simliar to the compare_version in PHP and works as described:
+   This is again similar to the compare_version in PHP and works as described:
    The function first replaces _, - and + with a dot . in the version strings and also inserts dots . before and after any non number so that for example '4.3.2RC1' becomes '4.3.2.RC.1'. 
    Then it splits the results on the dot. 
    Then it compares the parts starting from left to right. 
@@ -40,7 +40,6 @@ private[adept] object Version {
       case (v1, v2) if (SpecialMeanings.get(v1).isDefined || SpecialMeanings.get(v2).isDefined) =>
         (SpecialMeanings.get(v1), SpecialMeanings.get(v2)) match {
           case (Some(sm1), Some(sm2)) => {
-            println(sm1 + " VS " + sm2)
             sm1.compareTo(sm2)
           }
           case (Some(sm1), None) => sm1.compareTo(0)
@@ -73,9 +72,9 @@ private[adept] object Prune {
   
   //TODO:Today we are comparing dynamically, I am not sure this is a good idea or if we should compare statically (i.e. have a replaces for each modules)
   def apply(modules: Seq[Module]): Seq[Module] = {
-	modules.groupBy(m => m.coords.org -> m.coords.name)
+	modules.groupBy(m => m.coordinates.org -> m.coordinates.name)
 		   .map{ case (_, comparableModules) =>
-	  comparableModules.maxBy(m => Version(m.coords.version))
+	  comparableModules.maxBy(m => Version(m.coordinates.version))
 	}.toSeq
   }
 }
