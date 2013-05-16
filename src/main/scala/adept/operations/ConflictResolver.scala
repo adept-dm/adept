@@ -68,10 +68,11 @@ private[adept] case class Version(private val value: String) extends Ordered[Ver
   }
 }
 
-private[adept] object Prune {
+private[adept] object ConflictResolver {
   
   //TODO:Today we are comparing dynamically, I am not sure this is a good idea or if we should compare statically (i.e. have a replaces for each modules)
-  def apply(modules: Seq[Module]): Seq[Module] = {
+  def prune(modules: Seq[Module]): Seq[Module] = {
+    
 	modules.groupBy(m => m.coordinates.org -> m.coordinates.name)
 		   .map{ case (_, comparableModules) =>
 	  comparableModules.maxBy(m => Version(m.coordinates.version))

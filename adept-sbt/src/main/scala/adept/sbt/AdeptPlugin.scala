@@ -97,7 +97,7 @@ object AdeptPlugin extends Plugin {
           }
         }
 
-        val prunedModules = Adept.prune(allWithDependencies.seq)
+        val prunedModules = Adept.resolveConflicts(allWithDependencies.seq)
 
         val mergedLocations = prunedModules.groupBy(_.coordinates).flatMap{ case (coords, modules) =>
           val currentArtifacts = modules.flatMap(_.artifacts.filter(a => artifactTypes.contains(a.artifactType)))

@@ -92,8 +92,8 @@ object Adept {
     }
   }
   
-  def prune(modules: Seq[Module]): Seq[Module] = { //TODO: rename to resolveConflicts
-    Prune(modules)
+  def resolveConflicts(modules: Seq[Module]): Seq[Module] = {
+    ConflictResolver.prune(modules)
   }
 }
 
