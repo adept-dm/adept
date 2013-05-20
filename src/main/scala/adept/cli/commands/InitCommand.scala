@@ -7,11 +7,11 @@ object InitCommand extends Command {
   override val command = "init"
   override val shortDescription = "initialize adept here"
   
-  override def execute(args: List[String]): Either[String, String] ={
+  override def execute(args: List[String]): CommandResult ={
     val dir = Defaults.dir
     val name = Defaults.name
     Adept.init(dir, name).right.map{ _ =>
-      "initialized "+name+" in "+dir
+      Some("initialized "+name+" in "+dir)
     }
   }
   

@@ -4,6 +4,10 @@ import adept.cli.commands.Command
 
 object CliHelpers {
 
+  def all(commands: Command*): Map[String, Command] = {
+    commands.map(c => (c.command, c)).toMap
+  }
+
   def help(error: Option[String], commands: Map[String, Command]) = error.getOrElse("")+"""
   |usage: adept <command> <options>
   |commands:
@@ -12,24 +16,18 @@ object CliHelpers {
     commands.map(c => c._1 + "   " + " "*(maxLength - c._1.length) + c._2.shortDescription).mkString("   ", "\n   ", "")}
   
   
-  def commandParser(args: List[String], commands: Map[String, Command]) = {
+  def commandParser(args: List[String], commands: Map[String, Command]): Either[String, Option[String]] = {
     if (args.headOption == Some("-h") || args.headOption == Some("--help"))
-      println(help(None, commands))
+      Right(Some(help(None, commands)))
     else
       args match {  
         case command :: commandArgs =>
           commands.get(command) match {
-            case Some(command) =>
-              command.execute(commandArgs)
-              .left.map{ error => 
-                println("Error: "+ error)
-              }.right.foreach{ msg => 
-                println(msg)
-              }
-            case _ => println(help(Some("unknown command: '"+command+"'"), commands))
+            case Some(command) => command.execute(commandArgs)
+            case _ => Left(help(Some("unknown command: '"+command+"'"), commands))
           }
         case noCommand => {
-          println(help(Some("no command specified!"), commands))
+          Left(help(Some("no command specified!"), commands))
         }
     }
   }

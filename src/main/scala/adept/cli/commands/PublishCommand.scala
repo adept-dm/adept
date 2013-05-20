@@ -15,8 +15,12 @@ object PublishCommand extends Command with Logging {
 
   val allowedOptions = Set("description", "extendsFrom", "visibility", "depreceated")
 
-  override def execute(args: List[String]): Either[String, String] = {
-    Right("hi")
+  override def execute(args: List[String]): CommandResult = {
+    Left("just so")
+  }
+
+  def publish(coords: Coordinates, config: Configuration, arts: List[String]) = {
+    
   }
 
   def processArgs(args: List[String]):
