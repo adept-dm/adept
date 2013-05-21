@@ -13,7 +13,7 @@ object PublishCommand extends Command with Logging {
   override val command = "push"
   override val shortDescription = "push a jar into repository"
 
-  val allowedOptions = Set("description", "extendsFrom", "visibility", "depreceated")
+  val allowedOptions = Set("description", "extends-from", "visibility", "depreatecd")
 
   override def execute(args: List[String]): CommandResult = {
     Left("just so")
@@ -29,7 +29,7 @@ object PublishCommand extends Command with Logging {
     val optionalSet = optional.toSet
 
     val coordsString :: reqTail = required
-    val artifacts = if (reqTail.length == 0) {
+    val artifacts = if ( reqTail.isEmpty ) {
       Left("at least one artifact must be specified")
     } else {
       Right(reqTail)
