@@ -47,8 +47,8 @@ object PublishCommand extends Command with Logging {
 
   def buildConfiguration(name: String, params: Set[String]): Either[String, Configuration] = {
     val paramMap: Map[String, String] = params.map { str =>
-      val x = str.dropWhile(_ == '-')
-      val (x1,x2) = x.span(_ != '=')
+      val param = str.dropWhile(_ == '-')
+      val (x1,x2) = param.span(_ != '=')
       (x1,x2.drop(1)) //drop = at the beginning of x2
     } toMap
 
