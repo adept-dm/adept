@@ -12,6 +12,7 @@ object ModuleCommand extends Command with Logging {
   def moduleCommands: Map[String, Command] = CliHelpers.all(
     ModuleInitCommand,
     ModuleAddArtifactCommand,
+    ModuleAddConfigCommand,
     ModulePublishCommand
   )
 
