@@ -13,6 +13,7 @@ object ModuleCommand extends Command with Logging {
     ModuleInitCommand,
     ModuleAddArtifactCommand,
     ModuleAddConfigCommand,
+    ModuleAddDependencyCommand,
     ModulePublishCommand
   )
 
