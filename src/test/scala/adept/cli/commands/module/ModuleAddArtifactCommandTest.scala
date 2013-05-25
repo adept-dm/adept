@@ -9,17 +9,17 @@ class ModuleAddArtifactCommandTest extends FunSuite with MustMatchers {
 
   test("parse simple") {
     ModuleAddArtifactCommand.parseArgs(
-      List("someType", "someloc", "--", "somecfg")) must be === ("someType", Set("someloc"), Set("somecfg"))
+      List("some.jar", "someType", "someloc", "--", "somecfg")) must be === ("some.jar", "someType", Set("someloc"), Set("somecfg"))
   }
 
   test("parse no cfg") {
     ModuleAddArtifactCommand.parseArgs(
-      List("sometype", "someloc", "anotherloc")) must be === ("sometype", Set("someloc", "anotherloc"), Set())
+      List("some.jar", "sometype", "someloc", "anotherloc")) must be === ("some.jar", "sometype", Set("someloc", "anotherloc"), Set())
   }
 
   test("parse no locs") {
     ModuleAddArtifactCommand.parseArgs (
-      List("sometype", "--", "cfg1", "cfg2")) must be === ("sometype", Set(), Set("cfg1", "cfg2"))
+      List("some.jar", "sometype", "--", "cfg1", "cfg2")) must be === ("some.jar", "sometype", Set(), Set("cfg1", "cfg2"))
   }
 
   val module = Module(Coordinates("a", "b", "c"), Set(), Set(
@@ -28,16 +28,16 @@ class ModuleAddArtifactCommandTest extends FunSuite with MustMatchers {
   ), Map(), Set())
 
   test("checkConfigs pass all") {
-    ModuleAddArtifactCommand.checkConfigs(Set("c2", "c1"), module) must be === None
+    ModuleAddArtifactCommand.checkConfigs(Set("c2", "c1"), module) must be === Right()
   }
 
   test("checkConfigs pass one") {
-    ModuleAddArtifactCommand.checkConfigs(Set("c2"), module) must be === None
+    ModuleAddArtifactCommand.checkConfigs(Set("c2"), module) must be === Right()
   }
 
   test("checkConfigs fail") {
     ModuleAddArtifactCommand.checkConfigs(
-      Set("c1", "c3", "c2"), module) must be === Some("configuration c3 is not a member of current module")
+      Set("c1", "c3", "c2"), module) must be === Left("configuration c3 is not a member of current module")
   }
 
 
