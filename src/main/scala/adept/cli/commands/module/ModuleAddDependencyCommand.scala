@@ -3,13 +3,26 @@ package adept.cli.commands.module
 import adept.cli.commands.Command
 import adept.models._
 
-object ModuleAddDependencyCommand extends Command {
+object ModuleAddDependencyCommand extends Command with JsonFileSystemModulePersistance {
 
   val command = "add-dependency"
   val shortDescription = "add artifact to current module"
 
   def execute(args: List[String]): CommandResult = {
-    Left("yeah")
+    for {
+      dependency <- parseArgs(args).right
+    } yield {
+      updateModule(dependency)
+      None
+    }
+  }
+
+  def updateModule(dep: Dependency) {
+    updatePersistedModule { module =>
+      module.copy(
+        dependencies = module.dependencies + dep
+      )
+    }
   }
 
   def parseArgs(args: List[String]) = {
@@ -18,7 +31,7 @@ object ModuleAddDependencyCommand extends Command {
     for {
       coords <- Coordinates.parse(coordsStr).right
     } yield {
-      (coords, hash, config)
+      Dependency(coords, Hash(hash), config)
     }
   }
 }

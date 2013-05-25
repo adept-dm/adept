@@ -1,4 +1,4 @@
-package adept.cli.commands.module 
+package adept.cli.commands.module
 
 import org.scalatest.FunSuite
 import org.scalatest.MustMatchers
@@ -9,12 +9,14 @@ class ModuleAddDependencyCommandTest extends FunSuite with MustMatchers {
 
   test("parseArgs pass") {
     ModuleAddDependencyCommand.parseArgs(
-      List("a:b:c", "hash brownies", "config")) must be === Right(Coordinates("a", "b", "c"), "hash brownies", "config")
+      List("a:b:c", "hash brownies", "config")) must be === Right(
+      Dependency(Coordinates("a", "b", "c"), Hash("hash brownies"), "config"))
   }
 
   test("parseArgs fail") {
     ModuleAddDependencyCommand.parseArgs(
-      List("a:b:c", "hash", "config")) must be === Right(Coordinates("a", "b", "c"), "hash", "config")
+      List("a:b:c", "hash", "config")) must be === Right(
+      Dependency(Coordinates("a", "b", "c"), Hash("hash"), "config"))
   }
 
 }
