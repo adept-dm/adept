@@ -3,7 +3,7 @@ package adept.cli.commands.module
 import adept.cli.commands.Command
 import adept.models._
 
-object ModuleAddArtifactCommand extends Command {
+object ModuleAddArtifactCommand extends Command with JsonFileSystemModulePersistance {
 
   val command = "add-artifact"
   val shortDescription = "add artifact to current module"

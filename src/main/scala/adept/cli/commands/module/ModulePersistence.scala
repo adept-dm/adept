@@ -1,5 +1,6 @@
 package adept.cli.commands.module
 
+import scala.io.Source
 import java.io._
 import adept.models._
 import org.json4s._
@@ -10,6 +11,25 @@ trait JsonFileSystemModulePersistance {
     val f = new File("./blah.txt")
     f.createNewFile
     f
+  }
+
+  def loadModule: Either[String, Module] = {
+    try {
+      val moduleJson: JValue = parse(Source.fromFile(storage).mkString)
+      Module.readJsonModule(moduleJson)
+    } catch {
+      case e: Exception => Left(e.getMessage)
+    }
+  }
+
+  def updatePersistedModule(f: Module => Module):Either[String, Module] = {
+    for {
+      module <- loadModule.right
+    } yield {
+      val updated = f(module)
+      persistModule(updated)
+      updated
+    }
   }
 
   def persistModule(module: Module) = {
@@ -24,5 +44,6 @@ trait JsonFileSystemModulePersistance {
 }
 
 trait ModulePersistence {
+  def updatedPersistedModule(f: Module => Module): Either[String, Module]
   def persistModule(module: Module): Either[String, Unit]
 }

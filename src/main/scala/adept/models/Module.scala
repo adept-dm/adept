@@ -32,6 +32,18 @@ object Module {
     res
   }
 
+  def readJsonModule(json: JValue): Either[String, Module] = {
+    for {
+      modules <- readSameCoordinates(json).right
+    } yield {
+      if(modules.length == 1) {
+        modules.head
+      } else {
+        throw new Exception("only 1 module expected")
+      }
+    }
+  }
+
   def writeJsonForSameCoords(coords: Coordinates, modules: Seq[Module]): JValue = {
     import writes._
     coordsToJson(coords) ~ asJObject(List[JField](

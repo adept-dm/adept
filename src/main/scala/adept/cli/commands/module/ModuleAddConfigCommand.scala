@@ -3,17 +3,28 @@ package adept.cli.commands.module
 import adept.cli.commands.Command
 import adept.models._
 
-object ModuleAddConfigCommand extends Command {
+object ModuleAddConfigCommand extends Command with JsonFileSystemModulePersistance {
 
   val command = "add-config"
   val shortDescription = "add configuration"
 
   def execute(args: List[String]): CommandResult = {
+    def addCfgToModule(cfg: Configuration)(module: Module): Module = {
+      print(module)
+      val newModule = module.copy(
+        configurations = module.configurations + cfg
+      )
+      print(newModule)
+      newModule
+    }
+
     for {
       cfg <- parseArgs(args).right
+      result <- updatePersistedModule(addCfgToModule(cfg)).right
     } yield {
-      Some("Yeah mr white! yeah Science!")
+      None
     }
+
   }
     def parseArgs(args: List[String]) = {
     val (name :: configStrings) = args

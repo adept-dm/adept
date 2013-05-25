@@ -1,4 +1,4 @@
-package adept.cli.commands.module 
+package adept.cli.commands.module
 
 import org.scalatest.FunSuite
 import org.scalatest.MustMatchers
