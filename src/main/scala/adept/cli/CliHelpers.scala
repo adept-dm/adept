@@ -13,14 +13,17 @@ object CliHelpers {
   |commands:
   |""".stripMargin+{
     val maxLength = commands.map(_._1).maxBy(_.length).length
-    commands.map(c => c._1 + "   " + " "*(maxLength - c._1.length) + c._2.shortDescription).mkString("   ", "\n   ", "")}
-  
-  
+    sortedCommands(commands).map(c => c._1 + "   " + " "*(maxLength - c._1.length) + c._2.shortDescription).mkString("   ", "\n   ", "")}
+
+  private def sortedCommands(commands: Map[String, Command]) = {
+    commands.toSeq.sortBy(_._1)
+  }
+
   def commandParser(args: List[String], commands: Map[String, Command]): Either[String, Option[String]] = {
     if (args.headOption == Some("-h") || args.headOption == Some("--help"))
       Right(Some(help(None, commands)))
     else
-      args match {  
+      args match {
         case command :: commandArgs =>
           commands.get(command) match {
             case Some(command) => command.execute(commandArgs)
