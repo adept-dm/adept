@@ -68,6 +68,8 @@ The cons are:
 8. maven support???
 
 ## Building it ##
+[![Build Status](https://travis-ci.org/freekh/adept.png?branch=master)](https://travis-ci.org/freekh/adept)
+
 To start using adept from the command line you can run `sbt adept-create-script`. 
 This will build and create a file in the `bin` folder.
 
