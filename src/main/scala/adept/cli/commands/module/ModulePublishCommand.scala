@@ -15,6 +15,7 @@ object ModulePublishCommand extends Command with JsonFileSystemModulePersistance
     } yield  {
       adept.add(module)
       adept.commit("published")
+      adept.push("git@github.com:tomasherman/adept-central.git")
       None
     }
   }
