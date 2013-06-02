@@ -2,10 +2,11 @@ package adept
 
 import java.io._
 import org.eclipse.jgit.api.Git
+import org.eclipse.jgit.api.errors.TransportException
 import adept.operations._
 import adept.models._
 import akka.util.FiniteDuration
-import adept.utils.EitherUtils
+import adept.utils._
 import org.eclipse.jgit.lib._
 import org.eclipse.jgit.transport._
 import adept.utils.Logging
@@ -197,26 +198,16 @@ class Adept private[adept](val dir: File, val name: String) extends Logging {
     remote.addURI(uri)
     remote.update(config)
     config.save()
-    val jschFactory = new JschConfigSessionFactory {
-      override def configure(hc: OpenSshConfig.Host, session: com.jcraft.jsch.Session) {
-        val provider = new CredentialsProvider() {
-          override def isInteractive = false
-          override def supports(items: CredentialItem*) = true
-          override def get(uri: URIish, items: CredentialItem*) ={
-            for (
-              item <- items
-            ) { item.asInstanceOf[CredentialItem.StringType].setValue("YOURPASSWORDHERE") } //TODO FIX LOL
-            true
-          }
-        }
-
-        val userInfo = new CredentialsProviderUserInfo(session, provider)
-        session.setUserInfo(userInfo)
-
+    try {
+      SshSessionFactory.setInstance(GitHelpers.sshFactory)
+      git.push.setRemote("central").call
+    } catch {
+      case x: TransportException => {
+        println("ssh password required ...")
+        SshSessionFactory.setInstance(GitHelpers.interactiveSshFactory)
+        git.push.setRemote("central").call
       }
     }
-    SshSessionFactory.setInstance(jschFactory)
-    git.push.setRemote("central").call
   }
 
   def commit(msg: String) = {
