@@ -7,6 +7,7 @@ object ModuleAddConfigCommand extends Command with JsonFileSystemModulePersistan
 
   val command = "add-config"
   val shortDescription = "add configuration"
+  override val help = Some("usage: name --visibility={public,private} --description=yourdescription --extends-from=extendsfrom --depreceated=depreceated")
 
   def execute(args: List[String]): CommandResult = {
     def addCfgToModule(cfg: Configuration)(module: Module): Module = {

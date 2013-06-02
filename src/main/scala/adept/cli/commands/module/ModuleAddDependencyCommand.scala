@@ -7,6 +7,7 @@ object ModuleAddDependencyCommand extends Command with JsonFileSystemModulePersi
 
   val command = "add-dependency"
   val shortDescription = "add artifact to current module"
+  override val help = Some("usage: org:name:version hash config")
 
   def execute(args: List[String]): CommandResult = {
     for {

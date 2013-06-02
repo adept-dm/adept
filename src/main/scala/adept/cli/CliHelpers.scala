@@ -26,7 +26,7 @@ object CliHelpers {
       args match {
         case command :: commandArgs =>
           commands.get(command) match {
-            case Some(command) => command.execute(commandArgs)
+            case Some(command) => command.executeWithHelpCheck(commandArgs)
             case _ => Left(help(Some("unknown command: '"+command+"'"), commands))
           }
         case noCommand => {

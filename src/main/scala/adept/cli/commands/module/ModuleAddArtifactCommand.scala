@@ -9,8 +9,7 @@ object ModuleAddArtifactCommand extends Command with JsonFileSystemModulePersist
 
   val command = "add-artifact"
   val shortDescription = "add artifact to current module"
-
-
+  override val help = Some(""" args: path-to-artifact.jar artifact-type locations* -- configs* """)
 
   def execute(args: List[String]): CommandResult = {
     val (artifact, artifactType, locations, configs) = parseArgs(args)
