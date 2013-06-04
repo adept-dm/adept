@@ -3,12 +3,13 @@ package adept.cli.commands.module
 import scala.io.Source
 import java.io._
 import adept.models._
+import adept.cli.commands.Defaults
 import org.json4s._
 import org.json4s.native.JsonMethods._
 
 trait JsonFileSystemModulePersistance {
   private def storage = {
-    val f = new File("./blah.txt")
+    val f = new File(Defaults.dir, "current-module.json")
     f.createNewFile
     f
   }

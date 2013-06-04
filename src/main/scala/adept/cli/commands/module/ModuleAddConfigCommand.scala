@@ -51,7 +51,7 @@ object ModuleAddConfigCommand extends Command with JsonFileSystemModulePersistan
         paramMap.get("description"),
         paramMap.get("extends-from").map(_.split(',').toSet).getOrElse(Set()),
         visibility,
-        paramMap.get("depreceated"))
+        paramMap.get("deprecated"))
     }
   }
 
