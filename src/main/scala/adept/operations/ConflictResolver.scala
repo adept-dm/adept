@@ -70,7 +70,6 @@ private[adept] case class Version(private val value: String) extends Ordered[Ver
 
 private[adept] object ConflictResolver {
   
-  //TODO:Today we are comparing dynamically, I am not sure this is a good idea or if we should compare statically (i.e. have a replaces for each modules)
   def prune(modules: Seq[Module]): Seq[Module] = {
     
 	modules.groupBy(m => m.coordinates.org -> m.coordinates.name)

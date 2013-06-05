@@ -17,6 +17,7 @@ case class Module(
   attributes: Map[String, Seq[String]],
   dependencies: Set[Dependency]) {
   lazy val hash = Hash.mix(artifacts.map(_.hash).toSeq)
+  
 }
 
 object Module {
@@ -48,14 +49,12 @@ object Module {
     }
     
     def issueError[A](json: JValue, s: String, expected: String, got: JValue): Either[String, A] = {
-      if (true || logger.isDebugEnabled) {
+      if (logger.isDebugEnabled) {
         val e = new Exception()
         val w = new StringWriter()
         e.printStackTrace(new PrintWriter(w))
         logger.debug("printing stacktrace for debug: " + w.getBuffer().toString)
-        println(w.getBuffer().toString)
         logger.debug("pure json was: " + json)
-        println("pure json was: " + json)
       }
       Left("expected a "+expected+" but found:" +got + " for " + s + " in:" + pretty(render(json)))
     }
@@ -273,6 +272,11 @@ object Module {
         ("attributes" -> module.attributes),
         ("dependencies" -> module.dependencies.map(dependencyToJson)),
         ("configurations" -> module.configurations.map(configurationToJson))).map(ifNonEmpty): _*)
+    }
+    
+    def resolveTransitively(modules: Seq[Module]) = {
+      //TODO
+      throw new Exception("NOT IMPLEMENTED")
     }
   }
 

@@ -1,21 +1,12 @@
-
 import sbt._
 import sbt.Keys._
 import adept.models._
 import adept.Adept
+import adept.ivy.IvyHelpers
 
 object AdeptPlugin extends Plugin {
-
-  val adeptDependencies = SettingKey[Seq[ModuleID]]("adept-dependencies", "declares dependencies fetched by adept")
-  val adeptRepositories = SettingKey[Map[String,String]]("adept-repositories", "adept the name and git url for the adept repositories")
-  val adeptLocalRepository = TaskKey[Option[Adept]]("adept-local-repository", "the local repository for adept")
-  val adeptClasspath = TaskKey[Classpath]("adept-classpath")
-  val adeptDirectory = SettingKey[File]("adept-directory")
-  val adeptArtifactTypes = SettingKey[Seq[String]]("adept-artifact-types")
-
-
-  //TODO: adept-describe-classpath
   
+  import AdeptKeys._
   
   def withAdeptClassloader[A](f: => A): A = {
     val classloader = Adept.getClass.getClassLoader
@@ -30,6 +21,29 @@ object AdeptPlugin extends Plugin {
     }
   }
 
+  val adeptIvyAddTask = (adeptLocalRepository, ivyConfiguration, libraryDependencies, streams) map { (localAdept, ivyConfiguration, ivyDeps, s) =>
+    val ivySbt = new IvySbt(ivyConfiguration)
+    val modules = ivySbt.withIvy(s.log){ ivy =>
+      localAdept.toSeq.flatMap { adept =>
+        ivyDeps.flatMap{ dep =>
+          val coords = adeptCoordinates(dep)
+          IvyHelpers.add(coords, ivy, adept)
+        }
+      }
+    }
+    modules
+  }
+
+  private def adeptCoordinates(dep: ModuleID) = {
+    //TODO: fix  this properly
+    val name = dep.crossVersion match {
+      case _: CrossVersion.Binary => CrossVersion.crossName(dep.name, CrossVersion.TransitionScalaVersion) //TODO: must be another method on crossversion that does this?
+      case _: CrossVersion.Full => throw new Exception("NOT IMPLEMENTED: CrossVersion.Full (sbt plugin)") //TODO: fix...
+      case _: CrossVersion.Disabled.type => dep.name
+    }
+    Coordinates(dep.organization, name, dep.revision)
+  }
+  
   val adeptClasspathTask = (adeptRepositories, adeptDirectory, adeptDependencies, adeptLocalRepository, adeptArtifactTypes, streams) map { (adeptRepositories, adeptDirectory, deps, localRepo, artifactTypes, s) => 
     withAdeptClassloader{
       import akka.util.duration._
@@ -62,15 +76,34 @@ object AdeptPlugin extends Plugin {
       } else {
         val depModules = all.par.flatMap{ adept =>
           deps.map{ dep =>
-            val coords = Coordinates(dep.organization, dep.name, dep.revision)
+            val coords = adeptCoordinates(dep)
             (dep, adept, adept.findModule(coords, hash = None).toSeq) //TODO: hash 
           }
         }
 
         val modulesOverAllRepos = depModules.seq.groupBy{ case (dep, adept, modules) => dep }.map{ case (dep, allDepsModules) => dep -> allDepsModules.map(_._3).flatten  }
         
+        val modulesWithExlusions = modulesOverAllRepos.map{case (dep, modules) =>
+          dep -> modules.map{m => 
+            if (dep.isTransitive) {
+              val excludedDeps = m.dependencies.filter{ d =>
+                val foundExclusion = dep.exclusions.find{ e =>
+                  //TODO: configurations/artifacts?
+                  (e.name.isEmpty && d.coords.org == e.organization) || (e.organization == d.coords.org && e.name == d.coords.name)
+                }
+                foundExclusion.foreach{ e => s.log.debug("excluding: " + e  +" as " +d + " in "+ m) }
+                foundExclusion.isDefined
+              }
+              m.copy(dependencies = excludedDeps)
+            } else {
+              m.copy(dependencies = Set.empty)
+            }
+          }
+        }
+        
         //verify declared dependencies:
         modulesOverAllRepos.foreach{ case (dep, modules) =>
+          
           //check coords:
           val allCoords = modules.map(_.coordinates).distinct
           if (allCoords.size > 1) {
@@ -107,17 +140,18 @@ object AdeptPlugin extends Plugin {
         }
 
         val res = Adept.artifact(adeptDirectory, mergedLocations.toSeq, timeout)
-        if (res.isLeft) {
-          val msg = res.left.get
-          s.log.error(msg)
-          throw new Exception("cannot get dependencies because: "+msg)
-        } else res.right.get.classpath
+        res match {
+          case Left(msg) => 
+            s.log.error(msg)
+            throw new Exception("cannot get dependencies because: "+msg)
+          case Right(jars) => jars.classpath
+        }
       }
     }
   }
-  
-  override val settings = Seq(
-    adeptArtifactTypes := Seq("jar", "bundle"),
+
+  def adeptSettings = Seq(
+    adeptArtifactTypes := defaultArtifactTypes,
     adeptDirectory := Path.userHome / ".adept",
     adeptRepositories := Map(
       
@@ -137,7 +171,7 @@ object AdeptPlugin extends Plugin {
       }
       else Some(res.right.get)
     },
-
+    adeptIvyAdd <<= adeptIvyAddTask,
     adeptClasspath <<= adeptClasspathTask,
     (managedClasspath in Compile) <++= adeptClasspath
   )

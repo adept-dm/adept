@@ -104,7 +104,7 @@ object IvyHelpers extends Logging{
         val thisModuleArtifactReports = artifactReports.filter(_.getArtifact().getId() == a.getId())
         thisModuleArtifactReports.map{ r =>
           val artifact = r.getArtifact()
-          val location = resolveEngine.locate(artifact).getLocation()
+          val location = r.getArtifactOrigin().getLocation()
           val file = r.getLocalFile()
           val artifactType = artifact.getType() 
           (file, location, artifactType) -> artifact.getConfigurations().toList
