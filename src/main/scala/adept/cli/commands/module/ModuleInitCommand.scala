@@ -7,6 +7,7 @@ object ModuleInitCommand extends Command with JsonFileSystemModulePersistance {
 
   val command = "init"
   val shortDescription = "initiate publishing of new module"
+  override val help = Some("args: org:name:version")
 
   override def execute(args: List[String]): CommandResult = {
     for {
@@ -16,12 +17,15 @@ object ModuleInitCommand extends Command with JsonFileSystemModulePersistance {
   }
 
   def parseArgs(args: List[String]): Either[String, Module] = {
-    val (coordsString :: configVals) = args
-    for {
-      coords <- Coordinates.parse(coordsString).right
-    } yield {
-      Module(coords, Set(), Set(), Map(), Set())
+    if (args.length == 1) {
+      for {
+        coords <- Coordinates.parse(args.head).right
+      } yield {
+        Module(coords, Set(), Set(), Map(), Set())
+      }
+    }
+    else {
+      Left(help.get)
     }
   }
-
 }

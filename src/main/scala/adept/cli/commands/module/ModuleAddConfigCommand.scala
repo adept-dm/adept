@@ -7,15 +7,13 @@ object ModuleAddConfigCommand extends Command with JsonFileSystemModulePersistan
 
   val command = "add-config"
   val shortDescription = "add configuration"
-  override val help = Some("usage: name --visibility={public,private} --description=yourdescription --extends-from=extendsfrom --depreceated=depreceated")
+  override val help = Some("args: name --visibility={public,private} --description=yourdescription --extends-from=extendsfrom --deprecated=deprecated")
 
   def execute(args: List[String]): CommandResult = {
     def addCfgToModule(cfg: Configuration)(module: Module): Module = {
-      print(module)
       val newModule = module.copy(
         configurations = module.configurations + cfg
       )
-      print(newModule)
       newModule
     }
 
@@ -27,12 +25,16 @@ object ModuleAddConfigCommand extends Command with JsonFileSystemModulePersistan
     }
 
   }
-    def parseArgs(args: List[String]) = {
-    val (name :: configStrings) = args
-    for {
-      config <- parseConfiguration(name, configStrings.toSet).right
-    } yield {
-      config
+  def parseArgs(args: List[String]) = {
+    if (args.length >= 1) {
+      val (name :: configStrings) = args
+      for {
+        config <- parseConfiguration(name, configStrings.toSet).right
+      } yield {
+        config
+      }
+    } else {
+      Left(help.get)
     }
   }
 

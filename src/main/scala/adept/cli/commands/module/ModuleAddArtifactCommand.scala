@@ -9,24 +9,28 @@ object ModuleAddArtifactCommand extends Command with JsonFileSystemModulePersist
 
   val command = "add-artifact"
   val shortDescription = "add artifact to current module"
-  override val help = Some(""" args: path-to-artifact.jar artifact-type locations* -- configs* """)
+  override val help = Some("""args: path-to-artifact.jar artifact-type locations+ -- configs* """)
 
   def execute(args: List[String]): CommandResult = {
-    val (artifact, artifactType, locations, configs) = parseArgs(args)
+    if(args.length >= 3) {
+      val (artifact, artifactType, locations, configs) = parseArgs(args)
 
-    for {
-      module <- loadModule.right
-      artifactFile <- checkArtifact(artifact).right
-      unit <- checkConfigs(configs, module).right
-    } yield {
-      val newModule = updateModule(Artifact.fromFile(
-        artifactFile,
-        artifactType,
-        configs,
-        locations
-      ), module)
-      updatePersistedModule(_ => newModule)
-      None
+      for {
+        module <- loadModule.right
+        artifactFile <- checkArtifact(artifact).right
+        unit <- checkConfigs(configs, module).right
+      } yield {
+        val newModule = updateModule(Artifact.fromFile(
+          artifactFile,
+          artifactType,
+          configs,
+          locations
+        ), module)
+        updatePersistedModule(_ => newModule)
+        None
+      }
+    } else {
+      Left(help.get)
     }
   }
 
@@ -37,6 +41,7 @@ object ModuleAddArtifactCommand extends Command with JsonFileSystemModulePersist
   }
 
   def parseArgs(args: List[String]) = {
+
     val (artifact :: artifactType :: tail) = args
     val (locations, configz) = tail.span( _ != "--")
     val configs = if (configz.length > 0) { configz.tail } else { Nil }
