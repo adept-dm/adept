@@ -16,7 +16,7 @@ class ModuleAddConfigCommandTest extends FunSuite with MustMatchers {
       "--description=" + descr,
       "--extends-from=" + extendsFrom,
       "--visibility=private",
-      "--depreceated=" + depreceated))
+      "--deprecated=" + depreceated))
 
     parsed must be === Right(
       Configuration(
