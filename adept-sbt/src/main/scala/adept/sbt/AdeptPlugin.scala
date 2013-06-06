@@ -1,4 +1,4 @@
-import sbt._
+import sbt.{ Configuration => _, _}
 import sbt.Keys._
 import adept.models._
 import adept.Adept
@@ -34,7 +34,9 @@ object AdeptPlugin extends Plugin {
     modules
   }
 
-  private def adeptCoordinates(dep: ModuleID) = {
+  private val DefaultConf = "default" //TODO: use from SBT and use a settingkey
+ 
+  private def adeptCoordinates(dep: ModuleID): Coordinates = {
     //TODO: fix  this properly
     val name = dep.crossVersion match {
       case _: CrossVersion.Binary => CrossVersion.crossName(dep.name, CrossVersion.TransitionScalaVersion) //TODO: must be another method on crossversion that does this?
@@ -43,8 +45,16 @@ object AdeptPlugin extends Plugin {
     }
     Coordinates(dep.organization, name, dep.revision)
   }
+    
+  private def adeptDependency(adept: Adept, dep: ModuleID): Option[Dependency]= {
+    val coords = adeptCoordinates(dep)
+    val module = adept.findModule(coords, hash = None) //TODO: Hash
+    module.map{ m =>
+      Dependency(coords, m.hash, dep.configurations.getOrElse(DefaultConf))
+    }
+  }
   
-  val adeptClasspathTask = (adeptRepositories, adeptDirectory, adeptDependencies, adeptLocalRepository, adeptArtifactTypes, streams) map { (adeptRepositories, adeptDirectory, deps, localRepo, artifactTypes, s) => 
+  def adeptClasspathTask(sbtConfig: sbt.Configuration) = (adeptRepositories, adeptDirectory, adeptDependencies, adeptLocalRepository, adeptArtifactTypes, streams) map { (adeptRepositories, adeptDirectory, deps, localRepo, artifactTypes, s) => 
     withAdeptClassloader{
       import akka.util.duration._
 
@@ -67,25 +77,27 @@ object AdeptPlugin extends Plugin {
         if (!adept.isLocal) adept.pull()
       }
 
-      val timeout = 60.minutes
+      val timeout = 60.minutes //TODO: make a setting out of this
 
       if (all.isEmpty && deps.nonEmpty) {
         val msg = "no repositories defined for: " + deps.mkString(",")
         s.log.error(msg)
         throw new Exception(msg)
       } else {
-        val depModules = all.par.flatMap{ adept =>
-          deps.map{ dep =>
-            val coords = adeptCoordinates(dep)
-            (dep, adept, adept.findModule(coords, hash = None).toSeq) //TODO: hash 
+        val depAdeptDep = all.par.flatMap{ adept =>
+          deps.map{ sbtDep =>
+            (sbtDep, adept, adept.findModule(adeptCoordinates(sbtDep)))
           }
         }
-
-        val modulesOverAllRepos = depModules.seq.groupBy{ case (dep, adept, modules) => dep }.map{ case (dep, allDepsModules) => dep -> allDepsModules.map(_._3).flatten  }
+        val confExpr = sbtConfig.extendsConfigs.map(_.name).mkString(Configuration.ConfSep) //TODO: this is an ugly hack, please fix. I think we should take a Configuration instaed on the Configuration.modules
+        Seq.empty[File].classpath
+        //Configuration.modules()
         
-        val modulesWithExlusions = modulesOverAllRepos.map{case (dep, modules) =>
-          dep -> modules.map{m => 
-            if (dep.isTransitive) {
+        val modulesOverAllRepos = depAdeptDep.seq.groupBy{ case (dep, adept, maybeAdeptDep) => dep }.map{ case (dep, allDepsAdeptDeps) => dep -> allDepsAdeptDeps.map(_._3).flatten  }
+        
+        val modulesWithExlusions = modulesOverAllRepos.map{case (sbtDep, adeptDeps) =>
+          sbtDep -> adeptDeps.map{m => 
+            if (sbtDep.isTransitive) {
               val excludedDeps = m.dependencies.filter{ d =>
                 val foundExclusion = dep.exclusions.find{ e =>
                   //TODO: configurations/artifacts?
@@ -102,7 +114,7 @@ object AdeptPlugin extends Plugin {
         }
         
         //verify declared dependencies:
-        modulesOverAllRepos.foreach{ case (dep, modules) =>
+        modulesWithExlusions.foreach{ case (dep, modules) =>
           
           //check coords:
           val allCoords = modules.map(_.coordinates).distinct
@@ -123,11 +135,11 @@ object AdeptPlugin extends Plugin {
             throw new Exception("cannot load adept dependencies because: "+msg)
           }
         }
-
-        val allWithDependencies = depModules.flatMap { case (dep, adept, maybeModule) => 
-          maybeModule.flatMap{ module =>
-            adept.dependencies(module) + module
-          }
+        
+        val allWithDependencies = depAdeptDep.flatMap { case (dep, adept, maybeModule) =>
+            maybeModule.flatMap{ module =>
+              adept.dependencies(module) + module
+            }
         }
 
         val prunedModules = Adept.resolveConflicts(allWithDependencies.seq)
@@ -146,7 +158,7 @@ object AdeptPlugin extends Plugin {
             throw new Exception("cannot get dependencies because: "+msg)
           case Right(jars) => jars.classpath
         }
-      }
+      } 
     }
   }
 
@@ -172,8 +184,10 @@ object AdeptPlugin extends Plugin {
       else Some(res.right.get)
     },
     adeptIvyAdd <<= adeptIvyAddTask,
-    adeptClasspath <<= adeptClasspathTask,
-    (managedClasspath in Compile) <++= adeptClasspath
+    adeptClasspath in Compile <<= adeptClasspathTask(Compile),
+    (managedClasspath in Compile) <++= adeptClasspath in Compile,
+    adeptClasspath in Test <<= adeptClasspathTask(Test),
+    (managedClasspath in Test) <++= adeptClasspath in Test
   )
 
 }

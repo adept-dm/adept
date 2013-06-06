@@ -140,7 +140,7 @@ class Adept private[adept](val dir: File, val name: String) extends Logging {
       }
     }
   }
-
+  
   def repo = git.getRepository()
 
   def lastCommit(allCoords: Set[Coordinates]): Option[Hash] = {

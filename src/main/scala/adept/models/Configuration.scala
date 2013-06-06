@@ -9,11 +9,7 @@ object Visibility extends Enumeration {
 
 case class Configuration(name: String, description: Option[String], extendsFrom: Set[String], visibility: Visibility.Value, deprecated: Option[String])
 
-class Evicted(val reason: String)
-case class EvictedArtifact(artifact: Artifact, module: Module, override val reason: String) extends Evicted(reason)
-case class EvictedDependency(dependency: Dependency, module: Module, override val reason: String) extends Evicted(reason)
-
-object Configuration extends Logging {
+object Configuration extends Logging { //TODO: move logic out of this Object whcih belongs to models. Should be hidden from end user
   private[models] def extendedConfs(rootConfs: Set[Configuration], conf: Configuration): Set[Configuration]= {
     val (doesExtend, doesNotExtend) = rootConfs.partition{ rootConf =>
       conf.extendsFrom.contains(rootConf.name)

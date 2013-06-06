@@ -9,6 +9,7 @@ scalaVersion := "2.10.1"
 adeptRepositories += "central" -> "git@github.com:freekh/adept-central.git"
 
 
+
 adeptDependencies := Seq(
   "play" % "play_2.10" % "2.1.1",
   "org.javassist" % "javassist" % "3.16.1-GA",
