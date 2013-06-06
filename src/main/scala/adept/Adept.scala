@@ -11,6 +11,8 @@ import org.eclipse.jgit.lib._
 import org.eclipse.jgit.transport._
 import adept.utils.Logging
 import com.jcraft.jsch.JSch
+import adept.utils.EitherUtils
+import adept.utils._
 
 object Adept {
   def dir(baseDir: File, name: String) = new File(baseDir, name)
@@ -77,8 +79,8 @@ object Adept {
       (hash, coords, locations, dest.getOrElse{
         val artifactDir = new File(baseDir, aritifactPath)
         artifactDir.mkdirs
-        val currentArtifactDir = Add.getModuleDir(artifactDir, coords)
-        Add.createDir(currentArtifactDir)
+        val currentArtifactDir = ModuleFiles.getModuleDir(artifactDir, coords)
+        ModuleFiles.createDir(currentArtifactDir)
         new File(currentArtifactDir , hash.value+".jar") //TODO: need a smarter way to store artifacts (imagine 50K jars in one dir!)
       })
     }
@@ -92,9 +94,8 @@ object Adept {
       existingFiles ++ downloadedFiles
     }
   }
-
-  def prune(modules: Seq[Module]): Seq[Module] = { //TODO: rename to resolveConflicts
-    Prune(modules)
+  def resolveConflicts(modules: Seq[Module]): Seq[Module] = {
+    ConflictResolver.prune(modules)
   }
 }
 
@@ -113,7 +114,8 @@ class Adept private[adept](val dir: File, val name: String) extends Logging {
 
 
   def findModule(coords: Coordinates, hash: Option[Hash] = None): Option[Module] = {
-    val file = new File(Add.getModuleDir(dir, coords), Add.modulesFilename)
+    val file = new File(ModuleFiles.getModuleDir(dir, coords), ModuleFiles.modulesFilename)
+
 
     if (file.exists && file.isFile) {
       import org.json4s.native.JsonMethods._
@@ -146,7 +148,7 @@ class Adept private[adept](val dir: File, val name: String) extends Logging {
 
   def lastCommit(allCoords: Set[Coordinates]): Option[Hash] = {
     val paths = allCoords.map{ coords =>
-      new File(Add.getModuleDir(dir, coords), Add.modulesFilename)
+      new File(ModuleFiles.getModuleDir(dir, coords), ModuleFiles.modulesFilename)
     }.filter(f => f.exists && f.isFile).map{ file =>
       file.getAbsolutePath.replace(dir.getAbsolutePath + File.separatorChar, "")
     }.mkString(" ")
@@ -158,17 +160,15 @@ class Adept private[adept](val dir: File, val name: String) extends Logging {
     if (logIt.hasNext()) Some(Hash(logIt.next.getName))
     else None
   }
-
-  def lastCommit = {
-    val hash = try {
+  def lastCommit: Option[Hash] = {
+    try {
       val logIt = git.log()
                      .call()
                      .iterator()
-      logIt.next.getName
+      Some(Hash(logIt.next.getName))
     } catch {
-      case e: org.eclipse.jgit.api.errors.NoHeadException => "EMPTY"
+      case e: org.eclipse.jgit.api.errors.NoHeadException => None
     }
-    Hash(hash)
   }
 
   lazy val branchName = "master"

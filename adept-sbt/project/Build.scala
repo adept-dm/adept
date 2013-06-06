@@ -9,7 +9,10 @@ object AdeptBuild extends Build {
     
   lazy val root = Project(id = "adept-sbt",
     base = file("."),
-    settings = Project.defaultSettings).dependsOn(file("../"))
+    settings = Project.defaultSettings ++ Seq(
+      organization := "org.adept",
+      version := "0.2.2-SNAPSHOT"
+    )).dependsOn(file("../"))
 }
 
 

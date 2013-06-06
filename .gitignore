@@ -14,7 +14,16 @@ project/plugins/project/
 .cache
 .classpath
 .project
+.settings
+org.scala-ide.sdt.core.prefs
 
 # Adept specific
 bin/adept
 .adept
+
+# this project
+typesafe-ivy-settings.xml
+
+# git stuff
+*.orig
+
