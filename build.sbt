@@ -1,3 +1,5 @@
+org.scalastyle.sbt.ScalastylePlugin.Settings
+
 name := "adept"
 
 scalaVersion := "2.9.2"

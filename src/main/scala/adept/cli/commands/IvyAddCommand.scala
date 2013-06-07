@@ -9,7 +9,7 @@ object IvyAddCommand extends Command {
   override val command = "ivy-add"
   override val shortDescription = "add using ivy"
   
-  override def execute(args: List[String]): Either[String, String] ={
+  override def execute(args: List[String]): CommandResult ={
     val dir = Defaults.dir
     val name = Defaults.name
     
@@ -22,7 +22,7 @@ object IvyAddCommand extends Command {
       coords <- Coordinates.parse(coordsString).right
       ivy <- IvyHelpers.load(settingsArg).right
     } yield{
-      IvyHelpers.add(coords, ivy, adept).mkString("\n")
+      Some(IvyHelpers.add(coords, ivy, adept).mkString("\n"))
     }
   }
   

@@ -33,6 +33,18 @@ object Module {
     res
   }
 
+  def readJsonModule(json: JValue): Either[String, Module] = {
+    for {
+      modules <- readSameCoordinates(json).right
+    } yield {
+      if(modules.length == 1) {
+        modules.head
+      } else {
+        throw new Exception("only 1 module expected")
+      }
+    }
+  }
+
   def writeJsonForSameCoords(coords: Coordinates, modules: Seq[Module]): JValue = {
     import writes._
     coordsToJson(coords) ~ asJObject(List[JField](
@@ -42,12 +54,16 @@ object Module {
       })).map(ifNonEmpty): _*)
   }
 
+  def writeJsonModule(module: Module): JValue = {
+    writeJsonForSameCoords(module.coordinates, Seq(module))
+  }
+
   private object reads extends Logging {
-      
+
     trait JsonTransformer[T] {
       def eitherOf(json: JValue, s: String): Either[String, T]
     }
-    
+
     def issueError[A](json: JValue, s: String, expected: String, got: JValue): Either[String, A] = {
       if (logger.isDebugEnabled) {
         val e = new Exception()
@@ -58,7 +74,7 @@ object Module {
       }
       Left("expected a "+expected+" but found:" +got + " for " + s + " in:" + pretty(render(json)))
     }
-    
+
     implicit val jstringTransformer = new JsonTransformer[String]{
       override def eitherOf(json: JValue, s: String): Either[String, String] = {
         (json \ s) match {
@@ -67,8 +83,8 @@ object Module {
         }
       }
     }
-    
-    
+
+
     def eitherOf[T](json: JValue)(implicit t: JsonTransformer[T]) = new {
       def \(s: String): Either[String, T] = {
         t.eitherOf(json, s)
@@ -84,16 +100,16 @@ object Module {
         Dependency(coords, Hash(hash), configuration)
       }
     }
-    
+
     def getOptionalValue[A : JsonTransformer](json: JValue, name: String): Either[String, Option[A]]  = {
       val maybeValue = (json \ name).toOption //is Some if value exists
-      
+
        //if value exists it should be of the expected type A, and wrapped in Option
       val mappedValue = maybeValue.map(_ => (eitherOf[A](json) \ name).right.map(a => Some(a)))
-      
+
       mappedValue.getOrElse(Right(None)) //if no value is fine this is Ok
     }
-    
+
     def getOptionalStrings(json: JValue, name: String): Either[String, Set[String]] = {
       (json \ name).toOption.map{ foundJson =>
           readSet(foundJson)(array => array.map{  stringJson =>
@@ -106,7 +122,7 @@ object Module {
         Right(Set.empty)
       }
     }
-    
+
     def readConfiguration(json: JValue): Either[String, Configuration] = {
       val maybeExtendsFrom = getOptionalStrings(json, "extends")
       val eithers = for {
@@ -124,7 +140,7 @@ object Module {
       }
       eithers.joinRight
     }
-    
+
     def readArtifact(json: JValue): Either[String, Artifact] = {
       val maybeLocations = getOptionalStrings(json, "locations")
 
@@ -139,48 +155,49 @@ object Module {
         Artifact(Hash(hash), artifactType, configurations, locations)
       }
     }
-    
+
     def readDependencies(json: JValue): Either[String, Set[Dependency]] = {
       readSet(json){ f =>
         f.map(readDependency)
-      }      
+      }
     }
-    
+
     def readConfigurations(json: JValue): Either[String, Set[Configuration]] = {
       readSet(json){ f =>
         f.map(readConfiguration)
       }
     }
-    
+
     def readArtifacts(json: JValue): Either[String, Set[Artifact]] = {
-      readSet(json){ f => 
+      readSet(json){ f =>
         f.map(readArtifact)
       }
     }
-    
+
     def readSet[A](json: JValue)(f: List[JValue] => Seq[Either[String, A]]): Either[String, Set[A]] = {
       readSeq(json)(f).right.map(_.toSet)
     }
-    
+
     def readSeq[A](json: JValue)(f: List[JValue] => Seq[Either[String, A]]): Either[String, Seq[A]] = {
       json match {
-        case JArray(list) => 
+        case JArray(list) =>
           EitherUtils.reduce(f(list))
+        case JNothing => Right(Seq())
         case somethingElse => {
           issueError(json, "JArray", "an array", somethingElse)
         }
       }
     }
-    
+
     def readModuleWithUsingCoords(coords: Coordinates, json: JValue): Either[String, Module] = {
       val maybeArtifacts = readArtifacts((json \ "artifacts"))
-      
+
       val maybeConfigurations = {
         (json \ "configurations").toOption.map(readConfigurations)
       }.getOrElse{
         Right(Set.empty[Configuration])
       }
-      
+
       val maybeDependencies = {
         (json \ "dependencies").toOption.map(readDependencies)
       }.getOrElse{
@@ -202,13 +219,13 @@ object Module {
         Module(coords, artifacts, configurations, attributes, dependencies)
       }
     }
-    
+
     def readModulesWithUsingCoords(coords: Coordinates, json: JValue): Either[String, Seq[Module]] = {
-      readSeq(json \ "modules"){ f => 
+      readSeq(json \ "modules"){ f =>
         f.map(j => readModuleWithUsingCoords(coords, j))
       }
     }
-    
+
     def readCoords(json: JValue): Either[String, Coordinates] = {
       for {
         org <- (eitherOf[String](json) \ "organization").right

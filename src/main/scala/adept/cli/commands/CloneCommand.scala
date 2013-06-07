@@ -9,7 +9,7 @@ object CloneCommand extends Command {
   override val command = "clone"
   override val shortDescription = "clone a repository"
   
-  override def execute(args: List[String]): Either[String, String] ={
+  override def execute(args: List[String]): CommandResult ={
     val dir = Defaults.dir
     val name = Defaults.name
     
@@ -21,7 +21,7 @@ object CloneCommand extends Command {
       Adept.clone(dir, name, uri).right.map{ _ =>
         name+ " was cloned successfully"
       }
-    }).joinRight
+    }).joinRight.fold(l => Left(l), r => Right(Some(r)) )
   }
   
 }
