@@ -7,7 +7,7 @@ object CommitCommand extends Command {
   override val command = "commit"
   override val shortDescription = "commit current modules"
   
-  override def execute(args: List[String]): Either[String, String] ={
+  override def execute(args: List[String]): CommandResult ={
     val dir = Defaults.dir
     val name = Defaults.name
     
@@ -18,7 +18,7 @@ object CommitCommand extends Command {
       msg <- msgArg.right
     } yield {
       adept.commit(msg).right.map(_.toString)
-    }).joinRight
+    }).joinRight.fold(l => Left(l), r => Right(Some(r)))
   }
   
 }

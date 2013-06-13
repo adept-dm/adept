@@ -2,18 +2,21 @@ package adept
 
 import java.io._
 import org.eclipse.jgit.api.Git
+import org.eclipse.jgit.api.errors.TransportException
 import adept.operations._
 import adept.models._
 import akka.util.FiniteDuration
+import adept.utils._
+import org.eclipse.jgit.lib._
+import org.eclipse.jgit.transport._
+import adept.utils.Logging
+import com.jcraft.jsch.JSch
 import adept.utils.EitherUtils
-import org.eclipse.jgit.lib.Constants
-import org.eclipse.jgit.lib.ConfigConstants
-import org.eclipse.jgit.lib.TextProgressMonitor
 import adept.utils._
 
 object Adept {
   def dir(baseDir: File, name: String) = new File(baseDir, name)
-  
+
   def open(baseDir: File, name: String): Either[String, Adept] = {
     if (exists(baseDir)) {
       Right(new Adept(dir(baseDir, name), name))
@@ -21,7 +24,7 @@ object Adept {
       Left("no adept directory here: " + baseDir)
     }
   }
-  
+
   def exists(baseDir: File): Boolean = {
     baseDir.exists && baseDir.isDirectory
   }
@@ -31,7 +34,7 @@ object Adept {
       repositories(baseDir).find(_.name == name).isDefined
     }
   }
-  
+
   def repositories(baseDir: File): List[Adept] = {
     if (baseDir.exists && baseDir.isDirectory) {
       baseDir.listFiles().toList
@@ -41,7 +44,7 @@ object Adept {
       List.empty
     }
   }
-  
+
   def clone(baseDir: File, name: String, uri: String): Either[String, Adept] = {
     val adeptDir = dir(baseDir, name)
     if (adeptDir.mkdirs()) {
@@ -55,7 +58,7 @@ object Adept {
       Left("could not create directory when cloning: " + adeptDir)
     }
   }
-  
+
   def init(baseDir: File, name: String): Either[String, Adept] = {
     val adeptDir = dir(baseDir, name)
     if (adeptDir.mkdirs()) {
@@ -67,10 +70,10 @@ object Adept {
       Left("could not create directory when initing: " + adeptDir)
     }
   }
-  
-    
+
+
   val aritifactPath = "artifacts"
-  
+
   def artifact(baseDir: File, info: Seq[((Hash, Coordinates, Set[String]), Option[File])], timeout: FiniteDuration) = { //TODO: Either[Seq[File], Seq[File]]  (left is failed, right is successful)
     val hashFiles = info.map{ case ((hash, coords, locations), dest) =>
       (hash, coords, locations, dest.getOrElse{
@@ -81,7 +84,7 @@ object Adept {
         new File(currentArtifactDir , hash.value+".jar") //TODO: need a smarter way to store artifacts (imagine 50K jars in one dir!)
       })
     }
-    val (existing, nonExisting) = hashFiles.partition{ case (hash, coords, locations, file) => 
+    val (existing, nonExisting) = hashFiles.partition{ case (hash, coords, locations, file) =>
       file.exists && Hash.calculate(file) == hash
     }
     for {
@@ -91,7 +94,6 @@ object Adept {
       existingFiles ++ downloadedFiles
     }
   }
-  
   def resolveConflicts(modules: Seq[Module]): Seq[Module] = {
     ConflictResolver.prune(modules)
   }
@@ -111,22 +113,23 @@ object Adept {
 }
 
 class Adept private[adept](val dir: File, val name: String) extends Logging {
-  
+
   override def toString = {
     "Adept("+name+","+dir.getAbsolutePath+","+ lastCommit+")"
   }
-  
+
   private lazy val git = Git.open(dir)
-  
+
   /* add module to adept. return right with file containing module, left on file that could not be created*/
   def add(module: Module): Either[File, File] = {
     Add(dir, module)
   }
 
-  
+
   def findModule(coords: Coordinates, hash: Option[Hash] = None): Option[Module] = {
     val file = new File(ModuleFiles.getModuleDir(dir, coords), ModuleFiles.modulesFilename)
-    
+
+
     if (file.exists && file.isFile) {
       import org.json4s.native.JsonMethods._
       val maybeModules = Module.readSameCoordinates(parse(file))
@@ -145,12 +148,13 @@ class Adept private[adept](val dir: File, val name: String) extends Logging {
       None
     }
   }
+
   def resolveModules(dependencies: Set[Dependency], configurations: Set[Configuration], confsExpr: String): Seq[(Module, Set[Configuration])] = {
     val matchedConfs = Resolve.findMatchingConfs(confsExpr, configurations)
     val allModules = Resolve.allModules(dependencies, matchedConfs, findModule) //TODO: handle evicted
     allModules
   }
-  
+
   def dependencies(module: Module): Set[Module] = {
     Set(module) ++ module.dependencies.par.flatMap{ case Dependency(coords, hash, _)  => //TODO: check if par gives us anything!
       findModule(coords, Some(hash)).toSet.flatMap{ m: Module =>
@@ -158,7 +162,7 @@ class Adept private[adept](val dir: File, val name: String) extends Logging {
       }
     }
   }
-  
+
   def repo = git.getRepository()
 
   def lastCommit(allCoords: Set[Coordinates]): Option[Hash] = {
@@ -167,7 +171,7 @@ class Adept private[adept](val dir: File, val name: String) extends Logging {
     }.filter(f => f.exists && f.isFile).map{ file =>
       file.getAbsolutePath.replace(dir.getAbsolutePath + File.separatorChar, "")
     }.mkString(" ")
-    
+
     val logIt = git.log()
                    .addPath(paths)
                    .call()
@@ -175,11 +179,6 @@ class Adept private[adept](val dir: File, val name: String) extends Logging {
     if (logIt.hasNext()) Some(Hash(logIt.next.getName))
     else None
   }
-  
-  def lastCommit(module: Module) = {
-    //git.log().setMaxCount(1).addPath()
-  }
-  
   def lastCommit: Option[Hash] = {
     try {
       val logIt = git.log()
@@ -190,9 +189,9 @@ class Adept private[adept](val dir: File, val name: String) extends Logging {
       case e: org.eclipse.jgit.api.errors.NoHeadException => None
     }
   }
-  
+
   lazy val branchName = "master"
-  
+
   def isLocal: Boolean = {
     try {
       repo.getConfig().getString(
@@ -203,14 +202,33 @@ class Adept private[adept](val dir: File, val name: String) extends Logging {
       case e: org.eclipse.jgit.api.errors.InvalidConfigurationException => false
     }
   }
-    
+
   def pull(): Boolean = {
     val result = git
       .pull()
       .call()
     result.isSuccessful
   }
-  
+
+  def push(repo: String) = {
+    val config = git.getRepository.getConfig
+    val remote = new RemoteConfig(config, "central")
+    val uri = new URIish(repo)
+    remote.addURI(uri)
+    remote.update(config)
+    config.save()
+    try {
+      SshSessionFactory.setInstance(GitHelpers.sshFactory)
+      git.push.setRemote("central").call
+    } catch {
+      case x: TransportException => {
+        println("ssh password required ...")
+        SshSessionFactory.setInstance(GitHelpers.interactiveSshFactory)
+        git.push.setRemote("central").call
+      }
+    }
+  }
+
   def commit(msg: String) = {
     val status = git.status()
        .call()
@@ -222,9 +240,9 @@ class Adept private[adept](val dir: File, val name: String) extends Logging {
        .commit()
        .setMessage(msg)
        .call()
-       
+
     Right(Hash(revcommit.name))
     }
   }
-  
+
 }

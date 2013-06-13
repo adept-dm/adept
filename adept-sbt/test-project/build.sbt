@@ -8,7 +8,6 @@ scalaVersion := "2.10.1"
 
 adeptRepositories += "central" -> "git@github.com:freekh/adept-central.git"
 
-
 adeptDependencies := Seq(
   "com.typesafe.akka" % "akka-actor_2.10" % "2.1.1" % "test",  
   "com.typesafe.akka" % "akka-actor_2.10" % "2.1.0",  
