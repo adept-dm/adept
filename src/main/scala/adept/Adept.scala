@@ -95,6 +95,19 @@ object Adept {
   def resolveConflicts(modules: Seq[Module]): Seq[Module] = {
     ConflictResolver.prune(modules)
   }
+  
+  def resolveArtifacts(artifacts: Set[Artifact], configurations: Set[Configuration], confsExpr: String): Seq[Artifact] = {
+    //Resolve.modules(dependencies, confsExpr, findModule)._1
+    val (allArtifacts, evicted) = Resolve.artifacts(artifacts, configurations, confsExpr) //TODO: handle evicted
+    allArtifacts
+  }
+  
+  
+  def resolveConfigurations(confsExpr: String, configurations: Set[Configuration]): Set[Configuration] ={
+    Resolve.splitConfs(confsExpr).flatMap{ confExpr =>
+      Resolve.findMatchingConfs(confExpr, configurations)
+    }.toSet
+  }
 }
 
 class Adept private[adept](val dir: File, val name: String) extends Logging {
@@ -120,7 +133,7 @@ class Adept private[adept](val dir: File, val name: String) extends Logging {
       maybeModules.fold(
           error => throw new Exception(error),
           modules => hash.map{ hash =>
-            val filtered = modules.filter(_.artifacts.map(_.hash).contains(hash))
+            val filtered = modules.filter(_.hash == hash)
             assert(filtered.size < 2, "found more than 1 module with hash: " + hash + " in " + file + " found: " + filtered)
             filtered.headOption
           }.getOrElse{
@@ -131,6 +144,11 @@ class Adept private[adept](val dir: File, val name: String) extends Logging {
     } else {
       None
     }
+  }
+  def resolveModules(dependencies: Set[Dependency], configurations: Set[Configuration], confsExpr: String): Seq[(Module, Set[Configuration])] = {
+    val matchedConfs = Resolve.findMatchingConfs(confsExpr, configurations)
+    val allModules = Resolve.allModules(dependencies, matchedConfs, findModule) //TODO: handle evicted
+    allModules
   }
   
   def dependencies(module: Module): Set[Module] = {

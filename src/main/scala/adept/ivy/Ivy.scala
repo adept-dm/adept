@@ -79,7 +79,8 @@ object IvyHelpers extends Logging{
     
     val moduleDescriptor = report.getModuleDescriptor()
     
-    val configurations = moduleDescriptor.getConfigurations().toSet.map{ c:IvyConfiguration =>
+    val configurations = moduleDescriptor.getConfigurations().toSet.map{ cachedConf:IvyConfiguration =>
+      val c = parent(report).getConfiguration(cachedConf.getName)
       Configuration(
           name = c.getName(),
           description = Option(c.getDescription()),
