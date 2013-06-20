@@ -4,6 +4,19 @@ import adept.models._
 import adept.Adept
 import adept.ivy.IvyHelpers
 
+/**
+  * Workflow:
+  * 0) update metadata
+  * 1) read dependencies from all repositories
+  * 2) merge found dependencies
+  * 2) transitively resolve (transitive) dependencies based on configuration. skip non-transitive dependencies
+  * 4) check that all dependencies have been found
+  * 3) exclude exclusions
+  * 5) resolve version conflicts
+  * 6) check for unresolved conflicts
+  * 7) add explicit artifacts
+  * 8) check that all explicit artifacts could be added
+  */
 object AdeptPlugin extends Plugin {
   
   import AdeptKeys._
@@ -63,7 +76,7 @@ object AdeptPlugin extends Plugin {
   
   def adeptClasspathTask(sbtConfig: sbt.Configuration) = (adeptRepositories, adeptDirectory, adeptDependencies, adeptLocalRepository, adeptArtifactTypes, streams) map { (adeptRepositories, adeptDirectory, sbtDeps, localRepo, artifactTypes, s) => 
     
-    def isExcluded(module: Module, exclusionRules: Seq[sbt.ExclusionRule]): Boolean ={
+    def isExcluded(module: Module, exclusionRules: Seq[sbt.ExclusionRule]): Boolean ={ //TODO: add exclusions into Adept core
       val matchingRules = exclusionRules.find{ exclusionRule =>
         if (exclusionRule.configurations.nonEmpty) throw new Exception("exclusion rule configurations are not implmeneted. got: " + exclusionRule) 
         (exclusionRule.organization, exclusionRule.name) match {
@@ -122,7 +135,7 @@ object AdeptPlugin extends Plugin {
                 val resolvedModules = adept.resolveModules(Set(dep), matchingConfs, confsExpr).filter{ case (module, confs) =>
                   !isExcluded(module, sbtDep.exclusions)
                 }
-                resolvedModules 
+                resolvedModules
               } else adept.findModule(adeptCoordinates(sbtDep)).map(_ -> matchingConfs).toSeq
             }
            
@@ -136,11 +149,10 @@ object AdeptPlugin extends Plugin {
           //sbtDep.configurations
           //this sbtDep matches the current conf expr
           val conf = sbtDep.configurations.getOrElse{ //either test or *->default(compile)
-            "compile" //FIXME: this will break!
+            "compile"
           }
-          //println(conf + " " + sbtDep)
           val matchesConfs = confsExpr == conf
-          //if (matchesConfs && resolvedModuleConfs.isEmpty) throw new Exception("could not find any modules for dependency: " + sbtDep)
+          if (matchesConfs && resolvedModuleConfs.isEmpty) throw new Exception("could not find any modules for dependency: " + sbtDep)
           resolvedModuleConfs
         }
         
@@ -156,7 +168,7 @@ object AdeptPlugin extends Plugin {
         val mergedLocations = artifactInfo.map{ case (artifact, module) =>
           ((artifact.hash, module.coordinates, artifact.locations), None)
         }
-        //println(mergedLocations)
+
         Adept.artifact(adeptDirectory, mergedLocations.toSeq, timeout) match {
           case Left(error) => throw new Exception(error)
           case Right(files) => files.classpath
