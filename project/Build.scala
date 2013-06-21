@@ -19,11 +19,14 @@ object AdeptBuild extends Build {
     Dependencies.spray ++
     Dependencies.git ++
     Dependencies.json4s ++
-    Dependencies.ivy
+    Dependencies.ivy ++
+    Dependencies.scalaTest
     ):_*)
 
   lazy val adeptCli = AdeptProject("adept-cli")
-    .dependsOn(adeptCore)
+    .settings((
+      Dependencies.scalaTest
+    ): _*).dependsOn(adeptCore)
 
   lazy val adeptSbt = AdeptProject("adept-sbt")
     .settings(

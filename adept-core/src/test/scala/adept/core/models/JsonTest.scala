@@ -1,4 +1,4 @@
-package adept.models
+package adept.core.models
 
 import org.scalatest.FunSuite
 import org.scalatest.MustMatchers

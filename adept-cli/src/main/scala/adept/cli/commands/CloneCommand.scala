@@ -1,8 +1,8 @@
 package adept.cli.commands
 
-import adept.Adept
+import adept.core.Adept
 import java.io.File
-import adept.models.Coordinates
+import adept.core.models.Coordinates
 import adept.ivy.IvyHelpers
 
 object CloneCommand extends Command {

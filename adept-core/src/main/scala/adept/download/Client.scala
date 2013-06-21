@@ -1,6 +1,6 @@
 package adept.download
 
-import adept.models._
+import adept.core.models._
 import spray.http._
 import spray.util._
 import spray.can.client._

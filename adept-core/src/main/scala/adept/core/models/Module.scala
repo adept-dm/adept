@@ -1,4 +1,4 @@
-package adept.models
+package adept.core.models
 
 import java.io.File
 import org.json4s._

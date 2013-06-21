@@ -1,6 +1,6 @@
-package adept.operations
+package adept.core.operations
 
-import adept.models._
+import adept.core.models._
 import adept.utils._
 import java.io._
 import org.eclipse.jgit.api.Git

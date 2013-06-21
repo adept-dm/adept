@@ -1,8 +1,8 @@
-package adept.models
+package adept.core.models
 
 import org.scalatest.FunSuite
 import org.scalatest.MustMatchers
-import adept.operations._
+import adept.core.operations._
 
 class ConfigurationTest extends FunSuite with MustMatchers {
   val testConf = Configuration("test", Some("this scope indicates that the dependency is not required for normal use of the application, and is only available for the test compilation and execution phases."), Set("runtime"), Visibility.Private, None)

@@ -1,7 +1,7 @@
 package adept.ivy
 
 
-import adept.models._
+import adept.core.models._
 import java.io.{File => jFile}
 import org.apache.ivy._
 import org.apache.ivy.core._
@@ -11,7 +11,7 @@ import org.apache.ivy.core.retrieve.RetrieveOptions
 import org.apache.ivy.core.report.ResolveReport
 import scala.util._
 import java.io.File
-import adept.Adept
+import adept.core.Adept
 import org.apache.ivy.util.Message
 import org.apache.ivy.util.MessageLogger
 import org.apache.ivy.util.DefaultMessageLogger

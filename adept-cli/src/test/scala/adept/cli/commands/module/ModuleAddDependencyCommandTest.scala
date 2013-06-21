@@ -3,7 +3,7 @@ package adept.cli.commands.module
 import org.scalatest.FunSuite
 import org.scalatest.MustMatchers
 
-import adept.models._
+import adept.core.models._
 
 class ModuleAddDependencyCommandTest extends FunSuite with MustMatchers {
 

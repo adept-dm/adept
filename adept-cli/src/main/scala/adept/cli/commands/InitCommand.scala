@@ -1,6 +1,6 @@
 package adept.cli.commands
 
-import adept.Adept
+import adept.core.Adept
 import java.io.File
 
 object InitCommand extends Command {

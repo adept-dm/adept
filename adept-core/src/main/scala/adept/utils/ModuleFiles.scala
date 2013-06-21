@@ -1,6 +1,6 @@
 package adept.utils
 
-import adept.models._
+import adept.core.models._
 
 import java.io.File
 

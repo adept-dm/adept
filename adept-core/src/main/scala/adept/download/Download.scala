@@ -1,6 +1,6 @@
 package adept.download
 
-import adept.models._
+import adept.core.models._
 import java.io.File
 import akka.actor._
 import akka.util.duration._

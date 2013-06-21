@@ -1,4 +1,4 @@
-package adept.models
+package adept.core.models
 
 class ConflictResolverTest {
 

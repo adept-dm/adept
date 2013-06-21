@@ -1,7 +1,7 @@
 package adept.cli.commands.module
 
 import adept.cli.commands.Command
-import adept.models._
+import adept.core.models._
 
 import java.io._
 

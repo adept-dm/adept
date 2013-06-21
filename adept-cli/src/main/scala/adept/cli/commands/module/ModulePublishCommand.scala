@@ -1,6 +1,6 @@
 package adept.cli.commands.module
 
-import adept.Adept
+import adept.core.Adept
 import adept.cli.commands.Command
 
 object ModulePublishCommand extends Command with JsonFileSystemModulePersistance {

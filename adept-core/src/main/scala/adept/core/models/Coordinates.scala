@@ -1,4 +1,4 @@
-package adept.models
+package adept.core.models
 
 object Coordinates {
   val CoordsExpr = """\s*(.*):(.*):(.*)\s*""".r

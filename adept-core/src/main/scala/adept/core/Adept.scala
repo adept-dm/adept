@@ -1,18 +1,15 @@
-package adept
+package adept.core
 
 import java.io._
 import org.eclipse.jgit.api.Git
 import org.eclipse.jgit.api.errors.TransportException
-import adept.operations._
-import adept.models._
+import adept.core.operations._
+import adept.core.models._
 import akka.util.FiniteDuration
 import adept.utils._
 import org.eclipse.jgit.lib._
 import org.eclipse.jgit.transport._
-import adept.utils.Logging
 import com.jcraft.jsch.JSch
-import adept.utils.EitherUtils
-import adept.utils._
 
 object Adept {
   def dir(baseDir: File, name: String) = new File(baseDir, name)

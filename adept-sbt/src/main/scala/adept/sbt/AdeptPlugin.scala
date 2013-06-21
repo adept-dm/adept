@@ -1,7 +1,7 @@
 import sbt.{ Configuration => _, _}
 import sbt.Keys._
-import adept.models._
-import adept.Adept
+import adept.core.models._
+import adept.core.Adept
 import adept.ivy.IvyHelpers
 
 /**

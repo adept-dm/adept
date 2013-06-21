@@ -1,6 +1,6 @@
-package adept.operations
+package adept.core.operations
 
-import adept.models.Module
+import adept.core.models.Module
 
 private[adept] object Version {
   val specialChars = "[\\._\\-\\+]"

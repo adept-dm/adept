@@ -1,4 +1,4 @@
-package adept.models
+package adept.core.models
 
 import adept.utils.Logging
 

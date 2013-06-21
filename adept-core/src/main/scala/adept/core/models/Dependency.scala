@@ -1,4 +1,4 @@
-package adept.models
+package adept.core.models
 
 object Dependency {
   private[adept] val DefaultConf = ""

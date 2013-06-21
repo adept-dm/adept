@@ -1,8 +1,8 @@
 import sbt._
 import sbt.Keys._
 
-import adept._
-import adept.models._
+import adept.core.Adept
+import adept.core.models._
 
 object AdeptKeys {
   val defaultArtifactTypes = Seq("jar", "bundle")

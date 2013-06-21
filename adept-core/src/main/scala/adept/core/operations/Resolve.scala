@@ -1,8 +1,8 @@
-package adept.operations
+package adept.core.operations
 
-import adept.models._
+import adept.core.models._
 import adept.utils.Logging
-import adept.Adept
+import adept.core.Adept
 
 case class NotFoundDependenciesException(dependencies: Set[Dependency]) extends Exception("could not find dependencies: " + dependencies.map(_.coords))
 
