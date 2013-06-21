@@ -1,7 +1,6 @@
 package adept.operations
 
 import adept.models.Module
-import org.apache.ivy.plugins.latest.LatestRevisionStrategy
 
 private[adept] object Version {
   val specialChars = "[\\._\\-\\+]"
