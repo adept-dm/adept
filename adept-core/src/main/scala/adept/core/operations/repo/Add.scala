@@ -1,4 +1,4 @@
-package adept.core.operations
+package adept.core.operations.repo
 
 import adept.core.models._
 import adept.utils._
@@ -6,9 +6,9 @@ import java.io._
 import org.eclipse.jgit.api.Git
 import org.json4s.native.JsonMethods._
 import org.json4s.JsonDSL._
-import org.json4s.JArray
+import org.json4s.string2JsonInput
 
-private[adept] object Add {
+private[core] object Add {
 
   def apply(baseDir: File, module: Module): Either[File, File] = {
     val git = Git.open(baseDir)

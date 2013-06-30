@@ -1,8 +1,8 @@
 package adept.core.operations
 
-import adept.core.models.Module
+import adept.core.models._
 
-private[adept] object Version {
+private[core] object Version {
   val specialChars = "[\\._\\-\\+]"
   
   val SpecialMeanings = Map( //As DEFAULT_SPECIAL_MEANINGS in LatestVersionStrategy
@@ -61,19 +61,28 @@ private[adept] object Version {
   }
 }
 
-private[adept] case class Version(private val value: String) extends Ordered[Version] {
+private[core] case class Version(private val value: String) extends Ordered[Version] {
   def compare(that: Version) = {
     Version.stringVersionCompare(this.value, that.value)
   }
 }
 
-private[adept] object ConflictResolver {
+private[core] object ConflictResolver {
   
-  def prune(modules: Seq[Module]): Seq[Module] = {
+  def evictConflicts(tree: Tree): Tree = {
+    def flatten(node: Node): Set[Module]= { //TODO: @tailrec?
+      Set(node.module) ++ node.children.flatMap(flatten)
+    } 
     
-	modules.groupBy(m => m.coordinates.org -> m.coordinates.name)
-		   .map{ case (_, comparableModules) =>
-	  comparableModules.maxBy(m => Version(m.coordinates.version))
-	}.toSeq
+    val modules = flatten(tree.root)
+    
+    val evictedModules = modules.groupBy(m => m.coordinates.org -> m.coordinates.name)
+		   .flatMap{ case (_, comparableModules) =>
+          val highestVersion = comparableModules.maxBy(m => Version(m.coordinates.version))
+          comparableModules.filter(_ != highestVersion)
+	}
+    
+    //evictedModules.ma
+    tree
   }
 }

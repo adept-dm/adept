@@ -14,10 +14,11 @@ case class Module(
   coordinates: Coordinates,
   artifacts: Set[Artifact],
   configurations: Set[Configuration],
-  attributes: Map[String, Seq[String]],
+  attributes: Map[String, Seq[String]], //TODO: remove
   dependencies: Set[Dependency]) {
-  lazy val hash = Hash.mix(artifacts.map(_.hash).toSeq)
-  
+  lazy val hash = Hash.mix(artifacts.map(_.hash).toSeq) //TODO: replace with uniqueId
+  //TODO: add created 
+  //TODO: add universes ([scala-version:2.10])
 }
 
 object Module {
@@ -97,7 +98,8 @@ object Module {
         configuration <- (eitherOf[String](json) \ "configuration").right
         coords <- readCoords(json).right
       } yield {
-        Dependency(coords, Hash(hash), configuration)
+        throw new Exception("not implmented! see todo")
+        //TODO: exclusion rules, transitive: Dependency(coords, Hash(hash), configuration)
       }
     }
 
@@ -216,7 +218,8 @@ object Module {
         configurations <- maybeConfigurations.right
         dependencies <- maybeDependencies.right
       } yield {
-        Module(coords, artifacts, configurations, attributes, dependencies)
+        throw new Exception("not implmented! see todo")
+        //FIXME: add artifact exclusion rule Module(coords, artifacts, configurations, attributes, dependencies)
       }
     }
 
@@ -270,7 +273,7 @@ object Module {
     def dependencyToJson(dep: Dependency): JValue = {
       ("hash" -> dep.hash.value) ~
         ("configuration" -> dep.configuration) ~
-        coordsToJson(dep.coords)
+        coordsToJson(dep.coordinates)
     }
 
     def configurationToJson(config: Configuration): JValue = {

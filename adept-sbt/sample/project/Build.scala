@@ -189,14 +189,14 @@ object AdeptTestProjectBuild extends Build {
 
     }
 
-  lazy val root = Project(id = "adept-sbt-test-project",
+  lazy val root = Project(id = "adept-sbt-sample",
     base = file("."),
     settings = Defaults.defaultSettings ++ Project.defaultSettings ++ Seq(
       organization := "org.adept",
       resolvers ++= Seq("snapshots" at "http://oss.sonatype.org/content/repositories/snapshots",
                     "releases"  at "http://oss.sonatype.org/content/repositories/releases"),
-      resolvers += "Typesafe Repository" at "http://repo.typesafe.com/typesafe/releases/",
-      libraryDependencies ++= Dependencies.link ++ Dependencies.jdbcDeps
+      resolvers += "Typesafe Repository" at "http://repo.typesafe.com/typesafe/releases/"
+//      libraryDependencies ++= Dependencies.link ++ Dependencies.jdbcDeps
     )
   )
 

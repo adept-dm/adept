@@ -91,22 +91,44 @@ object Adept {
       existingFiles ++ downloadedFiles
     }
   }
-  def resolveConflicts(modules: Seq[Module]): Seq[Module] = {
-    ConflictResolver.prune(modules)
-  }
+ 
   
-  def resolveArtifacts(artifacts: Set[Artifact], configurations: Set[Configuration], confsExpr: String): Seq[Artifact] = {
+  /*TODO: replace with Tree builder
+  def resolveConflicts(modules: Seq[Module]): Seq[Module] = {
+    //ConflictResolver.evictConflicts(modules)
+    //TODO:
+    null
+  }
+   
+   
+  def resolveArtifacts(artifacts: Set[Artifact], configurations: Set[Configuration], confsExpr: String): Set[Artifact] = {
     //Resolve.modules(dependencies, confsExpr, findModule)._1
-    val (allArtifacts, evicted) = Resolve.artifacts(artifacts, configurations, confsExpr) //TODO: handle evicted
-    allArtifacts
+    
+    ConfigurationResolver.resolve(configurations, confsExpr) match {
+      case Right(foundConfs) =>
+        val (allArtifacts, evicted) = Resolver.matchingArtifacts(artifacts, foundConfs) //TODO: handle evicted
+        allArtifacts
+      case Left(_) => Set.empty
+    }
+    
   }
   
   
   def resolveConfigurations(confsExpr: String, configurations: Set[Configuration]): Set[Configuration] ={
-    Resolve.splitConfs(confsExpr).flatMap{ confExpr =>
-      Resolve.findMatchingConfs(confExpr, configurations)
-    }.toSet
+    ConfigurationResolver.resolve(configurations, confsExpr) match {
+      case Right(confs) => confs
+      case Left(_) => Set.empty 
+    }
   }
+  
+  def resolveDependencyConfigurations(confsExpr: String, rootConfigurations: Set[Configuration], configurations: Set[Configuration]): Set[Configuration] ={
+    ConfigurationResolver.resolve(rootConfigurations, confsExpr, configurations)  match {
+      case Right(confs) => confs
+      case Left(_) => Set.empty 
+    }
+  }
+  * 
+  */
 }
 
 class Adept private[adept](val dir: File, val name: String) extends Logging {
@@ -119,7 +141,7 @@ class Adept private[adept](val dir: File, val name: String) extends Logging {
 
   /* add module to adept. return right with file containing module, left on file that could not be created*/
   def add(module: Module): Either[File, File] = {
-    Add(dir, module)
+    repo.Add(dir, module)
   }
 
 
@@ -146,21 +168,30 @@ class Adept private[adept](val dir: File, val name: String) extends Logging {
     }
   }
 
-  def resolveModules(dependencies: Set[Dependency], configurations: Set[Configuration], confsExpr: String): Seq[(Module, Set[Configuration])] = {
-    val matchedConfs = Resolve.findMatchingConfs(confsExpr, configurations)
-    val allModules = Resolve.allModules(dependencies, matchedConfs, findModule) //TODO: handle evicted
-    allModules
+  /* TODO: replace with Treebuilder
+  def resolveModules(dependencies: Set[Dependency], configurations: Set[Configuration], confsExpr: String, configurationMapping: String => String): Seq[(Module, Set[Configuration])] = {
+    val rootModules = dependencies.flatMap{ d =>
+      findModule(d.coords, Some(d.hash))
+    }
+    val allModules = rootModules.flatMap{ rootModule =>
+      val matchedConfs = Adept.resolveConfigurations(confsExpr, configurations)
+      //Resolver.matchingModules(dependencies, matchedConfs, configurationMapping, findModule) //TODO: handle evicted
+      Seq.empty//FIXME
+    }
+    allModules.toSeq
   }
+  * 
+  */
 
   def dependencies(module: Module): Set[Module] = {
-    Set(module) ++ module.dependencies.par.flatMap{ case Dependency(coords, hash, _)  => //TODO: check if par gives us anything!
+    Set(module) ++ module.dependencies.par.flatMap{ case Dependency(coords, hash, _, _, _)  => //TODO: check if par gives us anything!
       findModule(coords, Some(hash)).toSet.flatMap{ m: Module =>
         dependencies(m)
       }
     }
   }
 
-  private def repo = git.getRepository()
+  private def gitRepo = git.getRepository()
 
   def lastCommit(allCoords: Set[Coordinates]): Option[Hash] = {
     val paths = allCoords.map{ coords =>
@@ -191,7 +222,7 @@ class Adept private[adept](val dir: File, val name: String) extends Logging {
 
   def isLocal: Boolean = {
     try {
-      repo.getConfig().getString(
+      gitRepo.getConfig().getString(
         ConfigConstants.CONFIG_BRANCH_SECTION, branchName,
         ConfigConstants.CONFIG_KEY_REMOTE)
       true
@@ -208,7 +239,7 @@ class Adept private[adept](val dir: File, val name: String) extends Logging {
   }
 
   def push(repo: String) = {
-    val config = git.getRepository.getConfig
+    val config = gitRepo.getConfig
     val remote = new RemoteConfig(config, "central")
     val uri = new URIish(repo)
     remote.addURI(uri)

@@ -17,4 +17,6 @@ object Coordinates {
   }
 }
 
-case class Coordinates(org: String, name: String, version: String)
+case class Coordinates(org: String, name: String, version: String) {
+  override def toString = org +":" + name + ":"+version
+}

@@ -149,13 +149,14 @@ object IvyHelpers extends Logging{
         Dependency(coords, hash, configuration)
       }
     }.toSet
-    Module(coords, artifacts, configurations, attributes, deps)
+    throw new Exception("not implmented! see todo")
+    //FIXME: exclusion rule: Module(coords, artifacts, configurations, attributes, deps)
   }
   
   def add(coords: Coordinates, ivy: Ivy, adept: Adept): Set[Module] = {
     logger.trace("building dependency tree from ivy...")
     val module = adeptModule(coords, ivy)
-    val all = Set(module) ++ module.dependencies.map{ dep => adeptModule(dep.coords, ivy) }
+    val all = Set(module) ++ module.dependencies.map{ dep => adeptModule(dep.coordinates, ivy) }
     
     all.foreach( adept.add )
     //println("******" + modules.map(_.artifacts).mkString("\n\n") + "******")
