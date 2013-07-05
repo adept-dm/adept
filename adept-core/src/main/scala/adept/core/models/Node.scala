@@ -1,6 +1,9 @@
 package adept.core.models
 
-private[core] sealed class NodeLike[T <: NodeLike[T]](val module: Module,  //need parameter to avoid cyclic references to NodeLike
+import adept.core.Adept
+
+private[core] sealed class NodeLike[T <: NodeLike[T]](//need parameter to avoid cyclic references to NodeLike
+    val module: Module,
     val configurations: scala.collection.Set[Configuration],
     val artifacts: scala.collection.Set[Artifact], 
     val evictedArtifacts: scala.collection.Set[EvictedArtifact], 
@@ -12,7 +15,7 @@ case class Node(override val module: Module, override val configurations: Set[Co
   def asMutable: MutableNode = {
     import collection.{Set => _, _}
     val deps: mutable.Set[MutableNode] = children.map(_.asMutable)(breakOut)
-    MutableNode(module, 
+    MutableNode(module,
       //TODO: is this the best way to convert to mutable.Set?
       mutable.Set.empty ++ configurations, 
       mutable.Set.empty ++ artifacts,
@@ -26,7 +29,7 @@ case class Node(override val module: Module, override val configurations: Set[Co
 
 private[core] case class MutableNode(override val module: Module, override val configurations: collection.mutable.Set[Configuration], override val artifacts: collection.mutable.Set[Artifact], override val evictedArtifacts: collection.mutable.Set[EvictedArtifact], override val children: collection.mutable.Set[MutableNode], override val evictedModules: collection.mutable.Set[EvictedModule], override val missingDependencies: Set[MissingDependency]) extends NodeLike[MutableNode](module, configurations, artifacts, evictedArtifacts, children, evictedModules, missingDependencies) { 
   def asImmutable: Node = {
-    Node(module, 
+    Node(module,
       //TODO: is this the best way to convert to immutable.Set?
       configurations.toSet, 
       artifacts.toSet,
@@ -37,6 +40,7 @@ private[core] case class MutableNode(override val module: Module, override val c
     )
   }
   
+  //TODO: move logic out of models
   def evict(module: Module, reason: String): Unit = synchronized {
     children.find(n => n.module == module).foreach{ node =>
       children -= node 

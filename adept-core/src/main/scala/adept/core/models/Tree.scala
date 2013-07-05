@@ -23,12 +23,12 @@ private[core] sealed class TreeLike[N <: NodeLike[N]](confExpr: String, root: No
     }
 
     def nodeString(n: NodeLike[N], indent: Int) = {
-      n.module.coordinates + " "  + n.configurations.map(_.name).mkString("(", ",", ")") + 
+      n.module.coordinates + " "  + n.configurations.map(_.name).mkString("(", ",", ")") +
       (if (n.artifacts.nonEmpty || n.evictedArtifacts.nonEmpty) "\n" + (" " * indent) + "\\___ artifacts"  else "") +
       (if (n.artifacts.nonEmpty) "\n" + n.artifacts.map(artifactString(_, indent + indentSize*2)).mkString("", "\n", "") else "") +
+      (if (n.evictedArtifacts.nonEmpty) "\n" + n.evictedArtifacts.map(evictedArtifactString(_, indent + indentSize*2)).mkString("", "\n", "") else "") +
       (if (n.missingDependencies.nonEmpty) "\n" + (" " * indent) + "\\___ missing dependencies"  else "") +
       (if (n.missingDependencies.nonEmpty) "\n" + n.missingDependencies.map(missingDependencyString(_, indent + indentSize*2)).mkString("", "\n", "") else "") +
-      (if (n.evictedArtifacts.nonEmpty) "\n" + n.evictedArtifacts.map(evictedArtifactString(_, indent + indentSize*2)).mkString("", "\n", "") else "") +
       (if (n.children.nonEmpty) "\n" + n.children.map(childrenString(_, indent)).mkString("", "\n", "") else "") + 
       (if (n.evictedModules.nonEmpty) "\n" + n.evictedModules.map(evictedModuleString(_, indent)).mkString("", "\n", "") else "")
     }

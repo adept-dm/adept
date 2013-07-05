@@ -7,7 +7,7 @@ import adept.core.operations._
 import adept.core.models._
 import akka.util.FiniteDuration
 import adept.utils._
-import org.eclipse.jgit.lib._
+import org.eclipse.jgit.lib.{Tree => GitTree, _}
 import org.eclipse.jgit.transport._
 import com.jcraft.jsch.JSch
 
@@ -92,43 +92,16 @@ object Adept {
     }
   }
  
+  private[core] type FindModule = (Coordinates, Option[Hash]) => Either[Set[Module], Option[Module]]
   
-  /*TODO: replace with Tree builder
-  def resolveConflicts(modules: Seq[Module]): Seq[Module] = {
-    //ConflictResolver.evictConflicts(modules)
-    //TODO:
-    null
-  }
-   
-   
-  def resolveArtifacts(artifacts: Set[Artifact], configurations: Set[Configuration], confsExpr: String): Set[Artifact] = {
-    //Resolve.modules(dependencies, confsExpr, findModule)._1
-    
-    ConfigurationResolver.resolve(configurations, confsExpr) match {
-      case Right(foundConfs) =>
-        val (allArtifacts, evicted) = Resolver.matchingArtifacts(artifacts, foundConfs) //TODO: handle evicted
-        allArtifacts
-      case Left(_) => Set.empty
-    }
-    
-  }
-  
-  
-  def resolveConfigurations(confsExpr: String, configurations: Set[Configuration]): Set[Configuration] ={
-    ConfigurationResolver.resolve(configurations, confsExpr) match {
-      case Right(confs) => confs
-      case Left(_) => Set.empty 
+  def build(repositories: Set[Adept], confExpr: String, module: Module, 
+      configurationMapping: String => String = Configuration.defaultConfigurationMapping(_)): Option[Tree] = {
+    val findModule = MergeOperations.mergeFindModules(repositories)
+    TreeOperations.build(confExpr, module, configurationMapping, findModule).map{ mutableTree =>
+      ConflictResolver.evictConflicts(mutableTree)
+      mutableTree.toTree
     }
   }
-  
-  def resolveDependencyConfigurations(confsExpr: String, rootConfigurations: Set[Configuration], configurations: Set[Configuration]): Set[Configuration] ={
-    ConfigurationResolver.resolve(rootConfigurations, confsExpr, configurations)  match {
-      case Right(confs) => confs
-      case Left(_) => Set.empty 
-    }
-  }
-  * 
-  */
 }
 
 class Adept private[adept](val dir: File, val name: String) extends Logging {
@@ -139,15 +112,15 @@ class Adept private[adept](val dir: File, val name: String) extends Logging {
 
   private lazy val git = Git.open(dir)
 
-  /* add module to adept. return right with file containing module, left on file that could not be created*/
+  private def gitRepo = git.getRepository()
+
+  /* add module to adept. return right with file containing module, left with the file that could not be created*/
   def add(module: Module): Either[File, File] = {
-    repo.Add(dir, module)
+    repo.Add(git, dir, module)
   }
 
-
-  def findModule(coords: Coordinates, hash: Option[Hash] = None): Option[Module] = {
+  def findModule(coords: Coordinates, hash: Option[Hash] = None): Either[Set[Module], Option[Module]] = {
     val file = new File(ModuleFiles.getModuleDir(dir, coords), ModuleFiles.modulesFilename)
-
 
     if (file.exists && file.isFile) {
       import org.json4s.native.JsonMethods._
@@ -156,42 +129,21 @@ class Adept private[adept](val dir: File, val name: String) extends Logging {
           error => throw new Exception(error),
           modules => hash.map{ hash =>
             val filtered = modules.filter(_.hash == hash)
-            assert(filtered.size < 2, "found more than 1 module with hash: " + hash + " in " + file + " found: " + filtered)
-            filtered.headOption
+            logger.error("found more than 1 module with hash: " + hash + " in " + file + " found: " + filtered)
+            if (modules.size > 1) Left(modules.toSet)
+            else Right(filtered.headOption)
           }.getOrElse{
-            if (modules.size > 1) throw new Exception("found more than 1 module: " + hash + " in " + file + " found: " + modules) //TODO: either instead of option as return type and return all the failed modules
-            modules.headOption
+            if (modules.size > 1) {
+              logger.error("found more than 1 module: " + hash + " in " + file + " found: " + modules)
+              Left(modules.toSet)
+            }
+            else Right(modules.headOption)
           }
       )
     } else {
-      None
+      Right(None)
     }
   }
-
-  /* TODO: replace with Treebuilder
-  def resolveModules(dependencies: Set[Dependency], configurations: Set[Configuration], confsExpr: String, configurationMapping: String => String): Seq[(Module, Set[Configuration])] = {
-    val rootModules = dependencies.flatMap{ d =>
-      findModule(d.coords, Some(d.hash))
-    }
-    val allModules = rootModules.flatMap{ rootModule =>
-      val matchedConfs = Adept.resolveConfigurations(confsExpr, configurations)
-      //Resolver.matchingModules(dependencies, matchedConfs, configurationMapping, findModule) //TODO: handle evicted
-      Seq.empty//FIXME
-    }
-    allModules.toSeq
-  }
-  * 
-  */
-
-  def dependencies(module: Module): Set[Module] = {
-    Set(module) ++ module.dependencies.par.flatMap{ case Dependency(coords, hash, _, _, _)  => //TODO: check if par gives us anything!
-      findModule(coords, Some(hash)).toSet.flatMap{ m: Module =>
-        dependencies(m)
-      }
-    }
-  }
-
-  private def gitRepo = git.getRepository()
 
   def lastCommit(allCoords: Set[Coordinates]): Option[Hash] = {
     val paths = allCoords.map{ coords =>

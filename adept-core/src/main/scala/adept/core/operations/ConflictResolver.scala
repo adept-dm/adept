@@ -69,20 +69,21 @@ private[core] case class Version(private val value: String) extends Ordered[Vers
 
 private[core] object ConflictResolver {
   
-  def evictConflicts(tree: Tree): Tree = {
-    def flatten(node: Node): Set[Module]= { //TODO: @tailrec?
-      Set(node.module) ++ node.children.flatMap(flatten)
-    } 
+  def evictConflicts(tree: MutableTree): Unit = {
+    
+    def flatten(node: MutableNode): Set[Module] = {
+       node.children.flatMap(flatten).toSet + node.module 
+    }
     
     val modules = flatten(tree.root)
-    
     val evictedModules = modules.groupBy(m => m.coordinates.org -> m.coordinates.name)
 		   .flatMap{ case (_, comparableModules) =>
-          val highestVersion = comparableModules.maxBy(m => Version(m.coordinates.version))
-          comparableModules.filter(_ != highestVersion)
+      val highestVersion = comparableModules.maxBy(m => Version(m.coordinates.version))
+      comparableModules.filter(_ != highestVersion).map( _ -> highestVersion)
 	}
     
-    //evictedModules.ma
-    tree
+    evictedModules.foreach{ case (module, highestVersion) =>
+      TreeOperations.evict(tree, module, reason = "found higher version: " + highestVersion.coordinates)
+    }
   }
 }

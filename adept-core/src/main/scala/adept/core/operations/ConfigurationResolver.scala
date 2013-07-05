@@ -94,7 +94,7 @@ private[core] object ConfigurationResolver extends Logging {
     checkExpr(leftExpr)
     val foundConfs = mutable.Set() ++ findNames(leftConfs, leftExpr)
     if (foundConfs.nonEmpty) Right(foundConfs ++ foundConfs.flatMap(c => extendedConfs(leftConfs, c)))
-    else  Left("no confs for left: '" +leftExpr+ "' in " + leftConfs.map(_.name).mkString(","))
+    else  Left("conf: '" +leftExpr+ "' was not among matching confs: " + leftConfs.map(_.name).mkString(","))
   }
   
   
@@ -127,7 +127,7 @@ private[core] object ConfigurationResolver extends Logging {
         if (matchingRight.nonEmpty) {
           Right(matchingRight)
         } else  {
-          Left("no public resolved confs for: " +rightExpr  + " in " + rightConfs.filter(_.visibility != Visibility.Private).map(_.name).mkString(",") + ". private confs was: " + rightConfs.filter(_.visibility == Visibility.Private).map(_.name).mkString(","))
+          Left("no public resolved confs for: " +rightExpr  + " in " + rightConfs.filter(_.visibility != Visibility.Private).map(_.name).mkString(",") + ". private confs are: " + rightConfs.filter(_.visibility == Visibility.Private).map(_.name).mkString(","))
         }
       }).joinRight
     }

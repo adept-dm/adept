@@ -1,4 +1,4 @@
-package adept.core
+package adept.utils
 
 import akka.actor.ActorSystem
 

@@ -4,19 +4,6 @@ import adept.core.models._
 import adept.core.Adept
 import adept.ivy.IvyHelpers
 
-/**
-  * Workflow:
-  * 0) update metadata
-  * 1) read dependencies from all repositories
-  * 2) merge found dependencies
-  * 2) transitively resolve (transitive) dependencies based on configuration. skip non-transitive dependencies
-  * 4) check that all dependencies have been found
-  * 3) exclude exclusions
-  * 5) resolve version conflicts
-  * 6) check for unresolved conflicts
-  * 7) add explicit artifacts
-  * 8) check that all explicit artifacts could be added
-  */
 object AdeptPlugin extends Plugin {
   
   import AdeptKeys._
@@ -60,9 +47,9 @@ object AdeptPlugin extends Plugin {
     
   private def adeptDependency(adept: Adept, dep: ModuleID, configurationMapping: String): Option[Dependency]= {
     val coords = adeptCoordinates(dep)
-    val module = adept.findModule(coords, hash = None) //TODO: Hash
-    module.map{ m =>
-      Dependency(coords, m.hash, dep.configurations.getOrElse(configurationMapping))
+    adept.findModule(coords, hash = None) match {  //TODO: Hash will be replaced by uniqueIds
+      case Right(moduleOpt) => moduleOpt.map{ m => Dependency(coords, m.hash, dep.configurations.getOrElse(configurationMapping)) } 
+      case Left(errorModules) => throw new Exception("Found too many matching modules: " + coords + " " + errorModules.mkString(","))
     }
   }
   
@@ -72,7 +59,7 @@ object AdeptPlugin extends Plugin {
   }
 
   
-  def adeptClasspathTask(sbtConfig: sbt.Configuration) = (adeptRepositories, adeptDirectory, adeptDependencies, adeptLocalRepository, adeptArtifactTypes, adeptTimeout, defaultConfigurationMapping in GlobalScope, streams) map { (adeptRepositories, adeptDirectory, allSbtDeps, localRepo, artifactTypes, timeoutMinutes, defaultConfiguration, s) => 
+  def adeptClasspathTask(sbtConfig: sbt.Configuration) = (name, organization, version, adeptRepositories, adeptDirectory, adeptDependencies, adeptLocalRepository, adeptArtifactTypes, adeptTimeout, defaultConfigurationMapping in GlobalScope, streams) map { (name, organization, version, adeptRepositories, adeptDirectory, allSbtDeps, localRepo, artifactTypes, timeoutMinutes, defaultConfiguration, s) => 
     def isExcluded(module: Module, exclusionRules: Seq[sbt.ExclusionRule]): Boolean ={ //TODO: add exclusions into Adept core
       val matchingRules = exclusionRules.find{ exclusionRule =>
         if (exclusionRule.configurations.nonEmpty) throw new Exception("exclusion rule configurations are not implmeneted. got: " + exclusionRule) 
@@ -112,82 +99,44 @@ object AdeptPlugin extends Plugin {
         if (!adept.isLocal) adept.pull()
       }
       
-
-
-      val timeout = timeoutMinutes.minutes //TODO: make a setting out of this
-      val adeptConfigurations = sbt.Configurations.default.map(adeptConfiguration).toSet
-      val confMapping: String => String = Configuration.defaultConfigurationMapping(_, "*->default(compile)")
-      val conf = confMapping(sbtConfig.name) //TODO: do we need something better 
-      //*->default(compile) mapping comes from: ivy/CustomXmlParser.scala
-      //33:         if(defaultConfig.isDefined) setDefaultConfMapping("*->default(compile)")
-
-      val matchingConfs = Adept.resolveConfigurations(conf, adeptConfigurations)
-
-      val sbtDeps = allSbtDeps.map{ sbtDep =>
-        val conf = sbtDep.configurations.getOrElse(defaultConfiguration)
-        sbtDep.copy(configurations = Some(confMapping(conf))) //TODO: am I sure we want to do this mapping here or inside of adept? we ned for resovleDependencyConfiguration later on
-      }
+      val configurations = sbt.Configurations.default.map(adeptConfiguration).toSet
+      val defaultDependencyConf = "compile->compile(*),master(*);runtime->runtime(*)" ////TODO: cannot be defaultConfiguration  ???
+      val configurationMapping: String => String = Configuration.defaultConfigurationMapping(_, "*->default(compile)") //TODO
+      val confExpr = sbtConfig.name
       
-      if (all.isEmpty && sbtDeps.nonEmpty) {
-        val msg = "no repositories defined for: " + sbtDeps.mkString(",")
-        s.log.error(msg)
-        throw new Exception(msg)
+      val notFound = new collection.mutable.HashSet[ModuleID]()
+      val adeptDependencies = allSbtDeps.flatMap{ sbtDep =>
+        val dependencies = all.par.flatMap{ adept =>
+          adeptDependency(adept, sbtDep, defaultDependencyConf)
+        }
+        if (dependencies.isEmpty) notFound += sbtDep
+        dependencies
+      }.toSet
+
+      val parent = Module(coordinates = Coordinates(organization, name, version), configurations = configurations, dependencies = adeptDependencies, 
+          artifacts = Set.empty, //TODO: artifacts?
+          attributes = Map.empty) //TODO: attributes?
+      
+      val checkpoint = System.currentTimeMillis()
+      val tree = Adept.build(all.toSet, confExpr, parent, configurationMapping)
+      val timeSpent = System.currentTimeMillis - checkpoint
+      println(tree)
+      println(configurations.map(_.name))
+      println("resolved in: " + timeSpent)
+      
+      val cachedArtifacts = null
+      
+      println(parent)
+      
+      
+      if (notFound.nonEmpty) {
+        s.log.error("could not find the following dependencies:\n" + notFound.mkString("\n"))
+        Seq.empty
       } else {
-        
-        val resolvedDependencies = all.flatMap{ adept => //TODO: would .par be quicker?
-          sbtDeps.map{sbtDep => 
-            val maybeDep = adeptDependency(adept, sbtDep, sbtDep.configurations.getOrElse(defaultConfiguration))
-            val maybeResolvedDeps = maybeDep.map{ dep =>
-              if (sbtDep.isTransitive) {
-                val resolvedModules = adept.resolveModules(Set(dep), adeptConfigurations, conf, confMapping).filter{ case (module, confs) =>
-                  !isExcluded(module, sbtDep.exclusions)
-                }
-                println(resolvedModules.map(_._1.coordinates) + ":::::: " + resolvedModules.map(_._2.map(_.name)))
-                resolvedModules
-              } else {
-                val matchingConfs = adeptConfigurations.filter(c => c.name == sbtConfig.name).toSet
-                if (matchingConfs.nonEmpty) {
-                  adept.findModule(adeptCoordinates(sbtDep)).map(_ -> matchingConfs).toSeq
-                }else {
-                  Seq()
-                }
-              }
-            }
-           
-            (sbtDep, maybeResolvedDeps)
-          }
-        }            
-        val resolvedModuleConfs = resolvedDependencies.seq.groupBy{ case (sbtDep, maybeResolvedDeps) =>
-          sbtDep
-        }.flatMap{ case (sbtDep, found) =>
-          val resolvedModuleConfs = found.flatMap(_._2).flatten
-          val matchedConfs = resolvedModuleConfs.flatMap { case (module, confs) =>
-            val matched = Adept.resolveDependencyConfigurations(sbtDep.configurations.get, adeptConfigurations, confs, module)
-            matched
-          }
-          if (matchedConfs.nonEmpty && resolvedModuleConfs.isEmpty) throw new Exception("could not find any modules for dependency: " + sbtDep)
-          resolvedModuleConfs
-        }
-        
-        val resolvedModules = resolvedModuleConfs.map(_._1)
-        val prunedModules = Adept.resolveConflicts(resolvedModules.toSeq)
-        
-        val artifactInfo = prunedModules.flatMap{ module =>
-          val confs = resolvedModuleConfs(module)
-          val confsExpr = confMapping(confs.map(_.name).mkString(";")) //TODO: we must change the way this works: we are doing confMapping all over the place. inside of adept, outside when checking for confs, ...
-          val artifactModules = Adept.resolveArtifacts(module.artifacts, confs, confsExpr).map(_ -> module)
-          println(module.coordinates + "   " + confsExpr + " << " + confs.map(_.name) + " >> " + module.artifacts + "  << "  +  artifactModules.map(_._1.locations))
-          artifactModules
-        }
-        val mergedLocations = artifactInfo.map{ case (artifact, module) =>
-          ((artifact.hash, module.coordinates, artifact.locations), None)
-        }
-        Adept.artifact(adeptDirectory, mergedLocations.toSeq, timeout) match {
-          case Left(error) => throw new Exception(error)
-          case Right(files) => files.classpath
-        }
-        
-      } 
+        cachedArtifacts
+      }: Classpath
+      
+
     }
   }
 

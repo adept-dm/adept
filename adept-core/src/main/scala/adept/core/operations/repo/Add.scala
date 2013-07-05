@@ -10,8 +10,7 @@ import org.json4s.string2JsonInput
 
 private[core] object Add {
 
-  def apply(baseDir: File, module: Module): Either[File, File] = {
-    val git = Git.open(baseDir)
+  def apply(git: Git, baseDir: File, module: Module): Either[File, File] = {
     val res = for {
       file <- ModuleFiles.findAndCreate(baseDir, module.coordinates).right
     } yield {

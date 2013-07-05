@@ -142,15 +142,21 @@ object IvyHelpers extends Logging{
       maybeJarFile.map{ jarFile =>
         val hash = Hash.calculate(jarFile) 
         val modConfs = depDescriptor.getModuleConfigurations
+        val exclusionRules = depDescriptor.getAllExcludeRules().map{ ivyExcludeRule =>
+          val org = ivyExcludeRule.getId().getModuleId().getOrganisation()
+          val name = ivyExcludeRule.getId().getModuleId().getName()
+          DependencyExclusionRule(org, name)
+        }.toSet
+        if (depDescriptor.getAllIncludeRules().nonEmpty) throw new Exception("Include rules are not implemented") //TODO: <- fix this
+        
         val configuration = modConfs.map{ modConf =>
           val depConfs = depDescriptor.getDependencyConfigurations(modConf)
           confString(modConf, depConfs)
         }.mkString(";")
-        Dependency(coords, hash, configuration)
+        Dependency(coords, hash, configuration, isTransitive = depDescriptor.isTransitive(), exclusionRules = exclusionRules)
       }
     }.toSet
-    throw new Exception("not implmented! see todo")
-    //FIXME: exclusion rule: Module(coords, artifacts, configurations, attributes, deps)
+    Module(coords, artifacts, configurations, attributes, deps)
   }
   
   def add(coords: Coordinates, ivy: Ivy, adept: Adept): Set[Module] = {

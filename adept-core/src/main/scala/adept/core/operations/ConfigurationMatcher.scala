@@ -7,6 +7,7 @@ import adept.utils.EitherUtils
 
 import collection.{ Set => _, _ }
 
+import akka.actor._
 
 /**
  * Matches artifacts and dependencies to configurations
@@ -39,13 +40,17 @@ private[operations] object ConfigurationMatcher extends Logging {
     foundArtifacts -> evictedArtifacts.filter(ea => !foundArtifacts.contains(ea.artifact)) 
   }
   
+  type MatchedModule = (Module, Boolean, Set[DependencyExclusionRule], mutable.Set[Configuration])
+  
   /**
    * The modules and matching configurations for a set of dependencies and a configuration expression
+   * 
+   * @returns mutable Sets to avoid converting them at all callsite
    */
-  def matchingModules(parent: Coordinates, dependencies: Set[Dependency], rootExclusionRules: Set[DependencyExclusionRule], configurations: Set[Configuration], configurationMapping: String => String, findModule: (Coordinates, Option[Hash]) => Option[Module]): (mutable.Set[(Module, Set[DependencyExclusionRule], mutable.Set[Configuration])], mutable.Set[EvictedModule], Set[MissingDependency]) ={
+  def matchingModules(parent: Coordinates, dependencies: Set[Dependency], rootExclusionRules: Set[DependencyExclusionRule], configurations: Set[Configuration], configurationMapping: String => String, findModule: Adept.FindModule): (mutable.Set[MatchedModule], mutable.Set[EvictedModule], Set[MissingDependency]) ={
     //We are using mutable variables here, because it makes the code easier to read and it improves speed
-    //TODO: will probably be more efficient to use actors instead of synchronizition?
-    var moduleConfs = new mutable.HashSet[(Module, Set[DependencyExclusionRule], mutable.Set[Configuration])] with mutable.SynchronizedSet[(Module, Set[DependencyExclusionRule], mutable.Set[Configuration])]
+    //TODO: will probably be more efficient to use actors instead of synchronization, except that the implementation becomes less readable and not necessarily that more performant, since we assume to be IO bounded 
+    var moduleConfs = new mutable.HashSet[MatchedModule] with mutable.SynchronizedSet[MatchedModule]
     var evicted = new mutable.HashSet[EvictedModule] with mutable.SynchronizedSet[EvictedModule]
     var missing = new mutable.HashSet[MissingDependency] with mutable.SynchronizedSet[MissingDependency]
       
@@ -53,23 +58,24 @@ private[operations] object ConfigurationMatcher extends Logging {
       val maybeModule = findModule(dependency.coordinates, None) //FIXME: we are not using the hash/unique Id here and that is very wrong!
       
       maybeModule match {
-        case Some(module) =>
+        case Right(Some(module)) =>
           logger.debug("found module for dependency: " + dependency)
           val matchingExclusions = rootExclusionRules.filter(_.matches(dependency)) 
           if (matchingExclusions.isEmpty) {
             val mappedConf = configurationMapping(dependency.configuration)
             
             resolve(configurations, mappedConf, module.configurations) match {
-              case Right(confs) => moduleConfs += ((module, rootExclusionRules ++ dependency.exclusionRules, confs))
-              case Left(msg) => evicted += EvictedModule( module, "no matching configurations: "+ msg.mkString(";"))
+              case Right(confs) => moduleConfs += ((module, dependency.isTransitive, rootExclusionRules ++ dependency.exclusionRules, confs))
+              case Left(msg) => evicted += EvictedModule(module, "no matching configurations: "+ msg.mkString(";"))
             }
           } else {
             logger.debug("excluding dependency " + dependency + " because of matching exclusion rules " + matchingExclusions)
             evicted += EvictedModule(module, "excluding: " + dependency.coordinates + " because of " + matchingExclusions.mkString(","))
           }
-        case None =>
+        case Right(None) =>
           logger.error("could not find module for: " + dependency)
           missing += MissingDependency(dependency, parent, reason = "could not find dependency: " + dependency.coordinates + " declared in: " + parent)
+        case Left(conflictModules) => throw new Exception("found more than 1 module for: " + dependency + ": " + conflictModules.mkString(",")) //TODO: handle gracefully? (remember to remove all references to it in the code)
       }
     }
     
