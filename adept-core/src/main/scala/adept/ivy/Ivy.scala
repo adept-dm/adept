@@ -162,7 +162,11 @@ object IvyHelpers extends Logging{
   def add(coords: Coordinates, ivy: Ivy, adept: Adept): Set[Module] = {
     logger.trace("building dependency tree from ivy...")
     val module = adeptModule(coords, ivy)
-    val all = Set(module) ++ module.dependencies.map{ dep => adeptModule(dep.coordinates, ivy) }
+    val children = module.dependencies.flatMap{ dep =>
+      add(dep.coordinates, ivy, adept) 
+    }
+    
+    val all = Set(module) ++ children
     
     all.foreach( adept.add )
     //println("******" + modules.map(_.artifacts).mkString("\n\n") + "******")
