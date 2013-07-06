@@ -33,28 +33,27 @@ object Hash {
     Hash(encode(string.getBytes))
   }
   
-  private def readBytes(file: File): Array[Byte] = {
+  private def streamingEncode(file: File): String = {
     import java.io._
     val in = new FileInputStream(file)
-    var out = new ByteArrayOutputStream() 
-    val buf = new Array[Byte](4096)
+    val currentMd = md.get()
+    currentMd.reset()
+    val buf = new Array[Byte](1024 * 4) //_seemed_ to be the fastest when I tried it out when I was writing this
     try {
       var len = in.read(buf) 
   
       while (len > 0) { 
-        out.write(buf, 0, len) 
+        currentMd.update(buf, 0, len) 
         len = in.read(buf) 
       }
-      out.toByteArray
+      currentMd.digest().map(b => "%02X" format b).mkString.toLowerCase
     } finally {
-      out.flush 
-      out.close 
+      currentMd.reset()
       in.close 
     }
   }
   
   def calculate(file: File): Hash = {
-    val hashString = encode(readBytes(file))
-    Hash(hashString)
+    Hash(streamingEncode(file))
   }
 }
