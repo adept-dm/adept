@@ -17,7 +17,7 @@ case class Module(
   configurations: Set[Configuration],
   attributes: Map[String, Seq[String]], //TODO: remove
   dependencies: Set[Dependency]) {
-  lazy val hash = Hash.mix(artifacts.map(_.hash).toSeq) //TODO: replace with uniqueId
+  lazy val hash = Hash.mix(artifacts.map(_.hash).toSeq.sortBy(_.value)) //TODO: replace with uniqueId
   //TODO: add created 
   //TODO: add universes ([scala-version:2.10])
 }

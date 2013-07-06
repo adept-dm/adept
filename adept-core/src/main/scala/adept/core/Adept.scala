@@ -71,22 +71,25 @@ object Adept {
 
   val aritifactPath = "artifacts"
 
-  def artifact(baseDir: File, info: Seq[((Hash, Coordinates, Set[String]), Option[File])], timeout: FiniteDuration) = { //TODO: Either[Seq[File], Seq[File]]  (left is failed, right is successful)
-    val hashFiles = info.map{ case ((hash, coords, locations), dest) =>
-      (hash, coords, locations, dest.getOrElse{
+  def artifact(baseDir: File, info: Seq[((Hash, Set[String]), Option[File])], timeout: FiniteDuration) = { //TODO: Either[Seq[File], Seq[File]]  (left is failed, right is successful)
+    val hashFiles = info.map{ case ((hash, locations), dest) =>
+      (hash, locations, dest.getOrElse{
         val artifactDir = new File(baseDir, aritifactPath)
         artifactDir.mkdirs
-        val currentArtifactDir = ModuleFiles.getModuleDir(artifactDir, coords)
+        val currentArtifactDir = new File(artifactDir, hash.value)
         ModuleFiles.createDir(currentArtifactDir)
         new File(currentArtifactDir , hash.value+".jar") //TODO: need a smarter way to store artifacts (imagine 50K jars in one dir!)
       })
     }
-    val (existing, nonExisting) = hashFiles.partition{ case (hash, coords, locations, file) =>
+    val time = System.currentTimeMillis
+    val (existing, nonExisting) = hashFiles.par.partition{ case (hash, locations, file) => //TODO: seems that .par has an effect, but could it be better if we used an IO context?
       file.exists && Hash.calculate(file) == hash
     }
+    val timeSpent = System.currentTimeMillis - time
+    println("hashes was: " + timeSpent)
     for {
-      existingFiles <- EitherUtils.reduce[String, File](existing.map{ case (_,_, _, file ) => Right(file) }).right
-      downloadedFiles <- EitherUtils.reduce[String, File](adept.download.Download(nonExisting, timeout)).right
+      existingFiles <- EitherUtils.reduce[String, File](existing.seq.map{ case (_, _, file ) => Right(file) }).right
+      downloadedFiles <- EitherUtils.reduce[String, File](adept.download.Download(nonExisting.seq, timeout)).right
     } yield {
       existingFiles ++ downloadedFiles
     }

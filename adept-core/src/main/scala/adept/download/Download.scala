@@ -15,7 +15,7 @@ import adept.utils.Logging
 
 private[adept] object Download extends Logging {
   
-  def apply(downloadbles: Seq[(Hash, Coordinates, Set[String], File)], timeout: FiniteDuration): Seq[Either[String, File]] = {
+  def apply(downloadbles: Seq[(Hash, Set[String], File)], timeout: FiniteDuration): Seq[Either[String, File]] = {
     if (downloadbles.nonEmpty) {
       logger.trace("downloading "+downloadbles.size+" modules...")
       
@@ -23,9 +23,9 @@ private[adept] object Download extends Logging {
       implicit val executionContext = akka.dispatch.ExecutionContext.defaultExecutionContext(system)
       val progressIndicator = system.actorOf(Props[ProgressIndicator])
       try {
-        val perhapsFiles = (downloadbles.map{ case (hash, coords, locations, file) =>
+        val perhapsFiles = (downloadbles.map{ case (hash, locations, file) =>
           val tmpFiles = locations.map{ location =>
-            location -> File.createTempFile(coords.org+"-"+coords.name+"-"+coords.version, ".jar")
+            location -> File.createTempFile(hash.value, ".jar")
           }
           
           val possibleJars = tmpFiles.map{ case (url, file) => 
@@ -36,14 +36,14 @@ private[adept] object Download extends Logging {
           
           Future.find(possibleJars)(_.isRight)
             .map{ maybe =>
-              maybe.map(_.right.get)  -> (hash, coords, locations, file, tmpFiles)//.get should be successful because of isRight
+              maybe.map(_.right.get)  -> (hash, locations, file, tmpFiles)//.get should be successful because of isRight
             }
         })
   
         
         logger.trace("waiting "+timeout+" for downloads to complete... ")
         val maybeFiles = Await.result(Future.sequence(perhapsFiles), timeout)
-        maybeFiles.map{ case (maybeFile, (hash, coords, locations, jarFile, tmpFiles)) =>
+        maybeFiles.map{ case (maybeFile, (hash, locations, jarFile, tmpFiles)) =>
           maybeFile.map{ file =>
            val artifactHash = Hash.calculate(file)
             if (hash == artifactHash) {
@@ -57,10 +57,10 @@ private[adept] object Download extends Logging {
                 Left("could not rename temp file from "+file+" to "+jarFile)
               }
             } else {
-              Left("expected temporary file downloaded for "+coords+" to have hash: "+ hash+" but got "+artifactHash)
+              Left("expected temporary file downloaded have hash: "+ hash+" but got "+artifactHash)
             }
           }.getOrElse{
-            Left("could not download artifacts for "+coords+" from: "+ locations.mkString(","))
+            Left("could not download artifacts from: "+ locations.mkString(","))
           }
         }
       } finally {
