@@ -12,7 +12,7 @@
   <logger name="akka" level="OFF" />
   <logger name="scala.slick" level="OFF" />
   
-  <root level="DEBUG">
+  <root level="OFF">
     <appender-ref ref="STDOUT" />
   </root>
 </configuration>
