@@ -58,7 +58,7 @@ object AdeptPlugin extends Plugin {
     Configuration(sbtConf.name, Some(sbtConf.description), sbtConf.extendsConfigs.map(_.name).toSet, visibility, None)
   }
 
-  def adeptClasspathTask(sbtConfig: sbt.Configuration) = (name, organization, version, adeptRepositories, adeptDirectory, adeptDependencies, adeptLocalRepository, adeptArtifactTypes, adeptTimeout, defaultConfigurationMapping in GlobalScope, streams) map { (name, organization, version, adeptRepositories, adeptDirectory, allSbtDeps, localRepo, artifactTypes, timeoutMinutes, defaultConfiguration, s) =>
+  def adeptTreeTask(sbtConfig: sbt.Configuration) = (name, organization, version, adeptRepositories, adeptDirectory, adeptDependencies, adeptLocalRepository, adeptArtifactTypes, adeptTimeout, defaultConfigurationMapping in GlobalScope, streams) map { (name, organization, version, adeptRepositories, adeptDirectory, allSbtDeps, localRepo, artifactTypes, timeoutMinutes, defaultConfiguration, s) =>
     def isExcluded(module: Module, exclusionRules: Seq[sbt.ExclusionRule]): Boolean = { //TODO: add exclusions into Adept core
       val matchingRules = exclusionRules.find { exclusionRule =>
         if (exclusionRule.configurations.nonEmpty) throw new Exception("exclusion rule configurations are not implmeneted. got: " + exclusionRule)
@@ -98,7 +98,7 @@ object AdeptPlugin extends Plugin {
       all.foreach { adept =>
         if (!adept.isLocal) adept.pull()
       }
-
+      
       val configurations = sbt.Configurations.default.map(adeptConfiguration).toSet
       val defaultDependencyConf = "compile->compile(*),master(*);runtime->runtime(*)" ////TODO: cannot be defaultConfiguration  ???
       val configurationMapping: String => String = Configuration.defaultConfigurationMapping(_, "*->default(compile)") //TODO
@@ -115,7 +115,7 @@ object AdeptPlugin extends Plugin {
 
       if (notFound.nonEmpty) {
         s.log.error("could not find the following dependencies:\n" + notFound.mkString("\n"))
-        Seq.empty
+        None
       } else {
 
         val parent = Module(coordinates = Coordinates(organization, name, version), configurations = configurations, dependencies = adeptDependencies,
@@ -125,28 +125,33 @@ object AdeptPlugin extends Plugin {
         val checkpoint = System.currentTimeMillis()
         val tree = Adept.build(all.toSet, confExpr, parent, configurationMapping)
         val resolveTimeSpent = System.currentTimeMillis - checkpoint
-         
+        s.log.info("resolved adept tree in: " + resolveTimeSpent + " ms")
+        tree
+      }
+    }
+  }
+
+  def adeptClasspathTask(sbtConfig: sbt.Configuration) = (adeptTree in sbtConfig, adeptDirectory, streams) map { (maybeTree, adeptDirectory, s) =>
+    val cachedFiles = maybeTree match {
+      case Some(tree) =>
         def artifacts(node: Node): Set[Artifact] = {
           node.artifacts ++ node.children.flatMap(artifacts(_))
         }
-        
-        val cachedArtifacts = artifacts(tree.get.root).toSeq.map { a =>
+
+        val cachedArtifacts = artifacts(tree.root).toSeq.map { a =>
           (a.hash, a.locations) -> (None: Option[java.io.File])
         }
         val timeout = 2.hours
-        val cachedFiles = Adept.artifact(adeptDirectory, cachedArtifacts, timeout) match {
+        Adept.artifact(adeptDirectory, cachedArtifacts, timeout) match {
           case Right(files) => files
-          case Left(_) => Seq.empty
+          case Left(error) => 
+            Seq.empty
         }
-        val totalTime = System.currentTimeMillis - checkpoint
-        //println(tree)
-        println(tree)
-        
-        s.log.info("resolved in: " + resolveTimeSpent + " ms")
-        s.log.info("total time: " + totalTime + " ms")
-        cachedFiles.classpath
-      }: Classpath
+      case None =>
+        s.log.error("could not find any adept dependencies in tree")
+        Seq.empty
     }
+    cachedFiles.classpath
   }
 
   def adeptSettings = Seq(
@@ -169,9 +174,11 @@ object AdeptPlugin extends Plugin {
       } else Some(res.right.get)
     },
     adeptIvyAdd <<= adeptIvyAddTask,
+    adeptTree in Compile <<= adeptTreeTask(Compile), 
+    adeptTree in Test <<= adeptTreeTask(Test), 
     adeptClasspath in Compile <<= adeptClasspathTask(Compile),
-    (managedClasspath in Compile) <++= adeptClasspath in Compile,
     adeptClasspath in Test <<= adeptClasspathTask(Test),
+    (managedClasspath in Compile) <++= adeptClasspath in Compile,
     (managedClasspath in Test) <++= adeptClasspath in Test)
 
 }
