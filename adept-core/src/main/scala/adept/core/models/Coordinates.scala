@@ -18,10 +18,9 @@ object Coordinates {
   }
 
   def coordsToJson(coords: Coordinates) = {
-    ("name" -> coords.name) ~
-      ("organization" -> coords.org) ~
+    ("organization" -> coords.org) ~
+      ("name" -> coords.name) ~
       ("version" -> coords.version)
-
   }
 
   def parse(string: String): Either[String, Coordinates] = {

@@ -58,24 +58,7 @@ object AdeptPlugin extends Plugin {
     Configuration(sbtConf.name, Some(sbtConf.description), sbtConf.extendsConfigs.map(_.name).toSet, visibility, None)
   }
 
-  def adeptTreeTask(sbtConfig: sbt.Configuration) = (name, organization, version, adeptRepositories, adeptDirectory, adeptDependencies, adeptLocalRepository, adeptArtifactTypes, adeptTimeout, defaultConfigurationMapping in GlobalScope, streams) map { (name, organization, version, adeptRepositories, adeptDirectory, allSbtDeps, localRepo, artifactTypes, timeoutMinutes, defaultConfiguration, s) =>
-    def isExcluded(module: Module, exclusionRules: Seq[sbt.ExclusionRule]): Boolean = { //TODO: add exclusions into Adept core
-      val matchingRules = exclusionRules.find { exclusionRule =>
-        if (exclusionRule.configurations.nonEmpty) throw new Exception("exclusion rule configurations are not implmeneted. got: " + exclusionRule)
-        (exclusionRule.organization, exclusionRule.name) match {
-          case ("*", module.coordinates.name) => true
-          case (module.coordinates.org, "") => true
-          case (module.coordinates.org, "*") => true
-          case (module.coordinates.org, module.coordinates.name) => true
-          case (_, _) => false
-        }
-      }
-      matchingRules.foreach { exclusionRule =>
-        s.log.debug("excluding " + module + " because of " + exclusionRule)
-      }
-      matchingRules.isDefined
-    }
-
+  def adeptTreeTask(sbtConfig: sbt.Configuration) = (name, organization, version, adeptRepositories, adeptDirectory, adeptDependencies, adeptLocalRepository, adeptConfigurationMapping, defaultConfigurationMapping in GlobalScope, streams) map { (name, organization, version, adeptRepositories, adeptDirectory, allSbtDeps, localRepo, defaultDependencyConf, defaultConfiguration, s) =>
     withAdeptClassloader {
       import akka.util.duration._
 
@@ -100,7 +83,6 @@ object AdeptPlugin extends Plugin {
       }
       
       val configurations = sbt.Configurations.default.map(adeptConfiguration).toSet
-      val defaultDependencyConf = "compile->compile(*),master(*);runtime->runtime(*)" ////TODO: cannot be defaultConfiguration  ???
       val configurationMapping: String => String = Configuration.defaultConfigurationMapping(_, "*->default(compile)") //TODO
       val confExpr = sbtConfig.name
 
@@ -131,32 +113,33 @@ object AdeptPlugin extends Plugin {
     }
   }
 
-  def adeptClasspathTask(sbtConfig: sbt.Configuration) = (adeptTree in sbtConfig, adeptDirectory, streams) map { (maybeTree, adeptDirectory, s) =>
-    val cachedFiles = maybeTree match {
-      case Some(tree) =>
-        def artifacts(node: Node): Set[Artifact] = {
-          node.artifacts ++ node.children.flatMap(artifacts(_))
-        }
-
-        val cachedArtifacts = artifacts(tree.root).toSeq.map { a =>
-          (a.hash, a.locations) -> (None: Option[java.io.File])
-        }
-        val timeout = 2.hours
-        Adept.artifact(adeptDirectory, cachedArtifacts, timeout) match {
-          case Right(files) => files
-          case Left(error) => 
-            Seq.empty
-        }
-      case None =>
-        s.log.error("could not find any adept dependencies in tree")
-        Seq.empty
+  def adeptClasspathTask(sbtConfig: sbt.Configuration) = (adeptTree in sbtConfig, adeptDirectory, adeptTimeout, streams) map { (maybeTree, adeptDirectory, timeoutMinutes, s) => 
+    withAdeptClassloader {
+      val cachedFiles = maybeTree match {
+        case Some(tree) =>
+          def artifacts(node: Node): Set[Artifact] = {
+            node.artifacts ++ node.children.flatMap(artifacts(_))
+          }
+  
+          val cachedArtifacts = artifacts(tree.root).toSeq.map { a =>
+            (a.hash, a.locations) -> (None: Option[java.io.File])
+          }
+          val timeout = timeoutMinutes.minutes
+          Adept.artifact(adeptDirectory, cachedArtifacts, timeout) match {
+            case Right(files) => files
+            case Left(error) => 
+              Seq.empty
+          }
+        case None =>
+          s.log.error("could not find any adept dependencies in tree")
+          Seq.empty
+      }
+      cachedFiles.classpath
     }
-    cachedFiles.classpath
   }
 
   def adeptSettings = Seq(
-    adeptConfigurationMapping := "*->default(compile)",
-    adeptArtifactTypes := defaultArtifactTypes,
+    adeptConfigurationMapping := "compile->compile(*),master(*);runtime->runtime(*)",
     adeptDirectory := Path.userHome / ".adept",
     adeptTimeout := 60, //minutes
     adeptRepositories := Map(),
