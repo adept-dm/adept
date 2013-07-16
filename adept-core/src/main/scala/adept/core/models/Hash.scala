@@ -14,6 +14,7 @@ object Hash {
       MessageDigest.getInstance("SHA-1")
     }
   }
+  
   private def encode(bytes: Array[Byte]) = {
     md.get().digest(bytes).map(b => "%02X" format b).mkString.toLowerCase
   }

@@ -101,13 +101,13 @@ object Adept extends Logging {
     }
   }
  
-  private[core] type FindModule = (Coordinates, Option[Hash]) => Either[Set[Module], Option[Module]]
+  private[adept] type FindModule = (Coordinates, Option[UniqueId]) => Either[Set[Module], Option[Module]]
   
   def build(repositories: Set[Adept], confExpr: String, module: Module, 
       configurationMapping: String => String = Configuration.defaultConfigurationMapping(_)): Option[Tree] = {
     val findModule = MergeOperations.mergeFindModules(repositories)
     TreeOperations.build(confExpr, module, configurationMapping, findModule).map{ mutableTree =>
-      ConflictResolver.evictConflicts(mutableTree)
+      ConflictResolver.resolveConflicts(mutableTree, configurationMapping, findModule)
       mutableTree.toTree
     }
   }
@@ -128,22 +128,24 @@ class Adept private[adept](val dir: File, val name: String) extends Logging {
     repo.Add(git, dir, module)
   }
 
-  def findModule(coords: Coordinates, hash: Option[Hash] = None): Either[Set[Module], Option[Module]] = {
-    val file = new File(ModuleFiles.getModuleDir(dir, coords), ModuleFiles.modulesFilename)
-
+  def findModule(coordinates: Coordinates, uniqueId: Option[UniqueId] = None): Either[Set[Module], Option[Module]] = {
+    val file = new File(ModuleFiles.getModuleDir(dir, coordinates), ModuleFiles.modulesFilename)
+    
     if (file.exists && file.isFile) {
       import org.json4s.native.JsonMethods._
       val maybeModules = Module.readSameCoordinates(parse(file))
       maybeModules.fold(
           error => throw new Exception(error),
-          modules => hash.map{ hash =>
-            val filtered = modules.filter(_.hash == hash)
-            logger.error("found more than 1 module with hash: " + hash + " in " + file + " found: " + filtered)
-            if (modules.size > 1) Left(modules.toSet)
+          modules => uniqueId.map{ uniqueId =>
+            val filtered = modules.filter(_.uniqueId == uniqueId)
+            if (modules.size > 1) {
+              logger.error("found more than 1 module with unique-id: " + uniqueId + " in " + file + " found: " + filtered)
+              Left(modules.toSet)
+            }
             else Right(filtered.headOption)
           }.getOrElse{
             if (modules.size > 1) {
-              logger.error("found more than 1 module: " + hash + " in " + file + " found: " + modules)
+              logger.error("found more than 1 module: " + coordinates + " in " + file + " found: " + modules)
               Left(modules.toSet)
             }
             else Right(modules.headOption)

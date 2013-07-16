@@ -46,28 +46,33 @@ private[core] object MergeOperations extends Logging {
   private[operations] def mergeModules(module1: Module, module2: Module): Either[Set[Module], Module] = {
     if (module1.coordinates != module2.coordinates) {
       throw new Exception("cannot merge modules: " + module1 + " and " + module2 + " because they have different coordinates")
-    } else if (module1.hash != module2.hash) {
-      throw new Exception("cannot merge modules: " + module1 + " and " + module2 + " because they have different hashes")
+    } else if (module1.uniqueId != module2.uniqueId) {
+      throw new Exception("cannot merge modules: " + module1 + " and " + module2 + " because they have different unique ids")
     } else if (module1.dependencies != module2.dependencies) {
       logger.error("cannot merge modules: " + module1 + " and " + module2 + " because they have different dependencies")
+      Left(Set(module1, module2))
+    } else if (module1.overrides != module2.overrides) {
+      logger.error("cannot merge modules: " + module1 + " and " + module2 + " because they have different overrides")
       Left(Set(module1, module2))
     } else {
       val coordinates = module1.coordinates
       val dependencies = module1.dependencies
-
+      val overrides = module1.overrides
+      val uniqueId = module1.uniqueId
+      
       val artifacts = mergeArtifacts(module1.artifacts, module2.artifacts)
       val configurations = module1.configurations ++ module2.configurations
       val attributes = module1.attributes ++ module2.attributes
 
-      Right(Module(coordinates, artifacts, configurations, attributes, dependencies))
+      Right(Module(coordinates, uniqueId, artifacts, configurations, attributes, dependencies, overrides))
     }
 
   }
 
   def mergeFindModules(repositories: Set[Adept]): Adept.FindModule = {
-    val findModuleFun = (coords: Coordinates, hash: Option[Hash]) => {
+    val findModuleFun = (coords: Coordinates, uniqueId: Option[UniqueId]) => {
       repositories.par.foldLeft(Right(None): Either[Set[Module], Option[Module]]) { (result, adept) => //TODO: check .par for speed and put in IO Execution context?
-        val current = adept.findModule(coords, hash)
+        val current = adept.findModule(coords, uniqueId)
         (result, current) match {
           case (Right(Some(previousModule)), Right(Some(currentModule))) => {
             mergeModules(previousModule, currentModule) match {

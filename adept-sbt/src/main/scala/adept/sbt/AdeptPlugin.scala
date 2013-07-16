@@ -47,8 +47,8 @@ object AdeptPlugin extends Plugin {
 
   private def adeptDependency(adept: Adept, dep: ModuleID, configurationMapping: String): Option[Dependency] = {
     val coords = adeptCoordinates(dep)
-    adept.findModule(coords, hash = None) match { //TODO: Hash will be replaced by uniqueIds
-      case Right(moduleOpt) => moduleOpt.map { m => Dependency(coords, m.hash, dep.configurations.getOrElse(configurationMapping)) }
+    adept.findModule(coords, uniqueId = None) match { //TODO: change ModuleID to include unique ids as well
+      case Right(moduleOpt) => moduleOpt.map { m => Dependency(coords, Some(m.uniqueId), dep.configurations.getOrElse(configurationMapping)) }
       case Left(errorModules) => throw new Exception("Found too many matching modules: " + coords + " " + errorModules.mkString(","))
     }
   }
@@ -99,9 +99,12 @@ object AdeptPlugin extends Plugin {
         s.log.error("could not find the following dependencies:\n" + notFound.mkString("\n"))
         None
       } else {
-
-        val parent = Module(coordinates = Coordinates(organization, name, version), configurations = configurations, dependencies = adeptDependencies,
-          artifacts = Set.empty, //TODO: artifacts?
+        val coords = Coordinates(organization, name, version)
+        val artifacts = Set.empty[Artifact] //TODO: artifacts?
+        val uniqueId = UniqueId.default(coords, new java.util.Date, artifacts)
+        val parent = Module(coordinates = coords,  uniqueId = uniqueId, configurations = configurations, dependencies = adeptDependencies,
+          artifacts = artifacts, 
+          overrides = Set.empty, 
           attributes = Map.empty) //TODO: attributes?
 
         val checkpoint = System.currentTimeMillis()
@@ -117,11 +120,7 @@ object AdeptPlugin extends Plugin {
     withAdeptClassloader {
       val cachedFiles = maybeTree match {
         case Some(tree) =>
-          def artifacts(node: Node): Set[Artifact] = {
-            node.artifacts ++ node.children.flatMap(artifacts(_))
-          }
-  
-          val cachedArtifacts = artifacts(tree.root).toSeq.map { a =>
+          val cachedArtifacts = tree.artifacts.toSeq.map { a =>
             (a.hash, a.locations) -> (None: Option[java.io.File])
           }
           val timeout = timeoutMinutes.minutes

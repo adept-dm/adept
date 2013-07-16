@@ -10,7 +10,7 @@ class TreeTest extends FunSuite with MustMatchers {
   test("simple tree test") {
     import org.scalatest.OptionValues._
     val tree = TreeOperations.build("test", adept10, Configuration.defaultConfigurationMapping(_), findModule).value
-    ConflictResolver.evictConflicts(tree)
+    ConflictResolver.resolveConflicts(tree, Configuration.defaultConfigurationMapping(_), findModule)
     println(tree)
     pending
   }
@@ -18,7 +18,7 @@ class TreeTest extends FunSuite with MustMatchers {
   test("intransitive tree test") {
     import org.scalatest.OptionValues._
     val tree = TreeOperations.build("test", adept10Intransitive, Configuration.defaultConfigurationMapping(_), findModule).value
-    ConflictResolver.evictConflicts(tree)
+    ConflictResolver.resolveConflicts(tree, Configuration.defaultConfigurationMapping(_), findModule)
     println(tree)
     pending
   }

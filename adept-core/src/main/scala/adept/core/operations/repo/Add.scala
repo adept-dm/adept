@@ -20,7 +20,7 @@ private[core] object Add {
         maybeReadModules.fold(
           error => throw new Exception(error),
           readModules => {
-            val modules = (module +: readModules).sortBy(_.artifacts.hashCode)
+            val modules = (module +: readModules).sortBy(_.uniqueId.value)
             modules.distinct
           })
       } else {

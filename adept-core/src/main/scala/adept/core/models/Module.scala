@@ -13,11 +13,12 @@ import adept.utils.Logging
 
 case class Module(
   coordinates: Coordinates,
+  uniqueId: UniqueId,
   artifacts: Set[Artifact],
   configurations: Set[Configuration],
-  attributes: Map[String, Seq[String]], //TODO: remove
-  dependencies: Set[Dependency]) {
-  lazy val hash = Hash.mix(artifacts.map(_.hash).toSeq.sortBy(_.value)) //TODO: replace with uniqueId
+  attributes: Map[String, Seq[String]],
+  dependencies: Set[Dependency],
+  overrides: Set[Override]) {
   //TODO: add created 
   //TODO: add universes ([scala-version:2.10])
 }
@@ -74,6 +75,12 @@ object Module {
       Right(Set.empty[Dependency])
     }
 
+    val maybeOverrides = {
+      (json \ "overrides").toOption.map(Override.readOverrides)
+    }.getOrElse{
+      Right(Set.empty[Override])
+    }
+
     val attributes: Map[String, Seq[String]] = {
       implicit val format = org.json4s.DefaultFormats
       (json \ "attributes").extractOpt[Map[String, Seq[String]]]
@@ -83,10 +90,12 @@ object Module {
 
     for {
       artifacts <- maybeArtifacts.right
+      uniqueId <- (eitherOf[String](json) \ "unique-id").right
       configurations <- maybeConfigurations.right
       dependencies <- maybeDependencies.right
+      overrides <- maybeOverrides.right
     } yield {
-      Module(coords, artifacts, configurations, attributes, dependencies)
+      Module(coords, UniqueId(uniqueId), artifacts, configurations, attributes, dependencies, overrides)
     }
   }
 
@@ -98,10 +107,11 @@ object Module {
   
   def noCoordsModuleToJson(module: Module): JObject = {
     asJObject(List[JField](
-      ("hash" -> module.hash.value),
+      ("unique-id" -> module.uniqueId.value),
       ("artifacts" -> module.artifacts.map(Artifact.artifactToJson)),
       ("attributes" -> module.attributes),
       ("dependencies" -> module.dependencies.map(Dependency.dependencyToJson)),
+      ("overrides" -> module.overrides.map(Override.overrideToJson)),
       ("configurations" -> module.configurations.map(Configuration.configurationToJson))).map(ifNonEmpty): _*)
   }
 

@@ -94,7 +94,7 @@ private[core] object ConfigurationResolver extends Logging {
     checkExpr(leftExpr)
     val foundConfs = mutable.Set() ++ findNames(leftConfs, leftExpr)
     if (foundConfs.nonEmpty) Right(foundConfs ++ foundConfs.flatMap(c => extendedConfs(leftConfs, c)))
-    else  Left("conf: '" +leftExpr+ "' was not among matching confs: " + leftConfs.map(_.name).mkString(","))
+    else  Left("expression '" +leftExpr+ "' does not match confs: " + leftConfs.map(_.name).mkString(","))
   }
   
   
