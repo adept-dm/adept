@@ -70,64 +70,11 @@ private[core] case class Version(private val value: String) extends Ordered[Vers
 
 private[core] object ConflictResolver extends Logging {
 
-  /*
-   * val evictedModules = nodes.par.groupBy(n => n.module.coordinates.org -> n.module.coordinates.name)
-      .flatMap {
-        case (key, comparableNodes) =>
-          val overrides = allOverrides.get(key)
-
-          val (highestVersion, reason, currentOverride) = {
-            overrides match {
-              case Some(overrides) =>
-                //TODO: is there a way to handle overrides better? the code seems complex 
-                if (overrides.size == 1) {
-                  val (overriddenVersion, node) = overrides.seq.toSeq.maxBy { case (o, _) => Version(o.preferredVersion) }
-                  val currentOverride = overriddenVersion match {
-                    case _: Dependency => None
-                    case o: Override => Some(o)
-                  }
-                  (overriddenVersion.preferredVersion, ("overridden by: " + overriddenVersion), currentOverride.map(_ -> node))
-                } else if (overrides.size > 1) { //we have more than 1 override 
-                  logger.debug("found multiple overrides for " + key + " determining consensus by finding the ones with the most")
-                  val groupedByNumber = overrides.groupBy { case (descriptor, node) => descriptor.asCoordinates }
-                  val (overriddenVersion, node) = seq.toSeq.maxBy { case (o, _) => Version(o.preferredVersion) }
-                  val currentOverride = overriddenVersion match {
-                    case _: Dependency => None
-                    case o: Override => Some(o)
-                  }
-                  (overriddenVersion.preferredVersion, ("override to: " + overriddenVersion + " found "), currentOverride.map(_ -> node))
-                } else {
-                  throw new Exception("expected to find something to override, but found: " + overrides)
-                }
-              case None =>
-                val highestVersion = comparableNodes.maxBy(n => Version(n.module.coordinates.version))
-                (highestVersion.module.coordinates.version, ("found higher version: " + highestVersion.module.coordinates), None)
-            }
-          }
-          val foundNodes = comparableNodes.filter(_.module.coordinates.version != highestVersion).map { _ -> reason }
-          currentOverride match {
-            case Some((o, node)) => //TODO: we rebuild part of the tree because of overrides. Perhaps this part of the code should be a separate phase or refactored out?
-              findModule(o.asCoordinates, o.uniqueId) match {
-                case Right(Some(module)) =>
-                  val newNode = TreeOperations.build(module, true, Set.empty, node.configurations, configurationMapping, findModule) //FIXME: should exclusions be here?
-                  //override all 
-                  node.children += newNode
-                case Right(None) =>
-                  val parent = node.module.coordinates
-                  node.missingDependencies += MissingDependency(o, parent, evicted = false, reason = "could not find dependency for override: " + o.asCoordinates + " declared in: " + parent)
-                case Left(conflictModules) => throw new Exception("found more than 1 module for: " + o + ": " + conflictModules.mkString(",")) //TODO: handle gracefully? (remember to remove all references to it in the code)
-              }
-              foundNodes
-            case _ =>
-              foundNodes
-          }
-      }
-   */
-
   /** find dependencies that has to be overridden and replace them */
   private def overrideVersions(tree: MutableTree, configurationMapping: String => String, findModule: Adept.FindModule): Unit = {
     val allOverrides = tree.overrides.par.groupBy { case (dependencyDescriptor, node) => dependencyDescriptor.organization -> dependencyDescriptor.name }
 
+    //from all defined overrides or forced dependency, find which ones to use for this tree:
     val prunedOverrides = allOverrides.map {
       case (key, comparableNodes) =>
 
@@ -149,8 +96,8 @@ private[core] object ConflictResolver extends Logging {
           }.toSet.flatten
 
           //take the highest of the popular versions:
-          val (descriptor, node) = allMostPopular.maxBy { case (_, n) => Version(n.module.coordinates.version) }
-          ((descriptor.organization, descriptor.name), (descriptor, node, ("overridden multiple places. chose: " + descriptor.asCoordinates + " which is the most common override sorted by highest versions")))
+          val (descriptor, node) = allMostPopular.maxBy { case (d, _) => Version(d.preferredVersion) }
+          ((descriptor.organization, descriptor.name), (descriptor, node, ("overridden multiple places ("+allMostPopular.map{ case (_, n) => n.module.coordinates}.mkString(",")+"). chose the on in: " + node.module.coordinates + " which is the most common override ("+numberOfPopular+") sorted by highest versions.")))
         } else {
           comparableNodes.seq.headOption.map {
             case (descriptor, node) =>
@@ -161,12 +108,13 @@ private[core] object ConflictResolver extends Logging {
         }
     }.toMap
 
-    val theseOverrides = tree.nodes.par.flatMap { node =>
+    //iterate over all nodes to find which nodes matches something to override in tree:
+    val overriddenNodes = tree.nodes.par.flatMap { node =>
       node.children.flatMap { child =>
         val childCoords = child.module.coordinates
         prunedOverrides.get(childCoords.org -> childCoords.name).flatMap {
           case (descriptor, overrideNode, reason) =>
-            if (descriptor.asCoordinates != childCoords) { //do not override somethign which is the same
+            if (descriptor.asCoordinates != childCoords) { //do not override something which is the same
               Some((child.module.coordinates), ((descriptor, overrideNode, reason), (node, child)))
             } else {
               None
@@ -175,15 +123,16 @@ private[core] object ConflictResolver extends Logging {
       }
     }.seq.toMap
     
+    //fix nodes that are overridden:
     for {
-      (_, ((descriptor, overrideNode, reason), (node, child))) <- theseOverrides
-      if (!theseOverrides.isDefinedAt(overrideNode.module.coordinates)) //do not overwrite a module which is overridden itself
+      (_, ((descriptor, overrideNode, reason), (node, child))) <- overriddenNodes
+      if (!overriddenNodes.isDefinedAt(overrideNode.module.coordinates)) //do not overwrite a module which is overridden itself
     } {
       findModule(descriptor.asCoordinates, descriptor.uniqueId) match {
         case Right(Some(module)) =>
           val newNode = TreeOperations.build(module, true, Set.empty, node.configurations, configurationMapping, findModule) //FIXME: should exclusions be here?
           val parent = overrideNode.module.coordinates
-          //TODO: synchronize here? I do not think it should be necessary because we are not touching the same node several times
+          //TODO: synchronize here? I do not _think_ it should be necessary because we are not touching the same node several times. Still it is scary to not do it
           node.children += newNode.copy(postBuildInsertReason = Some("inserted because of override in: " + parent))
           node.children -= child
           node.overriddenDependencies += OverriddenDependency(descriptor, child.module, parent, reason)
@@ -217,7 +166,7 @@ private[core] object ConflictResolver extends Logging {
   }
 
   def resolveConflicts(tree: MutableTree, configurationMapping: String => String, findModule: Adept.FindModule): Unit = {
-    //TODO: it is probably more performant to extract overrides and modules in one pass?
+    //TODO: it might perform better if we extract overrides and modules in one pass?
     overrideVersions(tree, configurationMapping, findModule)
     evictedModules(tree)
     

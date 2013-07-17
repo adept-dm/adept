@@ -36,6 +36,6 @@ object AdeptBuild extends Build {
   lazy val adeptTools = AdeptProject("adept-tools")
 
   lazy val root = Project("adept", file("."))
-    .aggregate(adeptCore, adeptCli, adeptSbt, adeptTools)
+    .aggregate(adeptCore, adeptSbt) //TODO:  adeptCli and adeptTools
 
 }

@@ -22,12 +22,12 @@ object AdeptPlugin extends Plugin {
     }
   }
 
-  val adeptIvyAddTask = (adeptLocalRepository, ivyConfiguration, libraryDependencies, streams) map { (localAdept, ivyConfiguration, ivyDeps, s) =>
+  val adeptIvyAddTask = (adeptLocalRepository, ivyConfiguration, libraryDependencies, scalaVersion, streams) map { (localAdept, ivyConfiguration, ivyDeps, scalaVersion, s) =>
     val ivySbt = new IvySbt(ivyConfiguration)
     val modules = ivySbt.withIvy(s.log) { ivy =>
       localAdept.toSeq.flatMap { adept =>
         ivyDeps.flatMap { dep =>
-          val coords = adeptCoordinates(dep)
+          val coords = adeptCoordinates(dep, scalaVersion)
           IvyHelpers.add(coords, ivy, adept)
         }
       }
@@ -35,18 +35,18 @@ object AdeptPlugin extends Plugin {
     modules
   }
 
-  private def adeptCoordinates(dep: ModuleID): Coordinates = {
+  private def adeptCoordinates(dep: ModuleID, scalaVersion: String): Coordinates = {
     //TODO: fix  this properly
     val name = dep.crossVersion match {
-      case _: CrossVersion.Binary => CrossVersion.crossName(dep.name, CrossVersion.TransitionScalaVersion) //TODO: must be another method on crossversion that does this?
+      case _: CrossVersion.Binary => CrossVersion.crossName(dep.name, scalaVersion) //TODO: must be another method on crossversion that does this?
       case _: CrossVersion.Full => throw new Exception("NOT IMPLEMENTED: CrossVersion.Full (sbt plugin)") //TODO: fix...
       case _: CrossVersion.Disabled.type => dep.name
     }
     Coordinates(dep.organization, name, dep.revision)
   }
 
-  private def adeptDependency(adept: Adept, dep: ModuleID, configurationMapping: String): Option[Dependency] = {
-    val coords = adeptCoordinates(dep)
+  private def adeptDependency(adept: Adept, dep: ModuleID, configurationMapping: String, scalaVersion: String): Option[Dependency] = {
+    val coords = adeptCoordinates(dep, scalaVersion)
     adept.findModule(coords, uniqueId = None) match { //TODO: change ModuleID to include unique ids as well
       case Right(moduleOpt) => moduleOpt.map { m => Dependency(coords, Some(m.uniqueId), dep.configurations.getOrElse(configurationMapping)) }
       case Left(errorModules) => throw new Exception("Found too many matching modules: " + coords + " " + errorModules.mkString(","))
@@ -58,7 +58,7 @@ object AdeptPlugin extends Plugin {
     Configuration(sbtConf.name, Some(sbtConf.description), sbtConf.extendsConfigs.map(_.name).toSet, visibility, None)
   }
 
-  def adeptTreeTask(sbtConfig: sbt.Configuration) = (name, organization, version, adeptRepositories, adeptDirectory, adeptDependencies, adeptLocalRepository, adeptConfigurationMapping, defaultConfigurationMapping in GlobalScope, streams) map { (name, organization, version, adeptRepositories, adeptDirectory, allSbtDeps, localRepo, defaultDependencyConf, defaultConfiguration, s) =>
+  def adeptTreeTask(sbtConfig: sbt.Configuration) = (name, organization, version, adeptRepositories, adeptDirectory, adeptDependencies, adeptLocalRepository, adeptConfigurationMapping, defaultConfigurationMapping in GlobalScope, scalaVersion, streams) map { (name, organization, version, adeptRepositories, adeptDirectory, allSbtDeps, localRepo, defaultDependencyConf, defaultConfiguration, scalaVersion, s) =>
     withAdeptClassloader {
       import akka.util.duration._
 
@@ -89,7 +89,7 @@ object AdeptPlugin extends Plugin {
       val notFound = new collection.mutable.HashSet[ModuleID]()
       val adeptDependencies = allSbtDeps.flatMap { sbtDep =>
         val dependencies = all.par.flatMap { adept =>
-          adeptDependency(adept, sbtDep, defaultDependencyConf)
+          adeptDependency(adept, sbtDep, defaultDependencyConf, scalaVersion)
         }
         if (dependencies.isEmpty) notFound += sbtDep
         dependencies
@@ -110,7 +110,7 @@ object AdeptPlugin extends Plugin {
         val checkpoint = System.currentTimeMillis()
         val tree = Adept.build(all.toSet, confExpr, parent, configurationMapping)
         val resolveTimeSpent = System.currentTimeMillis - checkpoint
-        s.log.info("resolved adept tree in: " + resolveTimeSpent + " ms")
+        s.log.info("Resolved dependency tree in ("+name+"): " + resolveTimeSpent + " ms")
         tree
       }
     }

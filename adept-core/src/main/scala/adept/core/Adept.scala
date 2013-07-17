@@ -127,7 +127,7 @@ class Adept private[adept](val dir: File, val name: String) extends Logging {
   def add(module: Module): Either[File, File] = {
     repo.Add(git, dir, module)
   }
-
+  
   def findModule(coordinates: Coordinates, uniqueId: Option[UniqueId] = None): Either[Set[Module], Option[Module]] = {
     val file = new File(ModuleFiles.getModuleDir(dir, coordinates), ModuleFiles.modulesFilename)
     

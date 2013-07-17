@@ -117,7 +117,7 @@ object IvyHelpers extends Logging {
         } else Set.empty[Artifact]
     }.toSet
   }
-  private def adeptDependencies(depNodes: Set[(IvyNode, Configuration)], parentNode: IvyNode, ivy: Ivy, findModule: Adept.FindModule, add: Module => Unit)(allCoords: collection.mutable.Set[Coordinates], modules: collection.mutable.Set[Module]): Set[Dependency] = {
+  private def adeptDependencies(depNodes: Set[(IvyNode, Configuration)], parentNode: IvyNode, ivy: Ivy, findModule: Adept.FindModule, add: Module => Unit)(allCoords: collection.mutable.Set[Coordinates], modules: collection.mutable.Set[Module])(depth: Int): Set[Dependency] = {
     val allCoordinates = depNodes.map {
       case (node, conf) =>
         val coords = resolveDynamicVersion(Coordinates(node.getId.getOrganisation(), node.getId.getName, node.getId.getRevision()), ivy)
@@ -145,7 +145,7 @@ object IvyHelpers extends Logging {
 
         allCoords += coords
         logger.info("adding " + coords + " to allCoords")
-        adeptModule(coords, ivy, findModule, add)(allCoords, modules) match { //TODO: @tailrec (this recurses because adeptModule calls adeptDependencies and apdetDependencies calls adeptModule
+        adeptModule(coords, ivy, findModule, add)(allCoords, modules)(depth + 1) match { //TODO: @tailrec (this recurses because adeptModule calls adeptDependencies and apdetDependencies calls adeptModule
           case Right(module) =>
             val uniqueId = module.uniqueId
             Dependency(coords, Some(uniqueId), configuration, force = depDescriptor.isForce(), isTransitive = depDescriptor.isTransitive(), exclusionRules = exclusionRules)
@@ -204,7 +204,7 @@ object IvyHelpers extends Logging {
     }
   }
 
-  private def adeptOverrides(parentNode: IvyNode, ivy: Ivy, findModule: Adept.FindModule, add: Module => Unit)(allCoords: collection.mutable.Set[Coordinates], modules: collection.mutable.Set[Module]): Set[Override] = {
+  private def adeptOverrides(parentNode: IvyNode, ivy: Ivy, findModule: Adept.FindModule, add: Module => Unit)(allCoords: collection.mutable.Set[Coordinates], modules: collection.mutable.Set[Module])(depth: Int): Set[Override] = {
     parentNode.getDescriptor().getAllDependencyDescriptorMediators().getAllRules().asScala.map {
       case (matcher: MapMatcher, overrideMediator: OverrideDependencyDescriptorMediator) =>
         val matcherName = matcher.getPatternMatcher().getName()
@@ -220,7 +220,7 @@ object IvyHelpers extends Logging {
         if (!allCoords.contains(coords)) {
           allCoords += coords
           logger.info("adding override " + coords + " to allCoords")
-          adeptModule(coords, ivy, findModule, add)(allCoords, modules) match { //TODO: @tailrec (this recurses because adeptModule calls adeptDependencies and apdetDependencies calls adeptModule
+          adeptModule(coords, ivy, findModule, add)(allCoords, modules)(depth + 1) match { //TODO: @tailrec (this recurses because adeptModule calls adeptDependencies and apdetDependencies calls adeptModule
             case Right(module) =>
               val uniqueId = module.uniqueId
               Override(coords.org, coords.name, coords.version, Some(uniqueId))
@@ -230,70 +230,82 @@ object IvyHelpers extends Logging {
           }
         } else {
           modules.find(_.coordinates == coords) match {
-            case Some(module) => 
+            case Some(module) =>
               val uniqueId = module.uniqueId
               Override(coords.org, coords.name, coords.version, Some(uniqueId))
-            case None => 
+            case None =>
               Override(coords.org, coords.name, coords.version, None)
           }
         }
     }.toSet
   }
 
-  def adeptModule(initCoords: Coordinates, ivy: Ivy, findModule: Adept.FindModule, add: Module => Unit)(allCoords: collection.mutable.Set[Coordinates], modules: collection.mutable.Set[Module]): Either[String, Module] = {
+  val MAX_DEPTH = -1
+
+  def adeptModule(initCoords: Coordinates, ivy: Ivy, findModule: Adept.FindModule, add: Module => Unit)(allCoords: collection.mutable.Set[Coordinates], modules: collection.mutable.Set[Module])(depth: Int): Either[String, Module] = {
     try {
-      val coords = resolveDynamicVersion(initCoords, ivy)
-      val report = ivy.resolve(ModuleRevisionId.newInstance(coords.org, coords.name, coords.version), resolveOptions(), changing)
-      val moduleDescriptor = report.getModuleDescriptor()
-      allCoords += coords
-      val parentNode = parent(report)
-      val isLoaded = parentNode.getDescriptor != null
-
-      if (isLoaded) {
-        val configurations = moduleDescriptor.getConfigurations()
-          .map(adeptConfiguration(parentNode, _)).toSet
-
-        val attributes: Map[String, Seq[String]] = Map.empty ++
-          Option(moduleDescriptor.getDescription()).filter(_.nonEmpty).map(a => "description" -> Seq(a)).toMap ++
-          Option(moduleDescriptor.getHomePage()).map(a => "home-page" -> Seq(a)).toMap
-
-        val artifacts = adeptArtifacts(parentNode.getAllArtifacts, parentNode, ivy)
-
-        val uniqueId = {
-          Option(moduleDescriptor.getPublicationDate()).map { created =>
-            UniqueId.default(coords, created, artifacts)
-          }.getOrElse {
-            UniqueId.default(coords, artifacts)
-          }
-        }
-
-        val foundModule: Option[Module] =
-          findModule(coords, Some(uniqueId)) match {
-            case Right(res) => {
-              None //<-- should be res, set to None to refresh. TODO: make configurable
-            }
-            case _ => None
-          }
-
-        val adeptModule = foundModule.getOrElse {
-
-          val depNodes = configurations.flatMap { conf =>
-            //TODO: will this works for all confs? I am not sure how to get every possible conf 
-            parentNode.getDependencies(conf.name, conf.name, "*").asScala.map { case i: IvyNode => i -> conf }
-          }
-          val deps = adeptDependencies(depNodes, parentNode, ivy, findModule, add)(allCoords, modules)
-          val overrides = adeptOverrides(parentNode, ivy, findModule, add)(allCoords, modules)
-
-          val adeptModule = Module(coords, uniqueId, artifacts, configurations, attributes, deps, overrides)
-          modules += adeptModule
-          add(adeptModule)
-          adeptModule
-        }
-
-        Right(adeptModule)
+      if (depth < MAX_DEPTH) {
+        Left("max depth found")
       } else {
-        logger.info("could not load: " + coords + ". problem messages: " + report.getAllProblemMessages().asScala.mkString("\n"))
-        Left("could not load: " + coords + ". problem messages: " + report.getAllProblemMessages().asScala.mkString("\n"))
+        val coords = resolveDynamicVersion(initCoords, ivy)
+        val report = ivy.resolve(ModuleRevisionId.newInstance(coords.org, coords.name, coords.version), resolveOptions(), changing)
+        val moduleDescriptor = report.getModuleDescriptor()
+        allCoords += coords
+        val parentNode = parent(report)
+        val isLoaded = parentNode.getDescriptor != null
+
+        if (isLoaded) {
+          val configurations = moduleDescriptor.getConfigurations()
+            .map(adeptConfiguration(parentNode, _)).toSet
+
+          val attributes: Map[String, Seq[String]] = Map.empty ++
+            Option(moduleDescriptor.getDescription()).filter(_.nonEmpty).map(a => "description" -> Seq(a)).toMap ++
+            Option(moduleDescriptor.getHomePage()).map(a => "home-page" -> Seq(a)).toMap
+
+          val artifacts = adeptArtifacts(parentNode.getAllArtifacts, parentNode, ivy)
+
+          val uniqueId = {
+            Option(moduleDescriptor.getPublicationDate()).map { created =>
+              UniqueId.default(coords, created, artifacts)
+            }.getOrElse {
+              UniqueId.default(coords, artifacts)
+            }
+          }
+
+          val foundModule: Option[Module] =
+            findModule(coords, Some(uniqueId)) match {
+              case Right(res) => {
+                res //<-- should be res, set to None to refresh. TODO: make configurable
+              }
+              case _ => None
+            }
+
+          val adeptModule = foundModule.getOrElse {
+
+            val depNodes = configurations.flatMap { conf =>
+              //TODO: will this works for all confs? I am not sure how to get every possible conf 
+              parentNode.getDependencies(conf.name, conf.name, "*").asScala.map { case i: IvyNode => i -> conf }
+            }
+            val deps = adeptDependencies(depNodes, parentNode, ivy, findModule, add)(allCoords, modules)(depth)
+            val overrides = adeptOverrides(parentNode, ivy, findModule, add)(allCoords, modules)(depth)
+
+            val adeptModule = Module(coords, uniqueId, artifacts, configurations, attributes, deps, overrides)
+            modules += adeptModule
+            synchronized {
+              findModule(adeptModule.coordinates, None) match {
+                case Right(None) => add(adeptModule)
+                case _ => //do nothing
+              }
+              
+            }
+            adeptModule
+          }
+
+          Right(adeptModule)
+        } else {
+          logger.info("could not load: " + coords + ". problem messages: " + report.getAllProblemMessages().asScala.mkString("\n"))
+          Left("could not load: " + coords + ". problem messages: " + report.getAllProblemMessages().asScala.mkString("\n"))
+        }
       }
     } catch {
       case ExpectedResolveException(msg) => {
@@ -312,7 +324,7 @@ object IvyHelpers extends Logging {
     //TODO: mutable collection is perhaps not ideal, then again ivy is not thread safe either way...
     val allCoords = new collection.mutable.HashSet[Coordinates] with collection.mutable.SynchronizedSet[Coordinates]
     val modules = new collection.mutable.HashSet[Module] with collection.mutable.SynchronizedSet[Module]
-    adeptModule(coords, ivy, adept.findModule _, adept.add _)(allCoords, modules)
+    adeptModule(coords, ivy, adept.findModule _, adept.add _)(allCoords, modules)(0)
     modules.toSet
   }
 }
