@@ -22,11 +22,11 @@ object AdeptPlugin extends Plugin {
     }
   }
 
-  val adeptIvyAddTask = (adeptLocalRepository, ivyConfiguration, libraryDependencies, scalaVersion, streams) map { (localAdept, ivyConfiguration, ivyDeps, scalaVersion, s) =>
+  val adeptIvyAddTask = (adeptLocalRepository, ivyConfiguration, adeptDependencies, scalaVersion, streams) map { (localAdept, ivyConfiguration, deps, scalaVersion, s) =>
     val ivySbt = new IvySbt(ivyConfiguration)
     val modules = ivySbt.withIvy(s.log) { ivy =>
       localAdept.toSeq.flatMap { adept =>
-        ivyDeps.flatMap { dep =>
+        deps.flatMap { dep =>
           val coords = adeptCoordinates(dep, scalaVersion)
           IvyHelpers.add(coords, ivy, adept)
         }
@@ -45,10 +45,20 @@ object AdeptPlugin extends Plugin {
     Coordinates(dep.organization, name, dep.revision)
   }
 
+  private def adeptExclusion(dep: ModuleID, sbtExclusion: sbt.ExclusionRule): DependencyExclusionRule = {
+    if (sbtExclusion.configurations.nonEmpty) throw new Exception("configurations for exclusions are not supported: " + sbtExclusion + " in " + dep)
+    else {
+      val org = sbtExclusion.organization
+      val name = sbtExclusion.name
+      DependencyExclusionRule(org, name)
+    }
+  }
+
   private def adeptDependency(adept: Adept, dep: ModuleID, configurationMapping: String, scalaVersion: String): Option[Dependency] = {
     val coords = adeptCoordinates(dep, scalaVersion)
+    val exclusions = dep.exclusions.map(adeptExclusion(dep, _)).toSet
     adept.findModule(coords, uniqueId = None) match { //TODO: change ModuleID to include unique ids as well
-      case Right(moduleOpt) => moduleOpt.map { m => Dependency(coords, Some(m.uniqueId), dep.configurations.getOrElse(configurationMapping)) }
+      case Right(moduleOpt) => moduleOpt.map { m => Dependency(coords, Some(m.uniqueId), dep.configurations.getOrElse(configurationMapping), isTransitive = dep.isTransitive, force = true, exclusionRules = exclusions) }
       case Left(errorModules) => throw new Exception("Found too many matching modules: " + coords + " " + errorModules.mkString(","))
     }
   }
@@ -61,7 +71,6 @@ object AdeptPlugin extends Plugin {
   def adeptTreeTask(sbtConfig: sbt.Configuration) = (name, organization, version, adeptRepositories, adeptDirectory, adeptDependencies, adeptLocalRepository, adeptConfigurationMapping, defaultConfigurationMapping in GlobalScope, scalaVersion, streams) map { (name, organization, version, adeptRepositories, adeptDirectory, allSbtDeps, localRepo, defaultDependencyConf, defaultConfiguration, scalaVersion, s) =>
     withAdeptClassloader {
       import akka.util.duration._
-
       def repos = Adept.repositories(adeptDirectory)
 
       val uncloned = adeptRepositories.filter {
@@ -81,42 +90,43 @@ object AdeptPlugin extends Plugin {
       all.foreach { adept =>
         if (!adept.isLocal) adept.pull()
       }
-      
+
       val configurations = sbt.Configurations.default.map(adeptConfiguration).toSet
       val configurationMapping: String => String = Configuration.defaultConfigurationMapping(_, "*->default(compile)") //TODO
       val confExpr = sbtConfig.name
 
       val notFound = new collection.mutable.HashSet[ModuleID]()
       val adeptDependencies = allSbtDeps.flatMap { sbtDep =>
-        val dependencies = all.par.flatMap { adept =>
-          adeptDependency(adept, sbtDep, defaultDependencyConf, scalaVersion)
+        val dependencies = all.par.flatMap { adept => //TODO: IO context?
+          adeptDependency(adept, sbtDep, defaultDependencyConf, CrossVersion.binaryScalaVersion(scalaVersion))
         }
         if (dependencies.isEmpty) notFound += sbtDep
         dependencies
       }.toSet
 
       if (notFound.nonEmpty) {
-        s.log.error("could not find the following dependencies:\n" + notFound.mkString("\n"))
+        val msg = "could not find the following dependencies for " + name + ":\n" + notFound.mkString("\n")
+        s.log.error(msg)
         None
       } else {
-        val coords = Coordinates(organization, name, version)
-        val artifacts = Set.empty[Artifact] //TODO: artifacts?
+        val coords = Coordinates(organization, name, version) //TODO: ProjectID instead?
+        val artifacts = Set.empty[Artifact] //TODO: should we have some artifacts in this module?
         val uniqueId = UniqueId.default(coords, new java.util.Date, artifacts)
-        val parent = Module(coordinates = coords,  uniqueId = uniqueId, configurations = configurations, dependencies = adeptDependencies,
-          artifacts = artifacts, 
-          overrides = Set.empty, 
-          attributes = Map.empty) //TODO: attributes?
+        val parent = Module(coordinates = coords, uniqueId = uniqueId, configurations = configurations, dependencies = adeptDependencies,
+          artifacts = artifacts,
+          overrides = Set.empty,
+          attributes = Map.empty) //TODO: should we have some attributes in this module?
 
         val checkpoint = System.currentTimeMillis()
         val tree = Adept.build(all.toSet, confExpr, parent, configurationMapping)
         val resolveTimeSpent = System.currentTimeMillis - checkpoint
-        s.log.info("Resolved dependency tree in ("+name+"): " + resolveTimeSpent + " ms")
+        s.log.success("Resolved dependency tree in (" + name + "): " + resolveTimeSpent + " ms")
         tree
       }
     }
   }
 
-  def adeptClasspathTask(sbtConfig: sbt.Configuration) = (adeptTree in sbtConfig, adeptDirectory, adeptTimeout, streams) map { (maybeTree, adeptDirectory, timeoutMinutes, s) => 
+  def adeptClasspathTask(sbtConfig: sbt.Configuration) = (adeptTree in sbtConfig, adeptDirectory, adeptTimeout, streams) map { (maybeTree, adeptDirectory, timeoutMinutes, s) =>
     withAdeptClassloader {
       val cachedFiles = maybeTree match {
         case Some(tree) =>
@@ -126,7 +136,8 @@ object AdeptPlugin extends Plugin {
           val timeout = timeoutMinutes.minutes
           Adept.artifact(adeptDirectory, cachedArtifacts, timeout) match {
             case Right(files) => files
-            case Left(error) => 
+            case Left(error) =>
+              s.log.error(error)
               Seq.empty
           }
         case None =>
@@ -137,6 +148,8 @@ object AdeptPlugin extends Plugin {
     }
   }
 
+  val LocalRepoName = "local" //TODO: make setting out of this
+
   def adeptSettings = Seq(
     adeptConfigurationMapping := "compile->compile(*),master(*);runtime->runtime(*)",
     adeptDirectory := Path.userHome / ".adept",
@@ -144,23 +157,28 @@ object AdeptPlugin extends Plugin {
     adeptRepositories := Map(),
     adeptDependencies := Seq(),
     adeptLocalRepository <<= streams map { s =>
-      val dir = Path.userHome / ".adept"
-      val name = "local"
+      val dir = Path.userHome / ".adept" //TODO: make a setting out of this
+      val name = LocalRepoName
       val res = if (Adept.exists(dir, name))
         Adept.open(dir, name)
       else Adept.init(dir, name)
-      if (res.isLeft) {
-        val msg = res.left.get
-        s.log.error(msg)
-        throw new Exception(msg)
-      } else Some(res.right.get)
+      res match {
+        case Left(msg) =>
+          s.log.error(msg)
+          throw new Exception(msg)
+        case Right(adept) => Some(adept)
+      }
     },
     adeptIvyAdd <<= adeptIvyAddTask,
-    adeptTree in Compile <<= adeptTreeTask(Compile), 
-    adeptTree in Test <<= adeptTreeTask(Test), 
+    //TODO: find a way to do this for all configurations - this sort of sucks!
+    adeptTree in Compile <<= adeptTreeTask(Compile),
+    adeptTree in Runtime <<= adeptTreeTask(Runtime),
+    adeptTree in Test <<= adeptTreeTask(Test),
     adeptClasspath in Compile <<= adeptClasspathTask(Compile),
+    adeptClasspath in Runtime <<= adeptClasspathTask(Runtime),
     adeptClasspath in Test <<= adeptClasspathTask(Test),
     (managedClasspath in Compile) <++= adeptClasspath in Compile,
+    (managedClasspath in Runtime) <++= adeptClasspath in Runtime,
     (managedClasspath in Test) <++= adeptClasspath in Test)
 
 }
