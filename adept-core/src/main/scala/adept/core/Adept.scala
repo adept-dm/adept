@@ -19,7 +19,7 @@ object Adept extends Logging {
   def dir(baseDir: File, name: String) = new File(new File(baseDir, RepositoriesPath), name)
 
   def open(baseDir: File, name: String): Either[String, Adept] = {
-    if (exists(baseDir)) {
+    if (exists(baseDir, name)) {
       Right(new Adept(dir(baseDir, name), name))
     } else {
       Left("no adept directory here: " + baseDir)
@@ -72,8 +72,6 @@ object Adept extends Logging {
       Left("could not create directory when initing: " + adeptDir)
     }
   }
-
-
 
   def artifact(baseDir: File, info: Seq[((Hash, Set[String]), Option[File])], timeout: FiniteDuration) = { //TODO: Either[Seq[File], Seq[File]]  (left is failed, right is successful)
     val hashFiles = info.map{ case ((hash, locations), dest) =>
@@ -129,7 +127,7 @@ class Adept private[adept](val dir: File, val name: String) extends Logging {
   }
   
   def findModule(coordinates: Coordinates, uniqueId: Option[UniqueId] = None): Either[Set[Module], Option[Module]] = {
-    val file = new File(ModuleFiles.getModuleDir(dir, coordinates), ModuleFiles.modulesFilename)
+    val file = ModuleFiles.getModuleFile(dir, coordinates)
     
     if (file.exists && file.isFile) {
       import org.json4s.native.JsonMethods._
@@ -158,7 +156,7 @@ class Adept private[adept](val dir: File, val name: String) extends Logging {
 
   def lastCommit(allCoords: Set[Coordinates]): Option[Hash] = {
     val paths = allCoords.map{ coords =>
-      new File(ModuleFiles.getModuleDir(dir, coords), ModuleFiles.modulesFilename)
+      ModuleFiles.getModuleFile(dir, coords)
     }.filter(f => f.exists && f.isFile).map{ file =>
       file.getAbsolutePath.replace(dir.getAbsolutePath + File.separatorChar, "")
     }.mkString(" ")

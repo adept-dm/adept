@@ -6,6 +6,8 @@ import java.io.File
 
 object ModuleFiles {
 
+  private val modulesFilename = "modules.json"
+
   def getModuleDir(baseDir: File, coords: Coordinates): File = {
     List(coords.org, coords.name, coords.version).foldLeft(baseDir) { (last, current) =>
       new File(last, current)
@@ -33,7 +35,9 @@ object ModuleFiles {
       }
     }
   }
-
-  val modulesFilename = "modules.json"
+  
+  def getModuleFile(baseDir: File, coords: Coordinates): File = {
+    new File(getModuleDir(baseDir, coords), modulesFilename)
+  }
 
 }

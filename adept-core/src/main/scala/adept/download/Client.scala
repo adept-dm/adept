@@ -50,6 +50,7 @@ class DownloadActor(progressActor: ActorRef) extends Actor {
       } catch {
         case e: IOException => {
           progressActor ! Failed
+          println(url)
           sender ! Left(e)
         }
       } finally {

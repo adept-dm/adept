@@ -20,20 +20,23 @@ object AdeptBuild extends Build {
     Dependencies.git ++
     Dependencies.json4s ++
     Dependencies.ivy ++
+    Dependencies.aether ++
     Dependencies.scalaTest
     ):_*)
-
-  lazy val adeptCli = AdeptProject("adept-cli")
-    .settings((
-      Dependencies.scalaTest
-    ): _*).dependsOn(adeptCore)
 
   lazy val adeptSbt = AdeptProject("adept-sbt")
     .settings(
     sbtPlugin := true
     ).dependsOn(adeptCore)
 
+/*  lazy val adeptCli = AdeptProject("adept-cli")
+    .settings((
+      Dependencies.scalaTest
+    ): _*).dependsOn(adeptCore)
+
+
   lazy val adeptTools = AdeptProject("adept-tools")
+*/
 
   lazy val root = Project("adept", file("."))
     .aggregate(adeptCore, adeptSbt) //TODO:  adeptCli and adeptTools

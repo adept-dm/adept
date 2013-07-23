@@ -2,7 +2,7 @@ import sbt.{ Configuration => _, Node => _, Artifact => _, _ }
 import sbt.Keys._
 import adept.core.models._
 import adept.core.Adept
-import adept.ivy.IvyHelpers
+import adept.ivy._
 import akka.util.duration._
 
 object AdeptPlugin extends Plugin {
@@ -28,7 +28,7 @@ object AdeptPlugin extends Plugin {
       localAdept.toSeq.flatMap { adept =>
         deps.flatMap { dep =>
           val coords = adeptCoordinates(dep, scalaVersion)
-          IvyHelpers.add(coords, ivy, adept)
+          IvyImport.add(coords, ivy, adept)
         }
       }
     }
@@ -53,10 +53,12 @@ object AdeptPlugin extends Plugin {
       DependencyExclusionRule(org, name)
     }
   }
+  
+  private val scalaExclusionRule = DependencyExclusionRule("org.scala-lang", "scala-library") 
 
   private def adeptDependency(adept: Adept, dep: ModuleID, configurationMapping: String, scalaVersion: String): Option[Dependency] = {
     val coords = adeptCoordinates(dep, scalaVersion)
-    val exclusions = dep.exclusions.map(adeptExclusion(dep, _)).toSet
+    val exclusions = dep.exclusions.map(adeptExclusion(dep, _)).toSet + scalaExclusionRule //remove scala, because it is added by sbt
     adept.findModule(coords, uniqueId = None) match { //TODO: change ModuleID to include unique ids as well
       case Right(moduleOpt) => moduleOpt.map { m => Dependency(coords, Some(m.uniqueId), dep.configurations.getOrElse(configurationMapping), isTransitive = dep.isTransitive, force = true, exclusionRules = exclusions) }
       case Left(errorModules) => throw new Exception("Found too many matching modules: " + coords + " " + errorModules.mkString(","))
