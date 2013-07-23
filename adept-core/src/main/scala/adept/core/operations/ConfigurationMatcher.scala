@@ -70,7 +70,7 @@ private[operations] object ConfigurationMatcher extends Logging {
             }
           } else {
             logger.debug("excluding dependency " + dependency + " because of matching exclusion rules " + matchingExclusions)
-            evicted += EvictedModule(module, "excluding: " + dependency.coordinates + " because of " + matchingExclusions.mkString(","))
+            evicted += EvictedModule(module, "excluding: " + dependency.coordinates + " because of exclusion(s): " + matchingExclusions.mkString(","))
           }
         case Right(None) =>
           logger.debug("could not find module for: " + dependency)

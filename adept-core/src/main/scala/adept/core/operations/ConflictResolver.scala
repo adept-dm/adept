@@ -36,7 +36,8 @@ private[core] object Version {
     val maybeResult = differentParts.collectFirst {
       case (v1, v2) if (isNumber(v1) && !isNumber(v2)) => 1
       case (v1, v2) if (!isNumber(v1) && isNumber(v2)) => -1
-      case (v1, v2) if (isNumber(v1) && isNumber(v2)) => v1.compareTo(v2)
+      case (v1, v2) if (isNumber(v1) && isNumber(v2)) =>
+        v1.toInt.compareTo(v2.toInt)
       case (v1, v2) if (SpecialMeanings.get(v1).isDefined || SpecialMeanings.get(v2).isDefined) =>
         (SpecialMeanings.get(v1), SpecialMeanings.get(v2)) match {
           case (Some(sm1), Some(sm2)) => {
@@ -72,19 +73,19 @@ private[core] object ConflictResolver extends Logging {
 
   /** find dependencies that has to be overridden and replace them */
   private def overrideVersions(tree: MutableTree, configurationMapping: String => String, findModule: Adept.FindModule): Unit = {
-    val allOverrides = tree.overrides.par.groupBy { case (dependencyDescriptor, node) => dependencyDescriptor.organization -> dependencyDescriptor.name }
+    val allOverrides = tree.overrides.par
+      .groupBy { case (dependencyDescriptor, node) => dependencyDescriptor.organization -> dependencyDescriptor.name }
 
     //from all defined overrides or forced dependency, find which ones to use for this tree:
     val prunedOverrides = allOverrides.map {
       case (key, comparableNodes) =>
-
         if (comparableNodes.size > 1) {
           logger.debug("need consencus because found: " + comparableNodes.size + " nodes overriding " + key)
 
           //group by overridden versions (might be several that have the same):
           val groupedByVersion = comparableNodes.groupBy {
-            case (_, node) =>
-              node.module.coordinates.version
+            case (descriptor, _) =>
+              descriptor.preferredVersion
           }
 
           //take all the most popular version:
@@ -97,7 +98,8 @@ private[core] object ConflictResolver extends Logging {
 
           //take the highest of the popular versions:
           val (descriptor, node) = allMostPopular.maxBy { case (d, _) => Version(d.preferredVersion) }
-          ((descriptor.organization, descriptor.name), (descriptor, node, ("overridden multiple places ("+allMostPopular.map{ case (_, n) => n.module.coordinates}.mkString(",")+"). chose the on in: " + node.module.coordinates + " which is the most common override ("+numberOfPopular+") sorted by highest versions.")))
+
+          ((descriptor.organization, descriptor.name), (descriptor, node, ("overridden multiple places (" + allMostPopular.map { case (_, n) => n.module.coordinates }.mkString(",") + "). chose the on in: " + node.module.coordinates + " which is the most common override (" + numberOfPopular + ") sorted by highest versions.")))
         } else {
           comparableNodes.seq.headOption.map {
             case (descriptor, node) =>
@@ -122,7 +124,7 @@ private[core] object ConflictResolver extends Logging {
         }
       }
     }.seq.toMap
-    
+
     //fix nodes that are overridden:
     for {
       (_, ((descriptor, overrideNode, reason), (node, child))) <- overriddenNodes
@@ -144,22 +146,26 @@ private[core] object ConflictResolver extends Logging {
         case Left(conflictModules) => throw new Exception("found more than 1 module for: " + descriptor + ": " + conflictModules.mkString(",")) //TODO: handle gracefully? (remember to remove all references to it in the code)
       }
     }
-
+    overriddenNodes
   }
 
   /** evict modules that have lower versions */
   private def evictedModules(tree: MutableTree) = {
     val nodes = tree.nodes
 
-    val evictedModules = nodes.groupBy(n => n.module.coordinates.org -> n.module.coordinates.name)
+    val evictedNodes = nodes.groupBy(n => n.module.coordinates.org -> n.module.coordinates.name)
       .flatMap {
-        case (_, comparableModules) =>
-          val highestVersion = comparableModules.maxBy(n => Version(n.module.coordinates.version))
-          comparableModules.filter(_.module.coordinates != highestVersion.module.coordinates).map(_ -> ("found higher version: " + highestVersion.module.coordinates))
+        case (_, comparableNodes) =>
+          if (comparableNodes.size == 1) { //no need to evict if only one comparable node
+            Set.empty[(MutableNode, String)]
+          } else {
+            val highestVersion = comparableNodes.maxBy(n => Version(n.module.coordinates.version))
+            comparableNodes.filter(n => n.module.coordinates != highestVersion.module.coordinates).map(_ -> ("found higher version: " + highestVersion.module.coordinates))
+          }
       }.seq.toSet
 
     TreeOperations.evict(tree,
-      evictedModules.map {
+      evictedNodes.map {
         case (node, reason) =>
           node.module -> reason
       })
@@ -169,6 +175,5 @@ private[core] object ConflictResolver extends Logging {
     //TODO: it might perform better if we extract overrides and modules in one pass?
     overrideVersions(tree, configurationMapping, findModule)
     evictedModules(tree)
-    
   }
 }
