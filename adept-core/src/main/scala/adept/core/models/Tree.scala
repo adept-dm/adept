@@ -18,6 +18,10 @@ private[core] sealed class TreeLike[N <: NodeLike[N]](confExpr: String, root: No
       (" " * indent) + "!___ " + missingDependency.descriptor.asCoordinates + " (missing: " + missingDependency.reason + ")"
     }
 
+    def missingEvictedDependencyString(missingDependency: MissingDependency, indent: Int) = {
+      (" " * indent) + "X___ " + missingDependency.descriptor.asCoordinates + " (evicted+missing: " + missingDependency.reason + ")"
+    }
+
     def overriddenDependencyString(overriddenDependency: OverriddenDependency, indent: Int) = {
       (" " * indent) + "@___ " + overriddenDependency.module.coordinates + " (overridden: " + overriddenDependency.reason + ")"
     }
@@ -27,16 +31,19 @@ private[core] sealed class TreeLike[N <: NodeLike[N]](confExpr: String, root: No
     }
 
     def nodeString(n: NodeLike[N], indent: Int) = {
+      val (evictedMissing, missing) = n.missingDependencies.partition(_.evicted)
+
       n.module.coordinates + " " + n.configurations.map(_.name).mkString("(", ",", ")") + n.postBuildInsertReason.map(r => "[" + r + "]").getOrElse("") +
         (if (n.artifacts.nonEmpty || n.evictedArtifacts.nonEmpty) "\n" + (" " * indent) + "\\___ artifacts" else "") +
         (if (n.artifacts.nonEmpty) "\n" + n.artifacts.map(artifactString(_, indent + indentSize * 2)).mkString("", "\n", "") else "") +
         (if (n.evictedArtifacts.nonEmpty) "\n" + n.evictedArtifacts.map(evictedArtifactString(_, indent + indentSize * 2)).mkString("", "\n", "") else "") +
-        (if (n.missingDependencies.nonEmpty) "\n" + (" " * indent) + "\\___ missing dependencies" else "") +
-        (if (n.missingDependencies.nonEmpty) "\n" + n.missingDependencies.map(missingDependencyString(_, indent + indentSize * 2)).mkString("", "\n", "") else "") +
+        (if (missing.nonEmpty) "\n" + (" " * indent) + "\\___ missing dependencies" else "") +
+        (if (missing.nonEmpty) "\n" + missing.map(missingDependencyString(_, indent + indentSize * 2)).mkString("", "\n", "") else "") +
         (if (n.overriddenDependencies.nonEmpty) "\n" + (" " * indent) + "\\___ overridden dependencies" else "") +
         (if (n.overriddenDependencies.nonEmpty) "\n" + n.overriddenDependencies.map(overriddenDependencyString(_, indent + indentSize * 2)).mkString("", "\n", "") else "") +
         (if (n.children.nonEmpty) "\n" + n.children.map(childrenString(_, indent)).mkString("", "\n", "") else "") +
-        (if (n.evictedModules.nonEmpty) "\n" + n.evictedModules.map(evictedModuleString(_, indent)).mkString("", "\n", "") else "")
+        (if (n.evictedModules.nonEmpty) "\n" + n.evictedModules.map(evictedModuleString(_, indent)).mkString("", "\n", "") else "") +
+        (if (evictedMissing.nonEmpty) "\n" + evictedMissing.map(missingEvictedDependencyString(_, indent + indentSize * 2)).mkString("", "\n", "") else "")
     }
 
     nodeString(root, indentSize)
@@ -55,6 +62,13 @@ private[core] case class MutableTree(confExpr: String, root: MutableNode) extend
       node.children.flatMap(nodes).toSet + node
     }
     nodes(root)
+  }
+
+  def missing: Set[MissingDependency] = {
+    def missing(node: MutableNode): Set[MissingDependency] = { //TODO: @tailrec?
+      node.children.flatMap(missing).toSet ++ node.missingDependencies
+    }
+    missing(root)
   }
 
   def overrides: Set[(DependencyDescriptor, MutableNode)] = {

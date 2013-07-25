@@ -11,6 +11,7 @@ class JsonTest extends FunSuite with MustMatchers {
       Module(
         coordinates = coords,
         uniqueId = UniqueId("foo-bar-adept-1.0-1231232123-adfas"),
+        universes = Set(Universe("scala-version", "2.9.3")),
         configurations = Set(Configuration("master", None, Set.empty, Visibility.Public, None), Configuration("test", Some("testing is important"), Set("master"), Visibility.Private, None), Configuration("old-test", Some("this old testing is important"), Set.empty, Visibility.Private, Some("master"))),
         dependencies = Set(Dependency(Coordinates("org.eclipse.jgit", "org.eclipse.jgit", "2.3.1.201302201838-r"), Some(UniqueId("jgit-id")), "master", isTransitive = true, exclusionRules = Set(DependencyExclusionRule("*", "foo"))),
             Dependency(Coordinates("something.else", "module1", "1.0"), Some(UniqueId("module1-id")), "default->*", force = true, isTransitive = false)),

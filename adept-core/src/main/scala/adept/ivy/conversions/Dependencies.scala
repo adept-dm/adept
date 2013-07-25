@@ -1,4 +1,4 @@
-package adept.ivy.convertions
+package adept.ivy.conversions
 
 import adept.core.models._
 import org.apache.ivy._

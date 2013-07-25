@@ -22,7 +22,7 @@ private[core] object ConfigurationResolver extends Logging {
     }
   }
   
-  private def splitDependencyConfExpr(confExpr: String) = {
+  def splitDependencyConfExpr(confExpr: String) = {
     val parts = confExpr.split("->")
     if (parts.size < 2) throw new ConfigParseException("'" + confExpr + "' was expected to contain a least one '->'") 
     if (parts.size > 2) throw new ConfigParseException("'" + confExpr + "' has more than 2 parts seperated by '->'") 

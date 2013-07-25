@@ -17,7 +17,7 @@ private[core] object TreeOperations extends Logging {
   
   private def findNonTransitive(parent: Module, configurations: Set[Configuration], configurationMapping: String => String, findModule: Adept.FindModule) = {
     val (evictedModuleOpts, missingDepOpts) = parent.dependencies.par.map { dependency =>
-      findModule(dependency.coordinates, dependency.uniqueId) match {
+      findModule(dependency.coordinates, dependency.uniqueId, Set.empty) match {
         case Right(Some(module)) => (Some(EvictedModule(module, reason = "parent: " + parent.coordinates + " is intransitive")), None)
         case Right(None) =>
           val mappedConf = configurationMapping(dependency.configuration)

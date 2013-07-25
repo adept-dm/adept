@@ -130,7 +130,7 @@ private[core] object ConflictResolver extends Logging {
       (_, ((descriptor, overrideNode, reason), (node, child))) <- overriddenNodes
       if (!overriddenNodes.isDefinedAt(overrideNode.module.coordinates)) //do not overwrite a module which is overridden itself
     } {
-      findModule(descriptor.asCoordinates, descriptor.uniqueId) match {
+      findModule(descriptor.asCoordinates, descriptor.uniqueId, Set.empty) match { //TODO: fix universes
         case Right(Some(module)) =>
           val newNode = TreeOperations.build(module, true, Set.empty, node.configurations, configurationMapping, findModule) //FIXME: should exclusions be here?
           val parent = overrideNode.module.coordinates
@@ -151,9 +151,9 @@ private[core] object ConflictResolver extends Logging {
 
   /** evict modules that have lower versions */
   private def evictedModules(tree: MutableTree) = {
-    val nodes = tree.nodes
+    val coords = tree.nodes
 
-    val evictedNodes = nodes.groupBy(n => n.module.coordinates.org -> n.module.coordinates.name)
+    val evictedNodes = coords.groupBy(n => n.module.coordinates.org -> n.module.coordinates.name)
       .flatMap {
         case (_, comparableNodes) =>
           if (comparableNodes.size == 1) { //no need to evict if only one comparable node
@@ -169,6 +169,7 @@ private[core] object ConflictResolver extends Logging {
         case (node, reason) =>
           node.module -> reason
       })
+
   }
 
   def resolveConflicts(tree: MutableTree, configurationMapping: String => String, findModule: Adept.FindModule): Unit = {

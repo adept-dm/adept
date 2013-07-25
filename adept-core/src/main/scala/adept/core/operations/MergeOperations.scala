@@ -54,25 +54,29 @@ private[core] object MergeOperations extends Logging {
     } else if (module1.overrides != module2.overrides) {
       logger.error("cannot merge modules: " + module1 + " and " + module2 + " because they have different overrides")
       Left(Set(module1, module2))
+    } else if (module1.universes != module2.universes) {
+      logger.error("cannot merge modules: " + module1 + " and " + module2 + " because they have different universes")
+      Left(Set(module1, module2))
     } else {
       val coordinates = module1.coordinates
       val dependencies = module1.dependencies
       val overrides = module1.overrides
+      val universes = module1.universes
       val uniqueId = module1.uniqueId
       
       val artifacts = mergeArtifacts(module1.artifacts, module2.artifacts)
       val configurations = module1.configurations ++ module2.configurations
       val attributes = module1.attributes ++ module2.attributes
 
-      Right(Module(coordinates, uniqueId, artifacts, configurations, attributes, dependencies, overrides))
+      Right(Module(coordinates, uniqueId, universes, artifacts, configurations, attributes, dependencies, overrides))
     }
 
   }
 
   def mergeFindModules(repositories: Set[Adept]): Adept.FindModule = {
-    val findModuleFun = (coords: Coordinates, uniqueId: Option[UniqueId]) => {
+    val findModuleFun = (coords: Coordinates, uniqueId: Option[UniqueId], universes: Set[Universe]) => {
       repositories.par.foldLeft(Right(None): Either[Set[Module], Option[Module]]) { (result, adept) => //TODO: check .par for speed and put in IO Execution context?
-        val current = adept.findModule(coords, uniqueId)
+        val current = adept.findModule(coords, uniqueId, universes)
         (result, current) match {
           case (Right(Some(previousModule)), Right(Some(currentModule))) => {
             mergeModules(previousModule, currentModule) match {

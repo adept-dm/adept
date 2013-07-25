@@ -47,7 +47,7 @@ private[core] case class MutableNode(override val module: Module, override val c
   //TODO: move logic out of models
   def evict(modules: Set[(Module, String)]): Unit = synchronized {
     modules.foreach { case (module, reason) =>
-      children.find(n => n.module == module).foreach { node =>
+      children.filter(n => n.module == module).foreach { node =>
         children -= node
         evictedModules += EvictedModule(module, reason)
       }

@@ -1,4 +1,4 @@
-import AdeptKeys._
+import adept.sbt.AdeptKeys._
 
 adeptSettings
 

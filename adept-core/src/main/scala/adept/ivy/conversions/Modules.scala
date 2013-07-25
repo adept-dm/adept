@@ -1,4 +1,4 @@
-package adept.ivy.convertions
+package adept.ivy.conversions
 
 import adept.core.models._
 import org.apache.ivy._
@@ -42,7 +42,7 @@ private[ivy] object Modules extends Logging {
       val uniqueId = UniqueId.default(coords, artifacts)
 
       val foundModule: Option[Module] =
-        findModule(coords, Some(uniqueId)) match {
+        findModule(coords, Some(uniqueId), Set.empty) match {
           case Right(res) => {
             res
           }
@@ -56,11 +56,12 @@ private[ivy] object Modules extends Logging {
         }
         val deps = Dependencies.convert(depNodes, parentNode, ivy, findModule, add)(allCoords, modules)
         val overrides = Overrides.convert(parentNode, ivy, findModule, add)(allCoords, modules)
-
-        val adeptModule = Module(coords, uniqueId, artifacts, configurations, attributes, deps, overrides)
+        val universes = Set.empty[Universe]
+        
+        val adeptModule = Module(coords, uniqueId, universes, artifacts, configurations, attributes, deps, overrides)
         modules += adeptModule
         synchronized {
-          findModule(adeptModule.coordinates, None) match {
+          findModule(adeptModule.coordinates, None, Set.empty) match {
             case Right(None) => add(adeptModule)
             case _ => //do nothing
           }

@@ -18,9 +18,9 @@ import org.apache.ivy.core.module.descriptor.{ Configuration => IvyConfiguration
 import org.apache.ivy.core.module.descriptor.{ Artifact => IvyArtifact }
 import org.apache.ivy.core.module.descriptor.{ Configuration => IvyConfiguration }
 import org.apache.ivy.core.module.id.ModuleRevisionId
-import adept.ivy.convertions.Modules
+import adept.ivy.conversions.Modules
 
-object IvyImport extends Logging {
+object IvyImport extends Logging { //TODO: move Ivy out to separate project?
 
   import adept.ivy.utils.IvyHelpers._
 
@@ -38,13 +38,15 @@ object IvyImport extends Logging {
         val ivyId = ivyArtifact.getModuleRevisionId()
         val coords = Coordinates(ivyId.getOrganisation(), ivyId.getName(), ivyId.getRevision())
         Modules.convert(coords, ivy, adept.findModule _, adept.add _)(allCoords, modules) match {
-          case Left(error) => throw new Exception(error)
+          case Left(error) => 
+          logger.error("could not create module for: " + coords)
           case _ => //
         }
     }
 
     Modules.convert(coords, ivy, adept.findModule _, adept.add _)(allCoords, modules) match {
-      case Left(error) => throw new Exception(error)
+      case Left(error) =>
+        logger.error("could not create module for: " + coords)
       case _ => //
     }
 

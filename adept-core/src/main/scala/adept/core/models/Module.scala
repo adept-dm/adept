@@ -14,13 +14,13 @@ import adept.utils.Logging
 case class Module(
   coordinates: Coordinates,
   uniqueId: UniqueId,
+  universes: Set[Universe],
   artifacts: Set[Artifact],
   configurations: Set[Configuration],
   attributes: Map[String, Seq[String]],
   dependencies: Set[Dependency],
   overrides: Set[Override]) {
-  //TODO: add created 
-  //TODO: add universes ([scala-version:2.10])
+  //TODO: add created? may not make sense, we know when it was added to the git history so...
 }
 
 object Module {
@@ -39,7 +39,7 @@ object Module {
     for {
       modules <- readSameCoordinates(json).right
     } yield {
-      if(modules.length == 1) {
+      if (modules.length == 1) {
         modules.head
       } else {
         throw new Exception("only 1 module expected")
@@ -58,56 +58,63 @@ object Module {
   def writeJsonModule(module: Module): JValue = {
     writeJsonForSameCoords(module.coordinates, Seq(module))
   }
-   
 
   def readModuleWithUsingCoords(coords: Coordinates, json: JValue): Either[String, Module] = {
     val maybeArtifacts = Artifact.readArtifacts((json \ "artifacts"))
 
     val maybeConfigurations = {
       (json \ "configurations").toOption.map(Configuration.readConfigurations)
-    }.getOrElse{
+    }.getOrElse {
       Right(Set.empty[Configuration])
     }
 
     val maybeDependencies = {
       (json \ "dependencies").toOption.map(Dependency.readDependencies)
-    }.getOrElse{
+    }.getOrElse {
       Right(Set.empty[Dependency])
     }
 
     val maybeOverrides = {
       (json \ "overrides").toOption.map(Override.readOverrides)
-    }.getOrElse{
+    }.getOrElse {
       Right(Set.empty[Override])
+    }
+
+    val maybeUniverses = {
+      (json \ "universes").toOption.map(Universe.readUniverses)
+    }.getOrElse {
+      Right(Set.empty[Universe])
     }
 
     val attributes: Map[String, Seq[String]] = {
       implicit val format = org.json4s.DefaultFormats
       (json \ "attributes").extractOpt[Map[String, Seq[String]]]
-    }.getOrElse{
+    }.getOrElse {
       Map.empty
     }
 
     for {
       artifacts <- maybeArtifacts.right
       uniqueId <- (eitherOf[String](json) \ "unique-id").right
+      universes <- maybeUniverses.right
       configurations <- maybeConfigurations.right
       dependencies <- maybeDependencies.right
       overrides <- maybeOverrides.right
     } yield {
-      Module(coords, UniqueId(uniqueId), artifacts, configurations, attributes, dependencies, overrides)
+      Module(coords, UniqueId(uniqueId), universes, artifacts, configurations, attributes, dependencies, overrides)
     }
   }
 
   def readModulesWithUsingCoords(coords: Coordinates, json: JValue): Either[String, Seq[Module]] = {
-    readSeq(json \ "modules"){ f =>
+    readSeq(json \ "modules") { f =>
       f.map(j => readModuleWithUsingCoords(coords, j))
     }
   }
-  
+
   def noCoordsModuleToJson(module: Module): JObject = {
     asJObject(List[JField](
       ("unique-id" -> module.uniqueId.value),
+      ("universes" -> module.universes.map(Universe.universeToJson)),
       ("artifacts" -> module.artifacts.map(Artifact.artifactToJson)),
       ("attributes" -> module.attributes),
       ("dependencies" -> module.dependencies.map(Dependency.dependencyToJson)),

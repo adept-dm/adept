@@ -55,12 +55,12 @@ private[operations] object ConfigurationMatcher extends Logging {
     var missing = new mutable.HashSet[MissingDependency] with mutable.SynchronizedSet[MissingDependency]
 
     dependencies.par.foreach { dependency => //TODO: check if .par makes things faster. we do this because of findModule which reads from disk. perhaps we should use a IO execution context
-      val maybeModule = findModule(dependency.coordinates, None) //FIXME: we are not using the hash/unique Id here and that is very wrong!
+      val maybeModule = findModule(dependency.coordinates, None, Set.empty) //FIXME: we are not using the hash/unique Id here and that is very wrong! also fix universe
 
+      val matchingExclusions = rootExclusionRules.filter(_.matches(dependency))
       maybeModule match {
         case Right(Some(module)) =>
           logger.debug("found module for dependency: " + dependency)
-          val matchingExclusions = rootExclusionRules.filter(_.matches(dependency))
           if (matchingExclusions.isEmpty) {
             val mappedConf = configurationMapping(dependency.configuration)
 
@@ -75,11 +75,18 @@ private[operations] object ConfigurationMatcher extends Logging {
         case Right(None) =>
           logger.debug("could not find module for: " + dependency)
           val mappedConf = configurationMapping(dependency.configuration)
-          resolve(configurations, mappedConf) match {
-            case Right(confs) =>
-              missing += MissingDependency(dependency, parent, evicted = false, reason = "could not find dependency: " + dependency.coordinates + " declared in: " + parent)
-            case Left(msg) =>
-              missing += MissingDependency(dependency, parent, evicted = true, reason = "could not find an evicted dependency (evicted because: " + msg + ")")
+
+          val results = mappedConf.split(ConfSep).map { conf =>
+            val (leftExpr, _) = splitDependencyConfExpr(conf)
+            resolve(configurations, leftExpr)
+          }
+          val notEvicted = results.exists(_.isRight)
+          if (matchingExclusions.nonEmpty) {
+            missing += MissingDependency(dependency, parent, evicted = true, reason = "could not find an excluded dependency (excluded of exclusion(s): " + matchingExclusions.mkString(","))
+          } else if (notEvicted) {
+            missing += MissingDependency(dependency, parent, evicted = false, reason = "could not find dependency: " + dependency.coordinates + " declared in: " + parent)
+          } else {
+            missing += MissingDependency(dependency, parent, evicted = true, reason = "could not find an evicted dependency (evicted because: " + mappedConf + " does not match " + configurations.map(_.name).mkString(",") + " )")
           }
         case Left(conflictModules) => throw new Exception("found more than 1 module for: " + dependency + ": " + conflictModules.mkString(",")) //TODO: handle gracefully? (remember to remove all references to it in the code)
       }

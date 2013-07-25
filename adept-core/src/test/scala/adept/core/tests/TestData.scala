@@ -4,7 +4,7 @@ import adept.core.models._
 
 object TestData {
 
-  def findModule(coords: Coordinates, uniqueId: Option[UniqueId]): Either[Set[Module], Option[Module]] = {
+  def findModule(coords: Coordinates, uniqueId: Option[UniqueId], universes: Set[Universe]): Either[Set[Module], Option[Module]] = {
     val all = modules.filter { m =>
       m.coordinates == coords && uniqueId.map(_ == m.uniqueId).getOrElse(true)
     }
@@ -27,6 +27,7 @@ object TestData {
   lazy val testlib47 = Module(
     coordinates = Coordinates("testlib", "testlib", "4.7"),
     uniqueId = UniqueId("testlib-4.7-id"),
+    universes = Set.empty,
     configurations = configurations,
     dependencies = Set.empty,
     overrides = Set.empty,
@@ -36,6 +37,7 @@ object TestData {
   lazy val commonlib20 = Module(
     coordinates = Coordinates("commonlib", "commonlib", "2.0"),
     uniqueId = UniqueId("commonlib-2.0-id"),
+    universes = Set.empty,
     configurations = configurations,
     dependencies = Set(
       Dependency(commondeplib20.coordinates, Some(commondeplib20.uniqueId), "compile->compile(*),master(*);runtime->runtime(*)"),
@@ -49,6 +51,7 @@ object TestData {
   val anotherCommonlib20 = Module(
     coordinates = Coordinates("commonlib", "commonlib", "2.0"),
     uniqueId = UniqueId("commlib-2.0-id2"),
+    universes = Set.empty,
     configurations = configurations,
     dependencies = Set(
       Dependency(commondeplib20.coordinates, Some(commondeplib20.uniqueId), "compile->compile(*),master(*);runtime->runtime(*)"),
@@ -60,6 +63,7 @@ object TestData {
   lazy val extralib10 = Module(
     coordinates = Coordinates("extralib", "extralib", "1.0"),
     uniqueId = UniqueId("extralib-1.0-id"),
+    universes = Set.empty,
     configurations = configurations,
     dependencies = Set.empty,
     overrides = Set.empty,
@@ -69,6 +73,7 @@ object TestData {
   lazy val extralib20 = Module(
     coordinates = Coordinates("extralib", "extralib", "2.0"),
     uniqueId = UniqueId("extralib-2.0-id"),
+    universes = Set.empty,
     configurations = configurations,
     dependencies = Set.empty,
     overrides = Set.empty,
@@ -78,6 +83,7 @@ object TestData {
   lazy val extralib30 = Module(
     coordinates = Coordinates("extralib", "extralib", "3.0"),
     uniqueId = UniqueId("extralib-3.0-id"),
+    universes = Set.empty,
     configurations = configurations,
     dependencies = Set.empty,
     overrides = Set.empty,
@@ -87,6 +93,7 @@ object TestData {
   lazy val extralib40 = Module(
     coordinates = Coordinates("extralib", "extralib", "4.0"),
     uniqueId = UniqueId("extralib-4.0-id"),
+    universes = Set.empty,
     configurations = configurations,
     dependencies = Set.empty,
     overrides = Set.empty,
@@ -96,6 +103,7 @@ object TestData {
   lazy val excludedlib10 = Module(
     coordinates = Coordinates("excludedlib", "excludedlib", "1.0"),
     uniqueId = UniqueId("excludedlib-1.0-id"),
+    universes = Set.empty,
     configurations = configurations,
     dependencies = Set.empty,
     overrides = Set.empty,
@@ -105,6 +113,7 @@ object TestData {
   lazy val commondeplib20 = Module(
     coordinates = Coordinates("commondeplib", "commondeplib", "2.0"),
     uniqueId = UniqueId("commondeplib-2.0-id"),
+    universes = Set.empty,
     configurations = configurations,
     dependencies = Set.empty,
     overrides = Set.empty,
@@ -114,6 +123,7 @@ object TestData {
   lazy val testlib48 = Module(
     coordinates = Coordinates("testlib", "testlib", "4.8"),
     uniqueId = UniqueId("testlib-4.8-id"),
+    universes = Set.empty,
     configurations = configurations,
     dependencies = Set.empty,
     overrides = Set.empty,
@@ -123,6 +133,7 @@ object TestData {
   lazy val adept10 = Module(
     coordinates = Coordinates("org.adept", "adept", "1.0"),
     uniqueId = UniqueId("adept-1.0-id"),
+    universes = Set.empty,
     configurations = configurations,
     dependencies = Set(Dependency(testlib47.coordinates, Some(testlib47.uniqueId), "test->default(*)"),
       Dependency(Coordinates("missinglib", "missinglib", "1.0"), None, "*->default(*)"),
@@ -137,6 +148,7 @@ object TestData {
   lazy val adept10Intransitive = Module(
     coordinates = Coordinates("org.adept", "adept", "1.0"),
     uniqueId = UniqueId("adept-1.0-id2"),
+    universes = Set.empty,
     configurations = configurations,
     dependencies = Set(Dependency(testlib47.coordinates, Some(testlib47.uniqueId), "test->default(*)"),
       Dependency(Coordinates("missinglib", "missinglib", "1.0"), None, "*->default(*)"),

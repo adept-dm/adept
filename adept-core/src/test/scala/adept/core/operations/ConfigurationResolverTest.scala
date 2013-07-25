@@ -32,7 +32,8 @@ class ConfigurationResolverTest extends FunSuite with MustMatchers {
     ConfigurationResolver.resolve(testConfs, "test->master;test->default", configurations).right.value.map(_.name) must be === Set("master", "default")
     ConfigurationResolver.resolve(testConfs, "test->test;compile->default", configurations) must be ('left)
     ConfigurationResolver.resolve(testConfs, "default->master;compile->default", configurations) must be ('left)
-    
+    println(compileConfs.map(_.name))
+    println(ConfigurationResolver.resolve(compileConfs, "compile->compile(*),master(*);runtime->runtime(*)"))
     ConfigurationResolver.resolve(compileConfs, "compile->compile(*),master(*);runtime->runtime(*)", configurations).right.value.map(_.name) must be === Set("compile", "master")
     
   }
