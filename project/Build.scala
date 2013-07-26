@@ -1,13 +1,14 @@
 import sbt._
 import sbt.Keys._
+import sbtrelease.ReleasePlugin._
 
 object AdeptBuild extends Build {
   
   val commonSettings = Seq(
     scalaVersion := "2.9.2",
     organization := "org.adept",
-    version := "0.1"
-  )
+    version := "0.8.0-RC1"
+  ) ++ releaseSettings
 
   def AdeptProject(name: String) = Project(name, file(name)).settings(commonSettings: _*)
 
@@ -20,7 +21,6 @@ object AdeptBuild extends Build {
     Dependencies.git ++
     Dependencies.json4s ++
     Dependencies.ivy ++
-    Dependencies.aether ++
     Dependencies.scalaTest
     ):_*)
 
@@ -38,7 +38,7 @@ object AdeptBuild extends Build {
   lazy val adeptTools = AdeptProject("adept-tools")
 */
 
-  lazy val root = Project("adept", file("."))
+  lazy val root = Project("adept", file(".")).settings(commonSettings: _*)
     .aggregate(adeptCore, adeptSbt) //TODO:  adeptCli and adeptTools
 
 }

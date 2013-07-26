@@ -4,18 +4,8 @@ import sbt.Keys._
 
 object Dependencies {
 
-  val ivy =         Seq(libraryDependencies +=  "org.apache.ivy"  %       "ivy"      %       "2.3.0")
+  val ivy =         Seq(libraryDependencies +=  "org.apache.ivy"  %       "ivy"      %       "2.3.0-rc1")
 
-  val aether =      Seq(libraryDependencies ++=  Seq(
-    "org.eclipse.aether"  %  "aether-impl"   %  "0.9.0.M2",
-    "org.eclipse.aether"  %  "aether-api"   %   "0.9.0.M2",
-    "org.eclipse.aether"  %  "aether-connector-wagon"   %  "0.9.0.M2",
-    "org.eclipse.aether"  %  "aether-connector-file"   %  "0.9.0.M2",
-    "org.sonatype.maven"  %  "wagon-ahc"   %  "1.2.1",
-    "org.apache.maven.wagon" % "wagon-provider-api" % "1.0",
-    "io.tesla.maven" % "maven-aether-provider" % "3.1.0"
-  ))
- 
   val git =         Seq(libraryDependencies +=  "org.eclipse.jgit" % "org.eclipse.jgit" % "2.3.1.201302201838-r")
 
   val logback =     Seq(libraryDependencies +=  "ch.qos.logback" % "logback-classic" % "1.0.9")

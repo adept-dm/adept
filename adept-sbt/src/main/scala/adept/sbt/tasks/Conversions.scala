@@ -12,7 +12,7 @@ import akka.util.FiniteDuration
 private[tasks] trait Conversions {
 
   def transformScalaVersion(scalaVersion: String) = {
-    if (scalaVersion.startsWith("2.10")) "2.10"
+    if (scalaVersion.startsWith("2.10")) majorVersion(scalaVersion)
     else scalaVersion
   }
 
@@ -21,7 +21,7 @@ private[tasks] trait Conversions {
   }
 
   def majorVersion(version: String) = {
-    version.split("\\.").slice(0, 2).mkString(".") //transform to only major versions: 2.10.1 => 2.10
+    version.split("\\.").slice(0, 2).mkString(".") //basically does: 2.10.1 => 2.10
   }
 
   def adeptArtifact(artifactLocations: Map[String, String], artifact: sbt.Artifact, file: File, sbtPlugin: Boolean, name: String, version: String, organization: String, sbtVersion: String, scalaVersion: String, artifactPatterns: Option[Seq[String]], logger: sbt.Logger)(timeout: FiniteDuration): Artifact = {
