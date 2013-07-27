@@ -204,65 +204,71 @@ object BintrayRelease extends Plugin {
   }
   
 
-  lazy val bintrayIvyPublishTask = (sbtPlugin, organization, name, version, sbtVersion, scalaVersion, deliverLocal, packagedArtifacts, bintrayInfo, bintrayDeleteFirst, streams) map { (sbtPlugin, organization, name, version, sbtVersion, scalaVersion, ivyFile, packagedArtifacts, info, deleteFirst, s) =>
-    import adept.bintray.Bintray._
-    val bintrayVersion = BintrayVersion(name, version)
+  lazy val bintrayIvyPublishTask = (sbtPlugin, publishArtifact, organization, name, version, sbtVersion, scalaVersion, deliverLocal, packagedArtifacts, bintrayInfo, bintrayDeleteFirst, streams) map { (sbtPlugin, publishArtifact, organization, name, version, sbtVersion, scalaVersion, ivyFile, packagedArtifacts, info, deleteFirst, s) =>
 
-    if (deleteFirst) {
-      s.log.warn("deleting: " + info)
-      deleteVersion(info, bintrayVersion).left.foreach{ case (c, m, r) =>
-        s.log.warn("while deleting version: " +info + " got: " + c + "(" + m + "): " + r)
-      }
-    }
-    val a = getPackage(info, bintrayVersion)
-    if (a.isLeft) {
-      createPackage(info, bintrayVersion, Set("Apache-2.0")).left.foreach{ case (c, m, r) =>
-        s.log.warn("while creating package: " +info + " got: " + c + "(" + m + "): " + r)
-      }
-    }
+    if (publishArtifact) {
+      import adept.bintray.Bintray._
+      val bintrayVersion = BintrayVersion(name, version)
 
-    createVersion(info, bintrayVersion).left.foreach{ case (c, m, r) =>
-        s.log.warn("while creating version: " +info + " got: " + c + "(" + m + "): " + r)
-    }
-
-    val artifacts = packagedArtifacts.groupBy{ case (a, f) => a.`type` }
-
-    val fixedScalaVersion = transformScalaVersion(scalaVersion)
-    val fixedSbtVersion = majorVersion(sbtVersion)
-
-    def upload(file: File, path: String) = {
-      val res = uploadFile(info, bintrayVersion, file, path)
-      res.left.foreach{ case (c, m, r) =>
-          s.log.warn("while uploading file: " + file + " to " + path + " got: " + c + "(" + m + "): " + r)
-      }
-      res.right.foreach{ case (c, m, r) =>
-          s.log.info("successfully uploaded: " + file + " to " + path)
-      }
-      res
-    }
-
-    val basePath =  if (sbtPlugin)
-      "/"+organization + "/" + name + "/scala_" + fixedScalaVersion + "/sbt_" + fixedSbtVersion + "/" + version + "/"
-    else
-      "/"+organization + "/" + name + "_" + fixedScalaVersion + "/" + version + "/"
-      
-    val fileMap = Seq(
-      //basePath + "docs" -> artifacts("doc").map{ case (a, file) => file -> a },
-      basePath + "srcs" -> artifacts("src").map{ case (a, file) => file -> a },
-      basePath + "jars" -> artifacts("jar").map{ case (a, file) => file -> a }
-    )
-
-    val file = ivyFile
-    val path = basePath + "ivys/ivy.xml"
-    val res = upload(file, path)
-    
-    val results =  fileMap.flatMap { case (path, files) =>
-        files.map { case (file, a) =>
-          path -> upload(file, path + "/" + (if (sbtPlugin)  (name + a.classifier.map("-" + _).getOrElse("") + ".jar") else (name + "_" + fixedScalaVersion + a.classifier.map("-" + _).getOrElse("") + ".jar")))
+      if (deleteFirst) {
+        s.log.warn("deleting: " + info)
+        deleteVersion(info, bintrayVersion).left.foreach{ case (c, m, r) =>
+          s.log.warn("while deleting version: " +info + " got: " + c + "(" + m + "): " + r)
         }
-    }
+      }
+      val a = getPackage(info, bintrayVersion)
+      if (a.isLeft) {
+        createPackage(info, bintrayVersion, Set("Apache-2.0")).left.foreach{ case (c, m, r) =>
+          s.log.warn("while creating package: " +info + " got: " + c + "(" + m + "): " + r)
+        }
+      }
 
-    results.filter{ case (_, res) => res.isRight }.map{ case (path, _) => path }
+      createVersion(info, bintrayVersion).left.foreach{ case (c, m, r) =>
+          s.log.warn("while creating version: " +info + " got: " + c + "(" + m + "): " + r)
+      }
+
+      val artifacts = packagedArtifacts.groupBy{ case (a, f) => a.`type` }
+
+      val fixedScalaVersion = transformScalaVersion(scalaVersion)
+      val fixedSbtVersion = majorVersion(sbtVersion)
+
+      def upload(file: File, path: String) = {
+        val res = uploadFile(info, bintrayVersion, file, path)
+        res.left.foreach{ case (c, m, r) =>
+            s.log.warn("while uploading file: " + file + " to " + path + " got: " + c + "(" + m + "): " + r)
+        }
+        res.right.foreach{ case (c, m, r) =>
+            s.log.info("successfully uploaded: " + file + " to " + path)
+        }
+        res
+      }
+
+      val basePath =  if (sbtPlugin)
+        "/"+organization + "/" + name + "/scala_" + fixedScalaVersion + "/sbt_" + fixedSbtVersion + "/" + version + "/"
+      else
+        "/"+organization + "/" + name + "_" + fixedScalaVersion + "/" + version + "/"
+
+      val fileMap = Seq(
+        //basePath + "docs" -> artifacts("doc").map{ case (a, file) => file -> a },
+        basePath + "srcs" -> artifacts("src").map{ case (a, file) => file -> a },
+        basePath + "jars" -> artifacts("jar").map{ case (a, file) => file -> a }
+      )
+
+      val file = ivyFile
+      val path = basePath + "ivys/ivy.xml"
+      val res = upload(file, path)
+
+      val results =  fileMap.flatMap { case (path, files) =>
+          files.map { case (file, a) =>
+            path -> upload(file, path + "/" + (if (sbtPlugin)  (name + a.classifier.map("-" + _).getOrElse("") + ".jar") else (name + "_" + fixedScalaVersion + a.classifier.map("-" + _).getOrElse("") + ".jar")))
+          }
+      }
+
+      results.filter{ case (_, res) => res.isRight }.map{ case (path, _) => path }
+    } else {
+      s.log.info("skipping publishes on: " + name)
+      Seq.empty
+    }
   }
 
 

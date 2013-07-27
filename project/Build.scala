@@ -42,6 +42,9 @@ object AdeptBuild extends Build {
 */
 
   lazy val root = Project("adept", file(".")).settings(commonSettings: _*)
+    .settings(
+      publishArtifact := false
+    )
     .aggregate(adeptCore, adeptSbt) //TODO:  adeptCli and adeptTools
 
 }
