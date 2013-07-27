@@ -7,7 +7,10 @@ object AdeptBuild extends Build {
   val commonSettings = Seq(
     scalaVersion := "2.9.2",
     organization := "org.adept",
-    version := "0.8.0-RC1"
+    version := {
+      val format = new java.text.SimpleDateFormat("YYYYMMddHHmmss")
+      "0.8.0-PRE-ALPHA-"+(format.format(new java.util.Date))
+    }
   ) ++ releaseSettings
 
   def AdeptProject(name: String) = Project(name, file(name)).settings(commonSettings: _*)

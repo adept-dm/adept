@@ -1,3 +1,4 @@
+
 package adept.bintray
 
 import sbt.{File => _, URL => _, _}
@@ -38,11 +39,15 @@ trait HttpHelpers { //do not want dependencies so use handwritten ones instead
       val bytes = Array.fill[Byte](BufferSize)(0)
       var bytesRead = reader.read(bytes)
       var msg = ""
+      var sumBytes = 0
       while (bytesRead != -1) {
+        val writeBytes = Array.ofDim[Byte](bytesRead)
+        Array.copy(bytes, 0, writeBytes, 0, bytesRead)
         print(msg)
-        writer.write(bytes)
+        writer.write(writeBytes)
         print("\r" * msg.size)
-        msg = "wrote: " + bytesRead
+        sumBytes += bytesRead
+        msg = "wrote: " + sumBytes
         bytesRead = reader.read(bytes)
       }
     } finally {
@@ -230,6 +235,9 @@ object BintrayRelease extends Plugin {
       res.left.foreach{ case (c, m, r) =>
           s.log.warn("while uploading file: " + file + " to " + path + " got: " + c + "(" + m + "): " + r)
       }
+      res.right.foreach{ case (c, m, r) =>
+          s.log.info("successfully uploaded: " + file + " to " + path)
+      }
       res
     }
 
@@ -239,9 +247,9 @@ object BintrayRelease extends Plugin {
       "/"+organization + "/" + name + "_" + fixedScalaVersion + "/" + version + "/"
       
     val fileMap = Seq(
-      basePath + "docs" -> artifacts("doc").map{ case (a, file) => file },
-      basePath + "srcs" -> artifacts("src").map{ case (a, file) => file },
-      basePath + "jars" -> artifacts("jar").map{ case (a, file) => file }
+      //basePath + "docs" -> artifacts("doc").map{ case (a, file) => file -> a },
+      basePath + "srcs" -> artifacts("src").map{ case (a, file) => file -> a },
+      basePath + "jars" -> artifacts("jar").map{ case (a, file) => file -> a }
     )
 
     val file = ivyFile
@@ -249,8 +257,8 @@ object BintrayRelease extends Plugin {
     val res = upload(file, path)
     
     val results =  fileMap.flatMap { case (path, files) =>
-        files.map { file =>
-          path -> upload(file, path + "/" + file.getName)
+        files.map { case (file, a) =>
+          path -> upload(file, path + "/" + (if (sbtPlugin)  (name + a.classifier.map("-" + _).getOrElse("") + ".jar") else (name + "_" + fixedScalaVersion + a.classifier.map("-" + _).getOrElse("") + ".jar")))
         }
     }
 
