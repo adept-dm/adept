@@ -13,7 +13,8 @@ private[adept] trait AdeptModule extends Conversions {
 
   private def getStructure(state: State) = Project.extract(state).structure
 
-  private def evaluateTask[A](key: TaskKey[A], ref: ProjectRef, state: State): Either[String, A] = synchronized { //sbt evaluate task creates tmp files in a non-thread safe manner?
+  private def evaluateTask[A](key: TaskKey[A], ref: ProjectRef, state: State): Either[String, A] = {
+    //TODO: sbt evaluate task creates tmp files in a non-thread safe manner because sometimes this fails!
     EvaluateTask(getStructure(state), key, state, ref, EvaluateTask defaultConfig state) match {
       case Some((_, Value(a))) => Right(a)
       case Some((_, Inc(inc))) => Left("Error evaluating task '%s': %s".format(key.key, Incomplete.show(inc.tpe)))
@@ -24,7 +25,6 @@ private[adept] trait AdeptModule extends Conversions {
   val adeptModuleTask = (name, organization, version, adeptUpdate, adeptDependencies, adeptConfigurationMapping, scalaVersion, sbtPlugin, sbtVersion, thisProjectRef, buildDependencies, state, streams) map { (name, organization, version, repos, allSbtDeps, defaultDependencyConf, scalaVersion, sbtPlugin, sbtVersion, ref, buildDependencies, state, s) =>
     withAdeptClassloader {
       import akka.util.duration._
-
       val configurations = sbt.Configurations.default.map(adeptConfiguration).toSet
 
       val notFound = new collection.mutable.HashSet[ModuleID]()
@@ -50,6 +50,7 @@ private[adept] trait AdeptModule extends Conversions {
             Seq.empty
         }
       }
+
 
       if (notFound.nonEmpty) {
         val msg = "could not find the following dependencies for " + name + ":\n" + notFound.mkString("\n")
