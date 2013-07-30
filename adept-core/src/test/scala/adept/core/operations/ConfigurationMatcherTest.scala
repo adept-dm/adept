@@ -49,14 +49,14 @@ class ConfigurationMatcherTest extends FunSuite with MustMatchers {
     val confs = configurations
     val (moduleConfs, evicted, missing) = ConfigurationMatcher.matchingModules(adept10.coordinates, adept10.dependencies, Set.empty, confs, Configuration.defaultConfigurationMapping(_), findModule)
     evicted.map(_.reason) must have size(1) //neverinclude
-    moduleConfs.map{case (m,t, e, c) => m.coordinates -> c.map(_.name) } must be === Set(testlib47.coordinates -> Set("default"), extralib20.coordinates -> Set("master"), extralib10.coordinates -> Set("master"), commonlib20.coordinates -> Set("default"))
+    moduleConfs.map{case (m,t, e, c) => m.coordinates -> c.map(_.name) } must be === Set(testlib47.coordinates -> Set("default"), extralib30.coordinates -> Set("master"), extralib10.coordinates -> Set("master"), commonlib20.coordinates -> Set("default"))
   }
   
   test("dependency resolution with multiple (including similary named) configurations"){
     val confs = configurations + defaultConf.copy(description = Some("foo"))
     val (moduleConfs, evicted, missing) = ConfigurationMatcher.matchingModules(adept10.coordinates, adept10.dependencies, Set.empty, confs, Configuration.defaultConfigurationMapping(_), findModule)
     evicted.map(_.reason) must have size(1) //neverinclude
-    moduleConfs.map{case (m,t, e, c) => m.coordinates -> c.map(_.name) } must be === Set(testlib47.coordinates -> Set("default"), extralib20.coordinates -> Set("master"), extralib10.coordinates -> Set("master"), commonlib20.coordinates -> Set("default"))
+    moduleConfs.map{case (m,t, e, c) => m.coordinates -> c.map(_.name) } must be === Set(testlib47.coordinates -> Set("default"), extralib30.coordinates -> Set("master"), extralib10.coordinates -> Set("master"), commonlib20.coordinates -> Set("default"))
   }
   
   test("dependency resolution with compile configuration"){
