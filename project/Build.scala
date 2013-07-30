@@ -15,7 +15,6 @@ object AdeptBuild extends Build {
 
   def AdeptProject(name: String) = Project(name, file(name)).settings(commonSettings: _*)
 
-
   lazy val adeptCore = AdeptProject("adept-core")
     .settings((
     Dependencies.akka ++
@@ -32,19 +31,16 @@ object AdeptBuild extends Build {
     sbtPlugin := true
     ).dependsOn(adeptCore)
 
-/*  lazy val adeptCli = AdeptProject("adept-cli")
+  lazy val adeptCli = AdeptProject("adept-cli")
     .settings((
       Dependencies.scalaTest
     ): _*).dependsOn(adeptCore)
 
 
-  lazy val adeptTools = AdeptProject("adept-tools")
-*/
-
   lazy val root = Project("adept", file(".")).settings(commonSettings: _*)
     .settings(
       publishArtifact := false
     )
-    .aggregate(adeptCore, adeptSbt) //TODO:  adeptCli and adeptTools
+    .aggregate(adeptCore, adeptSbt, adeptCli)
 
 }

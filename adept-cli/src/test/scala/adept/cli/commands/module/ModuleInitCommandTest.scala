@@ -11,8 +11,11 @@ class ModuleInitCommandTest extends FunSuite with MustMatchers {
 
 
   test("test basic processing") {
-    val parsed = ModuleInitCommand.parseArgs(List(coordsStr))
-    parsed must be === Right(Module(coordsParsed, Set(), Set(), Map(), Set()))
+    import org.scalatest.EitherValues._
+    
+    val parsed = ModuleInitCommand.parseArgs(List(coordsStr)).right.value
+    
+    parsed.coordinates === coordsParsed
   }
 
 }

@@ -18,10 +18,13 @@ object ModuleInitCommand extends Command with JsonFileSystemModulePersistance {
 
   def parseArgs(args: List[String]): Either[String, Module] = {
     if (args.length == 1) {
+      
       for {
         coords <- Coordinates.parse(args.head).right
       } yield {
-        Module(coords, Set(), Set(), Map(), Set())
+        val artifacts = Set.empty //TODO: should be added directly?
+        val uniqueId = UniqueId.default(coords, new java.util.Date, Set.empty)
+        Module(coords, uniqueId, Set.empty, Set.empty, Set.empty, Map(), Set.empty, Set.empty)
       }
     }
     else {

@@ -7,7 +7,7 @@ object ModuleAddDependencyCommand extends Command with JsonFileSystemModulePersi
 
   val command = "add-dependency"
   val shortDescription = "add artifact to current module"
-  override val help = Some("args: org:name:version hash config")
+  override val help = Some("args: org:name:version unique-id config")
 
   def execute(args: List[String]): CommandResult = {
     for {
@@ -28,12 +28,12 @@ object ModuleAddDependencyCommand extends Command with JsonFileSystemModulePersi
 
   def parseArgs(args: List[String]) = {
     if(args.length == 3) {
-      val (coordsStr :: hash :: config :: _) = args
+      val (coordsStr :: uniqueId :: config :: _) = args
 
       for {
         coords <- Coordinates.parse(coordsStr).right
       } yield {
-        Dependency(coords, Hash(hash), config)
+        Dependency(coords, Some(UniqueId(uniqueId)), config)
       }
     } else {
       Left(help.get)

@@ -22,10 +22,10 @@ class ModuleAddArtifactCommandTest extends FunSuite with MustMatchers {
       List("some.jar", "sometype", "--", "cfg1", "cfg2")) must be === ("some.jar", "sometype", Set(), Set("cfg1", "cfg2"))
   }
 
-  val module = Module(Coordinates("a", "b", "c"), Set(), Set(
+  val module = Module(Coordinates("a", "b", "c"), UniqueId("todo"),  Set(), Set(), Set( //TODO: UniqueId is random, but does not matter here
     Configuration("c1", None, Set(), Visibility.Public, None),
     Configuration("c2", None, Set(), Visibility.Public, None)
-  ), Map(), Set())
+  ), Map(), Set(), Set())
 
   test("checkConfigs pass all") {
     ModuleAddArtifactCommand.checkConfigs(Set("c2", "c1"), module) must be === Right()

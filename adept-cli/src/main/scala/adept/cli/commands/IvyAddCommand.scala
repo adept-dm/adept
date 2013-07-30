@@ -3,7 +3,8 @@ package adept.cli.commands
 import adept.core.Adept
 import java.io.File
 import adept.core.models.Coordinates
-import adept.ivy.IvyHelpers
+import adept.ivy._
+import adept.ivy.utils._
 
 object IvyAddCommand extends Command {
   override val command = "ivy-add"
@@ -22,7 +23,7 @@ object IvyAddCommand extends Command {
       coords <- Coordinates.parse(coordsString).right
       ivy <- IvyHelpers.load(settingsArg).right
     } yield{
-      Some(IvyHelpers.add(coords, ivy, adept).mkString("\n"))
+      Some(IvyImport.add(coords, ivy, adept).mkString("\n"))
     }
   }
   

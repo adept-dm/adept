@@ -3,7 +3,6 @@ package adept.cli.commands
 import adept.core.Adept
 import java.io.File
 import adept.core.models.Coordinates
-import adept.ivy.IvyHelpers
 
 object CloneCommand extends Command {
   override val command = "clone"
