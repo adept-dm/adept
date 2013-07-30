@@ -1,3 +1,6 @@
+# exclude bintray credentials
+bintray.sbt
+
 *.class
 *.log
 
