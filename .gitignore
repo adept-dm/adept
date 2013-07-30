@@ -24,9 +24,6 @@ org.scala-ide.sdt.core.prefs
 bin/adept
 .adept
 
-# this project
-typesafe-ivy-settings.xml
-
 # git stuff
 *.orig
 
