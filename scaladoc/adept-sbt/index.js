@@ -1,0 +1,1 @@
+Index.PACKAGES = {"adept" : [], "adept.sbt" : [{"object" : "adept\/sbt\/AdeptKeys$.html", "name" : "adept.sbt.AdeptKeys"}, {"object" : "adept\/sbt\/AdeptPlugin$.html", "name" : "adept.sbt.AdeptPlugin"}]};
