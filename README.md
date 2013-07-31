@@ -1,20 +1,58 @@
-# adept #
+# Adept #
 
 <img src="https://raw.github.com/wiki/adept-dm/adept/images/logo_adept_small.png"
  alt="Adept logo" title="Adept" align="right" />
- 
-adept helps you find, declare, and download dependencies.
 
-adept retrieves dependency metadata all at once and identifies artifacts by hashing their content.
+Adept is a dependency management system for the JVM platform that helps you:
+- discover new modules or new versions of existing modules
+- publish/add/declare a new dependencies
+- download dependencies quickly
+
+Adept is different from Ivy and Maven in that it all downloads all metadata from a Git repository once and has strong meta-data support to **uniquely identify** modules and artifacts.
 This makes adept well-suited for discovering dependencies in addition to being predictable and fast.
 
-adept is currently in the proposal and discussion stage and needs your involvement.
-Please see the wiki for the current proposals.
+**To find out more, please check out the [Adept wiki] [wiki].**
 
-Discuss existing ideas and propose new ones on the development mailing list:
+## Adept 101
 
-  http://groups.google.com/group/adept-dev/
+<img src="https://raw.github.com/wiki/adept-dm/adept/images/adept_diagram.png"
+ alt="Adept diagram" title="Adept digaram" align="center" />
 
-Although hosted on the sbt organization, adept is intended to be build tool agnostic.
+* **Git** is used to stored versioned meta-data
+* **Repository** contains the meta-data in individual modules
+* **Module** contains information needed to create the classpath such as: dependencies to other modules and the locations of artifacts
+* **Build tools**, such as SBT, Gradle (not currently supported), Ant (not currently supported) uses Adept to create their classpath based on a set of modules
 
-Continue reading on the [wiki](https://github.com/adept-dm/adept/wiki)
+**For more information on the current Adept architecture, please see the [Design documentation] [design]**.
+
+
+## Contributing
+
+Adept is currently in the proposal and discussion stage and needs your involvement!
+
+If you want to learn or learn how to develop in Scala, SBT, Gradle or Ant, Adept should be a perfect place for you to start.
+
+Discuss existing ideas and propose new ones on the development (mailing list)[mailinglist]
+
+
+## Questions or need help?
+
+No question should be unasked: head to the (issues tracker)[issues] or start up a thread on the (mailing list)[mailinglist].
+
+## License
+
+Licensed under the **[Apache License, Version 2.0] [license]** (the "License");
+you may not use this software except in compliance with the License.
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+
+[wiki]: https://github.com/adept-dm/adept/wiki
+[mailinglist]: http://groups.google.com/group/adept-dev/
+[issues]: https://github.com/adept-dm/adept/wiki
+[design]: https://github.com/adept-dm/adept/wiki/Design
+[license]: http://www.apache.org/licenses/LICENSE-2.0
