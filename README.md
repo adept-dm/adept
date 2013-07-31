@@ -25,6 +25,13 @@ This makes adept well-suited for discovering dependencies in addition to being p
 
 **For more information on the current Adept architecture, please see the [Design documentation] [design]**.
 
+## Find out more
+
+| Technical Docs                  | Setup Guide               | Roadmap                 | Contributing                      |
+|---------------------------------|---------------------------|-------------------------|-----------------------------------|
+| ![i1] [techdocs-image]          | ![i2] [setup-image]       | ![i3] [roadmap-image]   | ![i4] [contributing-image]        |
+| **[Technical Docs] [techdocs]** | **[Setup Guide] [setup]** | **[Roadmap] [roadmap]** | **[Contributing] [contributing]** |
+
 
 ## Contributing
 
@@ -56,3 +63,14 @@ limitations under the License.
 [issues]: https://github.com/adept-dm/adept/issues
 [design]: https://github.com/adept-dm/adept/wiki/Design
 [license]: http://www.apache.org/licenses/LICENSE-2.0
+
+[techdocs]: https://github.com/adept-dm/adept/wiki/Docs
+[setup]: https://github.com/adept-dm/adept/wiki/Docs
+[roadmap]: https://github.com/adept-dm/adept/wiki/Roadmap
+[contributing]: https://github.com/adept-dm/adept/wiki/Contributing
+
+[techdocs-image]: https://github.com/adept-dm/adept/wiki/images/techdocs.png
+[setup-image]: https://github.com/adept-dm/adept/wiki/images/setup.png
+[roadmap-image]: https://github.com/adept-dm/adept/wiki/images/roadmap.png
+[contributing-image]: https://github.com/adept-dm/adept/wiki/images/contribute.png
+
