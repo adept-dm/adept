@@ -51,7 +51,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 
-[wiki]: https://github.com/adept-dm/adept/wiki
+[wiki]: https://github.com/adept-dm/adept/wiki/Home
 [mailinglist]: http://groups.google.com/group/adept-dev/
 [issues]: https://github.com/adept-dm/adept/issues
 [design]: https://github.com/adept-dm/adept/wiki/Design
