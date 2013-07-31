@@ -1,15 +1,15 @@
 # Adept #
-_- the predicable dependency management system where faith is not required_
+_- the predictable dependency management system where faith is not required_
 
 <img src="https://raw.github.com/wiki/adept-dm/adept/images/logo_adept_hood.png"
  alt="Adept logo" title="Adept" align="right" />
 
 Adept is a dependency management system for the JVM platform that helps you:
 - discover new modules or new versions of existing modules
-- publish/add/declare a new dependencies
+- publish/add/declare new dependencies
 - download dependencies quickly
 
-Adept is different from Ivy and Maven in that it all downloads all metadata from a Git repository once and has strong meta-data support to **uniquely identify** modules and artifacts.
+Adept differs from Ivy and Maven in that it downloads all dependency metadata for all modules in tandem from their respective Git repositories. Leveraging this meta-data, it can **uniquely identify** modules and artifacts.
 This makes adept well-suited for discovering dependencies in addition to being predictable and fast.
 
 **To find out more, please check out the [Adept wiki] [wiki].**
@@ -19,10 +19,10 @@ This makes adept well-suited for discovering dependencies in addition to being p
 <img src="https://raw.github.com/wiki/adept-dm/adept/images/adept_diagram.png"
  alt="Adept diagram" title="Adept diagram" align="center" />
 
-* **Git** is used to stored versioned meta-data
-* **Repository** contains the meta-data in individual modules
-* **Module** contains information needed to create the classpath such as: dependencies to other modules and the locations of artifacts
-* **Build tools**, such as SBT, Gradle (not currently supported), Ant (not currently supported) uses Adept to create their classpath based on a set of modules
+* **Git** stores the versioned meta-data
+* **Repositories** contain the meta-data in individual modules
+* **Modules** contain the information needed to create the classpath (such as dependencies to other modules, and the locations of artifacts)
+* **Build tools**, such as SBT, Gradle (not currently supported), and Ant (not currently supported), use Adept to create their classpath based on a set of modules
 
 **For more information on the current Adept architecture, please see the [Design documentation] [design]**.
 
@@ -37,14 +37,14 @@ This makes adept well-suited for discovering dependencies in addition to being p
 
 Adept is currently in the proposal and discussion stage and needs your involvement!
 
-If you want to learn or learn how to develop in Scala, SBT, Gradle or Ant, Adept should be a perfect place for you to start.
+If you want to learn how to develop in Scala, SBT, Gradle or Ant, then Adept should be a perfect place for you to start.
 
-Discuss existing ideas and propose new ones on the development [mailing list] [mailinglist]
+Discuss existing and propose new ideas on the development [mailing list] [mailinglist]
 
 
 ## Questions or need help?
 
-No question should be unasked: head to the [issues tracker] [issues] or start up a thread on the [mailing list] [mailinglist].
+No question should be unasked: head to the [issues tracker] [issues] or start a thread on the [mailing list] [mailinglist].
 
 ## License
 
