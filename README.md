@@ -16,7 +16,7 @@ This makes adept well-suited for discovering dependencies in addition to being p
 ## Overview
 
 <img src="https://raw.github.com/wiki/adept-dm/adept/images/adept_diagram.png"
- alt="Adept diagram" title="Adept digaram" align="center" />
+ alt="Adept diagram" title="Adept diagram" align="center" />
 
 * **Git** is used to stored versioned meta-data
 * **Repository** contains the meta-data in individual modules
