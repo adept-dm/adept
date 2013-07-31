@@ -53,6 +53,6 @@ limitations under the License.
 
 [wiki]: https://github.com/adept-dm/adept/wiki
 [mailinglist]: http://groups.google.com/group/adept-dev/
-[issues]: https://github.com/adept-dm/adept/wiki
+[issues]: https://github.com/adept-dm/adept/issues
 [design]: https://github.com/adept-dm/adept/wiki/Design
 [license]: http://www.apache.org/licenses/LICENSE-2.0
