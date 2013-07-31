@@ -1,5 +1,8 @@
 # adept #
 
+<img src="https://raw.github.com/wiki/adept-dm/adept/images/logo_adept_small.png"
+ alt="Adept logo" title="Adept" align="right" />
+ 
 adept helps you find, declare, and download dependencies.
 
 adept retrieves dependency metadata all at once and identifies artifacts by hashing their content.
