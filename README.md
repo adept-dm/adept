@@ -32,12 +32,12 @@ Adept is currently in the proposal and discussion stage and needs your involveme
 
 If you want to learn or learn how to develop in Scala, SBT, Gradle or Ant, Adept should be a perfect place for you to start.
 
-Discuss existing ideas and propose new ones on the development (mailing list)[mailinglist]
+Discuss existing ideas and propose new ones on the development [mailing list] [mailinglist]
 
 
 ## Questions or need help?
 
-No question should be unasked: head to the (issues tracker)[issues] or start up a thread on the (mailing list)[mailinglist].
+No question should be unasked: head to the [issues tracker] [issues] or start up a thread on the [mailing list] [mailinglist].
 
 ## License
 
