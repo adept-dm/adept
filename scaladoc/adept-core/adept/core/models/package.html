@@ -1,0 +1,424 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html>
+        <head>
+          <title>adept.core.models</title>
+          <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+          
+      <link type="text/css" media="screen" rel="stylesheet" href="../../../lib/template.css" />
+      <script type="text/javascript" src="../../../lib/jquery.js"></script>
+      <script type="text/javascript" src="../../../lib/jquery-ui.js"></script>
+      <script type="text/javascript" src="../../../lib/template.js"></script>
+      <script type="text/javascript" src="../../../lib/tools.tooltip.js"></script>
+    
+        </head>
+        <body onload="sh_highlightDocument('../lib/', '.min.js');" class="value">
+      <div id="definition">
+        <img src="../../../lib/package_big.png" />
+        <p id="owner"><a name="adept" class="extype" href="../../package.html">adept</a>.<a name="adept.core" class="extype" href="../package.html">core</a></p>
+        <h1>models</h1>
+      </div>
+
+      <h4 class="signature" id="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">package</span>
+      </span>
+      <span class="symbol">
+        <span class="name">models</span>
+      </span>
+      </h4>
+      
+      <div class="fullcommenttop" id="comment"></div>
+    
+
+      <div id="mbrsel">
+        <div id="textfilter"><span class="pre"></span><span class="input"><input accesskey="/" type="text" /></span><span class="post"></span></div>
+        
+        
+        <div id="visbl">
+            <span class="filtertype">Visibility</span>
+            <ol><li class="public in"><span>Public</span></li><li class="all out"><span>All</span></li></ol>
+          </div>
+      </div>
+
+      <div id="template">
+        <div id="allMembers">
+        
+
+        <div class="types members" id="types">
+              <h3>Type Members</h3>
+              <ol><li visbl="pub" name="adept.core.models.Artifact" data-isabs="false">
+      <a id="Artifact:Artifact"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">case class</span>
+      </span>
+      <span class="symbol">
+        <a href="Artifact.html"><span class="name">Artifact</span></a><span class="params">(<span name="hash">hash: Hash</span>, <span name="artifactType">artifactType: String</span>, <span name="configurations">configurations: Set[String]</span>, <span name="locations">locations: Set[String]</span>)</span><span class="result"> extends Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="adept.core.models.Configuration" data-isabs="false">
+      <a id="Configuration:Configuration"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">case class</span>
+      </span>
+      <span class="symbol">
+        <a href="Configuration.html"><span class="name">Configuration</span></a><span class="params">(<span name="name">name: String</span>, <span name="description">description: Option[String]</span>, <span name="extendsFrom">extendsFrom: Set[String]</span>, <span name="visibility">visibility: Value</span>, <span name="deprecated">deprecated: Option[String]</span>)</span><span class="result"> extends Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="adept.core.models.Coordinates" data-isabs="false">
+      <a id="Coordinates:Coordinates"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">case class</span>
+      </span>
+      <span class="symbol">
+        <a href="Coordinates.html"><span class="name">Coordinates</span></a><span class="params">(<span name="org">org: String</span>, <span name="name">name: String</span>, <span name="version">version: String</span>)</span><span class="result"> extends Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="adept.core.models.Dependency" data-isabs="false">
+      <a id="Dependency:Dependency"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">case class</span>
+      </span>
+      <span class="symbol">
+        <a href="Dependency.html"><span class="name">Dependency</span></a><span class="params">(<span name="coordinates">coordinates: Coordinates</span>, <span name="uniqueId">uniqueId: Option[UniqueId]</span>, <span name="configuration">configuration: String</span>, <span name="force">force: Boolean</span>, <span name="isTransitive">isTransitive: Boolean</span>, <span name="exclusionRules">exclusionRules: Set[DependencyExclusionRule]</span>)</span><span class="result"> extends DependencyDescriptor with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="adept.core.models.DependencyDescriptor" data-isabs="false">
+      <a id="DependencyDescriptor:DependencyDescriptor"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">class</span>
+      </span>
+      <span class="symbol">
+        <a href="DependencyDescriptor.html"><span class="name">DependencyDescriptor</span></a><span class="result"> extends AnyRef</span>
+      </span>
+      </h4>
+      <p class="comment cmt">The super class for classes that describes which dependency to choose</p>
+    </li><li visbl="pub" name="adept.core.models.DependencyExclusionRule" data-isabs="false">
+      <a id="DependencyExclusionRule:DependencyExclusionRule"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">case class</span>
+      </span>
+      <span class="symbol">
+        <a href="DependencyExclusionRule.html"><span class="name">DependencyExclusionRule</span></a><span class="params">(<span name="org">org: String</span>, <span name="name">name: String</span>)</span><span class="result"> extends Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="adept.core.models.Evicted" data-isabs="false">
+      <a id="Evicted:Evicted"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">class</span>
+      </span>
+      <span class="symbol">
+        <a href="Evicted.html"><span class="name">Evicted</span></a><span class="result"> extends AnyRef</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="adept.core.models.EvictedArtifact" data-isabs="false">
+      <a id="EvictedArtifact:EvictedArtifact"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">case class</span>
+      </span>
+      <span class="symbol">
+        <a href="EvictedArtifact.html"><span class="name">EvictedArtifact</span></a><span class="params">(<span name="artifact">artifact: Artifact</span>, <span name="reason">reason: String</span>)</span><span class="result"> extends Evicted with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="adept.core.models.EvictedModule" data-isabs="false">
+      <a id="EvictedModule:EvictedModule"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">case class</span>
+      </span>
+      <span class="symbol">
+        <a href="EvictedModule.html"><span class="name">EvictedModule</span></a><span class="params">(<span name="module">module: Module</span>, <span name="reason">reason: String</span>)</span><span class="result"> extends Evicted with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="adept.core.models.Hash" data-isabs="false">
+      <a id="Hash:Hash"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">case class</span>
+      </span>
+      <span class="symbol">
+        <a href="Hash.html"><span class="name">Hash</span></a><span class="params">(<span name="value">value: String</span>)</span><span class="result"> extends Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="adept.core.models.MissingDependency" data-isabs="false">
+      <a id="MissingDependency:MissingDependency"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">case class</span>
+      </span>
+      <span class="symbol">
+        <a href="MissingDependency.html"><span class="name">MissingDependency</span></a><span class="params">(<span name="descriptor">descriptor: DependencyDescriptor</span>, <span name="parent">parent: Coordinates</span>, <span name="evicted">evicted: Boolean</span>, <span name="reason">reason: String</span>)</span><span class="result"> extends Evicted with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="adept.core.models.Module" data-isabs="false">
+      <a id="Module:Module"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">case class</span>
+      </span>
+      <span class="symbol">
+        <a href="Module.html"><span class="name">Module</span></a><span class="params">(<span name="coordinates">coordinates: Coordinates</span>, <span name="uniqueId">uniqueId: UniqueId</span>, <span name="universes">universes: Set[Universe]</span>, <span name="artifacts">artifacts: Set[Artifact]</span>, <span name="configurations">configurations: Set[Configuration]</span>, <span name="attributes">attributes: Map[String, Seq[String]]</span>, <span name="dependencies">dependencies: Set[Dependency]</span>, <span name="overrides">overrides: Set[Override]</span>)</span><span class="result"> extends Product with Serializable</span>
+      </span>
+      </h4>
+      <p class="comment cmt">Adept modules are the building blocks of which an Adept repository is built on.</p>
+    </li><li visbl="pub" name="adept.core.models.Node" data-isabs="false">
+      <a id="Node:Node"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">case class</span>
+      </span>
+      <span class="symbol">
+        <a href="Node.html"><span class="name">Node</span></a><span class="params">(<span name="module">module: Module</span>, <span name="configurations">configurations: Set[Configuration]</span>, <span name="artifacts">artifacts: Set[Artifact]</span>, <span name="evictedArtifacts">evictedArtifacts: Set[EvictedArtifact]</span>, <span name="children">children: Set[Node]</span>, <span name="evictedModules">evictedModules: Set[EvictedModule]</span>, <span name="overriddenDependencies">overriddenDependencies: Set[OverriddenDependency]</span>, <span name="missingDependencies">missingDependencies: Set[MissingDependency]</span>, <span name="postBuildInsertReason">postBuildInsertReason: Option[String]</span>)</span><span class="result"> extends NodeLike[Node] with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="adept.core.models.OverriddenDependency" data-isabs="false">
+      <a id="OverriddenDependency:OverriddenDependency"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">case class</span>
+      </span>
+      <span class="symbol">
+        <a href="OverriddenDependency.html"><span class="name">OverriddenDependency</span></a><span class="params">(<span name="descriptor">descriptor: DependencyDescriptor</span>, <span name="module">module: Module</span>, <span name="overridenFrom">overridenFrom: Coordinates</span>, <span name="reason">reason: String</span>)</span><span class="result"> extends Evicted with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="adept.core.models.Override" data-isabs="false">
+      <a id="Override:Override"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">case class</span>
+      </span>
+      <span class="symbol">
+        <a href="Override.html"><span class="name">Override</span></a><span class="params">(<span name="organization">organization: String</span>, <span name="name">name: String</span>, <span name="overriddenVersion">overriddenVersion: String</span>, <span name="uniqueId">uniqueId: Option[UniqueId]</span>)</span><span class="result"> extends DependencyDescriptor with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="adept.core.models.Tree" data-isabs="false">
+      <a id="Tree:Tree"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">case class</span>
+      </span>
+      <span class="symbol">
+        <a href="Tree.html"><span class="name">Tree</span></a><span class="params">(<span name="confExpr">confExpr: String</span>, <span name="root">root: Node</span>)</span><span class="result"> extends TreeLike[Node] with Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="adept.core.models.UniqueId" data-isabs="false">
+      <a id="UniqueId:UniqueId"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">case class</span>
+      </span>
+      <span class="symbol">
+        <a href="UniqueId.html"><span class="name">UniqueId</span></a><span class="params">(<span name="value">value: String</span>)</span><span class="result"> extends Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="adept.core.models.Universe" data-isabs="false">
+      <a id="Universe:Universe"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">case class</span>
+      </span>
+      <span class="symbol">
+        <a href="Universe.html"><span class="name">Universe</span></a><span class="params">(<span name="name">name: String</span>, <span name="version">version: String</span>)</span><span class="result"> extends Product with Serializable</span>
+      </span>
+      </h4>
+      
+    </li></ol>
+            </div>
+
+        
+
+        <div class="values members" id="values">
+              <h3>Value Members</h3>
+              <ol><li visbl="pub" name="adept.core.models.Artifact" data-isabs="false">
+      <a id="Artifact:Artifact"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">object</span>
+      </span>
+      <span class="symbol">
+        <a href="Artifact$.html"><span class="name">Artifact</span></a><span class="result"> extends Logging with Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="adept.core.models.Configuration" data-isabs="false">
+      <a id="Configuration:Configuration"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">object</span>
+      </span>
+      <span class="symbol">
+        <a href="Configuration$.html"><span class="name">Configuration</span></a><span class="result"> extends Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="adept.core.models.Coordinates" data-isabs="false">
+      <a id="Coordinates:Coordinates"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">object</span>
+      </span>
+      <span class="symbol">
+        <a href="Coordinates$.html"><span class="name">Coordinates</span></a><span class="result"> extends Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="adept.core.models.Dependency" data-isabs="false">
+      <a id="Dependency:Dependency"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">object</span>
+      </span>
+      <span class="symbol">
+        <a href="Dependency$.html"><span class="name">Dependency</span></a><span class="result"> extends Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="adept.core.models.DependencyExclusionRule" data-isabs="false">
+      <a id="DependencyExclusionRule:DependencyExclusionRule"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">object</span>
+      </span>
+      <span class="symbol">
+        <a href="DependencyExclusionRule$.html"><span class="name">DependencyExclusionRule</span></a><span class="result"> extends Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="adept.core.models.Hash" data-isabs="false">
+      <a id="Hash:Hash"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">object</span>
+      </span>
+      <span class="symbol">
+        <a href="Hash$.html"><span class="name">Hash</span></a><span class="result"> extends Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="adept.core.models.Module" data-isabs="false">
+      <a id="Module:Module"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">object</span>
+      </span>
+      <span class="symbol">
+        <a href="Module$.html"><span class="name">Module</span></a><span class="result"> extends Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="adept.core.models.Override" data-isabs="false">
+      <a id="Override:Override"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">object</span>
+      </span>
+      <span class="symbol">
+        <a href="Override$.html"><span class="name">Override</span></a><span class="result"> extends Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="adept.core.models.UniqueId" data-isabs="false">
+      <a id="UniqueId:UniqueId"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">object</span>
+      </span>
+      <span class="symbol">
+        <a href="UniqueId$.html"><span class="name">UniqueId</span></a><span class="result"> extends Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="adept.core.models.Universe" data-isabs="false">
+      <a id="Universe:Universe"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">object</span>
+      </span>
+      <span class="symbol">
+        <a href="Universe$.html"><span class="name">Universe</span></a><span class="result"> extends Serializable</span>
+      </span>
+      </h4>
+      
+    </li><li visbl="pub" name="adept.core.models.Visibility" data-isabs="false">
+      <a id="Visibility:Visibility"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">object</span>
+      </span>
+      <span class="symbol">
+        <a href="Visibility$.html"><span class="name">Visibility</span></a><span class="result"> extends Enumeration</span>
+      </span>
+      </h4>
+      
+    </li></ol>
+            </div>
+
+        
+        </div>
+
+        <div id="inheritedMembers">
+        
+        </div>
+
+      </div>
+
+      <div id="tooltip"></div>
+
+      <div id="footer">  </div>
+
+
+    </body>
+      </html>
