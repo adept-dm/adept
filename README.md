@@ -13,7 +13,7 @@ This makes adept well-suited for discovering dependencies in addition to being p
 
 **To find out more, please check out the [Adept wiki] [wiki].**
 
-## Adept 101
+## Overview
 
 <img src="https://raw.github.com/wiki/adept-dm/adept/images/adept_diagram.png"
  alt="Adept diagram" title="Adept digaram" align="center" />
