@@ -1,6 +1,6 @@
 # Adept #
 
-<img src="https://raw.github.com/wiki/adept-dm/adept/images/logo_adept_small.png"
+<img src="https://raw.github.com/wiki/adept-dm/adept/images/logo_adept_hood.png"
  alt="Adept logo" title="Adept" align="right" />
 
 Adept is a dependency management system for the JVM platform that helps you:
