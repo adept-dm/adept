@@ -1,4 +1,5 @@
 # Adept #
+_- the predicable dependency management system where faith is not required_
 
 <img src="https://raw.github.com/wiki/adept-dm/adept/images/logo_adept_hood.png"
  alt="Adept logo" title="Adept" align="right" />
