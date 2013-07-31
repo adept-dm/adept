@@ -29,7 +29,7 @@ This makes adept well-suited for discovering dependencies in addition to being p
 
 | Technical Docs                  | Setup Guide               | Roadmap                 | Contributing                      |
 |---------------------------------|---------------------------|-------------------------|-----------------------------------|
-| ![i1] [techdocs-image]          | ![i2] [setup-image]       | ![i3] [roadmap-image]   | ![i4] [contributing-image]        |
+| <img src="https://github.com/adept-dm/adept/wiki/images/techdocs.png" alt="Adept logo" title="Adept" align="center" />          | <img src="https://github.com/adept-dm/adept/wiki/images/setup.png" alt="Adept logo" title="Adept" align="center" />         | <img src="https://github.com/adept-dm/adept/wiki/images/roadmap.png" alt="Adept logo" title="Adept" align="center" />     | <img src="https://github.com/adept-dm/adept/wiki/images/contribute.png" alt="Adept logo" title="Adept" align="center" />          |
 | **[Technical Docs] [techdocs]** | **[Setup Guide] [setup]** | **[Roadmap] [roadmap]** | **[Contributing] [contributing]** |
 
 
