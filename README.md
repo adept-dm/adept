@@ -35,11 +35,13 @@ This makes adept well-suited for discovering dependencies in addition to being p
 
 ## Contributing
 
-Adept is currently in the proposal and discussion stage and needs your involvement!
+Adept is currently in the proposal and discussion stage! 
 
-If you want to learn how to develop in Scala, SBT, Gradle or Ant, then Adept should be a perfect place for you to start.
+Do you want to take part in shaping the ultimate dependency managmenet system on the JVM for years to come? 
 
-Discuss existing and propose new ideas on the development [mailing list] [mailinglist]
+
+**Now is the time! Head over to the [[Contributing]] section**
+
 
 
 ## Questions or need help?
