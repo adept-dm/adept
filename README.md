@@ -67,7 +67,7 @@ limitations under the License.
 [license]: http://www.apache.org/licenses/LICENSE-2.0
 
 [techdocs]: https://github.com/adept-dm/adept/wiki/Docs
-[setup]: https://github.com/adept-dm/adept/wiki/Docs
+[setup]: https://github.com/adept-dm/adept/wiki/Setup
 [roadmap]: https://github.com/adept-dm/adept/wiki/Roadmap
 [contributing]: https://github.com/adept-dm/adept/wiki/Contributing
 
