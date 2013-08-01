@@ -40,7 +40,7 @@ Adept is currently in the proposal and discussion stage!
 Do you want to take part in shaping the ultimate dependency managmenet system on the JVM for years to come? 
 
 
-**Now is the time! Head over to the [[Contributing]] section**
+**Now is the time! Head over to the [Contributing] section**
 
 
 
