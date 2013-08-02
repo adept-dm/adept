@@ -146,8 +146,9 @@ object Bintray extends HttpHelpers {
     stringify(accept(201, url, res))
   }
 
-  def uploadFile(info: BintrayInfo, version: BintrayVersion, file: File, path: String) = {
-    val url = Bintray + "/content/" + info.subject + "/" + info.repo + "/" + path + ";bt_package=" + version.packageName + ";bt_version=" + version.version + ";publish=0;explode=0]"
+  def uploadFile(info: BintrayInfo, version: BintrayVersion, file: File, path: String, explode: Boolean = false) = {
+    val explodeId = if (explode) "1" else "0"
+    val url = Bintray + "/content/" + info.subject + "/" + info.repo + "/" + path + ";bt_package=" + version.packageName + ";bt_version=" + version.version + ";publish=0;explode=" + explodeId + "]"
     val res = httpRequest(url, "PUT",
       withBasicAuth(info.subject, info.apiKey) ++ withContentType(jsonContentType, CharSet),
       fileWriter(file))

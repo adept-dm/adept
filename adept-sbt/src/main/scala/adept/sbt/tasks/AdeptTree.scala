@@ -10,22 +10,27 @@ import adept.core.Adept
 private[adept] trait AdeptTree {
   import adept.sbt.AdeptKeys._
 
-  def adeptTreeTask(sbtConfig: sbt.Configuration) = (name, adeptModule, adeptUpdate, streams) map { (name, maybeModule, all, s) =>
+  def adeptTreeTask(sbtConfig: sbt.Configuration) = (name, adeptModule, adeptUpdate, streams) map { (name, module, all, s) =>
     withAdeptClassloader {
-      maybeModule.flatMap { module =>
-        val configurationMapping: String => String = Configuration.defaultConfigurationMapping(_, "*->default(compile)") //TODO
-        val confExpr = sbtConfig.name
 
-        val checkpoint = System.currentTimeMillis()
-        val tree = Adept.build(all.toSet, confExpr, module, configurationMapping)
-        
-        val resolveTimeSpent = System.currentTimeMillis - checkpoint
-        tree foreach { _ =>
+      val configurationMapping: String => String = Configuration.defaultConfigurationMapping(_, "*->default(compile)") //TODO
+      val confExpr = sbtConfig.name
+
+      val checkpoint = System.currentTimeMillis()
+      Adept.build(all.toSet, confExpr, module, configurationMapping) match {
+        case Some(tree) =>
+          val resolveTimeSpent = System.currentTimeMillis - checkpoint
+          val requiredMissing = tree.requiredMissing
+          if (requiredMissing.nonEmpty) {
+            Left(requiredMissing.filter(!_.evicted) -> tree)
+          } else {
             s.log.success("Resolved dependency tree in (" + name + "): " + resolveTimeSpent + " ms")
-        }
-        tree
+            Right(tree)
+          }
+        case None =>
+          throw new Incomplete(None, message = Some("No tree was resolved for: " + name))
       }
-    }
+    }: Either[(Set[MissingDependency], Tree), Tree]
   }
 
 }
