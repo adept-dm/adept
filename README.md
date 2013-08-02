@@ -4,13 +4,23 @@ _- the predictable dependency management system where faith is not required_
 <img src="https://raw.github.com/wiki/adept-dm/adept/images/logo_adept_hood.png"
  alt="Adept logo" title="Adept" align="right" />
 
-Adept is a dependency management system for the JVM platform that helps you:
-- discover new modules or new versions of existing modules
-- publish/add/declare new dependencies
-- download dependencies quickly
+Adept is a dependency management system for the JVM platform.
 
-Adept differs from Ivy and Maven in that it downloads all dependency metadata for all modules in tandem from their respective Git repositories. Leveraging this meta-data, it can **uniquely identify** modules and artifacts.
-This makes adept well-suited for discovering dependencies in addition to being predictable and fast.
+Adept was created because we were:
+* Sick of a 'download the Internet' step in your builds that takes forever
+* Sick of non-reproducible builds
+* Sick of mysteriously corrupt caches
+* Sick of complex publish procedures
+
+Adept gives you speed and deterministic behavior:
+* Separates metadata and artifacts
+* Downloads everything in parallel because it can do all resolution up-front
+* Uses git and hashes to cache **RELIABLY** and avoid extra http requests
+* Publish by just pushing to a git repository
+
+What's more, Adept has an Ivy importer so you can use it today without waiting for the world to change.
+
+Adept is currently in active development, but you can already try [it](/adept-dm/adept/wiki/Setup) and see for yourself!
 
 **To find out more, please check out the [Adept wiki] [wiki].**
 
