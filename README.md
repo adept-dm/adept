@@ -20,7 +20,7 @@ Adept gives you speed and deterministic behavior:
 
 What's more, Adept has an Ivy importer so you can use it today without waiting for the world to change.
 
-Adept is currently in active development, but you can already try [it](/adept-dm/adept/wiki/Setup) and see for yourself!
+Adept is currently in active development, but you can already try [it](https://github.com/adept-dm/adept/wiki/Setup) and see for yourself!
 
 **To find out more, please check out the [Adept wiki] [wiki].**
 
