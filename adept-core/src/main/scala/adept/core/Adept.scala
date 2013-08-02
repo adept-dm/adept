@@ -15,9 +15,13 @@ object Adept extends Logging {
   val AritifactPath = "artifacts"
   val RepositoriesPath = "repos"
 
+  def locked[T](f: => T): T = synchronized {
+    f
+  }
+    
   def dir(baseDir: File, name: String) = new File(new File(baseDir, RepositoriesPath), name)
 
-  def open(baseDir: File, name: String): Either[String, Adept] = {
+  def open(baseDir: File, name: String): Either[String, Adept] =  locked {
     if (exists(baseDir, name)) {
       Right(new Adept(dir(baseDir, name), name))
     } else {
@@ -25,17 +29,17 @@ object Adept extends Logging {
     }
   }
 
-  def exists(baseDir: File): Boolean = {
+  def exists(baseDir: File): Boolean = locked {
     baseDir.exists && baseDir.isDirectory
   }
 
-  def exists(baseDir: File, name: String): Boolean = {
+  def exists(baseDir: File, name: String): Boolean = locked {
     exists(baseDir) && {
       repositories(baseDir).find(_.name == name).isDefined
     }
   }
 
-  def repositories(baseDir: File): List[Adept] = {
+  def repositories(baseDir: File): List[Adept] = locked {
     val repoDir = new File(baseDir, RepositoriesPath)
     if (repoDir.exists && baseDir.isDirectory) {
       repoDir.listFiles().toList
@@ -46,7 +50,7 @@ object Adept extends Logging {
     }
   }
 
-  def clone(baseDir: File, name: String, uri: String): Either[String, Adept] = {
+  def clone(baseDir: File, name: String, uri: String): Either[String, Adept] = locked {
     val adeptDir = dir(baseDir, name)
     if (adeptDir.mkdirs()) {
       Git.cloneRepository()
@@ -60,7 +64,7 @@ object Adept extends Logging {
     }
   }
 
-  def init(baseDir: File, name: String): Either[String, Adept] = {
+  def init(baseDir: File, name: String): Either[String, Adept] = locked {
     val adeptDir = dir(baseDir, name)
     if (adeptDir.mkdirs()) {
       val initCommand = Git.init()
@@ -103,7 +107,7 @@ object Adept extends Logging {
   private[adept]type FindModule = (Coordinates, Option[UniqueId], Set[Universe]) => Either[Set[Module], Option[Module]]
 
   def build(repositories: Set[Adept], confExpr: String, module: Module,
-    configurationMapping: String => String = Configuration.defaultConfigurationMapping(_)): Option[Tree] = {
+    configurationMapping: String => String = Configuration.defaultConfigurationMapping(_)): Option[Tree] = locked {
     val findModule = MergeOperations.mergeFindModules(repositories)
     TreeOperations.build(confExpr, module, configurationMapping, findModule).map { mutableTree =>
       ConflictResolver.resolveConflicts(mutableTree, configurationMapping, findModule)

@@ -9,11 +9,11 @@ import adept.core.Adept
 
 private[adept] trait AdeptClasspath {
   import akka.util.duration._
-  
-  def adeptClasspathTask(sbtConfig: sbt.Configuration) = (adeptTree in sbtConfig, adeptDirectory, adeptTimeout, streams) map { (maybeTree, adeptDirectory, timeoutMinutes, s) =>
+
+  def adeptClasspathTask(sbtConfig: sbt.Configuration) = (adeptTree in sbtConfig, adeptDirectory, adeptTimeout, streams) map { (eitherTree, adeptDirectory, timeoutMinutes, s) =>
     withAdeptClassloader {
-      val cachedFiles = maybeTree match {
-        case Some(tree) =>
+      val cachedFiles = eitherTree match {
+        case Right(tree) =>
           val cachedArtifacts = tree.artifacts.toSeq.map { a =>
             (a.hash, a.locations) -> (None: Option[java.io.File])
           }
@@ -21,12 +21,10 @@ private[adept] trait AdeptClasspath {
           Adept.artifact(adeptDirectory, cachedArtifacts, timeout) match {
             case Right(files) => files
             case Left(error) =>
-              s.log.error(error)
-              Seq.empty
+              throw Incomplete(None, message = Some(error))
           }
-        case None =>
-          s.log.error("could not find any adept dependencies in tree")
-          Seq.empty
+        case Left((missingDependencies, _)) =>
+          throw Incomplete(None, message = Some("missing dependencies: " + missingDependencies.map(_.descriptor.asCoordinates).mkString("\n")))
       }
       cachedFiles.classpath
     }

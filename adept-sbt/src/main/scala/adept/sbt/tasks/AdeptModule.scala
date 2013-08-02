@@ -36,26 +36,24 @@ private[adept] trait AdeptModule extends Conversions {
         dependencies
       }.toSet
 
-      val moduleDependencies = buildDependencies.classpath(ref) flatMap { thatProjectDep =>
+      val buildDepRefs = buildDependencies.classpath(ref)
+      
+      if (buildDepRefs.nonEmpty) {
+        s.log.warn("adding all dependencies from dependent projects on " + name + " (see TODO in code )") 
+      }
+      
+      //TODO: the module dependencies should NOT be part of the module!  move it to adept classpath?
+      val moduleDependencies = buildDepRefs flatMap { thatProjectDep =>
         evaluateTask(adeptModule, thatProjectDep.project, state) match {
-          case Right(module) => module match {
-            case None =>
-              s.log.error("cannot find a module defining the following project: " + thatProjectDep)
-              Seq.empty
-            case Some(module) => 
-              (module.dependencies + Dependency(module.coordinates, Some(module.uniqueId), defaultDependencyConf)).toSeq
-          }
+          case Right(module) =>
+            (module.dependencies + Dependency(module.coordinates, Some(module.uniqueId), "provided->compile(*),master(*)")).toSeq //TODO: make a setting of provided setting
           case Left(error) =>
-            s.log.error(error)
-            Seq.empty
+            throw new Incomplete(None, message = Some(error))
         }
       }
 
-
       if (notFound.nonEmpty) {
-        val msg = "could not find the following dependencies for " + name + ":\n" + notFound.mkString("\n")
-        s.log.error(msg)
-        None
+        throw new Incomplete(None, message = Some("could not find the following dependencies for " + name + ":\n" + notFound.mkString("\n")))
       } else {
         val artifacts = Set.empty[Artifact]
 
@@ -72,7 +70,7 @@ private[adept] trait AdeptModule extends Conversions {
           artifacts = artifacts,
           overrides = Set.empty,
           attributes = Map.empty) //TODO: should we have some attributes in this module?
-        Some(module)
+        module
       }
     }
   }

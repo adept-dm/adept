@@ -14,7 +14,7 @@ private[core] object TreeOperations extends Logging {
     }
     evict(tree.root)
   }
-  
+
   private def findNonTransitive(parent: Module, configurations: Set[Configuration], configurationMapping: String => String, findModule: Adept.FindModule) = {
     val (evictedModuleOpts, missingDepOpts) = parent.dependencies.par.map { dependency =>
       findModule(dependency.coordinates, dependency.uniqueId, Set.empty) match {
@@ -38,7 +38,9 @@ private[core] object TreeOperations extends Logging {
 
   //TODO: @tailrec?
   //TODO: there is code smell in the number of params. consider refactoring
-  def build(parent: Module, isTransitive: Boolean, parentExclusionRules: Set[DependencyExclusionRule], matchedConfigurations: collection.mutable.Set[Configuration], configurationMapping: String => String, findModule: Adept.FindModule): MutableNode = {
+  def build(parent: Module, isTransitive: Boolean, parentExclusionRules: Set[DependencyExclusionRule],
+    matchedConfigurations: collection.mutable.Set[Configuration], configurationMapping: String => String,
+    findModule: Adept.FindModule): MutableNode = {
     val extendedConfigurations = (matchedConfigurations ++ matchedConfigurations.flatMap(c => ConfigurationResolver.extendedConfs(parent.configurations, c))).toSet
     val dependencies = if (isTransitive) parent.dependencies else collection.immutable.Set.empty[Dependency]
     val (moduleMatches, evictedModules, missingDependencies) = if (isTransitive) {
