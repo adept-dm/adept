@@ -9,7 +9,7 @@ object AdeptBuild extends Build {
     organization := "org.adept",
     version := {
       val format = new java.text.SimpleDateFormat("YYYYMMddHHmmss")
-      "0.8.0-PRE-ALPHA-"+(format.format(new java.util.Date))
+      "0.8.0-ALPHA-"+(format.format(new java.util.Date))
     }
   ) ++ releaseSettings
 

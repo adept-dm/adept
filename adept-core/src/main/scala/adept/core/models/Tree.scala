@@ -1,5 +1,7 @@
 package adept.core.models
 
+import scala.collection.parallel.immutable.ParSet
+
 private[core] sealed class TreeLike[N <: NodeLike[N]](confExpr: String, root: NodeLike[N]) {
   override def toString = {
     val indentSize = 2
@@ -80,9 +82,9 @@ private[core] case class MutableTree(confExpr: String, root: MutableNode) extend
         (dep, node)
       }
 
-      val evictedCoords = node.evictedModules.map(n => n.module.coordinates.org -> n.module.coordinates.name)
+      val evictedCoords = node.evictedModules.map(n => n.module.coordinates.org -> n.module.coordinates.name) ++ node.missingDependencies.filter(_.evicted).map(d => d.descriptor.asCoordinates.org -> d.descriptor.asCoordinates.name)
       val nonEvictedOverrides = for { //remove overrides that have been declared in this same module
-        o <- node.module.overrides if !evictedCoords.contains(o.organization -> o.name)
+        o <- node.module.overrides if !evictedCoords.contains(o.asCoordinates.org -> o.asCoordinates.name)
       } yield {
         (o, node)
       }
@@ -99,9 +101,16 @@ case class Tree(confExpr: String, root: Node) extends TreeLike(confExpr, root) {
 
   //TODO: figure out how to get the signatures right on nodes, overrides, ... if this is in TreeLike
   def artifacts: Set[Artifact] = {
-    def artifacts(node: Node): Set[Artifact] = { //TODO: @tailrec?
-      node.artifacts.toSet ++ node.children.flatMap(artifacts(_))
+    def artifacts(node: Node): ParSet[Artifact] = { //TODO: @tailrec?
+        node.children.par.flatMap(artifacts(_)) ++ node.artifacts
     }
-    artifacts(root)
+    artifacts(root).seq
+  }
+  
+  def requiredMissing: Set[MissingDependency] = {
+    def missing(node: Node): ParSet[MissingDependency] = { //TODO: @tailrec?
+      node.children.par.flatMap(missing).toSet ++ node.missingDependencies.filter(!_.evicted)
+    }
+    missing(root).seq
   }
 }

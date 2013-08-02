@@ -11,6 +11,24 @@ import java.io.StringWriter
 import java.io.PrintWriter
 import adept.utils.Logging
 
+/**
+ * Adept modules are the building blocks of which an Adept repository is built on.
+ * 
+ * A Module is represented by its coordinates (org, name, version) and an unique-id.
+ * 
+ * Modules representing the same coordinates might live in different universes. 
+ * @see [[adept.core.models.Universe]]
+ *
+ * Artifacts are the placeholders for the actual files. @see [[adept.core.models.Artifact]]
+ * 
+ * Attributes are generic placeholder for meta information. 
+ * 
+ * The dependencies (@see [[adept.core.models.Dependency]]) 
+ * defines which other modules this module requires.
+ * 
+ * Overrides makes it possible to override a version of a dependency on another module.
+ * This is different from a module in that it can 
+ */
 case class Module(
   coordinates: Coordinates,
   uniqueId: UniqueId,

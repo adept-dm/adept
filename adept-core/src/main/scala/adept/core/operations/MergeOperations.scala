@@ -38,7 +38,7 @@ private[core] object MergeOperations extends Logging {
 
   /**
    * Merging modules consist primarily of merging the locations of artifacts that are similar, i.e. same hash and types
-   * Because we merge artifacts, we also merge configurations.
+   * Because we merge artifacts, we also "merge" configurations, meaning we copy them.
    * @see mergeArtifacts
    *
    * TODO: make this doc a bit slimmer and easier to understand

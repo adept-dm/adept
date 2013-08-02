@@ -11,9 +11,12 @@ private[adept] trait AdeptRepository {
 
   val adeptLocalRepositoryTask = (adeptLocalRepositoryName, streams) map { (name, s) =>
     val dir = Path.userHome / ".adept" //TODO: make a setting out of this
-    val res = if (Adept.exists(dir, name))
-      Adept.open(dir, name)
-    else Adept.init(dir, name)
+
+    val res = synchronized {
+      if (Adept.exists(dir, name))
+        Adept.open(dir, name)
+      else Adept.init(dir, name)
+    }
     res match {
       case Left(msg) =>
         s.log.error(msg)

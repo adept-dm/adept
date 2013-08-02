@@ -10,7 +10,6 @@ import adept.core.Adept
 private[adept] trait AdeptUpdate {
 
   def adeptUpdateTask = (adeptDirectory, adeptRepositories, adeptLocalRepository, streams) map { (adeptDirectory, adeptRepositories, localRepo, s) =>
-    //defaultConfigurationMapping in GlobalScope, 
     withAdeptClassloader {
       def repos = Adept.repositories(adeptDirectory)
 

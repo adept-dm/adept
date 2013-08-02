@@ -22,6 +22,7 @@ import adept.utils.Logging
 import akka.util.duration._
 import akka.dispatch.Await
 import akka.util.FiniteDuration
+import java.net.URLConnection
 
 private[adept] case class DownloadFile(url: URL, file: File)
 
@@ -32,7 +33,10 @@ private[adept] class DownloadActor(progressActor: Option[ActorRef]) extends Acto
       var rd: DataInputStream= null
       val bufferSize = 2048 //semi-randomly chosen
       try {
-        val conn = url.openConnection();
+        val conn = url.openConnection()
+        //TODO: this is not right, but some parts of maven repo actually requires another user-agent so I picked this random one...
+        conn.setRequestProperty("User-Agent",  "Mozilla/5.0 (Windows NT 5.1) AppleWebKit/535.11 (KHTML, like Gecko) Chrome/17.0.963.56 Safari/535.11")
+        
         val length = conn.getContentLength()
         rd = new DataInputStream(conn.getInputStream())
         progressActor.foreach(_ ! Initialized(length))
@@ -53,7 +57,8 @@ private[adept] class DownloadActor(progressActor: Option[ActorRef]) extends Acto
       } catch {
         case e: IOException => {
           progressActor.foreach(_ ! Failed)
-          logger.error("could not download from: " + url.toString)
+          logger.error("could not download from: '" + url.toString  + "'. " + e.getCause())
+          e.printStackTrace()
           sender ! Left(e)
         }
       } finally {
