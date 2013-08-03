@@ -73,13 +73,16 @@ private[adept] class DownloadActor(progressActor: Option[ActorRef]) extends Acto
 
 private[adept] object Downloader extends Logging {
   
-  def download(downloadbles: Seq[(Hash, Set[String], File)], timeout: FiniteDuration): Seq[Either[String, File]] = {
+  def download(downloadbles: Seq[(Hash, Set[String], File)], timeout: FiniteDuration, maybeProgress: Option[ActorRef] = None): Seq[Either[String, File]] = {
     if (downloadbles.nonEmpty) {
       logger.trace("downloading "+downloadbles.size+" modules...")
       
       val system = ActorSystem("adept-download")
       implicit val executionContext = akka.dispatch.ExecutionContext.defaultExecutionContext(system)
-      val progressIndicator = system.actorOf(Props[ProgressIndicator])
+      val progressIndicator = maybeProgress match {
+        case Some(progress) => progress
+        case None => system.actorOf(Props[ProgressIndicator])
+      }
       try {
         val perhapsFiles = (downloadbles.map{ case (hash, locations, file) =>
           val tmpFiles = locations.map{ location =>
@@ -89,7 +92,7 @@ private[adept] object Downloader extends Logging {
           val possibleJars = tmpFiles.map{ case (url, file) => 
             logger.trace("temp file from "+url+" to "+file)
             progressIndicator ! Started
-            Downloader.download(new URL(url), file, Some(progressIndicator))(timeout, system) //TODO: now we start download from all sources. we should have a smarter way to do this
+            Downloader.downloadOne(new URL(url), file, Some(progressIndicator))(timeout, system) //TODO: now we start download from all sources. we should have a smarter way to do this
           }
           
           Future.find(possibleJars)(_.isRight)
@@ -130,10 +133,10 @@ private[adept] object Downloader extends Logging {
     }
   }
   
-  def download(url: URL, file: File, progressActor: Option[ActorRef] = None)(implicit timeout: Timeout, system: ActorSystem): Future[Either[Exception, File]] = {
+  def downloadOne(url: URL, file: File, maybeProgress: Option[ActorRef] = None)(implicit timeout: Timeout, system: ActorSystem): Future[Either[Exception, File]] = {
     logger.trace("client is fetching "+url+" to "+file+"..")
     
-    val downloader = system.actorOf(Props(new DownloadActor(progressActor)))
+    val downloader = system.actorOf(Props(new DownloadActor(maybeProgress)))
     import akka.pattern.ask
     ask(downloader, DownloadFile(url, file)).mapTo[Either[Exception, File]]
   }

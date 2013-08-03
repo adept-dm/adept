@@ -54,7 +54,7 @@ object Artifact extends Logging {
     val file = File.createTempFile("adept-artifact", "." + artifactType)
     val system = ActorSystem("adept-artifact-download")
     val progressActor = system.actorOf(Props[ProgressIndicator])
-    val future = Downloader.download(url, file, None)(timeout, system).map {
+    val future = Downloader.downloadOne(url, file, None)(timeout, system).map {
       case Right(file) =>
         Artifact(Hash.calculate(file), artifactType, configurations, extraLocations + url.toString)
       case Left(exception) =>
