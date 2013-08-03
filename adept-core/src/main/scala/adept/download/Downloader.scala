@@ -58,9 +58,11 @@ private[adept] class DownloadActor(progressActor: Option[ActorRef]) extends Acto
         case e: IOException => {
           progressActor.foreach(_ ! Failed)
           logger.error("could not download from: '" + url.toString  + "'. " + e.getCause())
-          e.printStackTrace()
           sender ! Left(e)
         }
+        case e: Exception => 
+          logger.error("got an unexpected error while downloading: '" + url.toString  + "'. " + e.getCause())
+          sender ! Left(e)
       } finally {
         if (rd != null) rd.close()
         if (writer != null) writer.close()
