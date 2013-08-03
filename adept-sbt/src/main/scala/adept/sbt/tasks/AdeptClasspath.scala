@@ -6,6 +6,8 @@ import adept.sbt.AdeptKeys._
 import adept.sbt.Utils._
 import adept.core.models._
 import adept.core.Adept
+import akka.actor.ActorSystem
+import adept.sbt.ProgressActors
 
 private[adept] trait AdeptClasspath {
   import akka.util.duration._
@@ -18,7 +20,7 @@ private[adept] trait AdeptClasspath {
             (a.hash, a.locations) -> (None: Option[java.io.File])
           }
           val timeout = timeoutMinutes.minutes
-          Adept.artifact(adeptDirectory, cachedArtifacts, timeout) match {
+          Adept.artifact(adeptDirectory, cachedArtifacts, timeout, Some(ProgressActors.get)) match {
             case Right(files) => files
             case Left(error) =>
               throw Incomplete(None, message = Some(error))

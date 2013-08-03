@@ -2,7 +2,7 @@ package adept.download
 
 import akka.actor._
 
-private[adept] class ProgressIndicator extends Actor {
+class ProgressIndicator extends Actor {
   var bytesDownloaded = 0
   var totalBytes = 0
   val out = System.err

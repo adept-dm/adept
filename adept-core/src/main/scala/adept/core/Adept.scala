@@ -10,6 +10,7 @@ import adept.utils._
 import org.eclipse.jgit.lib.{ Tree => GitTree, _ }
 import org.eclipse.jgit.transport._
 import com.jcraft.jsch.JSch
+import akka.actor.ActorRef
 
 object Adept extends Logging {
   val AritifactPath = "artifacts"
@@ -76,7 +77,8 @@ object Adept extends Logging {
     }
   }
 
-  def artifact(baseDir: File, info: Seq[((Hash, Set[String]), Option[File])], timeout: FiniteDuration) = { //TODO: Either[Seq[File], Seq[File]]  (left is failed, right is successful)
+  //TODO: params here would be better if they were Seq[(Hash, Set[String])], Map[Hash, File]?
+  def artifact(baseDir: File, info: Seq[((Hash, Set[String]), Option[File])], timeout: FiniteDuration, progressIndicator: Option[ActorRef] = None) = { //TODO: return: Either[Seq[File], Seq[File]]  (left is failed, right is successful)
     val hashFiles = info.map {
       case ((hash, locations), dest) =>
         (hash, locations, dest.getOrElse {
@@ -86,7 +88,7 @@ object Adept extends Logging {
           val secondLevelDir = hash.value.substring(2, 4)
           val currentArtifactDir = new File(new File(artifactDir, firstLevelDir), secondLevelDir)
           ModuleFiles.createDir(currentArtifactDir)
-          new File(currentArtifactDir, hash.value + ".jar") //TODO: fix this, it should be . artifactType AND need a smarter way to store artifacts (imagine 50K jars in one dir!)
+          new File(currentArtifactDir, hash.value + ".jar") //TODO: fix this, it should be . artifactType AND
         })
     }
     val time = System.currentTimeMillis
@@ -98,7 +100,7 @@ object Adept extends Logging {
     logger.trace("spent " + timeSpent + " ms on checking sha1")
     for {
       existingFiles <- EitherUtils.reduce[String, File](existing.seq.map { case (_, _, file) => Right(file) }).right
-      downloadedFiles <- EitherUtils.reduce[String, File](adept.download.Downloader.download(nonExisting.seq, timeout)).right
+      downloadedFiles <- EitherUtils.reduce[String, File](adept.download.Downloader.download(nonExisting.seq, timeout, progressIndicator)).right
     } yield {
       existingFiles ++ downloadedFiles
     }
