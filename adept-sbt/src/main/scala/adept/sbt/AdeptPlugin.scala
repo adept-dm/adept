@@ -7,6 +7,18 @@ import adept.core.Adept
 import adept.ivy._
 import adept.sbt.tasks._
 import akka.util.duration._
+import akka.actor.ActorSystem
+import adept.download.ProgressIndicator
+import akka.actor.Props
+
+private[adept] object ProgressActors {
+  lazy val system = ActorSystem("adept-sbt-progress")
+  implicit val executionContext = akka.dispatch.ExecutionContext.defaultExecutionContext(system)
+
+  lazy val get = {
+    system.actorOf(Props[ProgressIndicator])
+  }
+}
 
 object AdeptPlugin extends Plugin
   with AdeptAdd
