@@ -22,6 +22,7 @@ private[adept] trait AdeptTree {
           val resolveTimeSpent = System.currentTimeMillis - checkpoint
           val requiredMissing = tree.requiredMissing
           if (requiredMissing.nonEmpty) {
+            s.log.debug("dependencies not found:\n" + requiredMissing.filter(!_.evicted).map(_.descriptor.asCoordinates).mkString("\n"))
             Left(requiredMissing.filter(!_.evicted) -> tree)
           } else {
             s.log.success("Resolved dependency tree in (" + name + "): " + resolveTimeSpent + " ms")

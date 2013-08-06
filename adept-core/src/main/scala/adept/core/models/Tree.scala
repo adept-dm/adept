@@ -25,7 +25,7 @@ private[core] sealed class TreeLike[N <: NodeLike[N]](confExpr: String, root: No
     }
 
     def overriddenDependencyString(overriddenDependency: OverriddenDependency, indent: Int) = {
-      (" " * indent) + "@___ " + overriddenDependency.module.coordinates + " (overridden: " + overriddenDependency.reason + ")"
+      (" " * indent) + "@___ " + overriddenDependency.descriptor.asCoordinates + " (overridden: " + overriddenDependency.reason + ")"
     }
 
     def childrenString(node: NodeLike[N], indent: Int): String = { //TODO: tailrec
@@ -74,23 +74,27 @@ private[core] case class MutableTree(confExpr: String, root: MutableNode) extend
   }
 
   def overrides: Set[(DependencyDescriptor, MutableNode)] = {
-    def overrides(node: MutableNode): Set[(DependencyDescriptor, MutableNode)] = { //TODO: @tailrec?
-      val nonEvictedDeps = for { //non-evicted dependencies
-        dep <- node.module.dependencies if dep.force
-        child <- node.children if dep.coordinates == child.module.coordinates && dep.uniqueId == Some(child.module.uniqueId)
-      } yield {
-        (dep, node)
-      }
+    MutableTree.overrides(root)
+  }
+}
 
-      val evictedCoords = node.evictedModules.map(n => n.module.coordinates.org -> n.module.coordinates.name) ++ node.missingDependencies.filter(_.evicted).map(d => d.descriptor.asCoordinates.org -> d.descriptor.asCoordinates.name)
-      val nonEvictedOverrides = for { //remove overrides that have been declared in this same module
-        o <- node.module.overrides if !evictedCoords.contains(o.asCoordinates.org -> o.asCoordinates.name)
-      } yield {
-        (o, node)
-      }
-      node.children.flatMap(overrides).toSet ++ nonEvictedOverrides ++ nonEvictedDeps
+private[core] object MutableTree {
+  def overrides(node: MutableNode): Set[(DependencyDescriptor, MutableNode)] = { //TODO: @tailrec?
+    def key(coords: Coordinates) = coords.org -> coords.name //TODO: use key everywhere org, name is referenced...
+    val nonEvictedDeps = for { //non-evicted dependencies
+      dep <- node.module.dependencies if dep.force
+      child <- node.children if dep.coordinates == child.module.coordinates && dep.uniqueId == Some(child.module.uniqueId)
+    } yield {
+      (dep, node)
     }
-    overrides(root)
+
+    val evictedCoords = node.evictedModules.map(em => key(em.module.coordinates)) ++ node.missingDependencies.filter(_.evicted).map(d => key(d.descriptor.asCoordinates))
+    val nonEvictedOverrides = for { //remove overrides that have been declared in this same module
+      o <- node.module.overrides if !evictedCoords.contains(key(o.asCoordinates))
+    } yield {
+      (o, node)
+    }
+    node.children.flatMap(overrides).toSet ++ nonEvictedOverrides ++ nonEvictedDeps
   }
 }
 
@@ -102,11 +106,11 @@ case class Tree(confExpr: String, root: Node) extends TreeLike(confExpr, root) {
   //TODO: figure out how to get the signatures right on nodes, overrides, ... if this is in TreeLike
   def artifacts: Set[Artifact] = {
     def artifacts(node: Node): ParSet[Artifact] = { //TODO: @tailrec?
-        node.children.par.flatMap(artifacts(_)) ++ node.artifacts
+      node.children.par.flatMap(artifacts(_)) ++ node.artifacts
     }
     artifacts(root).seq
   }
-  
+
   def requiredMissing: Set[MissingDependency] = {
     def missing(node: Node): ParSet[MissingDependency] = { //TODO: @tailrec?
       node.children.par.flatMap(missing).toSet ++ node.missingDependencies.filter(!_.evicted)
