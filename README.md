@@ -52,6 +52,13 @@ Do you want to take part in shaping the ultimate dependency managmenet system on
 
 **Now is the time! Head over to the [Contributing] section**
 
+## Partners
+
+**Do you struggle with your builds at work and think Adept could solve your issues?**
+
+**Want to enage in Adept now and make sure your requirements are met?**
+
+Create an [issue] [issues] and tell the world about your interest or drop me a mail directly if privacy is required: fredrik.ekholdt (at) typesafe.com !
 
 
 ## Questions or need help?
