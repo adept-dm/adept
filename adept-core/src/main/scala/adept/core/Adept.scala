@@ -133,6 +133,7 @@ class Adept private[adept] (val dir: File, val name: String) extends Logging {
     repo.Add(git, dir, module)
   }
 
+  
   def findModule(coordinates: Coordinates, uniqueId: Option[UniqueId] = None, universes: Set[Universe] = Set.empty): Either[Set[Module], Option[Module]] = {
     val file = ModuleFiles.getModuleFile(dir, coordinates)
 

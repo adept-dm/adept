@@ -97,6 +97,7 @@ private[core] object ConflictResolver extends Logging {
   private def key(coords: Coordinates): (String, String) = coords.org -> coords.name
   private def key(descriptor: DependencyDescriptor): (String, String) = descriptor.organization -> descriptor.name
   private def key(node: MutableNode): (String, String) = key(node.module.coordinates)
+  private def key(evictedModule: EvictedModule): (String, String) = key(evictedModule.module.coordinates)
   private def key(missingDependency: MissingDependency): (String, String) = key(missingDependency.descriptor)
 
   private case class OverrideData(descriptor: DependencyDescriptor, declaredBy: MutableNode)
@@ -122,10 +123,12 @@ private[core] object ConflictResolver extends Logging {
   private def populateOverrides(overrides: collection.mutable.Map[(String, String), OverrideData])(root: MutableNode)(include: DependencyDescriptor => Boolean): Unit = {
     def populateOverrides(node: MutableNode): Unit = {
       val current = nodeOverrides(node)
-      val newOverrides = current.collect {
-        //only take into account an override that has not been added earlier:
-        case data if include(data.descriptor) =>
-          key(data.descriptor) -> data
+      val newOverrides = node.synchronized {
+        current.collect {
+          //only take into account an override that has not been added earlier:
+          case data if include(data.descriptor) =>
+            key(data.descriptor) -> data
+        }
       }
       overrides ++= newOverrides //side-effect
       node.children.par.foreach(populateOverrides)
@@ -133,30 +136,36 @@ private[core] object ConflictResolver extends Logging {
     populateOverrides(root)
   }
 
-  private def buildNode(currentOverrides: collection.mutable.Map[(String, String), OverrideData], parent: MutableNode, descriptor: DependencyDescriptor)(configurationMapping: String => String, findModule: Adept.FindModule) = {
+  private def buildNode(overrides: collection.mutable.Map[(String, String), OverrideData], parent: MutableNode, descriptor: DependencyDescriptor)(configurationMapping: String => String, findModule: Adept.FindModule): collection.mutable.Map[(String, String), OverrideData] = {
     val newOverrides = new collection.mutable.HashMap[(String, String), OverrideData] with collection.mutable.SynchronizedMap[(String, String), OverrideData]
 
     findModule(descriptor.asCoordinates, descriptor.uniqueId, Set.empty[Universe]) match { //TODO: fix universes
       case Right(Some(module)) =>
-        val node = synchronized { //TODO: I think this is necessary, because you could end up in the same module?
-          val node = TreeOperations.build(module, true, Set.empty, parent.configurations, configurationMapping, findModule) //FIXME: should exclusions be here?
-          //we have a new tree so we must include its new overrides
-          node
-        }
+        //FIXME: should exclusions be here?
+        val node = TreeOperations.build(module, true, Set.empty, parent.configurations, configurationMapping, findModule)
+          .copy(postBuildInsertReason = Some("inserted because of override"))
+        logger.trace("built new overridden node: " + node.module.coordinates + " " + node.module.uniqueId)
+
         //only populate overrides that are new to this tree and not already in the old tree
-        populateOverrides(newOverrides)(node)(descriptor => !newOverrides.isDefinedAt(key(descriptor)) && !currentOverrides.isDefinedAt(key(descriptor)))
+        val descriptorKey = key(descriptor)
+        populateOverrides(newOverrides)(node)(descriptor => !newOverrides.isDefinedAt(descriptorKey) && !overrides.isDefinedAt(descriptorKey))
         parent.children += node
-        replaceNodes(node, collection.mutable.Map.empty)(configurationMapping, findModule)
       case Right(None) =>
-        parent.missingDependencies += MissingDependency(descriptor, parent.module.coordinates, evicted = false, reason = ("missing dependency for override or dependency: " + descriptor.asCoordinates))
+        val evicted = {
+          val descriptorKey = key(descriptor.asCoordinates)
+          parent.evictedModules.map(key(_)).contains(descriptorKey) ||
+            parent.missingDependencies.filter(_.evicted).map(key(_)).contains(descriptorKey)
+        }
+        parent.missingDependencies += MissingDependency(descriptor, parent.module.coordinates, evicted = evicted, reason = ("missing dependency for override or dependency: " + descriptor.asCoordinates))
       case Left(conflictModules) => throw new Exception("found more than 1 module for: " + descriptor + ": " + conflictModules.mkString(",")) //TODO: handle gracefully? (remember to remove all references to it in the code)
     }
 
     newOverrides
   }
 
-  private def replaceNodes(root: MutableNode, overrides: collection.mutable.Map[(String, String), OverrideData])(configurationMapping: String => String, findModule: Adept.FindModule): collection.mutable.Map[(String, String), OverrideData] = {
+  private def replaceNodes(root: MutableNode, overrides: collection.mutable.Map[(String, String), OverrideData])(configurationMapping: String => String, findModule: Adept.FindModule) = {
     val newOverrides = new collection.mutable.HashMap[(String, String), OverrideData] with collection.mutable.SynchronizedMap[(String, String), OverrideData]
+    val vistedNodes = new collection.mutable.HashSet[MutableNode] with collection.mutable.SynchronizedSet[MutableNode]
 
     def isSame(coords: Coordinates, maybeUniqueId: Option[UniqueId], overrideData: Option[OverrideData]): Boolean = {
       overrideData.map { d =>
@@ -165,36 +174,47 @@ private[core] object ConflictResolver extends Logging {
           case (Some(uniqueId), None) => false //overridden descriptor specifies which id to use and none where found
           case (None, _) => true //overridden descriptor does not specify the id so always the same
         }
+
         d.descriptor.asCoordinates == coords && sameUniqueId
       }.getOrElse(false)
     }
 
     def replaceNodes(node: MutableNode): Unit = {
-      //remove children:
-      val overrideChildren = node.children.filter { child =>
-        println("-> " + child.module.coordinates) 
-        overrides.isDefinedAt(key(child)) && !isSame(child.module.coordinates, Some(child.module.uniqueId), overrides.get(key(child)))
-      }
-      overrideChildren.foreach { child =>
-        val OverrideData(descriptor, declaredBy) = overrides(key(child))
-        node.children -= child
-        val reason = "overridden by: " + descriptor.asCoordinates + " in " + declaredBy.module.coordinates
-        node.evictedModules += EvictedModule(child.module, reason)
-        node.overriddenDependencies += OverriddenDependency(descriptor, declaredBy.module.coordinates, reason)
-        newOverrides ++= buildNode(overrides, node, descriptor)(configurationMapping, findModule)
-      }
+      if (!vistedNodes.contains(node)) {
+        logger.trace("replacing overridden nodes in: " + node.module.coordinates + " " + node.module.uniqueId)
+        vistedNodes += node
 
-      //remove missing dependencies:
-      val overrideDeps = node.missingDependencies.filter { missing =>
-        overrides.isDefinedAt(key(missing)) && !isSame(missing.descriptor.asCoordinates, missing.descriptor.uniqueId, overrides.get(key(missing)))
-      }
-      overrideDeps.map { missing =>
-        val OverrideData(descriptor, declaredBy) = overrides(key(missing))
-        node.missingDependencies -= missing
-        val reason = "overridden by: " + descriptor.asCoordinates + " in " + declaredBy.module.coordinates
-        node.missingDependencies += missing.copy(evicted = true, reason = reason)
-        node.overriddenDependencies += OverriddenDependency(descriptor, declaredBy.module.coordinates, reason)
-        newOverrides ++= buildNode(overrides, node, descriptor)(configurationMapping, findModule)
+        val isOverridden = { child: MutableNode =>
+          overrides.isDefinedAt(key(child)) && !isSame(child.module.coordinates, Some(child.module.uniqueId), overrides.get(key(child)))
+        }
+
+        //recurse:
+        node.children.filterNot(isOverridden).foreach(replaceNodes)
+
+        //remove children:
+        val overrideChildren = node.children.par.filter(isOverridden)
+        overrideChildren.foreach { child =>
+          val OverrideData(descriptor, declaredBy) = overrides(key(child))
+          node.children -= child
+          val reason = "overridden by: " + descriptor.asCoordinates + " in " + declaredBy.module.coordinates
+          node.evictedModules += EvictedModule(child.module, reason)
+          node.overriddenDependencies += OverriddenDependency(child.module.coordinates, declaredBy.module.coordinates, reason)
+          val builtOverrides = buildNode(overrides, node, descriptor)(configurationMapping, findModule)
+          newOverrides ++= builtOverrides
+        }
+
+        //remove missing dependencies:
+        val overrideDeps = node.missingDependencies.par.filter { missing =>
+          overrides.isDefinedAt(key(missing)) && !isSame(missing.descriptor.asCoordinates, missing.descriptor.uniqueId, overrides.get(key(missing)))
+        }
+        overrideDeps.foreach { missing =>
+          val OverrideData(descriptor, declaredBy) = overrides(key(missing))
+          node.missingDependencies -= missing
+          val reason = "overridden by: " + descriptor.asCoordinates + " in " + declaredBy.module.coordinates
+          node.missingDependencies += missing.copy(evicted = true, reason = reason)
+          node.overriddenDependencies += OverriddenDependency(missing.descriptor.asCoordinates, declaredBy.module.coordinates, reason)
+          newOverrides ++= buildNode(overrides, node, descriptor)(configurationMapping, findModule)
+        }
       }
     }
     replaceNodes(root)
@@ -209,10 +229,10 @@ private[core] object ConflictResolver extends Logging {
     //calculate current overrides:
     populateOverrides(overrides)(root)(descriptor => !overrides.isDefinedAt(key(descriptor)))
 
-    //fix tree and find new overrides for newly built nodes:
+    //adjust tree and find new overrides for newly built nodes:
     var newOverrides = replaceNodes(root, overrides)(configurationMapping, findModule)
 
-    //fix tree with as long as we find new nodes to overrides:
+    //adjust tree with as long as we find new nodes to overrides:
     while (newOverrides.nonEmpty) {
       overrides ++= newOverrides
       newOverrides = replaceNodes(root, overrides)(configurationMapping, findModule)

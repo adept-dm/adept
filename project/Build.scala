@@ -23,6 +23,7 @@ object AdeptBuild extends Build {
     Dependencies.git ++
     Dependencies.json4s ++
     Dependencies.ivy ++
+    Dependencies.ehcache ++
     Dependencies.scalaTest
     ):_*)
 
