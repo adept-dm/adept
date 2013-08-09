@@ -60,10 +60,7 @@ private[core] case class MutableTree(confExpr: String, root: MutableNode) extend
 
   //TODO: figure out how to get the signatures right on nodes, overrides, ... if this is in TreeLike
   def nodes: Set[MutableNode] = {
-    def nodes(node: MutableNode): Set[MutableNode] = { //TODO: @tailrec?
-      node.children.flatMap(nodes).toSet + node
-    }
-    nodes(root)
+    MutableTree.nodes(root)
   }
 
   def missing: Set[MissingDependency] = {
@@ -79,6 +76,10 @@ private[core] case class MutableTree(confExpr: String, root: MutableNode) extend
 }
 
 private[core] object MutableTree {
+  def nodes(node: MutableNode): Set[MutableNode] = { //TODO: @tailrec?
+    node.children.flatMap(nodes).toSet + node
+  }
+
   def overrides(node: MutableNode): Set[(DependencyDescriptor, MutableNode)] = { //TODO: @tailrec?
     def key(coords: Coordinates) = coords.org -> coords.name //TODO: use key everywhere org, name is referenced...
     val nonEvictedDeps = for { //non-evicted dependencies

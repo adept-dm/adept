@@ -42,6 +42,28 @@ class ConflictResolverTest extends FunSuite with MustMatchers {
 
     val tree = TreeOperations.build("compile", overrideRoot, Configuration.defaultConfigurationMapping(_), findModule(modules ++ Seq(overrideRoot, overrideModule10))).value
     ConflictResolver.resolveConflicts(tree, Configuration.defaultConfigurationMapping(_), findModule(modules))
+    /* shoudl look like this?
+org.adept:adept:1.0 (compile)
+  \___ overridden dependencies
+      @___ commonlib:commonlib:1.9 (overridden: overriding commonlib:commonlib:2.0 because of commonlib:commonlib:1.9 in override:module:1.0)
+      @___ commondeplib:commondeplib:1.9 (overridden: overriding commondeplib:commondeplib:2.0 because of commondeplib:commondeplib:1.9 id: UniqueId(commondeplib-1.9-id) in commonlib:commonlib:1.9)
+  V___ override:module:1.0 (default)
+  V___ commondeplib:commondeplib:1.9 (compile)[inserted because of override in: commonlib:commonlib:1.9]
+    \___ artifacts
+        X___ artihash6.1 (evicted: could not find any configurations for 'master' from compile)
+  V___ commonlib:commonlib:1.9 (compile)[inserted because of override in: override:module:1.0]
+    \___ artifacts
+        X___ artihash4.1 (evicted: could not find any configurations for 'master' from compile)
+    V___ excludedlib:excludedlib:1.0 (compile,master)
+      \___ artifacts
+          V___ exluded (master)
+    V___ commondeplib:commondeplib:1.9 (compile,master)
+      \___ artifacts
+          V___ artihash6.1 (master)
+    X___ testlib:testlib:4.7 (evicted: no matching configurations: expression 'test' does not match confs: compile)
+  X___ commondeplib:commondeplib:2.0 (evicted: overridden by: commondeplib:commondeplib:1.9)
+  X___ commonlib:commonlib:2.0 (evicted: overridden by: commonlib:commonlib:1.9)
+     */
     println(tree)
     pending
   }
