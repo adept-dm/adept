@@ -57,7 +57,7 @@ object TestData {
       Dependency(commondeplib19.coordinates, Some(commondeplib19.uniqueId), "compile->compile(*),master(*);runtime->runtime(*)", force = true),
       //TODO: excluded lib is not excluded here and should be replaced with something easier
       Dependency(excludedlib10.coordinates, Some(excludedlib10.uniqueId), "compile->compile(*),master(*);runtime->runtime(*)"),
-      Dependency(testlib47.coordinates, Some(testlib47.uniqueId), "test")),
+      Dependency(testlib47.coordinates, Some(testlib47.uniqueId), "compile")),
     overrides = Set.empty,
     artifacts = Set(Artifact(Hash("artihash4.1"), "jar", Set("master"), Set("http://url.no/hash41.jar"))),
     attributes = Map.empty)
@@ -139,7 +139,7 @@ object TestData {
     uniqueId = UniqueId("commondeplib-1.9-id"),
     universes = Set.empty,
     configurations = configurations,
-    dependencies = Set.empty,
+    dependencies = Set(Dependency(testlib47.coordinates, Some(testlib47.uniqueId), "compile->default(*)")),
     overrides = Set.empty,
     artifacts = Set(Artifact(Hash("artihash6.1"), "jar", Set("master"), Set("http://url.no/hash61.jar"))),
     attributes = Map("test" -> Seq("attr2")))
@@ -149,7 +149,7 @@ object TestData {
     uniqueId = UniqueId("testlib-4.8-id"),
     universes = Set.empty,
     configurations = configurations,
-    dependencies = Set.empty,
+    dependencies = Set(Dependency(commondeplib20.coordinates, Some(commondeplib20.uniqueId), "compile->default(*)")),
     overrides = Set.empty,
     artifacts = Set(Artifact(Hash("artihash7"), "jar", Set("master"), Set("http://url.no/hash7.jar"))),
     attributes = Map("test" -> Seq("attr")))

@@ -34,13 +34,14 @@ class ConflictResolverTest extends FunSuite with MustMatchers {
       configurations = configurations,
       dependencies = Set(
         Dependency(commondeplib20.coordinates, Some(commondeplib20.uniqueId), "compile->compile(*),master(*);runtime->runtime(*)"),
+        Dependency(testlib48.coordinates, Some(testlib48.uniqueId), "compile->compile(*),master(*);runtime->runtime(*)", force = true),
         Dependency(overrideModule10.coordinates, Some(overrideModule10.uniqueId), "compile->default(*)"),
         Dependency(commonlib20.coordinates, Some(commonlib20.uniqueId), "*->default(*)", exclusionRules = Set(DependencyExclusionRule("*", "excludedlib")))),
       overrides = Set.empty,
       artifacts = Set.empty,
       attributes = Map.empty)
 
-    val tree = TreeOperations.build("compile", overrideRoot, Configuration.defaultConfigurationMapping(_), findModule(modules ++ Seq(overrideRoot, overrideModule10))).value
+    val tree = TreeOperations.build("test", overrideRoot, Configuration.defaultConfigurationMapping(_), findModule(modules ++ Seq(overrideRoot, overrideModule10))).value
     ConflictResolver.resolveConflicts(tree, Configuration.defaultConfigurationMapping(_), findModule(modules))
     /* should look like this?
 org.adept:adept:1.0 (compile)

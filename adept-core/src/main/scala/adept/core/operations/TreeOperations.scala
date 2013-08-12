@@ -41,10 +41,10 @@ private[core] object TreeOperations extends Logging {
   def build(parent: Module, isTransitive: Boolean, parentExclusionRules: Set[DependencyExclusionRule],
     matchedConfigurations: collection.mutable.Set[Configuration], configurationMapping: String => String,
     findModule: Adept.FindModule): MutableNode = {
+
     val extendedConfigurations = (matchedConfigurations ++ matchedConfigurations.flatMap(c => ConfigurationResolver.extendedConfs(parent.configurations, c))).toSet
-    val dependencies = if (isTransitive) parent.dependencies else collection.immutable.Set.empty[Dependency]
     val (moduleMatches, evictedModules, missingDependencies) = if (isTransitive) {
-      ConfigurationMatcher.matchingModules(parent.coordinates, dependencies, parentExclusionRules, extendedConfigurations, configurationMapping, findModule)
+      ConfigurationMatcher.matchingModules(parent.coordinates, parent.dependencies, parentExclusionRules, extendedConfigurations, configurationMapping, findModule)
     } else {
       findNonTransitive(parent, extendedConfigurations, configurationMapping, findModule)
     }

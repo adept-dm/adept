@@ -39,7 +39,7 @@ private[adept] trait AdeptModule extends Conversions {
       val buildDepRefs = buildDependencies.classpath(ref)
       
       if (buildDepRefs.nonEmpty) {
-        s.log.warn("adding all dependencies from dependent projects on " + name + " (see TODO in code )") 
+        //s.log.warn("adding all dependencies from dependent projects on " + name + " (see TODO in code )")
       }
       
       //TODO: the module dependencies should NOT be part of the module!  move it to adept classpath?
