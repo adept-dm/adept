@@ -22,10 +22,10 @@ private[adept] trait AdeptModule extends Conversions {
     }
   }
 
-  val adeptModuleTask = (name, organization, version, adeptUpdate, adeptDependencies, adeptConfigurationMapping, scalaVersion, sbtPlugin, sbtVersion, thisProjectRef, buildDependencies, state, streams) map { (name, organization, version, repos, allSbtDeps, defaultDependencyConf, scalaVersion, sbtPlugin, sbtVersion, ref, buildDependencies, state, s) =>
+  val adeptModuleTask = (name, organization, version, adeptUpdate, adeptDependencies, adeptConfigurationMapping, scalaVersion, sbtPlugin, sbtVersion, thisProjectRef, buildDependencies, thisProject, state, streams) map { (name, organization, version, repos, allSbtDeps, defaultDependencyConf, scalaVersion, sbtPlugin, sbtVersion, ref, buildDependencies, project,  state, s) =>
     withAdeptClassloader {
       import akka.util.duration._
-      val configurations = sbt.Configurations.default.map(adeptConfiguration).toSet
+      val configurations = project.configurations.map(adeptConfiguration).toSet
 
       val notFound = new collection.mutable.HashSet[ModuleID]()
       val adeptDependencies = allSbtDeps.flatMap { sbtDep =>
@@ -39,7 +39,7 @@ private[adept] trait AdeptModule extends Conversions {
       val buildDepRefs = buildDependencies.classpath(ref)
       
       if (buildDepRefs.nonEmpty) {
-        s.log.warn("adding all dependencies from dependent projects on " + name + " (see TODO in code )") 
+        //s.log.warn("adding all dependencies from dependent projects on " + name + " (see TODO in code )")
       }
       
       //TODO: the module dependencies should NOT be part of the module!  move it to adept classpath?

@@ -18,6 +18,8 @@ object Dependencies {
   val spray =       Seq(libraryDependencies += "io.spray" % "spray-can" % "1.0-M7", //2.9.3 ==1.0x 2.10 == 1.1x currently
     resolvers += "spray repo" at "http://repo.spray.io")
 
+  val ehcache =     Seq(libraryDependencies += "net.sf.ehcache" % "ehcache-core" % "2.6.6")
+
   //TEST:
   val scalaTest =   Seq(libraryDependencies += "org.scalatest" %% "scalatest" % "2.0.M5b" % "test")
 

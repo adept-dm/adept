@@ -25,7 +25,7 @@ private[core] sealed class TreeLike[N <: NodeLike[N]](confExpr: String, root: No
     }
 
     def overriddenDependencyString(overriddenDependency: OverriddenDependency, indent: Int) = {
-      (" " * indent) + "@___ " + overriddenDependency.module.coordinates + " (overridden: " + overriddenDependency.reason + ")"
+      (" " * indent) + "@___ " + overriddenDependency.overrideCoords + " (overridden: " + overriddenDependency.reason + ")"
     }
 
     def childrenString(node: NodeLike[N], indent: Int): String = { //TODO: tailrec
@@ -43,9 +43,9 @@ private[core] sealed class TreeLike[N <: NodeLike[N]](confExpr: String, root: No
         (if (missing.nonEmpty) "\n" + missing.map(missingDependencyString(_, indent + indentSize * 2)).mkString("", "\n", "") else "") +
         (if (n.overriddenDependencies.nonEmpty) "\n" + (" " * indent) + "\\___ overridden dependencies" else "") +
         (if (n.overriddenDependencies.nonEmpty) "\n" + n.overriddenDependencies.map(overriddenDependencyString(_, indent + indentSize * 2)).mkString("", "\n", "") else "") +
-        (if (n.children.nonEmpty) "\n" + n.children.map(childrenString(_, indent)).mkString("", "\n", "") else "") +
         (if (n.evictedModules.nonEmpty) "\n" + n.evictedModules.map(evictedModuleString(_, indent)).mkString("", "\n", "") else "") +
-        (if (evictedMissing.nonEmpty) "\n" + evictedMissing.map(missingEvictedDependencyString(_, indent + indentSize * 2)).mkString("", "\n", "") else "")
+        (if (evictedMissing.nonEmpty) "\n" + evictedMissing.map(missingEvictedDependencyString(_, indent)).mkString("", "\n", "") else "") +
+        (if (n.children.nonEmpty) "\n" + n.children.map(childrenString(_, indent)).mkString("", "\n", "") else "")
     }
 
     nodeString(root, indentSize)
@@ -60,10 +60,7 @@ private[core] case class MutableTree(confExpr: String, root: MutableNode) extend
 
   //TODO: figure out how to get the signatures right on nodes, overrides, ... if this is in TreeLike
   def nodes: Set[MutableNode] = {
-    def nodes(node: MutableNode): Set[MutableNode] = { //TODO: @tailrec?
-      node.children.flatMap(nodes).toSet + node
-    }
-    nodes(root)
+    MutableTree.nodes(root)
   }
 
   def missing: Set[MissingDependency] = {
@@ -72,25 +69,11 @@ private[core] case class MutableTree(confExpr: String, root: MutableNode) extend
     }
     missing(root)
   }
+}
 
-  def overrides: Set[(DependencyDescriptor, MutableNode)] = {
-    def overrides(node: MutableNode): Set[(DependencyDescriptor, MutableNode)] = { //TODO: @tailrec?
-      val nonEvictedDeps = for { //non-evicted dependencies
-        dep <- node.module.dependencies if dep.force
-        child <- node.children if dep.coordinates == child.module.coordinates && dep.uniqueId == Some(child.module.uniqueId)
-      } yield {
-        (dep, node)
-      }
-
-      val evictedCoords = node.evictedModules.map(n => n.module.coordinates.org -> n.module.coordinates.name) ++ node.missingDependencies.filter(_.evicted).map(d => d.descriptor.asCoordinates.org -> d.descriptor.asCoordinates.name)
-      val nonEvictedOverrides = for { //remove overrides that have been declared in this same module
-        o <- node.module.overrides if !evictedCoords.contains(o.asCoordinates.org -> o.asCoordinates.name)
-      } yield {
-        (o, node)
-      }
-      node.children.flatMap(overrides).toSet ++ nonEvictedOverrides ++ nonEvictedDeps
-    }
-    overrides(root)
+private[core] object MutableTree {
+  def nodes(node: MutableNode): Set[MutableNode] = { //TODO: @tailrec?
+    node.children.flatMap(nodes).toSet + node
   }
 }
 
@@ -102,11 +85,11 @@ case class Tree(confExpr: String, root: Node) extends TreeLike(confExpr, root) {
   //TODO: figure out how to get the signatures right on nodes, overrides, ... if this is in TreeLike
   def artifacts: Set[Artifact] = {
     def artifacts(node: Node): ParSet[Artifact] = { //TODO: @tailrec?
-        node.children.par.flatMap(artifacts(_)) ++ node.artifacts
+      node.children.par.flatMap(artifacts(_)) ++ node.artifacts
     }
     artifacts(root).seq
   }
-  
+
   def requiredMissing: Set[MissingDependency] = {
     def missing(node: Node): ParSet[MissingDependency] = { //TODO: @tailrec?
       node.children.par.flatMap(missing).toSet ++ node.missingDependencies.filter(!_.evicted)
