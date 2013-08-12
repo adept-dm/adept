@@ -11,7 +11,8 @@ private[core] sealed class NodeLike[T <: NodeLike[T]]( //need parameter to avoid
   val evictedModules: scala.collection.Set[EvictedModule],
   val overriddenDependencies: scala.collection.Set[OverriddenDependency],
   val missingDependencies: scala.collection.Set[MissingDependency],
-  val postBuildInsertReason: Option[String])
+  val postBuildInsertReason: Option[String]) {
+}
 
 case class Node(override val module: Module, override val configurations: Set[Configuration], override val artifacts: Set[Artifact], override val evictedArtifacts: Set[EvictedArtifact], override val children: Set[Node], override val evictedModules: Set[EvictedModule], override val overriddenDependencies: Set[OverriddenDependency], override val missingDependencies: Set[MissingDependency], override val postBuildInsertReason: Option[String]) extends NodeLike[Node](module, configurations, artifacts, evictedArtifacts, children, evictedModules, overriddenDependencies, missingDependencies, postBuildInsertReason) { //TODO: is there a way too achieve Mutable and Immutable Nodes wihtout being clever with Parameters? Want code to be easy to understand for Java people
   def asMutable: MutableNode = {
@@ -46,11 +47,12 @@ private[core] case class MutableNode(override val module: Module, override val c
 
   //TODO: move logic out of models
   def evict(modules: Set[(Module, String)]): Unit = synchronized {
-    modules.foreach { case (module, reason) =>
-      children.filter(n => n.module == module).foreach { node =>
-        children -= node
-        evictedModules += EvictedModule(module, reason)
-      }
+    modules.foreach {
+      case (module, reason) =>
+        children.filter(n => n.module == module).foreach { node =>
+          children -= node
+          evictedModules += EvictedModule(module, reason)
+        }
     }
   }
 
@@ -59,5 +61,30 @@ private[core] case class MutableNode(override val module: Module, override val c
       artifacts -= artifact
       evictedArtifacts += EvictedArtifact(artifact, reason)
     }
+  }
+  
+  def updateMutableFields(node: MutableNode) =  {
+    this.configurations.clear()
+    this.configurations ++= node.configurations
+    
+    this.artifacts.clear()
+    this.artifacts ++= node.artifacts
+    
+    this.evictedArtifacts.clear()
+    this.evictedArtifacts ++= node.evictedArtifacts
+    
+    //TODO: circular dependency detection
+    this.children.clear()
+    this.children ++= node.children
+    
+    this.evictedModules.clear()
+    this.evictedModules ++= node.evictedModules
+    
+    this.overriddenDependencies.clear()
+    this.overriddenDependencies ++= node.overriddenDependencies
+    
+    this.missingDependencies.clear()
+    this.missingDependencies ++= node.missingDependencies
+    
   }
 }

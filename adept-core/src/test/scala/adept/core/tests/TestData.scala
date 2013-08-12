@@ -4,7 +4,7 @@ import adept.core.models._
 
 object TestData {
 
-  def findModule(coords: Coordinates, uniqueId: Option[UniqueId], universes: Set[Universe]): Either[Set[Module], Option[Module]] = {
+  def findModule(modules: Seq[Module])(coords: Coordinates, uniqueId: Option[UniqueId], universes: Set[Universe]): Either[Set[Module], Option[Module]] = {
     val all = modules.filter { m =>
       m.coordinates == coords && uniqueId.map(_ == m.uniqueId).getOrElse(true)
     }
@@ -41,11 +41,25 @@ object TestData {
     configurations = configurations,
     dependencies = Set(
       Dependency(commondeplib20.coordinates, Some(commondeplib20.uniqueId), "compile->compile(*),master(*);runtime->runtime(*)"),
+      //TODO: excluded lib is not excluded here and should be replaced with something easier
       Dependency(excludedlib10.coordinates, Some(excludedlib10.uniqueId), "compile->compile(*),master(*);runtime->runtime(*)"),
-      //Dependency(extralib20.coordinates, Some(extralib20.uniqueId),  "compile->compile(*),master(*);runtime->runtime(*)", force = false),
       Dependency(testlib48.coordinates, Some(testlib48.uniqueId), "test")),
-    overrides = Set(Override(extralib20.coordinates.org, extralib20.coordinates.name, extralib20.coordinates.version, None)),
+    overrides = Set.empty,
     artifacts = Set(Artifact(Hash("artihash4"), "jar", Set("master"), Set("http://url.no/hash4.jar"))),
+    attributes = Map.empty)
+
+  lazy val commonlib19 = Module(
+    coordinates = Coordinates("commonlib", "commonlib", "1.9"),
+    uniqueId = UniqueId("commonlib-1.9-id"),
+    universes = Set.empty,
+    configurations = configurations,
+    dependencies = Set(
+      Dependency(commondeplib19.coordinates, Some(commondeplib19.uniqueId), "compile->compile(*),master(*);runtime->runtime(*)", force = true),
+      //TODO: excluded lib is not excluded here and should be replaced with something easier
+      Dependency(excludedlib10.coordinates, Some(excludedlib10.uniqueId), "compile->compile(*),master(*);runtime->runtime(*)"),
+      Dependency(testlib47.coordinates, Some(testlib47.uniqueId), "compile")),
+    overrides = Set.empty,
+    artifacts = Set(Artifact(Hash("artihash4.1"), "jar", Set("master"), Set("http://url.no/hash41.jar"))),
     attributes = Map.empty)
 
   val anotherCommonlib20 = Module(
@@ -89,7 +103,7 @@ object TestData {
     overrides = Set.empty,
     artifacts = Set(Artifact(Hash("artihash51"), "jar", Set("master"), Set("http://url.no/hash51.jar"))),
     attributes = Map.empty)
-    
+
   lazy val extralib40 = Module(
     coordinates = Coordinates("extralib", "extralib", "4.0"),
     uniqueId = UniqueId("extralib-4.0-id"),
@@ -120,12 +134,22 @@ object TestData {
     artifacts = Set(Artifact(Hash("artihash6"), "jar", Set("master"), Set("http://url.no/hash6.jar"))),
     attributes = Map("test" -> Seq("attr2")))
 
+  lazy val commondeplib19 = Module(
+    coordinates = Coordinates("commondeplib", "commondeplib", "1.9"),
+    uniqueId = UniqueId("commondeplib-1.9-id"),
+    universes = Set.empty,
+    configurations = configurations,
+    dependencies = Set(Dependency(testlib47.coordinates, Some(testlib47.uniqueId), "compile->default(*)")),
+    overrides = Set.empty,
+    artifacts = Set(Artifact(Hash("artihash6.1"), "jar", Set("master"), Set("http://url.no/hash61.jar"))),
+    attributes = Map("test" -> Seq("attr2")))
+
   lazy val testlib48 = Module(
     coordinates = Coordinates("testlib", "testlib", "4.8"),
     uniqueId = UniqueId("testlib-4.8-id"),
     universes = Set.empty,
     configurations = configurations,
-    dependencies = Set.empty,
+    dependencies = Set(Dependency(commondeplib20.coordinates, Some(commondeplib20.uniqueId), "compile->default(*)")),
     overrides = Set.empty,
     artifacts = Set(Artifact(Hash("artihash7"), "jar", Set("master"), Set("http://url.no/hash7.jar"))),
     attributes = Map("test" -> Seq("attr")))
@@ -165,8 +189,10 @@ object TestData {
     testlib47,
     excludedlib10,
     testlib48,
+    commondeplib19,
     commondeplib20,
     commonlib20,
+    commonlib19,
     extralib10,
     extralib20,
     extralib30,
