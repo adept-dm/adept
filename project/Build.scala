@@ -3,12 +3,12 @@ import sbt.Keys._
 import sbtrelease.ReleasePlugin._
 
 object AdeptBuild extends Build {
-  
+
   val commonSettings = Seq(
     scalaVersion := "2.9.2",
     organization := "org.adept",
     version := {
-      val format = new java.text.SimpleDateFormat("YYYYMMddHHmmss")
+      val format = new java.text.SimpleDateFormat("yyyyMMddHHmmss")
       "0.8.0-ALPHA-"+(format.format(new java.util.Date))
     }
   ) ++ releaseSettings
