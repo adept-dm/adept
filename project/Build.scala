@@ -13,7 +13,7 @@ object AdeptBuild extends Build {
     }
   ) ++ releaseSettings
 
-  def AdeptProject(name: String) = Project(name, file(name)).settings(commonSettings: _*)
+  def AdeptProject(name: String) = Project(name, file(name), configurations = Configurations.default ++ Seq(Configuration("default", "runtime dependencies and master artifact can be used with this conf", isPublic = true, extendsConfigs = List(config("runtime"), config("master")), transitive = true), Configuration("master", "contains only the artifact published by this module itself, with no transitive dependencies", isPublic = true, extendsConfigs = List(), transitive = true)) ).settings(commonSettings: _*)
 
   lazy val adeptCore = AdeptProject("adept-core")
     .settings((

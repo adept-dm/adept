@@ -1,0 +1,31 @@
+apply plugin: 'groovy'
+apply plugin: 'eclipse'
+
+dependencies {
+    compile gradleApi()
+    compile localGroovy()
+    compile "org.adept:adept-core_2.9.2:0.8.0-ALPHA-20130814132838"
+}
+
+
+apply plugin: 'maven'
+
+repositories {
+  ivy {
+    url "${System.properties['user.home']}/.ivy2/local"
+    layout "pattern", {
+      artifact "[organisation]/[module]/[revision]/[type]s/[artifact].[ext]"
+      ivy "[organisation]/[module]/[revision]/[type]s/ivy.xml"
+      m2compatible = false
+    }
+  }
+  mavenCentral()
+  maven {
+    url "http://repo.typesafe.com/typesafe/releases/"
+  }
+  maven {
+    url "http://repo.spray.io"
+  }
+}
+
+

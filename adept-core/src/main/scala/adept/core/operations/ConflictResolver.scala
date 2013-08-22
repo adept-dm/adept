@@ -208,7 +208,7 @@ private[core] object ConflictResolver extends Logging {
           }
 
           //remove children:
-          val overrideChildren = node.children.par.filter(isOverridden)
+          val overrideChildren = node.children.filter(isOverridden)
           overrideChildren.foreach { child =>
             val OverrideData(descriptor, declaredBy) = overrides(key(child))
             node.children -= child
@@ -220,7 +220,7 @@ private[core] object ConflictResolver extends Logging {
           }
 
           //remove missing dependencies:
-          val overrideDeps = node.missingDependencies.par.filter { missing =>
+          val overrideDeps = node.missingDependencies.filter { missing =>
             overrides.isDefinedAt(key(missing)) && !isSame(missing.descriptor.asCoordinates, missing.descriptor.uniqueId, overrides.get(key(missing)))
           }
           overrideDeps.foreach { missing =>

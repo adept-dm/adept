@@ -27,3 +27,6 @@ bin/adept
 # git stuff
 *.orig
 
+# Gradle specific:
+.gradle
+build
