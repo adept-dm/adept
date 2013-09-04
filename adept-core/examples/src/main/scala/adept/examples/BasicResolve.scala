@@ -9,8 +9,8 @@ object BasicResolve extends App {
 
   //our dependencies
   val dependencies = Set(
-    Dependency(Coordinates("org.eclipse.jgit","org.eclipse.jgit","1.3.0.201202151440-r"), None, "compile->compile(*),master(*);runtime->runtime(*)"),
-    Dependency(Coordinates("junit", "junit", "4.10"), Some(UniqueId("junit:junit:4.10-3c21c63")), "test->runtime(*),master(*)")
+    Dependency(Coordinates("org.eclipse.jgit","org.eclipse.jgit","1.3.0.201202151440-r"), None, "compile->compile(*),master(*);runtime->runtime(*)"), //uses the most common configuration mapping, this is the default and usually provided if nothing else is specified
+    Dependency(Coordinates("junit", "junit", "4.10"), Some(UniqueId("junit:junit:4.10-3c21c63")), "test") //this will be mapped using the configurationMapping below
   )
   
   val configurations = Set( //a set the most common configurations:
@@ -40,9 +40,9 @@ object BasicResolve extends App {
   
   def fetchArtifacts() = {
     //default configuration mapping:
-    val configurationMapping: String => String = Configuration.defaultConfigurationMapping(_) //basic mapping: compile->compile
+    val configurationMapping: String => String = Configuration.defaultConfigurationMapping(_, "*->default(compile)") //basic mapping. example: maps 'test' to 'test->default(compile)'
 
-    val conf = "compile" //or "test"
+    val conf = "test" //or "compile" or "test"
     val universes = Set.empty[Universe]
 
     val tree = Adept.resolve(
@@ -57,7 +57,7 @@ object BasicResolve extends App {
     println("dumping tree...")
     println(tree)
 
-    import akka.util.duration._ //TODO: use scala time instead
+    import akka.util.duration._ //TODO: should be using scala time instead
     val hashLocations = tree.artifacts.map{ artifact =>
       artifact.hash -> artifact.locations
     }.toSeq
@@ -70,7 +70,7 @@ object BasicResolve extends App {
   def addModule() = {
     val coords = Coordinates("my.org", "name", "1.0")
 
-    //see Artifact.fromFile to get load Hash
+    //see Artifact.fromFile to load Hash from a jar file for example
     val artifacts = Set(Artifact(Hash("uniqueId"), "jar", Set("master"), Set("http://mysite/somefile.jar")))
     val uniqueId = UniqueId.default(coords, new java.util.Date, artifacts)
     val universes = Set(Universe("scala-version", "2.9.2")) //an example of the scala-version universe
