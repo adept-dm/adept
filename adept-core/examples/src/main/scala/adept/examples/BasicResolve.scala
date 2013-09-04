@@ -42,7 +42,7 @@ object BasicResolve extends App {
     //default configuration mapping:
     val configurationMapping: String => String = Configuration.defaultConfigurationMapping(_, "*->default(compile)") //basic mapping. example: maps 'test' to 'test->default(compile)'
 
-    val conf = "test" //or "compile" or "test"
+    val conf = "compile" //or "test"
     val universes = Set.empty[Universe]
 
     val tree = Adept.resolve(
