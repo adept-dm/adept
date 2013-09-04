@@ -21,6 +21,6 @@ object Dependencies {
   val ehcache =     Seq(libraryDependencies += "net.sf.ehcache" % "ehcache-core" % "2.6.6" % "compile")
 
   //TEST:
-  val scalaTest =   Seq(libraryDependencies += "org.scalatest" %% "scalatest" % "2.0.M5b" % "test->runtime")
+  val scalaTest =   Seq(libraryDependencies += "org.scalatest" %% "scalatest" % "2.0.M5b" % "test")
 
 }

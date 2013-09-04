@@ -3,21 +3,23 @@ package adept.core.operations
 import org.scalatest._
 import adept.core.operations._
 import adept.core.models._
+import adept.core.Adept
 
 class ConflictResolverTest extends FunSuite with MustMatchers {
   import adept.core.tests.TestData._
 
   test("basic conflict resolution") {
-    import org.scalatest.OptionValues._
-    val tree = TreeOperations.build("test", adept10, Configuration.defaultConfigurationMapping(_), findModule(modules)).value
-    ConflictResolver.resolveConflicts(tree, Configuration.defaultConfigurationMapping(_), findModule(modules))
+    import org.scalatest.EitherValues._
+    val findModuleFun: Adept.FindModule = findModule(modules) _
+    val tree = TreeOperations.build(confExpr = "test", dependencies = adept10.dependencies, universes = adept10.universes, moduleConfigurations = adept10.configurations, configurationMapping = configMapping, findModule = findModuleFun)
+    ConflictResolver.resolveConflicts(tree.right.value, Configuration.defaultConfigurationMapping(_), findModule(modules))
     //println(tree) //TODO
     pending
   }
 
   test("nested overrides") {
-    import org.scalatest.OptionValues._
-    val overrideModule10 = Module(
+    import org.scalatest.EitherValues._
+    val overrideModule10: Module = Module(
       coordinates = Coordinates("override", "module", "1.0"),
       uniqueId = UniqueId("adept-1.0-id"),
       universes = Set.empty,
@@ -27,21 +29,14 @@ class ConflictResolverTest extends FunSuite with MustMatchers {
       artifacts = Set.empty,
       attributes = Map.empty)
 
-    val overrideRoot = Module(
-      coordinates = Coordinates("org.adept", "adept", "1.0"),
-      uniqueId = UniqueId("adept-1.0-id"),
-      universes = Set.empty,
-      configurations = configurations,
-      dependencies = Set(
-        Dependency(commondeplib20.coordinates, Some(commondeplib20.uniqueId), "compile->compile(*),master(*);runtime->runtime(*)"),
-        Dependency(testlib48.coordinates, Some(testlib48.uniqueId), "compile->compile(*),master(*);runtime->runtime(*)", force = true),
-        Dependency(overrideModule10.coordinates, Some(overrideModule10.uniqueId), "compile->default(*)"),
-        Dependency(commonlib20.coordinates, Some(commonlib20.uniqueId), "*->default(*)", exclusionRules = Set(DependencyExclusionRule("*", "excludedlib")))),
-      overrides = Set.empty,
-      artifacts = Set.empty,
-      attributes = Map.empty)
+    val dependencies = Set(
+      Dependency(commondeplib20.coordinates, Some(commondeplib20.uniqueId), "compile->compile(*),master(*);runtime->runtime(*)"),
+      Dependency(testlib48.coordinates, Some(testlib48.uniqueId), "compile->compile(*),master(*);runtime->runtime(*)", force = true),
+      Dependency(overrideModule10.coordinates, Some(overrideModule10.uniqueId), "compile->default(*)"),
+      Dependency(commonlib20.coordinates, Some(commonlib20.uniqueId), "*->default(*)", exclusionRules = Set(DependencyExclusionRule("*", "excludedlib"))))
 
-    val tree = TreeOperations.build("test", overrideRoot, Configuration.defaultConfigurationMapping(_), findModule(modules ++ Seq(overrideRoot, overrideModule10))).value
+
+    val tree = TreeOperations.build(confExpr = "test", dependencies = dependencies, universes = Set.empty, moduleConfigurations = configurations, configurationMapping = configMapping, findModule = findModule(modules ++ Seq(overrideModule10))).right.value
     ConflictResolver.resolveConflicts(tree, Configuration.defaultConfigurationMapping(_), findModule(modules))
     /* should look like this?
 org.adept:adept:1.0 (compile)

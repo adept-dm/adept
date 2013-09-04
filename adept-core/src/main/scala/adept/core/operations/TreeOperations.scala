@@ -4,6 +4,7 @@ import adept.core.models._
 import adept.utils.Logging
 import collection.{ Set => _, _ }
 import adept.core.Adept
+import adept.utils.EitherUtils
 
 private[core] object TreeOperations extends Logging {
 
@@ -12,7 +13,7 @@ private[core] object TreeOperations extends Logging {
       node.evict(moduleReasons)
       node.children.foreach(evict)
     }
-    evict(tree.root)
+    tree.children.foreach(evict)
   }
 
   private def findNonTransitive(parent: Module, configurations: Set[Configuration], configurationMapping: String => String, findModule: Adept.FindModule) = {
@@ -23,9 +24,9 @@ private[core] object TreeOperations extends Logging {
           val mappedConf = configurationMapping(dependency.configuration)
           ConfigurationResolver.resolve(configurations, mappedConf) match {
             case Right(confs) =>
-              (None, Some(MissingDependency(dependency, parent.coordinates, evicted = false, reason = "could not find dependency: " + dependency.coordinates + " declared in: " + parent)))
+              (None, Some(MissingDependency(dependency, Some(parent.coordinates), required = false, reason = "could not find dependency: " + dependency.coordinates + " declared in: " + parent)))
             case Left(msg) =>
-              (None, Some(MissingDependency(dependency, parent.coordinates, evicted = true, reason = "could not find a dependency evicted because: " + msg)))
+              (None, Some(MissingDependency(dependency, Some(parent.coordinates), required = true, reason = "could not find a dependency evicted because: " + msg)))
           }
         case Left(conflictModules) => throw new Exception("found more than 1 module for: " + dependency + ": " + conflictModules.mkString(",")) //TODO: handle gracefully? (remember to remove all references to it in the code)
       }
@@ -57,13 +58,38 @@ private[core] object TreeOperations extends Logging {
     MutableNode(module = parent, configurations = matchedConfigurations, artifacts = foundArtifacts, children = dependentNodes.seq, evictedArtifacts = evictedArts, evictedModules = evictedModules, overriddenDependencies = mutable.Set.empty, missingDependencies = missingDependencies, postBuildInsertReason = None)
   }
 
-  def build(confExpr: String, module: Module, configurationMapping: String => String, findModule: Adept.FindModule): Option[MutableTree] = {
-    ConfigurationResolver.resolve(module.configurations, confExpr) match {
-      case Right(confs) =>
-        Some(MutableTree(confExpr, build(module, true, Set.empty, confs, configurationMapping, findModule)))
+  def build(confExpr: String, dependencies: Set[Dependency], universes: Set[Universe], moduleConfigurations: Set[Configuration], configurationMapping: String => String, findModule: Adept.FindModule): Either[Set[(Dependency, String)], MutableTree] = {
+    ConfigurationResolver.resolve(moduleConfigurations, confExpr) match {
+      case Right(matchingConfs) =>
+        var errors = collection.mutable.Set.empty[(Dependency, String)]
+        var missing = collection.mutable.Set.empty[MissingDependency]
+        var evictedModules = collection.mutable.Set.empty[EvictedModule]
+        var children = collection.mutable.Set.empty[MutableNode]
+        dependencies.foreach{ dependency => 
+          findModule(dependency.coordinates, dependency.uniqueId, universes) match {
+            case Right(Some(module)) =>
+              val mappedConf = configurationMapping(dependency.configuration)
+              ConfigurationResolver.resolve(matchingConfs.toSet, mappedConf, module.configurations) match {
+                case Right(confs) =>
+                  children += build(module, dependency.isTransitive, dependency.exclusionRules, confs, configurationMapping, findModule)  
+                case Left(reason) => evictedModules += EvictedModule(module, "evicted: no matching configurations: " + reason.mkString(","))
+              }
+            case Right(None) => 
+              val reason = "could not find module for: " + dependency + (if (universes.nonEmpty) " in universes: " + universes.mkString(",") else "")
+              missing += MissingDependency(dependency, None, true, reason) 
+            case Left(foundErrors) => 
+              errors += dependency -> ("found errors in the following modules: " + foundErrors.mkString("\n"))
+          } 
+        }
+        if (errors.isEmpty) {
+          val tree = MutableTree(confExpr, children.toSet, evictedModules.toSet, missing.toSet)
+          Right(tree)
+        } else {
+          Left(errors.toSet)
+        }
       case Left(msg) =>
         logger.debug("no valid configurations found while building tree. " + msg)
-        None
+        Left(Set.empty)
     }
   }
 

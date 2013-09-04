@@ -17,19 +17,22 @@ private[adept] trait AdeptTree {
       val confExpr = sbtConfig.name
 
       val checkpoint = System.currentTimeMillis()
-      Adept.build(all.toSet, confExpr, module, configurationMapping) match {
-        case Some(tree) =>
+      Adept.resolve(all.toSet, confExpr, module.dependencies, module.universes, module.configurations, configurationMapping) match {
+        case Right(tree) =>
           val resolveTimeSpent = System.currentTimeMillis - checkpoint
           val requiredMissing = tree.requiredMissing
           if (requiredMissing.nonEmpty) {
-            s.log.debug("dependencies not found:\n" + requiredMissing.filter(!_.evicted).map(_.descriptor.asCoordinates).mkString("\n"))
-            Left(requiredMissing.filter(!_.evicted) -> tree)
+            s.log.debug("dependencies not found:\n" + requiredMissing.filter(!_.required).map(_.descriptor.asCoordinates).mkString("\n"))
+            Left(requiredMissing.filter(!_.required) -> tree)
           } else {
             s.log.success("Resolved dependency tree in (" + name + "): " + resolveTimeSpent + " ms")
             Right(tree)
           }
-        case None =>
-          throw new Incomplete(None, message = Some("No tree was resolved for: " + name))
+        case Left(errors) =>
+          val errorString = errors.map{ case (dep, msg) =>
+            dep + ": " + msg
+          }.mkString("\n")
+          throw new Incomplete(None, message = Some("Found errors while resolving tree: " + errorString))
       }
     }: Either[(Set[MissingDependency], Tree), Tree]
   }

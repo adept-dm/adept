@@ -14,7 +14,9 @@ object TestData {
 
   val testConf = Configuration("test", Some("this scope indicates that the dependency is not required for normal use of the application, and is only available for the test compilation and execution phases."), Set("runtime"), Visibility.Private, None)
   val defaultConf = Configuration("default", Some("runtime dependencies and master artifact can be used with this conf"), Set("runtime", "master"), Visibility.Public, None)
+  val configMapping: String => String = Configuration.defaultConfigurationMapping(_)
 
+  
   lazy val configurations = Set(
     defaultConf,
     Configuration("master", Some("contains only the artifact published by this module itself, with no transitive dependencies"), Set.empty, Visibility.Public, None),

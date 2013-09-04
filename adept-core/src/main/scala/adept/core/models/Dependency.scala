@@ -1,7 +1,8 @@
 package adept.core.models
 
-
-case class Dependency(coordinates: Coordinates, override val uniqueId: Option[UniqueId], configuration: String, force: Boolean = false, isTransitive: Boolean = true, exclusionRules: Set[DependencyExclusionRule] = Set.empty) extends DependencyDescriptor(coordinates.org, coordinates.name, coordinates.version, uniqueId) 
+case class Dependency(coordinates: Coordinates, override val uniqueId: Option[UniqueId], configuration: String, force: Boolean = false, isTransitive: Boolean = true, exclusionRules: Set[DependencyExclusionRule] = collection.immutable.Set.empty) extends DependencyDescriptor(coordinates.org, coordinates.name, coordinates.version, uniqueId) {
+  override def toString = coordinates + uniqueId.map(id => "%" + id).getOrElse("")
+} 
 
 object Dependency {
   import org.json4s._

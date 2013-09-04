@@ -2,7 +2,7 @@ package adept.core.models
 
 import scala.collection.parallel.immutable.ParSet
 
-private[core] sealed class TreeLike[N <: NodeLike[N]](confExpr: String, root: NodeLike[N]) {
+private[core] sealed class TreeLike[N <: NodeLike[N]](confExpr: String, children: Set[_ <: NodeLike[N]], evictedModules: Set[EvictedModule], declaredMissing : Set[MissingDependency]) {
   override def toString = {
     val indentSize = 2
     def artifactString(artifact: Artifact, indent: Int) = {
@@ -33,7 +33,7 @@ private[core] sealed class TreeLike[N <: NodeLike[N]](confExpr: String, root: No
     }
 
     def nodeString(n: NodeLike[N], indent: Int) = {
-      val (evictedMissing, missing) = n.missingDependencies.partition(_.evicted)
+      val (evictedMissing, missing) = n.missingDependencies.partition(_.required)
 
       n.module.coordinates + " " + n.configurations.map(_.name).mkString("(", ",", ")") + n.postBuildInsertReason.map(r => "[" + r + "]").getOrElse("") +
         (if (n.artifacts.nonEmpty || n.evictedArtifacts.nonEmpty) "\n" + (" " * indent) + "\\___ artifacts" else "") +
@@ -47,27 +47,33 @@ private[core] sealed class TreeLike[N <: NodeLike[N]](confExpr: String, root: No
         (if (evictedMissing.nonEmpty) "\n" + evictedMissing.map(missingEvictedDependencyString(_, indent)).mkString("", "\n", "") else "") +
         (if (n.children.nonEmpty) "\n" + n.children.map(childrenString(_, indent)).mkString("", "\n", "") else "")
     }
-
-    nodeString(root, indentSize)
+    
+    children.map(nodeString(_, indentSize)).mkString("\n") + (
+        (if (declaredMissing .nonEmpty) 
+          "\n" + "\\___ missing dependencies" +
+          declaredMissing.map(missingDependencyString(_, indentSize)).mkString("", "\n", "")
+        else "") +
+       (if (evictedModules.nonEmpty) "\n" + evictedModules.map(evictedModuleString(_, indentSize)).mkString("", "\n", "") else "")
+    )
   }
 
 }
 
-private[core] case class MutableTree(confExpr: String, root: MutableNode) extends TreeLike(confExpr, root) {
+private[core] case class MutableTree(confExpr: String, children: Set[MutableNode], evictedModules: Set[EvictedModule], declaredMissing : Set[MissingDependency]) extends TreeLike(confExpr, children, evictedModules, declaredMissing ) {
   def toTree = {
-    Tree(confExpr, root.asImmutable)
+    Tree(confExpr, children.map(_.asImmutable), evictedModules, declaredMissing)
   }
 
   //TODO: figure out how to get the signatures right on nodes, overrides, ... if this is in TreeLike
   def nodes: Set[MutableNode] = {
-    MutableTree.nodes(root)
+    children.flatMap(MutableTree.nodes(_))
   }
 
   def missing: Set[MissingDependency] = {
     def missing(node: MutableNode): Set[MissingDependency] = { //TODO: @tailrec?
       node.children.flatMap(missing).toSet ++ node.missingDependencies
     }
-    missing(root)
+    declaredMissing ++ children.flatMap(missing)
   }
 }
 
@@ -77,9 +83,9 @@ private[core] object MutableTree {
   }
 }
 
-case class Tree(confExpr: String, root: Node) extends TreeLike(confExpr, root) {
+case class Tree(confExpr: String, children: Set[Node], evictedModules: Set[EvictedModule], declaredMissing: Set[MissingDependency]) extends TreeLike(confExpr, children, evictedModules, declaredMissing) {
   private[core] def toMutableTree = {
-    MutableTree(confExpr, root.asMutable)
+    MutableTree(confExpr, children.map(_.asMutable),evictedModules, declaredMissing)
   }
 
   //TODO: figure out how to get the signatures right on nodes, overrides, ... if this is in TreeLike
@@ -87,13 +93,13 @@ case class Tree(confExpr: String, root: Node) extends TreeLike(confExpr, root) {
     def artifacts(node: Node): ParSet[Artifact] = { //TODO: @tailrec?
       node.children.par.flatMap(artifacts(_)) ++ node.artifacts
     }
-    artifacts(root).seq
+    children.flatMap(artifacts(_).seq)
   }
 
   def requiredMissing: Set[MissingDependency] = {
     def missing(node: Node): ParSet[MissingDependency] = { //TODO: @tailrec?
-      node.children.par.flatMap(missing).toSet ++ node.missingDependencies.filter(!_.evicted)
+      node.children.par.flatMap(missing).toSet ++ node.missingDependencies.filter(!_.required)
     }
-    missing(root).seq
+    children.flatMap(missing(_).seq)
   }
 }

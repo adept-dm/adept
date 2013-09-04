@@ -82,11 +82,11 @@ private[operations] object ConfigurationMatcher extends Logging {
           }
           val notEvicted = results.exists(_.isRight)
           if (matchingExclusions.nonEmpty) {
-            missing += MissingDependency(dependency, parent, evicted = true, reason = "could not find an excluded dependency (excluded of exclusion(s): " + matchingExclusions.mkString(","))
+            missing += MissingDependency(dependency, Some(parent), required = true, reason = "could not find an excluded dependency (excluded of exclusion(s): " + matchingExclusions.mkString(","))
           } else if (notEvicted) {
-            missing += MissingDependency(dependency, parent, evicted = false, reason = "could not find dependency: " + dependency.coordinates + " declared in: " + parent)
+            missing += MissingDependency(dependency, Some(parent), required = false, reason = "could not find dependency: " + dependency.coordinates + " declared in: " + parent)
           } else {
-            missing += MissingDependency(dependency, parent, evicted = true, reason = "could not find an evicted dependency (evicted because: " + mappedConf + " does not match " + configurations.map(_.name).mkString(",") + " )")
+            missing += MissingDependency(dependency, Some(parent), required = true, reason = "could not find an evicted dependency (evicted because: " + mappedConf + " does not match " + configurations.map(_.name).mkString(",") + " )")
           }
         case Left(conflictModules) => throw new Exception("found more than 1 module for: " + dependency + ": " + conflictModules.mkString(",")) //TODO: handle gracefully? (remember to remove all references to it in the code)
       }

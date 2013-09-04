@@ -17,10 +17,10 @@ private[adept] trait AdeptClasspath {
       val cachedFiles = eitherTree match {
         case Right(tree) =>
           val cachedArtifacts = tree.artifacts.toSeq.map { a =>
-            (a.hash, a.locations) -> (None: Option[java.io.File])
+            (a.hash, a.locations)
           }
           val timeout = timeoutMinutes.minutes
-          Adept.artifact(adeptDirectory, cachedArtifacts, timeout, Some(ProgressActors.get)) match {
+          Adept.fetch(adeptDirectory, cachedArtifacts, timeout, progressIndicator = Some(ProgressActors.get)) match {
             case Right(files) => files
             case Left(error) =>
               throw Incomplete(None, message = Some(error))

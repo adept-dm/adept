@@ -77,11 +77,10 @@ object Adept extends Logging {
     }
   }
 
-  //TODO: params here would be better if they were Seq[(Hash, Set[String])], Map[Hash, File]?
-  def artifact(baseDir: File, info: Seq[((Hash, Set[String]), Option[File])], timeout: FiniteDuration, progressIndicator: Option[ActorRef] = None) = { //TODO: return: Either[Seq[File], Seq[File]]  (left is failed, right is successful)
-    val hashFiles = info.map {
-      case ((hash, locations), dest) =>
-        (hash, locations, dest.getOrElse {
+  def fetch(baseDir: File, hashLocations: Seq[(Hash, Set[String])], timeout: FiniteDuration, hashDestinations: Map[Hash, File] = Map.empty, progressIndicator: Option[ActorRef] = None) = { //TODO: return: Either[Seq[File], Seq[File]]  (left is failed, right is successful)
+    val hashFiles = hashLocations.map {
+      case (hash, locations) =>
+        (hash, locations, hashDestinations.get(hash).getOrElse {
           val artifactDir = new File(baseDir, AritifactPath)
           artifactDir.mkdirs
           val firstLevelDir = hash.value.substring(0, 2)
@@ -108,10 +107,10 @@ object Adept extends Logging {
 
   private[adept]type FindModule = (Coordinates, Option[UniqueId], Set[Universe]) => Either[Set[Module], Option[Module]]
 
-  def build(repositories: Set[Adept], confExpr: String, module: Module,
-    configurationMapping: String => String = Configuration.defaultConfigurationMapping(_)): Option[Tree] = locked {
+  def resolve(repositories: Set[Adept], confExpr: String, dependencies: Set[Dependency], universes: Set[Universe], moduleConfigurations: Set[Configuration],
+    configurationMapping: String => String = Configuration.defaultConfigurationMapping(_)): Either[Set[(Dependency, String)], Tree] = locked {
     val findModule = MergeOperations.mergeFindModules(repositories)
-    TreeOperations.build(confExpr, module, configurationMapping, findModule).map { mutableTree =>
+    TreeOperations.build(confExpr, dependencies, universes, moduleConfigurations, configurationMapping, findModule).right.map { mutableTree =>
       ConflictResolver.resolveConflicts(mutableTree, configurationMapping, findModule)
       mutableTree.toTree
     }
@@ -131,10 +130,6 @@ class Adept private[adept] (val dir: File, val name: String) extends Logging {
   /* add module to adept. return right with file containing module, left with the file that could not be created*/
   def add(module: Module): Either[File, File] = {
     repo.Add(git, dir, module)
-  }
-
-  private[adept] lazy val cache = {
-    
   }
   
   def findModule(coordinates: Coordinates, uniqueId: Option[UniqueId] = None, universes: Set[Universe] = Set.empty): Either[Set[Module], Option[Module]] = {

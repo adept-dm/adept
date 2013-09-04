@@ -27,6 +27,9 @@ object AdeptBuild extends Build {
     Dependencies.scalaTest
     ):_*)
 
+  lazy val adeptExamples = Project("adept-core-examples", file("adept-core") / "examples")
+    .dependsOn(adeptCore)
+
   lazy val adeptSbt = AdeptProject("adept-sbt")
     .settings(
     sbtPlugin := true
