@@ -1,0 +1,32 @@
+# exclude bintray credentials
+bintray.sbt
+
+*.class
+*.log
+
+# sbt specific
+dist/*
+target/
+lib_managed/
+src_managed/
+project/boot/
+project/plugins/project/
+
+# Scala-IDE specific
+.scala_dependencies
+.cache
+.classpath
+.project
+.settings
+org.scala-ide.sdt.core.prefs
+
+# Adept specific
+bin/adept
+.adept
+
+# git stuff
+*.orig
+
+# Gradle specific:
+.gradle
+build
