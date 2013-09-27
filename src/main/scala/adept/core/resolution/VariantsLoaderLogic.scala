@@ -11,8 +11,13 @@ trait VariantsLoaderLogic {
       case (constraint, matchingAttributes) =>
         matchingAttributes.isEmpty || {
           matchingAttributes.exists { attribute =>
-            val intersecting = attribute.values.intersect(constraint.values)
-            intersecting.isEmpty
+            //a match (not a mismatch) if constraints and attributes are both empty:
+            !(attribute.values.isEmpty && constraint.values.isEmpty) && 
+              {
+                val intersecting = attribute.values.intersect(constraint.values)
+                //is a mismatch if there are no intersecting values of constrains of attributes
+                intersecting.isEmpty 
+              }
           }
         }
     }

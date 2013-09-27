@@ -2,84 +2,115 @@ package adept.core.resolution
 
 import adept.core.models._
 
-class Resolver(variantsLoader: VariantsLoaderEngine) extends VariantsLoaderLogic {
-  case class Node(val id: String, var children: Set[Node])
+case class Node(val id: String, var children: Set[Node])
 
-  def isResolved(variants: Set[Variant]) = variants.size == 1
+/* 
+ * State is mutable which speeds up the Resolver and makes the code easier to read. 
+ * 
+ * This will have to be rewritten to make it: 
+ *  1) thread-safe for external libraries 
+ *  2) multi-threaded to speed up IO (in particular) and CPU bounded operations 
+ * */
+case class State(
+  var allNodes: Map[String, Node] = Map.empty,
+  var allVariants: Map[String, Set[Variant]] = Map.empty,
+  var visitedVariantsConstraints: Set[(Variant, Set[Constraint])] = Set.empty,
+
+  var resolved: Set[String] = Set.empty,
+  var unresolved: Set[String] = Set.empty,
+
+  var globalConstraints: Map[String, Set[Constraint]] = Map.empty)
+
+class Resolver(variantsLoader: VariantsLoaderEngine, initState: Option[State] = None) extends VariantsLoaderLogic {
+
+  private def getResolved(variants: Set[Variant]) = {
+    if (isResolved(variants)) variants.headOption
+    else None
+  }
+
+  private def isResolved(variants: Set[Variant]) = variants.size == 1
+  private def isUnderConstrained(variants: Set[Variant]) = variants.size > 1
+  private def isOverConstrained(variants: Set[Variant]) = variants.size < 1
+
+  def isResolved = state.unresolved.isEmpty
+
   def isCyclic(variant: Variant, constraints: Set[Constraint]) = {
-    visitedVariantsConstraints.exists(_ == variant -> constraints)
+    state.visitedVariantsConstraints.exists(_ == variant -> constraints)
   }
 
-  /* 
-   * Using vars here, speeds up and makes the code easier to read. 
-   * 
-   * This will have to be rewritten to make it: 
-   *  1) thread-safe for external libraries 
-   *  2) multi-threaded to speed up IO (in particular) and CPU bounded operations 
-   * */
-  private[adept] var allNodes = Map.empty[String, Node]
-  private[adept] var allVariants = Map.empty[String, Set[Variant]]
-  private[adept] var visitedVariantsConstraints = Set.empty[(Variant, Set[Constraint])]
+  private[adept] var state = initState.getOrElse(State())
 
-  private[adept] var resolved = Set.empty[String]
-  private[adept] var unresolved = Set.empty[String]
+  private def setResolved(id: String, constraints: Set[Constraint], variant: Variant, node: Node) = {
+    if (!isCyclic(variant, constraints)) {
+      state.resolved += id
+      state.unresolved -= id
+      state.visitedVariantsConstraints += variant -> constraints
+  
+      node.children = resolve(variant.dependencies)
+    }
+  }
 
-  private[adept] var globalConstraints = Map.empty[String, Set[Constraint]]
+  private def setUnresolved(id: String, node: Node) = {
+    state.unresolved += id
+    state.resolved -= id
+    node.children = Set.empty
+  }
 
-  def load(dependencies: Seq[Dependency]): Set[Node] = {
-    dependencies.map { dependency =>
-      val id = dependency.id
-      val node = allNodes.getOrElse(id, {
-        val node = Node(id, Set.empty)
-        allNodes += id -> node
-        node
-      })
-
-      val newConstraints = dependency.constraints ++ globalConstraints.get(id).flatten
-      globalConstraints += id -> newConstraints
-
-      val variants = variantsLoader.get(id, newConstraints)
-
-      if (isResolved(variants)) {
-        resolved += id
-        unresolved -= id
-
-        var foundCyclic = false
-        val children = variants.filter { variant =>
-          val cyclic = isCyclic(variant, newConstraints)
-          if (cyclic && !foundCyclic) foundCyclic = true
-          !cyclic
-        }.flatMap { variant =>
-          visitedVariantsConstraints += variant -> newConstraints
-          load(variant.dependencies)
-        }
-        if (!foundCyclic) node.children = children
-      } else {
-        unresolved += id
-        resolved -= id
-
-        node.children = Set.empty
-      }
-
-      allVariants += id -> variants
+  def resolveNode(dependency: Dependency, variants: Set[Variant]): Node = {
+    val id = dependency.id
+    val constraints = getConstraints(dependency)
+    
+    val node = state.allNodes.getOrElse(id, {
+      val node = Node(id, Set.empty)
+      state.allNodes += id -> node
       node
-    }.toSet
+    })
+
+    getResolved(variants) match {
+      case Some(variant) =>
+        setResolved(id, constraints, variant, node)
+      case None =>
+        if (isUnderConstrained(variants)) {
+          val resolvedBranchedVariants = variants.toList.flatMap { variant =>
+            val resolver = new Resolver(variantsLoader, Some(state.copy()))
+            resolver.resolveNode(dependency, Set(variant))
+            if (resolver.isResolved) {
+              Some(variant -> resolver)
+            } else None
+          }
+          resolvedBranchedVariants match {
+            case ((variant, resolver)) :: Nil =>
+              state = resolver.state
+            case _ => setUnresolved(id, node)
+          }
+        } else setUnresolved(id, node)
+    }
+
+    state.allVariants += id -> variants
+    node
   }
+
+  private def getConstraints(dependency: Dependency) = {
+    dependency.constraints ++ state.globalConstraints.get(dependency.id).flatten
+  }
+
+  private def getVariants(id: String, constraints: Set[Constraint]) = {
+    variantsLoader.get(id, constraints)
+  }
+
+  def resolve(dependencies: Seq[Dependency]) = {
+
+    def resolve(dependencies: Seq[Dependency]): Set[Node] = {
+      dependencies.map { dependency => //TODO: does foreach + move load in here make this tailrec?
+        val constraints = getConstraints(dependency)
+        state.globalConstraints += dependency.id -> constraints
+        val variants = getVariants(dependency.id, constraints)
+        resolveNode(dependency, variants)
+      }.toSet
+    }
+
+    resolve(dependencies)
+  }
+
 }
-
-/* Results
-case class Node(variant: Variant, constraints: Set[Constraint], children: Seq[Node])
-trait GraphLike
-class PartialGraph(nodes: Set[Node]) extends GraphLike
-
-trait Result
-
-trait ResolveFailure
-case class OverConstrained(ids: Set[(String, Set[(String, Set[Constraint])])], graph: PartialGraph) extends ResolveFailure
-case class UnderConstrained(variants: Map[String, Set[Variant]], graph: PartialGraph) extends ResolveFailure
-
-trait Success
-case class Graph(nodes: Set[Node]) extends Success with GraphLike
-case class Artifacts(artifacts: Set[Artifact]) extends Success
-*/
 

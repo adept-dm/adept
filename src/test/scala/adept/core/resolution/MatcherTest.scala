@@ -30,4 +30,9 @@ class MatcherTest extends FunSuite  {
   test("constraint conflict (no matches possible)") {
     testMatches(Set(Attribute("version", Set("1.0"))), Set(Constraint("version", Set("1.0")), Constraint("version", Set("2.0"))), false)
   }
+  
+  
+  test("constraints that requires nothing to be set") {
+    testMatches(Set(Attribute("version", Set("1.0")), Attribute("excludes", Set())), Set(Constraint("version", Set("1.0")), Constraint("excludes", Set())), true)
+  }
 }

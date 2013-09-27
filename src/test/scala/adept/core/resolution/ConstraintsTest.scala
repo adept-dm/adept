@@ -104,4 +104,48 @@ class ConstraintsTest extends FunSuite with MustMatchers {
     checkResolved(resolver, Set("A", "B"))
     checkUnresolved(resolver, Set())
   }
+
+  test("resolver.resolve basic consistency") {
+    val (dependencies1, first) = useTestData(
+      R("A")("version" -> "V")(
+        X("B")("version" -> "Y")))
+
+    val (dependencies2, second) = useTestData(
+      R("B")("version" -> "Y")(
+        V("A")()()),
+
+      V("A")("version" -> "X")(
+        V("C")("version" -> "Z")()))
+
+    val resolver = new Resolver(new DefinedVariants(first ++ second))
+    resolver.resolve(dependencies1)
+    resolver.resolve(dependencies2)
+
+    checkResolved(resolver, Set("A", "B"))
+    checkUnresolved(resolver, Set())
+  }
+
+  test("transitive loaded constraints") {
+    //B is unconstrained, but D forces C v 3.0, only B v 1.0 is constrained on C v 3.0 so B v 1.0 must be used:
+    val resolver = load(useTestData(
+      R("A")("v" -> "1.0")(
+        X("B")(),
+        X("C")(),
+        X("D")(),
+        X("E")()),
+      V("B")("v" -> "1.0")(
+        X("C")("v" -> "2.0")),
+      V("B")("v" -> "2.0")(
+        X("C")("v" -> "3.0")),
+      V("E")("v" -> "1.0")(
+        X("D")("v" -> "1.0"),
+        X("B")()),
+      V("D")("v" -> "2.0")(
+        V("C")("v" -> "2.0")()),
+      V("D")("v" -> "1.0")(
+        V("C")("v" -> "3.0")())))
+
+    checkUnresolved(resolver, Set())
+    checkResolved(resolver, Set("A", "B", "C", "D", "E"))
+  }
 }
