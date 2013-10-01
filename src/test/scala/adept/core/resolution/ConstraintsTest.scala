@@ -42,7 +42,7 @@ class ConstraintsTest extends FunSuite with MustMatchers {
   test("basic under constrained") {
     val resolver = load(useTestData(
       R("A")("version" -> "V")(
-        V("B")("binary-version" -> "X")()),
+        X("B")("binary-version" -> "X")),
 
       V("B")("version" -> "1.0", "binary-version" -> "X")(),
       V("B")("version" -> "1.1", "binary-version" -> "X")()))
@@ -125,7 +125,7 @@ class ConstraintsTest extends FunSuite with MustMatchers {
     checkUnresolved(resolver, Set())
   }
 
-  test("transitive loaded constraints") {
+  test("nested constraints") {
     //B is unconstrained, but D forces C v 3.0, only B v 1.0 is constrained on C v 3.0 so B v 1.0 must be used:
     val resolver = load(useTestData(
       R("A")("v" -> "1.0")(
@@ -148,4 +148,99 @@ class ConstraintsTest extends FunSuite with MustMatchers {
     checkUnresolved(resolver, Set())
     checkResolved(resolver, Set("A", "B", "C", "D", "E"))
   }
+
+  test("multiple nested constraints") {
+    //B is under-constrained initially and so is F, but since E requires D v 1.0
+    //and D 1.0 requires C 3.0, only B 2.0 and F 2.0 can be used with C 3.0
+    //this graph should be resolved
+    val resolver = load(useTestData(
+      R("A")("v" -> "1.0")(
+        X("B")(),
+        X("C")(),
+        X("D")(),
+        X("E")()),
+      V("E")("v" -> "1.0")(
+        X("D")("v" -> "1.0")), //requires D 1.0
+
+      V("C")("v" -> "2.0")(),
+      V("C")("v" -> "3.0")(),
+
+      V("D")("v" -> "2.0")(
+        X("C")("v" -> "2.0")),
+      V("D")("v" -> "1.0")(
+        X("C")("v" -> "3.0")), //requires C 3.0
+
+      V("B")("v" -> "1.0")(
+        X("C")("v" -> "2.0"),
+        X("F")()),
+      V("B")("v" -> "2.0")(
+        X("C")("v" -> "3.0"), //requires C 3.0
+        X("F")()),
+      V("F")("v" -> "1.0")(
+        X("C")("v" -> "2.0")),
+      V("F")("v" -> "2.0")(
+        X("C")("v" -> "3.0")))) //requires C 3.0
+
+    checkUnresolved(resolver, Set())
+    checkResolved(resolver, Set("A", "B", "C", "D", "E", "F"))
+  }
+
+  test("solving") {
+    val resolver = load(useTestData(
+      R("A")("v" -> "1.0")(
+        X("B")(),
+        X("C")("v" -> "2.0")),
+
+      V("C")("v" -> "2.0")(),
+      V("C")("v" -> "3.0")(),
+
+      V("B")("v" -> "1.0")(
+        X("C")("v" -> "2.0")),
+      V("B")("v" -> "2.0")(
+        X("C")("v" -> "3.0"))))
+
+    println("UC: " + resolver.states.map(_.underconstrained))
+    println("OC: " + resolver.states.map(_.overconstrained))
+    println("R: " + resolver.states.map(_.resolved))
+    println(resolver.states.map(_.globalConstraints.mkString("\n")).mkString("\n\n\n"))
+
+    checkUnresolved(resolver, Set())
+    checkResolved(resolver, Set("A", "B", "C", "D", "E", "F"))
+  }
+
+  test("solving2") {
+    val resolver = load(useTestData(
+      R("A")("v" -> "1.0")(
+        X("B")(),
+        X("C")(),
+        X("D")(),
+        X("E")("v" -> "2.0")),
+
+      V("E")("v" -> "2.0")(),
+      V("E")("v" -> "3.0")(),
+
+      V("B")("v" -> "1.0")(
+        X("E")("v" -> "2.0")),
+      V("B")("v" -> "2.0")(
+        X("E")("v" -> "3.0")),
+
+      V("C")("v" -> "1.0")(
+        X("E")("v" -> "2.0")),
+      V("C")("v" -> "2.0")(
+        X("E")("v" -> "3.0")),
+
+     V("D")("v" -> "1.0")(
+        X("E")("v" -> "2.0")),
+      V("D")("v" -> "2.0")(
+        X("E")("v" -> "3.0"))))
+/*
+    println("UC: " + resolver.states.map(_.underconstrained))
+    println("OC: " + resolver.states.map(_.overconstrained))
+    println("R: " + resolver.states.map(_.resolved))
+    println(resolver.states.map(_.globalConstraints.mkString("\n")).mkString("\n\n\n"))
+*/
+    checkUnresolved(resolver, Set())
+    checkResolved(resolver, Set("A", "B", "C", "D", "E", "F"))
+  }
+
 }

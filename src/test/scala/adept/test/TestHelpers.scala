@@ -15,28 +15,33 @@ object TestHelpers extends MustMatchers {
   }
 
   def checkUnresolved(resolver: Resolver, ids: Set[String]) = {
-    resolver.state.unresolved must equal(ids)
+    val underconstrained = resolver.states.map(_.underconstrained).flatten.toSet
+    val overconstrained = resolver.states.map(_.overconstrained).flatten.toSet
+    (overconstrained ++ underconstrained) must equal(ids)
   }
 
   def checkResolved(resolver: Resolver, ids: Set[String]) = {
-    resolver.state.resolved must equal(ids)
+    resolver.states must have size(1)
+    resolver.states.map(_.resolved).flatten.toSet must equal(ids)
   }
   
   def checkConstraints(resolver: Resolver, attr: (String, (String, String))) = {
     val (id, (attrName, attrValue)) = attr
     import org.scalatest.OptionValues._
-    resolver.state.globalConstraints.get(id).value must equal(Constraint(attrName, Set(attrValue)))
+    resolver.states.map(_.globalConstraints).flatten.toMap.get(id).value must equal(Constraint(attrName, Set(attrValue)))
   }
   
    
   def checkVariants(resolver: Resolver, attr: (String, (String, String))) = {
     val (id, (attrName, attrValue)) = attr
     import org.scalatest.OptionValues._
-    val variants = resolver.state.allVariants.get(id).value 
+    /*val variants = resolver.states.map(_.allVariants).flatten.toMap.get(id).value 
     variants must have size(1)
     val variant = variants.headOption.value
     variant.moduleId must equal(id)
     variant.attributes must equal(Set(Attribute(attrName, Set(attrValue))))
+    */
+    assert(false, "REMOVE COMMENTs")
   }
 }
 

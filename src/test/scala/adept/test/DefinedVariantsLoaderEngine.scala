@@ -7,6 +7,6 @@ class DefinedVariants(variants: Seq[Variant]) extends VariantsLoaderEngine {
   val variantsById = variants.groupBy(_.moduleId)
 
   override def get(id: String, constraints: Set[Constraint]): Set[Variant] = {
-    filter(id, variantsById.get(id).flatten.toSet, constraints)
+    filter(id, variantsById.get(id).getOrElse(Seq.empty).toSet, constraints)
   }
 }
