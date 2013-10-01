@@ -8,7 +8,7 @@ case class Dependency(id: String, constraints: Set[Constraint])
 
 case class Artifact(hash: String, constraints: Set[Constraint])
 
-case class Variant(moduleId: String, artifacts: Set[Artifact], attributes: Set[Attribute], dependencies: Seq[Dependency]) {
+case class Variant(moduleId: String, artifacts: Set[Artifact], attributes: Set[Attribute], dependencies: Set[Dependency]) {
   override def toString = {
     moduleId + " " + attributes.map(a => a.name + "=" + a.values.mkString("(", ",", ")")).mkString("[",",", "]")
   }

@@ -91,6 +91,7 @@ class ConstraintsTest extends FunSuite with MustMatchers {
         X("A")("version" -> "V"))))
 
     val state = resolved(result)
+
     checkResolved(state, Set("A", "B"))
     checkUnresolved(state, Set())
   }
@@ -107,6 +108,7 @@ class ConstraintsTest extends FunSuite with MustMatchers {
         V("C")("version" -> "Z")())))
 
     val state = resolved(result)
+
     checkResolved(state, Set("A", "B"))
     checkUnresolved(state, Set())
   }
@@ -125,7 +127,7 @@ class ConstraintsTest extends FunSuite with MustMatchers {
 
     val resolver = new Resolver(new DefinedVariants(first ++ second))
     val result1 = resolver.resolve(dependencies1)
-    val state1 = unresolved(result1)
+    val state1 = resolved(result1)
     val result2 = resolver.resolve(dependencies2, Some(state1))
 
     val state2 = resolved(result2)
@@ -192,9 +194,15 @@ class ConstraintsTest extends FunSuite with MustMatchers {
         X("C")("v" -> "3.0")))) //requires C 3.0
 
     val state = resolved(result)
-    println(state)
+    
     checkResolved(state, Set("A", "B", "C", "D", "E", "F"))
     checkUnresolved(state, Set())
+    checkVariants(state, "A" -> ("v" -> "1.0"))
+    checkVariants(state, "B" -> ("v" -> "2.0"))
+    checkVariants(state, "C" -> ("v" -> "3.0"))
+    checkVariants(state, "D" -> ("v" -> "1.0"))
+    checkVariants(state, "E" -> ("v" -> "1.0"))
+    checkVariants(state, "F" -> ("v" -> "2.0"))
   }
 
   test("basic under-constrained path find") {
@@ -216,7 +224,8 @@ class ConstraintsTest extends FunSuite with MustMatchers {
     checkUnresolved(state, Set())
   }
 
-  test("large under-constrained path find") {
+  test("multiple under-constrained paths find") {
+    println("resolving a graph that is complicated, it might take some time (5-20secs)...")
     val result = load(useTestData(
       R("A")("v" -> "1.0")(
         X("B")(),
@@ -243,7 +252,14 @@ class ConstraintsTest extends FunSuite with MustMatchers {
         X("E")("v" -> "3.0"))))
 
     val state = resolved(result)
+
+    
     checkResolved(state, Set("A", "B", "C", "D", "E"))
+    checkVariants(state, "A" -> ("v" -> "1.0"))
+    checkVariants(state, "B" -> ("v" -> "1.0"))
+    checkVariants(state, "C" -> ("v" -> "1.0"))
+    checkVariants(state, "D" -> ("v" -> "1.0"))
+    checkVariants(state, "E" -> ("v" -> "2.0"))
     checkUnresolved(state, Set())
   }
 

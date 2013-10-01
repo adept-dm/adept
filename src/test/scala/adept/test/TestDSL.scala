@@ -51,7 +51,7 @@ object TestDSL {
     Dependency(v.id, constraints = v.attrs.map { case (name, value) => Constraint(name, Set(value)) }.toSet)
   }
 
-  def useTestData(data: TestType*): (Seq[Dependency], Seq[Variant]) = {
+  def useTestData(data: TestType*): (Set[Dependency], Seq[Variant]) = {
     val dependencies = new collection.mutable.Queue[Dependency]
     val variants = new collection.mutable.Queue[Variant]
 
@@ -62,7 +62,7 @@ object TestDSL {
         case v: V => build(v, v.children)
         case other => throw new Exception("Found a " + other + "  in: " + testTypes + ". Use V (for Variant) instead!")
       }
-      val parentVariant = Variant(parent.id, artifacts = Set.empty, attributes = parent.attrs.map { case (name, value) => Attribute(name, Set(value)) }.toSet, dependencies = deps)
+      val parentVariant = Variant(parent.id, artifacts = Set.empty, attributes = parent.attrs.map { case (name, value) => Attribute(name, Set(value)) }.toSet, dependencies = deps.toSet)
 
       //MUTATE!
       parentVariant +=: variants
@@ -84,6 +84,6 @@ object TestDSL {
       case other => throw new Exception("Found a " + other + "  in: " + data + ". Use V (for Variant) or R (for Root) or instead!")
     }
 
-    (dependencies, variants)
+    (dependencies.toSet, variants)
   }
 }

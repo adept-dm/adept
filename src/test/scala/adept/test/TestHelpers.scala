@@ -6,7 +6,7 @@ import org.scalatest.matchers.MustMatchers
 
 object TestHelpers extends MustMatchers {
 
-  def load(testData: (Seq[Dependency], Seq[Variant])): Either[State, State] = {
+  def load(testData: (Set[Dependency], Seq[Variant])): Either[State, State] = {
     val (dependencies, all) = testData
 
     val resolver = new Resolver(new DefinedVariants(all))
@@ -45,7 +45,7 @@ object TestHelpers extends MustMatchers {
     import org.scalatest.OptionValues._
     val variant = (state.resolvedVariants ++ state.forcedVariants).get(id).value 
     variant.moduleId must equal(id)
-    variant.attributes must equal(Set(Attribute(attrName, Set(attrValue))))
+    (id -> variant.attributes) must equal(id -> Set(Attribute(attrName, Set(attrValue))))
   }
 }
 
