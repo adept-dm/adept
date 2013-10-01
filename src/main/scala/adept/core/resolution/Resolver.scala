@@ -29,8 +29,8 @@ class State(
       nodes.foreach(printedIds += _.id)
       nodes.map { n =>
         val (cyclic, nonCyclic) = n.children.partition(n => printedIds(n.id))
-        val cyclicString = cyclic.map(n => (" " * (level + 1)) + "- " + n.id + " <cyclic>").mkString("\n", "\n", "")
-        (" " * level) + "- " + resolvedVariants(n.id) + cyclicString + nodesToString(nonCyclic, level + 1)
+        val cyclicString = cyclic.map(n => (" " * (level + 1)) + "- " + n.id + " <defined>").mkString("\n")
+        (" " * level) + "- " + resolvedVariants(n.id) + (if (cyclicString.isEmpty) "\n" else "\n" + cyclicString + "\n") + nodesToString(nonCyclic, level + 1)
       }.mkString("\n")
     }
 

@@ -194,7 +194,7 @@ class ConstraintsTest extends FunSuite with MustMatchers {
         X("C")("v" -> "3.0")))) //requires C 3.0
 
     val state = resolved(result)
-    
+    println(state)
     checkResolved(state, Set("A", "B", "C", "D", "E", "F"))
     checkUnresolved(state, Set())
     checkVariants(state, "A" -> ("v" -> "1.0"))
