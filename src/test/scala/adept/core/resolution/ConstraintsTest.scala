@@ -11,19 +11,19 @@ import org.scalatest.matchers.MustMatchers
 class ConstraintsTest extends FunSuite with MustMatchers {
 
   test("basic use case") {
-    val resolver = load(useTestData(
+    val result = load(useTestData(
       R("A")("version" -> "V")( //add a variant and a root dependency
         X("B")()), //add a dependency on B (any variant)
 
       V("B")("version" -> "X")()) //create a variant (not added as a dependency)
       )
-
-    checkResolved(resolver, Set("A", "B"))
-    checkUnresolved(resolver, Set())
+    val state = resolved(result)
+    checkResolved(state, Set("A", "B"))
+    checkUnresolved(state, Set())
   }
 
   test("basic transitivity") {
-    val resolver = load(useTestData(
+    val result = load(useTestData(
       R("A")("version" -> "V")(
         X("B")()),
       V("B")("version" -> "X")(
@@ -34,36 +34,39 @@ class ConstraintsTest extends FunSuite with MustMatchers {
         X("D")()),
       V("D")("version" -> "X")()))
 
-    checkResolved(resolver, Set("A", "B", "C", "D"))
-    checkUnresolved(resolver, Set())
-    checkVariants(resolver, "D" -> ("version" -> "X"))
+    val state = resolved(result)
+    checkResolved(state, Set("A", "B", "C", "D"))
+    checkUnresolved(state, Set())
+    checkVariants(state, "D" -> ("version" -> "X"))
   }
 
   test("basic under constrained") {
-    val resolver = load(useTestData(
+    val result = load(useTestData(
       R("A")("version" -> "V")(
         X("B")("binary-version" -> "X")),
 
       V("B")("version" -> "1.0", "binary-version" -> "X")(),
       V("B")("version" -> "1.1", "binary-version" -> "X")()))
 
-    checkResolved(resolver, Set("A"))
-    checkUnresolved(resolver, Set("B"))
+    val state = unresolved(result)
+    checkResolved(state, Set("A"))
+    checkUnresolved(state, Set("B"))
   }
 
   test("basic over constrained") {
-    val resolver = load(useTestData(
+    val result = load(useTestData(
       R("A")("version" -> "V")(
         V("B")("version" -> "X")()),
 
       R("B")("version" -> "Y")()))
 
-    checkResolved(resolver, Set("A"))
-    checkUnresolved(resolver, Set("B"))
+    val state = unresolved(result)
+    checkResolved(state, Set("A"))
+    checkUnresolved(state, Set("B"))
   }
 
   test("transitive, multi variant") {
-    val resolver = load(useTestData(
+    val result = load(useTestData(
       R("A")("version" -> "V")(
         X("B")()),
       V("B")("version" -> "X")(
@@ -74,24 +77,26 @@ class ConstraintsTest extends FunSuite with MustMatchers {
         X("D")()),
       V("D")("version" -> "X")()))
 
-    checkResolved(resolver, Set("A", "B", "C", "D"))
-    checkUnresolved(resolver, Set())
+    val state = resolved(result)
+    checkResolved(state, Set("A", "B", "C", "D"))
+    checkUnresolved(state, Set())
   }
 
   test("basic cyclic dependencies") {
-    val resolver = load(useTestData(
+    val result = load(useTestData(
       R("A")("version" -> "V")(
         X("B")()),
 
       R("B")("version" -> "X")(
         X("A")("version" -> "V"))))
 
-    checkResolved(resolver, Set("A", "B"))
-    checkUnresolved(resolver, Set())
+    val state = resolved(result)
+    checkResolved(state, Set("A", "B"))
+    checkUnresolved(state, Set())
   }
 
   test("cyclic dependencies, multiple variants possible") {
-    val resolver = load(useTestData(
+    val result = load(useTestData(
       R("A")("version" -> "V")(
         X("B")("version" -> "Y")),
 
@@ -101,8 +106,9 @@ class ConstraintsTest extends FunSuite with MustMatchers {
       V("A")("version" -> "X")(
         V("C")("version" -> "Z")())))
 
-    checkResolved(resolver, Set("A", "B"))
-    checkUnresolved(resolver, Set())
+    val state = resolved(result)
+    checkResolved(state, Set("A", "B"))
+    checkUnresolved(state, Set())
   }
 
   test("resolver.resolve basic consistency") {
@@ -118,16 +124,19 @@ class ConstraintsTest extends FunSuite with MustMatchers {
         V("C")("version" -> "Z")()))
 
     val resolver = new Resolver(new DefinedVariants(first ++ second))
-    resolver.resolve(dependencies1)
-    resolver.resolve(dependencies2)
+    val result1 = resolver.resolve(dependencies1)
+    val state1 = unresolved(result1)
+    val result2 = resolver.resolve(dependencies2, Some(state1))
 
-    checkResolved(resolver, Set("A", "B"))
-    checkUnresolved(resolver, Set())
+    val state2 = resolved(result2)
+
+    checkResolved(state2, Set("A", "B"))
+    checkUnresolved(state2, Set())
   }
 
   test("nested constraints") {
     //B is unconstrained, but D forces C v 3.0, only B v 1.0 is constrained on C v 3.0 so B v 1.0 must be used:
-    val resolver = load(useTestData(
+    val result = load(useTestData(
       R("A")("v" -> "1.0")(
         X("B")(),
         X("C")(),
@@ -145,15 +154,16 @@ class ConstraintsTest extends FunSuite with MustMatchers {
       V("D")("v" -> "1.0")(
         V("C")("v" -> "3.0")())))
 
-    checkUnresolved(resolver, Set())
-    checkResolved(resolver, Set("A", "B", "C", "D", "E"))
+    val state = resolved(result)
+    checkResolved(state, Set("A", "B", "C", "D", "E"))
+    checkUnresolved(state, Set())
   }
 
-  test("multiple nested constraints") {
+  test("nested under-constrained path find") {
     //B is under-constrained initially and so is F, but since E requires D v 1.0
     //and D 1.0 requires C 3.0, only B 2.0 and F 2.0 can be used with C 3.0
     //this graph should be resolved
-    val resolver = load(useTestData(
+    val result = load(useTestData(
       R("A")("v" -> "1.0")(
         X("B")(),
         X("C")(),
@@ -181,12 +191,14 @@ class ConstraintsTest extends FunSuite with MustMatchers {
       V("F")("v" -> "2.0")(
         X("C")("v" -> "3.0")))) //requires C 3.0
 
-    checkUnresolved(resolver, Set())
-    checkResolved(resolver, Set("A", "B", "C", "D", "E", "F"))
+    val state = resolved(result)
+    println(state)
+    checkResolved(state, Set("A", "B", "C", "D", "E", "F"))
+    checkUnresolved(state, Set())
   }
 
-  test("solving") {
-    val resolver = load(useTestData(
+  test("basic under-constrained path find") {
+    val result = load(useTestData(
       R("A")("v" -> "1.0")(
         X("B")(),
         X("C")("v" -> "2.0")),
@@ -199,17 +211,13 @@ class ConstraintsTest extends FunSuite with MustMatchers {
       V("B")("v" -> "2.0")(
         X("C")("v" -> "3.0"))))
 
-    println("UC: " + resolver.states.map(_.underconstrained))
-    println("OC: " + resolver.states.map(_.overconstrained))
-    println("R: " + resolver.states.map(_.resolved))
-    println(resolver.states.map(_.globalConstraints.mkString("\n")).mkString("\n\n\n"))
-
-    checkUnresolved(resolver, Set())
-    checkResolved(resolver, Set("A", "B", "C", "D", "E", "F"))
+    val state = resolved(result)
+    checkResolved(state, Set("A", "B", "C"))
+    checkUnresolved(state, Set())
   }
 
-  test("solving2") {
-    val resolver = load(useTestData(
+  test("large under-constrained path find") {
+    val result = load(useTestData(
       R("A")("v" -> "1.0")(
         X("B")(),
         X("C")(),
@@ -229,18 +237,14 @@ class ConstraintsTest extends FunSuite with MustMatchers {
       V("C")("v" -> "2.0")(
         X("E")("v" -> "3.0")),
 
-     V("D")("v" -> "1.0")(
+      V("D")("v" -> "1.0")(
         X("E")("v" -> "2.0")),
       V("D")("v" -> "2.0")(
         X("E")("v" -> "3.0"))))
-/*
-    println("UC: " + resolver.states.map(_.underconstrained))
-    println("OC: " + resolver.states.map(_.overconstrained))
-    println("R: " + resolver.states.map(_.resolved))
-    println(resolver.states.map(_.globalConstraints.mkString("\n")).mkString("\n\n\n"))
-*/
-    checkUnresolved(resolver, Set())
-    checkResolved(resolver, Set("A", "B", "C", "D", "E", "F"))
+
+    val state = resolved(result)
+    checkResolved(state, Set("A", "B", "C", "D", "E"))
+    checkUnresolved(state, Set())
   }
 
 }
