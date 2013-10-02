@@ -30,7 +30,8 @@ class State(
       nodes.map { n =>
         val (cyclic, nonCyclic) = n.children.partition(n => printedIds(n.id))
         val cyclicString = cyclic.map(n => (" " * (level + 1)) + "- " + n.id + " <defined>").mkString("\n")
-        (" " * level) + "- " + resolvedVariants(n.id) + (if (cyclicString.isEmpty) "\n" else "\n" + cyclicString + "\n") + nodesToString(nonCyclic, level + 1)
+        val nonCyclicString = nodesToString(nonCyclic, level + 1)
+        (" " * level) + "- " + resolvedVariants(n.id) + (if (cyclicString.isEmpty) "" else "\n" + cyclicString + "") + (if (nonCyclicString.isEmpty) "" else ("\n" + nonCyclicString)) 
       }.mkString("\n")
     }
 
@@ -164,7 +165,6 @@ class Resolver(variantsLoader: VariantsLoaderEngine) extends VariantsLoaderLogic
           if (false) None
           else {
             val forcedState = state.copy(forcedVariants = forcedVariants)
-            //println("trying " + combination)
             resolve(dependencies, forcedState, previouslyUnderConstrained, checkedCombinations + combination)
           }
         }
@@ -181,7 +181,6 @@ class Resolver(variantsLoader: VariantsLoaderEngine) extends VariantsLoaderLogic
         val underconstrained = state.underconstrained ++ previouslyUnderConstrained
 
         val combinationSets = {
-          
           val allVariantCombinations = variantCombinations(underconstrained, state) //using state and not initState to avoid getting too many variants (we want to prune out constraints)
           //warning if large amount of combinations required to iterate over: state.underconstrained.size * allVariantCombinations
           //TODO: limit to a max number of paths to try?
@@ -195,11 +194,13 @@ class Resolver(variantsLoader: VariantsLoaderEngine) extends VariantsLoaderLogic
             } yield {
               variantList.toSet
             })
-
-            size -> combinations
+            //FIXME: trying to avoid too many combinations (should fix variantCombinations!!! instead)
+            if (size == 1) size -> List(combinations.flatten.toSet)
+            else size -> combinations
           }
           combinationSets
         }
+        
         //TODO: grouping and sorting does not feel optimal at all! we already have the size so it should not be necessary + plus we should add it to a sorted list 
         //group by sizes, for each size we want to check if there is a unique resolve before continuing
         //ALSO NOTICE THE .par!!! gives a very nice perf boost, but single core performance sucks - something is wrong, there must be some ways to skip some combinations
