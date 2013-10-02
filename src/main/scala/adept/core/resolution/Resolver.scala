@@ -203,8 +203,8 @@ class Resolver(variantsLoader: VariantsLoaderEngine) extends VariantsLoaderLogic
         
         //TODO: grouping and sorting does not feel optimal at all! we already have the size so it should not be necessary + plus we should add it to a sorted list 
         //group by sizes, for each size we want to check if there is a unique resolve before continuing
-        //ALSO NOTICE THE .par!!! gives a very nice perf boost, but single core performance sucks - something is wrong, there must be some ways to skip some combinations
-        val resolvedStates = combinationSets.groupBy(_._1).toList.sortBy(_._1).par.view map { //view is here to avoid mapping over solutions where we have already found one
+        //Can add a .par!!! it gives a very nice perf boost, currently disabled to figure out if it is a issue for failing builds
+        val resolvedStates = combinationSets.groupBy(_._1).toList.sortBy(_._1).view map { //view is here to avoid mapping over solutions where we have already found one
           case (size, combinationsSizes) =>
             combinationsSizes.toList.flatMap {
               case (_, combinations) =>

@@ -18,6 +18,7 @@ class ConstraintsTest extends FunSuite with MustMatchers {
       V("B")("version" -> "X")()) //create a variant (not added as a dependency)
       )
     val state = resolved(result)
+    println(state)
     checkResolved(state, Set("A", "B"))
     checkUnresolved(state, Set())
   }
@@ -108,7 +109,7 @@ class ConstraintsTest extends FunSuite with MustMatchers {
         V("C")("version" -> "Z")())))
 
     val state = resolved(result)
-
+    println(state)
     checkResolved(state, Set("A", "B"))
     checkUnresolved(state, Set())
   }
@@ -157,6 +158,8 @@ class ConstraintsTest extends FunSuite with MustMatchers {
         V("C")("v" -> "3.0")())))
 
     val state = resolved(result)
+    
+    println(state)
     checkResolved(state, Set("A", "B", "C", "D", "E"))
     checkUnresolved(state, Set())
   }
@@ -252,7 +255,6 @@ class ConstraintsTest extends FunSuite with MustMatchers {
         X("E")("v" -> "3.0"))))
 
     val state = resolved(result)
-
     
     checkResolved(state, Set("A", "B", "C", "D", "E"))
     checkVariants(state, "A" -> ("v" -> "1.0"))
