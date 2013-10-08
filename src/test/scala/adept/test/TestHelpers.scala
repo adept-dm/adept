@@ -2,6 +2,7 @@ package adept.test
 
 import adept.core.models._
 import adept.core.resolution._
+import adept.core.models.internal._
 import org.scalatest.matchers.MustMatchers
 
 object TestHelpers extends MustMatchers {

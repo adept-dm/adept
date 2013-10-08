@@ -1,81 +1,8 @@
 package adept.core.resolution
 
 import adept.core.models._
-import scala.annotation.tailrec
+import adept.core.models.internal._
 
-/* 
- * State is mutable which speeds up the Resolver and makes the code easier to read. 
- * TODO: I am not sure we even need to have vars here now...
- * 
- * This will have to be rewritten to make it: 
- *  1) thread-safe for external libraries 
- *  2) multi-threaded to speed up IO (in particular) and CPU bounded operations 
- * */
-class State(
-  var nodes: Map[String, Node] = Map.empty,
-  var graph: Set[Node] = Set.empty,
-  var visited: Set[Set[Variant]] = Set.empty,
-
-  var resolved: Set[String] = Set.empty,
-  var overconstrained: Set[String] = Set.empty,
-  var underconstrained: Set[String] = Set.empty,
-  var forcedVariants: Map[String, Variant] = Map.empty,
-  var resolvedVariants: Map[String, Variant] = Map.empty,
-
-  var constraints: Map[String, Set[Constraint]] = Map.empty) {
-  override def toString = {
-    var printedIds = Set.empty[String]
-    def nodesToString(nodes: Set[Node], level: Int): String = {
-      nodes.foreach(printedIds += _.id)
-      nodes.map { n =>
-        val (cyclic, nonCyclic) = n.children.partition(n => printedIds(n.id))
-        val cyclicString = cyclic.map(n => (" " * (level + 1)) + "- " + n.id + " <defined>").mkString("\n")
-        val nonCyclicString = nodesToString(nonCyclic, level + 1)
-        (" " * level) + "- " + resolvedVariants(n.id) + (if (cyclicString.isEmpty) "" else "\n" + cyclicString + "") + (if (nonCyclicString.isEmpty) "" else ("\n" + nonCyclicString)) 
-      }.mkString("\n")
-    }
-
-    "resolved: " + resolved + "\n" +
-      "over-constrained: " + overconstrained + "\n" +
-      "under-constrained: " + underconstrained + "\n" +
-      "resolved-variants: " + resolvedVariants + "\n" +
-      "forced-variants: " + forcedVariants + "\n" +
-      "constraints: " + constraints + "\n" +
-      "graph:\n" + nodesToString(graph, 0)
-  }
-
-  def copy() = {
-    new State(
-      //NOTE TO SELF: please fix FIXMEs they are ugly as hell :)
-      nodes = (nodes.keys zip nodes.values).toMap, //FIXME: hack to make a new copy of values
-      graph = graph,
-      visited = visited,
-      resolved = resolved,
-      underconstrained = underconstrained,
-      overconstrained = overconstrained,
-      resolvedVariants = (resolvedVariants.keys zip resolvedVariants.values).toMap, //FIXME: hack to make a new copy of values
-      forcedVariants = (forcedVariants.keys zip forcedVariants.values).toMap, //FIXME: hack to make a new copy of values
-      constraints = (constraints.keys zip constraints.values).toMap) //FIXME: hack to make a new copy of values
-  }
-
-  def copy(forcedVariants: Map[String, Variant]) = {
-    new State(
-      nodes = (nodes.keys zip nodes.values).toMap, //FIXME: hack to make a new copy of values
-      graph = graph,
-      visited = visited,
-      resolved = resolved,
-      underconstrained = underconstrained,
-      overconstrained = overconstrained,
-      forcedVariants = forcedVariants,
-      constraints = constraints)
-  }
-}
-
-case class Node(val id: String, var children: Set[Node]) {
-  override def toString = {
-    id + " <children>"
-  }
-}
 
 class Resolver(variantsLoader: VariantsLoaderEngine) extends VariantsLoaderLogic {
 
@@ -203,7 +130,7 @@ class Resolver(variantsLoader: VariantsLoaderEngine) extends VariantsLoaderLogic
         
         //TODO: grouping and sorting does not feel optimal at all! we already have the size so it should not be necessary + plus we should add it to a sorted list 
         //group by sizes, for each size we want to check if there is a unique resolve before continuing
-        //ALSO NOTICE THE .par!!! gives a very nice perf boost
+        //ALSO NOTICE THE .par!!! gives a nice perf boost
         val resolvedStates = combinationSets.groupBy(_._1).toList.sortBy(_._1).par.view map { //view is here to avoid mapping over solutions where we have already found one
           case (size, combinationsSizes) =>
             combinationsSizes.toList.flatMap {
@@ -223,8 +150,7 @@ class Resolver(variantsLoader: VariantsLoaderEngine) extends VariantsLoaderLogic
 
         chosenState match {
           case Some(Some(resolvedState) :: Nil) => Some(resolvedState) //we found exactly one resolved state for all current combinations
-          case _ =>
-            None //none or more than one resolved states so we failed
+          case _ => None //none or more than one resolved states so we failed
         }
       } else if (state.underconstrained.size == 0 && state.overconstrained.size == 0) {
         Some(state -> nodes)

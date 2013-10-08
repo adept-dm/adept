@@ -7,7 +7,7 @@ _- the predictable dependency management system where faith is not required_
 Adept is a dependency management system for the JVM platform.
 
 Adept was created because we:
-* Had to! Today's dependency managers does not support reality anymore: one version attribute to handle resolution is not enough with multiple JVMs and other non compatible libraries
+* Had to! Today's dependency managers does not support reality anymore: one version attribute to handle resolution is not enough with multiple JVMs and _other_ non compatible libraries.
 * Were sick of a 'download the Internet' step in your builds that takes forever
 * Were sick of non-reproducible builds
 * Were sick of mysteriously corrupt caches

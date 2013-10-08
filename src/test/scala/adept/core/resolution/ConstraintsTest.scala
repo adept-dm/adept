@@ -18,7 +18,6 @@ class ConstraintsTest extends FunSuite with MustMatchers {
       V("B")("version" -> "X")()) //create a variant (not added as a dependency)
       )
     val state = resolved(result)
-    println(state)
     checkResolved(state, Set("A", "B"))
     checkUnresolved(state, Set())
   }
@@ -228,7 +227,6 @@ class ConstraintsTest extends FunSuite with MustMatchers {
   }
 
   test("multiple under-constrained paths find") {
-    println("resolving a graph that is complicated, it might take some time (5-20secs)...")
     val result = load(useTestData(
       R("A")("v" -> "1.0")(
         X("B")(),
