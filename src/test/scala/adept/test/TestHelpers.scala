@@ -34,19 +34,19 @@ object TestHelpers extends MustMatchers {
     state.resolved ++ state.forcedVariants.keys must equal(ids)
   }
   
-  def checkConstraints(state: State, attr: (String, (String, String))) = {
-    val (id, (attrName, attrValue)) = attr
+  def checkConstraints(state: State, attr: (String, (String, Set[String]))) = {
+    val (id, (attrName, attrValues)) = attr
     import org.scalatest.OptionValues._
-    state.constraints.get(id).value must equal(Constraint(attrName, Set(attrValue)))
+    state.constraints.get(id).value must equal(Constraint(attrName, attrValues))
   }
   
    
-  def checkVariants(state: State, attr: (String, (String, String))) = {
-    val (id, (attrName, attrValue)) = attr
+  def checkVariants(state: State, attr: (String, (String, Set[String]))) = {
+    val (id, (attrName, attrValues)) = attr
     import org.scalatest.OptionValues._
     val variant = (state.resolvedVariants ++ state.forcedVariants).get(id).value 
     variant.moduleId must equal(id)
-    (id -> variant.attributes) must equal(id -> Set(Attribute(attrName, Set(attrValue))))
+    (id -> variant.attributes) must equal(id -> Set(Attribute(attrName, attrValues)))
   }
 }
 
