@@ -52,11 +52,21 @@ object TestDSL {
   def toDependency(v: BuildableTestType): Dependency = {
     Dependency(v.id, constraints = v.attrs.map { case (name, values) => Constraint(name, values) }.toSet)
   }
-  
+
   implicit def exclusionType[A <: BuildableTestType](testType: A) = {
     new {
       def exclude(query: Query)(implicit exclusions: collection.mutable.Set[Dependency]): A = {
         exclusions += toDependency(testType)
+        testType
+      }
+    }
+  }
+
+  implicit def overridesType[A <: BuildableTestType](testType: A) = {
+    new {
+      def overrides(query: Query, attrs: (String, (String, Set[String]))*)(implicit overrides: collection.mutable.Set[(Dependency, Map[String, Set[Attribute]])]): A = {
+        val dependency = toDependency(testType)
+        overrides += dependency -> attrs.map{ case (id, (name, values)) => id -> Set(Attribute(name, values)) }.toMap
         testType
       }
     }

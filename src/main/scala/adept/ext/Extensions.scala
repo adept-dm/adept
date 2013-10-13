@@ -63,6 +63,18 @@ object Hash {
     dependency.constraints.foreach(updateWithConstraint(_, currentMd))
   }
 
+  def calculate(dependencies: Set[Dependency]): String = {
+    val currentMd = md.get()
+    currentMd.reset()
+    try {
+      dependencies.foreach(updateWithDependency(_, currentMd))
+
+      currentMd.digest().map(b => "%02X" format b).mkString.toLowerCase
+    } finally {
+      currentMd.reset()
+    }
+  }
+
   def calculate(variant: Variant): String = {
     val currentMd = md.get()
     currentMd.reset()
@@ -80,7 +92,7 @@ object Hash {
 }
 
 //TODO: remove unnecessary fields
-case class ExclusionResult(dependencies: Set[Dependency], newVariants: Set[Variant], attributes: Map[String, Set[Attribute]],
+case class ReplaceResult(dependencies: Set[Dependency], newVariants: Set[Variant], attributes: Map[String, Set[Attribute]],
   includedVariants: Map[String, Variant], graph: Set[Node])
 
 object Extensions {
@@ -103,6 +115,10 @@ object Extensions {
     Constraint(attribute.name, attribute.values)
   }
 
+  def constraint2attribute(constraint: Constraint): Attribute = {
+    Attribute(constraint.name, constraint.values)
+  }
+
   val ExclusionAttributeName = "exclusions"
 
   /** excluded attributes looks like this: "exclusions": [ "foo/bar:123aef" ] */
@@ -110,7 +126,44 @@ object Extensions {
     Attribute(ExclusionAttributeName, Set(variant.moduleId + ":" + Hash.calculate(variant)))
   }
 
-  def exclude(replacementDependencies: Set[Dependency], graph: Set[Node], variants: Map[String, Variant], query: Query): ExclusionResult = {
+  def exclude(baseDependencies: Set[Dependency], graph: Set[Node], variants: Map[String, Variant], query: Query): ReplaceResult = {
+    replaceNode(baseDependencies, graph, variants, query) { (matchingDependencies, variant) =>
+      val excludedAttributes = matchingDependencies.map(dependency => excludedAttribute(variants(dependency.id)))
+      val newVariant = variant.copy(dependencies = variant.dependencies.filter(d => !matchingDependencies.contains(d)),
+        attributes = mergeAttributes(variant.attributes, excludedAttributes))
+      excludedAttributes -> newVariant
+    }
+  }
+
+  val OverriddenAttributeName = "overrides"
+
+  def overriddenAttribute(variant: Variant, newDependencies: Set[Dependency]): Attribute = {
+    val newDepsHash = Hash.calculate(newDependencies)
+    val oldDepsHash = Hash.calculate(variant.dependencies)
+    
+    Attribute(OverriddenAttributeName, Set(variant.moduleId + ":" + oldDepsHash + ":" + newDepsHash))
+  }
+
+  def overrides(baseDependencies: Set[Dependency], graph: Set[Node], variants: Map[String, Variant], query: Query, replacements: Map[String, Set[Attribute]]): ReplaceResult = {
+    replaceNode(baseDependencies, graph, variants, query) { (matchingDependencies, variant) =>
+      val overrideDependencies = variant.dependencies.map { dependency =>
+        replacements.get(dependency.id) match {
+          case Some(attrs) =>
+            val names = attrs.map(_.name)
+            val constraints = dependency.constraints.filter(constraint => !names(constraint.name)) ++ attrs.map(attribute2constraint)
+            dependency.copy(constraints = constraints)
+          case None => dependency
+        }
+      }
+      val overriddenAttributes = matchingDependencies.map(dependency => overriddenAttribute(variants(dependency.id), overrideDependencies))
+      
+      val newVariant = variant.copy(dependencies = overrideDependencies,
+        attributes = mergeAttributes(variant.attributes, overriddenAttributes))
+      overriddenAttributes -> newVariant
+    }
+  }
+
+  private def replaceNode(replacementDependencies: Set[Dependency], graph: Set[Node], variants: Map[String, Variant], query: Query)(replaceFun: (Set[Dependency], Variant) => (Set[Attribute], Variant)): ReplaceResult = {
     //FIXME: vars...
     var includedVariants = Map.empty[String, Variant]
     var newVariants = Set.empty[Variant]
@@ -122,45 +175,45 @@ object Extensions {
       dependency.id -> dependency
     }.toMap
 
-    def exclude(nodes: Set[Node]): Set[Node] = { //TODO: tailrec??
+    def transitiveReplace(nodes: Set[Node]): Set[Node] = { //TODO: tailrec??
       nodes.map { node =>
         val variant = variants(node.id)
-        //find dependencies that should be excluded based on query
-        val excludedDependencies = variant.dependencies.filter { dependency =>
+        //find matching dependencies based on query
+        val matchingDependencies = variant.dependencies.filter { dependency =>
           Query.matches(variants(dependency.id), query)
         }
-        val includedVariant = if (excludedDependencies.nonEmpty) {
-          val excludedAttributes = excludedDependencies.map(dependency => excludedAttribute(variants(dependency.id)))
-          val newVariant = variant.copy(dependencies = variant.dependencies.filter(d => !excludedDependencies.contains(d)),
-            attributes = mergeAttributes(variant.attributes, excludedAttributes))
+
+        //find new variant if it is to be replaced or use old one
+        val includedVariant = if (matchingDependencies.nonEmpty) {
+          val (replacedAttributes, newVariant) = replaceFun(matchingDependencies, variant)
+
           newVariants += newVariant
+          attributes += node.id -> replacedAttributes
 
-          attributes += node.id -> excludedAttributes
-
-          val excludedConstraints = excludedAttributes.map(attribute2constraint)
+          val newConstraints = replacedAttributes.map(attribute2constraint)
           dependencyMap.get(node.id) match { //found a dependency we have already, so we must add a attributes to it
             case Some(declaredDependency) =>
-              dependencies += node.id -> declaredDependency.copy(constraints = mergeConstraints(declaredDependency.constraints, excludedConstraints))
-            case None => newDependencies += Dependency(node.id, excludedConstraints) //a new dependency with excluded constraints
+              dependencies += node.id -> declaredDependency.copy(constraints = mergeConstraints(declaredDependency.constraints, newConstraints))
+            case None => newDependencies += Dependency(node.id, newConstraints) //a new dependency with excluded constraints
           }
           newVariant
         } else variant
 
         includedVariants += node.id -> includedVariant
 
-        val excludedIds = excludedDependencies.map(_.id)
+        val excludedIds = matchingDependencies.map(_.id)
 
-        val children = exclude(node.children.filter { child => //remove all excluded children
+        val children = transitiveReplace(node.children.filter { child => //remove all excluded children
           !excludedIds.contains(child.id)
         })
         node.copy(id = node.id, children = children)
       }
     }
-    
-    val newGraph = exclude(graph)
+
+    val newGraph = transitiveReplace(graph)
     val replacedDependencies = replacementDependencies.map { replacementDependency =>
       dependencies.getOrElse(replacementDependency.id, replacementDependency)
     }
-    ExclusionResult(replacedDependencies ++ newDependencies, newVariants, attributes, includedVariants, newGraph)
+    ReplaceResult(replacedDependencies ++ newDependencies, newVariants, attributes, includedVariants, newGraph)
   }
 }
