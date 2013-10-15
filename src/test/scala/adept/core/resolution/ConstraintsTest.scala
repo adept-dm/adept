@@ -157,7 +157,7 @@ class ConstraintsTest extends FunSuite with MustMatchers {
         V("C")("v" -> Set("3.0"))())))
 
     val state = resolved(result)
-    
+
     println(state)
     checkResolved(state, Set("A", "B", "C", "D", "E"))
     checkUnresolved(state, Set())
@@ -253,7 +253,7 @@ class ConstraintsTest extends FunSuite with MustMatchers {
         X("E")("v" -> Set("3.0")))))
 
     val state = resolved(result)
-    
+
     checkResolved(state, Set("A", "B", "C", "D", "E"))
     checkVariants(state, "A" -> ("v" -> Set("1.0")))
     checkVariants(state, "B" -> ("v" -> Set("1.0")))
@@ -261,6 +261,89 @@ class ConstraintsTest extends FunSuite with MustMatchers {
     checkVariants(state, "D" -> ("v" -> Set("1.0")))
     checkVariants(state, "E" -> ("v" -> Set("2.0")))
     checkUnresolved(state, Set())
+  }
+
+  test("larger unconstrained graphs") {
+    val (dependencies, variants) = useTestData(
+      V("com.typesafe.play/play")("version" -> Set("2.1.0"),
+        "organization" -> Set("com.typesafe.play"),
+        "name" -> Set("play"),
+        "binary-version" -> Set("2.1"),
+        "exclusions" -> Set.empty, "overrides" -> Set.empty)(
+          X("com.typesafe.akka/akka-actors")("binary-version" -> Set("2.1")),
+          X("org.scala-lang/scala-library")("binary-version" -> Set("2.10"))),
+      V("com.typesafe.play/play")("version" -> Set("2.2.0"),
+        "organization" -> Set("com.typesafe.play"),
+        "name" -> Set("play"),
+        "binary-version" -> Set("2.2"),
+        "exclusions" -> Set.empty, "overrides" -> Set.empty)(
+          X("com.typesafe.akka/akka-actors")("binary-version" -> Set("2.2")),
+          X("org.scala-lang/scala-library")("binary-version" -> Set("2.10"))),
+
+      V("org.scala-lang/scala-library")("version" -> Set("2.9.2"),
+        "binary-version" -> Set("2.9"),
+        "exclusions" -> Set.empty, "overrides" -> Set.empty)(),
+      V("org.scala-lang/scala-library")("version" -> Set("2.9.3"),
+        "binary-version" -> Set("2.9"),
+        "exclusions" -> Set.empty, "overrides" -> Set.empty)(),
+      V("org.scala-lang/scala-library")("version" -> Set("2.10.2"),
+        "binary-version" -> Set("2.10"),
+        "exclusions" -> Set.empty, "overrides" -> Set.empty)(),
+      V("org.scala-lang/scala-library")("version" -> Set("2.10.3"),
+        "binary-version" -> Set("2.10"),
+        "exclusions" -> Set.empty, "overrides" -> Set.empty)(),
+
+      V("com.typesafe.play/play-slick")("version" -> Set("0.5.0.8"),
+        "organization" -> Set("com.typesafe.play"),
+        "name" -> Set("play-slick"),
+        "exclusions" -> Set.empty, "overrides" -> Set.empty)(
+          X("com.typesafe.play/play")("binary-version" -> Set("2.2")),
+          X("org.scala-lang/scala-library")("binary-version" -> Set("2.10"))),
+
+      V("com.typesafe.play/play-slick")("version" -> Set("0.4.0"),
+        "organization" -> Set("com.typesafe.play"),
+        "name" -> Set("play-slick"),
+        "exclusions" -> Set.empty, "overrides" -> Set.empty)(
+          X("com.typesafe.play/play")("binary-version" -> Set("2.1")),
+          X("org.scala-lang/scala-library")("binary-version" -> Set("2.10"))),
+
+      V("com.typesafe.akka/akka-actors")("version" -> Set("2.0.5"),
+        "organization" -> Set("com.typesafe.akka"),
+        "binary-version" -> Set("2.0"),
+        "name" -> Set("akka-actors"),
+        "exclusions" -> Set.empty, "overrides" -> Set.empty)(
+          X("org.scala-lang/scala-library")("binary-version" -> Set("2.9"))),
+      V("com.typesafe.akka/akka-actors")("version" -> Set("2.1.0"),
+        "organization" -> Set("com.typesafe.akka"),
+        "binary-version" -> Set("2.1"),
+        "name" -> Set("akka-actors"),
+        "exclusions" -> Set.empty, "overrides" -> Set.empty)(
+          X("org.scala-lang/scala-library")("binary-version" -> Set("2.10"))),
+      V("com.typesafe.akka/akka-actors")("version" -> Set("2.1.1"),
+        "organization" -> Set("com.typesafe.akka"),
+        "binary-version" -> Set("2.1"),
+        "name" -> Set("akka-actors"),
+        "exclusions" -> Set.empty, "overrides" -> Set.empty)(
+          X("org.scala-lang/scala-library")("binary-version" -> Set("2.10"))),
+      V("com.typesafe.akka/akka-actors")("version" -> Set("2.2.0"),
+        "organization" -> Set("com.typesafe.akka"),
+        "binary-version" -> Set("2.2"),
+        "name" -> Set("akka-actors"),
+        "exclusions" -> Set.empty, "overrides" -> Set.empty)(
+          X("org.scala-lang/scala-library")("binary-version" -> Set("2.10"))),
+      V("com.typesafe.akka/akka-actors")("version" -> Set("2.2.1"),
+        "organization" -> Set("com.typesafe.akka"),
+        "binary-version" -> Set("2.2"),
+        "name" -> Set("akka-actors"),
+        "exclusions" -> Set.empty, "overrides" -> Set.empty)(
+          X("org.scala-lang/scala-library")("binary-version" -> Set("2.10"))))
+
+    val result = new Resolver(new DefinedVariants(variants)).resolve(Set(
+      Dependency("com.typesafe.play/play-slick", Set.empty),
+      Dependency("com.typesafe.play/play", Set.empty)))
+
+    val state = unresolved(result)
+    
   }
 
 }

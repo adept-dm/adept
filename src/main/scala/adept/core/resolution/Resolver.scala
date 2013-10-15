@@ -69,8 +69,9 @@ class Resolver(variantsLoader: VariantsLoaderEngine) extends VariantsLoaderLogic
   }
 
   def resolve(dependencies: Set[Dependency], initState: Option[State] = None): Either[State, State] = {
+    var checkedCombinations = Set.empty[Set[Variant]] //FIXME: this is currently the reason why we cannot be .par
     
-    def detectResolvedStates(combinations: List[Set[Variant]], state: State, previouslyUnderConstrained: Set[String], checkedCombinations: Set[Set[Variant]]): List[Option[(State, Set[Node])]] = {
+    def detectResolvedStates(combinations: List[Set[Variant]], state: State, previouslyUnderConstrained: Set[String]): List[Option[(State, Set[Node])]] = {
       combinations.map { combination => //...has only one combination that resolves
         if (checkedCombinations(combination)) {
           None //TODO: we avoid stackoverflows here, but I am not sure it is the right thing to do. the reasoning is that we checked this combination earlier in this graph and it didn't resolve so no point in trying again?
@@ -88,17 +89,17 @@ class Resolver(variantsLoader: VariantsLoaderEngine) extends VariantsLoaderLogic
                   (id1 == id2) && (variant1 != variant2)
               }
           }
-
+          checkedCombinations += combination //MUTATE
           if (false) None
           else {
             val forcedState = state.copy(forcedVariants = forcedVariants)
-            resolve(dependencies, forcedState, previouslyUnderConstrained, checkedCombinations + combination)
+            resolve(dependencies, forcedState, previouslyUnderConstrained)
           }
         }
       }
     }
 
-    def resolve(depedencies: Set[Dependency], state: State, previouslyUnderConstrained: Set[String], checkedCombinations: Set[Set[Variant]]): Option[(State, Set[Node])] = {
+    def resolve(depedencies: Set[Dependency], state: State, previouslyUnderConstrained: Set[String]): Option[(State, Set[Node])] = {
       val initState = state.copy() //saving state, in case we need a new try
       val nodes = resolveDependencies(dependencies, state)
 
@@ -114,7 +115,7 @@ class Resolver(variantsLoader: VariantsLoaderEngine) extends VariantsLoaderLogic
           val combinationSize = underconstrained.size
           val combinationSets = for { //the ordered sequence of each size of combinations to try, starting with the least amount of variants to constrain
             size <- (1 to combinationSize).toList
-            combination <- allVariantCombinations.toList
+            combination <- allVariantCombinations.toList if !checkedCombinations(combination)
           } yield {
             val combinations = (for {
               variantList <- combination.toList.combinations(size).toList //TODO: implement combinations of sets?
@@ -130,16 +131,13 @@ class Resolver(variantsLoader: VariantsLoaderEngine) extends VariantsLoaderLogic
         
         //TODO: grouping and sorting does not feel optimal at all! we already have the size so it should not be necessary + plus we should add it to a sorted list 
         //group by sizes, for each size we want to check if there is a unique resolve before continuing
-        //ALSO NOTICE THE .par!!! gives a nice perf boost
-        val resolvedStates = combinationSets.groupBy(_._1).toList.sortBy(_._1).par.view map { //view is here to avoid mapping over solutions where we have already found one
+        val resolvedStates = combinationSets.groupBy(_._1).toList.sortBy(_._1).view map { //view is here to avoid mapping over solutions where we have already found one
           case (size, combinationsSizes) =>
             combinationsSizes.toList.flatMap {
               case (_, combinations) =>
-                val resolvedStates = detectResolvedStates(combinations, initState, underconstrained, checkedCombinations).toList
+                val resolvedStates = detectResolvedStates(combinations, initState, underconstrained).toList
                 resolvedStates.collect {
-                  case res if res.isDefined => {
-                    res
-                  }
+                  case res if res.isDefined => res
                 }
             }
         }
@@ -158,7 +156,7 @@ class Resolver(variantsLoader: VariantsLoaderEngine) extends VariantsLoaderLogic
     }
 
     val currentState = initState.getOrElse(new State())
-    resolve(dependencies, currentState, Set.empty, Set.empty) match {
+    resolve(dependencies, currentState, Set.empty) match {
       case Some((state, nodes)) => { //found a state that resolves
         state.graph = nodes //setting root nodes
         Right(state)
