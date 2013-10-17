@@ -111,14 +111,6 @@ object Extensions {
     }(collection.breakOut)
   }
 
-  def attribute2constraint(attribute: Attribute): Constraint = {
-    Constraint(attribute.name, attribute.values)
-  }
-
-  def constraint2attribute(constraint: Constraint): Attribute = {
-    Attribute(constraint.name, constraint.values)
-  }
-
   val ExclusionAttributeName = "exclusions"
 
   /** excluded attributes looks like this: "exclusions": [ "foo/bar:123aef" ] */
@@ -150,7 +142,7 @@ object Extensions {
         replacements.get(dependency.id) match {
           case Some(attrs) =>
             val names = attrs.map(_.name)
-            val constraints = dependency.constraints.filter(constraint => !names(constraint.name)) ++ attrs.map(attribute2constraint)
+            val constraints = dependency.constraints.filter(constraint => !names(constraint.name)) ++ attrs.map(_.toConstraint)
             dependency.copy(constraints = constraints)
           case None => dependency
         }
@@ -190,7 +182,7 @@ object Extensions {
           newVariants += newVariant
           attributes += node.id -> replacedAttributes
 
-          val newConstraints = replacedAttributes.map(attribute2constraint)
+          val newConstraints = replacedAttributes.map(_.toConstraint)
           dependencyMap.get(node.id) match { //found a dependency we have already, so we must add a attributes to it
             case Some(declaredDependency) =>
               dependencies += node.id -> declaredDependency.copy(constraints = mergeConstraints(declaredDependency.constraints, newConstraints))

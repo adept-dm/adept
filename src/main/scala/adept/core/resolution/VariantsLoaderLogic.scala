@@ -4,24 +4,28 @@ import adept.core.models._
 
 trait VariantsLoaderLogic {
   def matches(attributes: Set[Attribute], constraints: Set[Constraint]): Boolean = {
-    val zipped = constraints.map { constraint =>
-      constraint -> attributes.filter(attribute => attribute.name == constraint.name)
-    }
-    val mismatch = zipped.exists {
-      case (constraint, matchingAttributes) =>
-        matchingAttributes.isEmpty || {
-          matchingAttributes.exists { attribute =>
-            //a match (not a mismatch) if constraints and attributes are both empty:
-            !(attribute.values.isEmpty && constraint.values.isEmpty) && 
-              {
-                val intersecting = attribute.values.intersect(constraint.values)
-                //is a mismatch if there are no intersecting values of constrains of attributes
-                intersecting.isEmpty 
-              }
+    if (constraints.nonEmpty) {
+      val zipped = constraints.map { constraint =>
+        constraint -> attributes.filter(attribute => attribute.name == constraint.name)
+      }
+      val mismatch = zipped.exists {
+        case (constraint, matchingAttributes) =>
+          matchingAttributes.isEmpty || {
+            matchingAttributes.exists { attribute =>
+              //a match (not a mismatch) if constraints and attributes are both empty:
+              !(attribute.values.isEmpty && constraint.values.isEmpty) &&
+                {
+                  val intersecting = attribute.values.intersect(constraint.values)
+                  //is a mismatch if there are no intersecting values of constrains of attributes
+                  intersecting.isEmpty
+                }
+            }
           }
-        }
+      }
+      !mismatch
+    } else { //no constraints, means we match
+      true
     }
-    !mismatch
   }
 
   def conlicts(constraints: Set[Constraint]) = constraints.groupBy(_.name).exists { case (name, constraints) => constraints.size > 1 }

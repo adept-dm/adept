@@ -21,6 +21,8 @@ private[adept] class State(
   var forcedVariants: Map[String, Variant] = Map.empty,
   var resolvedVariants: Map[String, Variant] = Map.empty,
 
+  var optimalUnderconstrainedStates: Set[State] = Set.empty,
+
   var constraints: Map[String, Set[Constraint]] = Map.empty) {
   override def toString = {
     var printedIds = Set.empty[String]
@@ -30,7 +32,7 @@ private[adept] class State(
         val (cyclic, nonCyclic) = n.children.partition(n => printedIds(n.id))
         val cyclicString = cyclic.map(n => (" " * (level + 1)) + "- " + n.id + " <defined>").mkString("\n")
         val nonCyclicString = nodesToString(nonCyclic, level + 1)
-        (" " * level) + "- " + resolvedVariants(n.id) + (if (cyclicString.isEmpty) "" else "\n" + cyclicString + "") + (if (nonCyclicString.isEmpty) "" else ("\n" + nonCyclicString)) 
+        (" " * level) + "- " + resolvedVariants(n.id) + (if (cyclicString.isEmpty) "" else "\n" + cyclicString + "") + (if (nonCyclicString.isEmpty) "" else ("\n" + nonCyclicString))
       }.mkString("\n")
     }
 
@@ -40,12 +42,14 @@ private[adept] class State(
       "resolved-variants: " + resolvedVariants + "\n" +
       "forced-variants: " + forcedVariants + "\n" +
       "constraints: " + constraints + "\n" +
-      "graph:\n" + nodesToString(graph, 0)
+      "graph:\n" + nodesToString(graph, 0) + "\n" +
+      "optimal-underconstrained-states: " + optimalUnderconstrainedStates
   }
 
-  def copy() = {
+  def copy(
+      forcedVariants: Map[String, Variant] = (forcedVariants.keys zip forcedVariants.values).toMap //FIXME: hack to make a new copy of values
+  ) = {
     new State(
-      //NOTE TO SELF: please fix FIXMEs they are ugly as hell :)
       nodes = (nodes.keys zip nodes.values).toMap, //FIXME: hack to make a new copy of values
       graph = graph,
       visited = visited,
@@ -53,19 +57,8 @@ private[adept] class State(
       underconstrained = underconstrained,
       overconstrained = overconstrained,
       resolvedVariants = (resolvedVariants.keys zip resolvedVariants.values).toMap, //FIXME: hack to make a new copy of values
-      forcedVariants = (forcedVariants.keys zip forcedVariants.values).toMap, //FIXME: hack to make a new copy of values
-      constraints = (constraints.keys zip constraints.values).toMap) //FIXME: hack to make a new copy of values
-  }
-
-  def copy(forcedVariants: Map[String, Variant]) = {
-    new State(
-      nodes = (nodes.keys zip nodes.values).toMap, //FIXME: hack to make a new copy of values
-      graph = graph,
-      visited = visited,
-      resolved = resolved,
-      underconstrained = underconstrained,
-      overconstrained = overconstrained,
+      optimalUnderconstrainedStates = optimalUnderconstrainedStates,
       forcedVariants = forcedVariants,
-      constraints = constraints)
+      constraints = (constraints.keys zip constraints.values).toMap) //FIXME: hack to make a new copy of values
   }
 }

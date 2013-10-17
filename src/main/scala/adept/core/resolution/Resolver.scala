@@ -3,7 +3,6 @@ package adept.core.resolution
 import adept.core.models._
 import adept.core.models.internal._
 
-
 class Resolver(variantsLoader: VariantsLoaderEngine) extends VariantsLoaderLogic {
 
   private[adept] def getVariants(id: String, state: State) = {
@@ -47,9 +46,7 @@ class Resolver(variantsLoader: VariantsLoaderEngine) extends VariantsLoaderLogic
       val id = dependency.id
       val constraints = dependency.constraints ++ state.constraints.get(dependency.id).getOrElse(Set.empty)
       state.constraints += id -> constraints
-
       val variants = getVariants(dependency.id, state)
-
       resolveVariants(id, variants, state)
     }
   }
@@ -68,19 +65,51 @@ class Resolver(variantsLoader: VariantsLoaderEngine) extends VariantsLoaderLogic
     }
   }
 
+  private[adept] def combinationSets(underconstrained: Set[String], state: State, checkedCombinations: Set[Set[Variant]]) = {
+    val allVariantCombinations = variantCombinations(underconstrained, state)
+    val combinationSize = underconstrained.size
+
+    //TODO: limit to a max number of paths to try?
+    // or warning if large amount of combinations required to iterate over: 
+    // underconstrained.size * allVariantCombinations
+
+    val combinationSets = for { //the ordered sequence of each size of combinations to try, starting with the least amount of variants to constrain
+      size <- (1 to combinationSize).toList
+      combination <- allVariantCombinations.toList if !checkedCombinations(combination)
+    } yield {
+      val combinations = (for {
+        variantList <- combination.toList.combinations(size).toList //TODO: implement combinations of sets?
+      } yield {
+        variantList.toSet
+      })
+      
+      //FIXME: we sort (later) and start with the least amount of of forced variants
+      // many combinations (should fix variantCombinations!!! instead)
+      // it is used for grouping later on
+      if (size == 1) size -> List(combinations.flatten.toSet)
+      else size -> combinations
+    }
+    //TODO: add possibility to remove combinations that we will discard later (for example: lower point versions)
+    
+    combinationSets
+  }
+
   def resolve(dependencies: Set[Dependency], initState: Option[State] = None): Either[State, State] = {
     var checkedCombinations = Set.empty[Set[Variant]] //FIXME: this is currently the reason why we cannot be .par
-    
-    def detectResolvedStates(combinations: List[Set[Variant]], state: State, previouslyUnderConstrained: Set[String]): List[Option[(State, Set[Node])]] = {
-      combinations.map { combination => //...has only one combination that resolves
+    var optimalUnderconstrainedStates = Set.empty[State]
+    var forcedVariantsUsed = Int.MaxValue
+
+    def forceVariants(combinations: List[Set[Variant]], state: State, previouslyUnderConstrained: Set[String]): List[Option[(State, Set[Node])]] = {
+      combinations.map { combination =>
         if (checkedCombinations(combination)) {
-          None //TODO: we avoid stackoverflows here, but I am not sure it is the right thing to do. the reasoning is that we checked this combination earlier in this graph and it didn't resolve so no point in trying again?
+          None
         } else {
           val forcedVariants = combination.groupBy(_.moduleId).map {
             case (id, variants) =>
               if (variants.size != 1) throw new Exception("expected exactly one variant but got: " + variants)
               else id -> variants.head
           }
+
           //check if we are trying to force a module that is already forced
           val alreadyForced = state.forcedVariants.exists {
             case (id1, variant1) =>
@@ -90,10 +119,35 @@ class Resolver(variantsLoader: VariantsLoaderEngine) extends VariantsLoaderLogic
               }
           }
           checkedCombinations += combination //MUTATE
-          if (false) None
+          if (alreadyForced) None
           else {
-            val forcedState = state.copy(forcedVariants = forcedVariants)
-            resolve(dependencies, forcedState, previouslyUnderConstrained)
+            val newConstraints = (for {
+              (id, variant) <- forcedVariants
+              dependency <- variant.dependencies
+            } yield dependency.id -> dependency.constraints).toMap
+
+            val overconstrained = { //check if there exists a forced variant which has constraints that matches another forced variant
+
+              val currentConstraints = dependencies.map { dependency =>
+                dependency.id -> (dependency.constraints ++ newConstraints.getOrElse(dependency.id, Set.empty))
+              }.toMap
+
+              (state.forcedVariants ++ forcedVariants).exists {
+                case (id, variant) if currentConstraints.isDefinedAt(id) =>
+                  !matches(variant.attributes, currentConstraints(id) ++ state.constraints.getOrElse(id, Set.empty))
+                case _ => false
+              }
+            }
+            //            println()
+            if (!overconstrained) {
+              val forcedState = state.copy(forcedVariants = forcedVariants)
+              forcedState.constraints ++= newConstraints
+              //              println("harmonized forced variants: " + forcedVariants)
+              resolve(dependencies ++ forcedVariants.flatMap { case (_, variant) => variant.dependencies }, forcedState, previouslyUnderConstrained)
+            } else {
+              //              println("over-constrained forced variants: " + forcedVariants)
+              None
+            }
           }
         }
       }
@@ -108,34 +162,13 @@ class Resolver(variantsLoader: VariantsLoaderEngine) extends VariantsLoaderLogic
         //basically it involves finding all possible combinations of variants, then trying to find the smallest amount of the variants that unambiguously resolves
         val underconstrained = state.underconstrained ++ previouslyUnderConstrained
 
-        val combinationSets = {
-          val allVariantCombinations = variantCombinations(underconstrained, state) //using state and not initState to avoid getting too many variants (we want to prune out constraints)
-          //warning if large amount of combinations required to iterate over: state.underconstrained.size * allVariantCombinations
-          //TODO: limit to a max number of paths to try?
-          val combinationSize = underconstrained.size
-          val combinationSets = for { //the ordered sequence of each size of combinations to try, starting with the least amount of variants to constrain
-            size <- (1 to combinationSize).toList
-            combination <- allVariantCombinations.toList if !checkedCombinations(combination)
-          } yield {
-            val combinations = (for {
-              variantList <- combination.toList.combinations(size).toList //TODO: implement combinations of sets?
-            } yield {
-              variantList.toSet
-            })
-            //FIXME: trying to avoid too many combinations (should fix variantCombinations!!! instead)
-            if (size == 1) size -> List(combinations.flatten.toSet)
-            else size -> combinations
-          }
-          combinationSets
-        }
-        
         //TODO: grouping and sorting does not feel optimal at all! we already have the size so it should not be necessary + plus we should add it to a sorted list 
         //group by sizes, for each size we want to check if there is a unique resolve before continuing
-        val resolvedStates = combinationSets.groupBy(_._1).toList.sortBy(_._1).view map { //view is here to avoid mapping over solutions where we have already found one
+        val resolvedStates = combinationSets(underconstrained, state, checkedCombinations).groupBy(_._1).toList.sortBy(_._1) map { //TODO: add .view  (removed because we use resolvedStates again later) is here to avoid mapping over solutions where we have already found one
           case (size, combinationsSizes) =>
             combinationsSizes.toList.flatMap {
               case (_, combinations) =>
-                val resolvedStates = detectResolvedStates(combinations, initState, underconstrained).toList
+                val resolvedStates = forceVariants(combinations, initState, underconstrained).toList
                 resolvedStates.collect {
                   case res if res.isDefined => res
                 }
@@ -143,16 +176,39 @@ class Resolver(variantsLoader: VariantsLoaderEngine) extends VariantsLoaderLogic
         }
 
         val chosenState = resolvedStates find { combinationStates =>
-          combinationStates.size == 1
+          combinationStates.size == 1 //we found exactly one combination
         }
 
         chosenState match {
-          case Some(Some(resolvedState) :: Nil) => Some(resolvedState) //we found exactly one resolved state for all current combinations
-          case _ => None //none or more than one resolved states so we failed
+          case Some(Some(resolvedState) :: Nil) =>
+            Some(resolvedState) //we found exactly one resolved state for all current combinations
+          case _ =>
+            //we found more than one possible states:
+            resolvedStates.foreach { a => 
+              val b = a.collect { //use only the ones that resolve 
+                case Some((state, nodes)) =>
+                  state.graph = nodes
+                  state
+              }
+
+              //...then store the states that used the least amount of forced variants to resolve
+              b.foreach { c =>
+                if (c.forcedVariants.size == forcedVariantsUsed) {
+                  optimalUnderconstrainedStates += c
+                } else if (c.forcedVariants.size < forcedVariantsUsed) {
+                  forcedVariantsUsed = c.forcedVariants.size
+                  optimalUnderconstrainedStates = Set(c)
+                }
+              }
+            }
+
+            None //none or more than one resolved states so we failed
         }
       } else if (state.underconstrained.size == 0 && state.overconstrained.size == 0) {
         Some(state -> nodes)
-      } else None
+      } else {
+        None
+      }
     }
 
     val currentState = initState.getOrElse(new State())
@@ -161,7 +217,11 @@ class Resolver(variantsLoader: VariantsLoaderEngine) extends VariantsLoaderLogic
         state.graph = nodes //setting root nodes
         Right(state)
       }
-      case None => Left(currentState) //found no path to resolution, so return first graph for debug
+      case None =>
+        println("===========================")
+        println(optimalUnderconstrainedStates)
+        println("===========================")
+        Left(currentState) //found no path to resolution, so return first graph for debug
     }
   }
 }
