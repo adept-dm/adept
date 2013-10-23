@@ -1,6 +1,8 @@
 package adept.core.models.internal
 
-private[adept] case class Node(val id: String, var children: Set[Node]) {
+import adept.core.models.Id
+
+private[adept] case class Node(val id: Id, var children: Set[Node]) {
   override def toString = {
     id + " <children>"
   }

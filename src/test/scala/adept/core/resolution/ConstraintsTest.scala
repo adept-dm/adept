@@ -342,8 +342,8 @@ class ConstraintsTest extends FunSuite with MustMatchers {
     val result = new Resolver(new DefinedVariants(variants)).resolve(Set(
 //      Dependency("org.scala-lang/scala-library", Set(Constraint("version", Set("2.10.3")))),
 //      Dependency("com.typesafe.akka/akka-actors",  Set(Constraint("version", Set("2.2.0")))),
-      Dependency("com.typesafe.play/play", Set.empty),
-      Dependency("com.typesafe.play/play-slick", Set.empty)
+      Dependency(new Id("com.typesafe.play/play"), Set.empty),
+      Dependency(new Id("com.typesafe.play/play-slick"), Set.empty)
 //      Dependency("com.typesafe.play/play-slick", Set.empty),
 //      Dependency("com.typesafe.play/play", Set.empty)
       ))

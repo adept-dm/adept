@@ -50,7 +50,7 @@ object TestDSL {
   }
 
   def toDependency(v: BuildableTestType): Dependency = {
-    Dependency(v.id, constraints = v.attrs.map { case (name, values) => Constraint(name, values) }.toSet)
+    Dependency(new Id(v.id), constraints = v.attrs.map { case (name, values) => Constraint(name, values) }.toSet)
   }
 
   implicit def exclusionType[A <: BuildableTestType](testType: A) = {
@@ -80,11 +80,11 @@ object TestDSL {
     def build[A](parent: BuildableTestType, testTypes: Seq[TestType]): Dependency = {
       val deps = testTypes map {
         case r: R => throw new Exception("Found a R (for Root): " + r + " in: " + testTypes + ". Use V (for Variant) instead!")
-        case d: X => Dependency(d.id, constraints = d.constraints.map { case (name, values) => Constraint(name, values) }.toSet)
+        case d: X => Dependency(new Id(d.id), constraints = d.constraints.map { case (name, values) => Constraint(name, values) }.toSet)
         case v: V => build(v, v.children)
         case other => throw new Exception("Found a " + other + "  in: " + testTypes + ". Use V (for Variant) instead!")
       }
-      val parentVariant = Variant(parent.id, artifacts = Set.empty, attributes = parent.attrs.map { case (name, values) => Attribute(name, values) }.toSet, dependencies = deps.toSet)
+      val parentVariant = Variant(new Id(parent.id), artifacts = Set.empty, attributes = parent.attrs.map { case (name, values) => Attribute(name, values) }.toSet, dependencies = deps.toSet)
 
       variants :+= parentVariant
 

@@ -16,7 +16,7 @@ class Resolver(variantsLoader: VariantsLoaderEngine) {
     val variants = ids.filter { id =>
       !ignoredIds(id) //ignore ids: can be either implicit already or under-constrained 
     }.flatMap { id =>
-      variantsLoader.get(id.value, constraints.getOrElse(id, Set.empty)) //only add a combination of something that is not constrained
+      variantsLoader.get(id, constraints.getOrElse(id, Set.empty)) //only add a combination of something that is not constrained
     }
 
     (1 to ids.size).iterator.map { size =>
@@ -25,14 +25,14 @@ class Resolver(variantsLoader: VariantsLoaderEngine) {
   }
 
   def resolveVariant(dependency: Dependency, state: State): (Option[Variant], State) = {
-    state.implicitVariants.get(new Id(dependency.id)) match {
+    val id = dependency.id
+    state.implicitVariants.get(id) match {
       case Some(variant) =>
         Some(variant) -> state
       case None =>
-        val id = new Id(dependency.id)
         val currentConstraints = dependency.constraints ++ state.constraints.getOrElse(id, Set.empty)
 
-        val variants = variantsLoader.get(dependency.id, currentConstraints)
+        val variants = variantsLoader.get(id, currentConstraints)
         if (variants.size == 1) { //resolved
           val variant = variants.head //TODO: use pattern match instead
 
@@ -100,23 +100,23 @@ class Resolver(variantsLoader: VariantsLoaderEngine) {
       //under-constrained; perhaps there is a unique combination of variants where we still can resolve:
 
       val nonImplicitDependencies = dependencies.filter { dependency =>
-        !state.implicitVariants.isDefinedAt(new Id(dependency.id))
+        !state.implicitVariants.isDefinedAt(dependency.id)
       }
 
       val ignoredIds = (state.implicitVariants.values.map { variant => //ignore id of implicit variants
-        new Id(variant.id)
+        variant.id
       } ++ previouslyUnderconstrained).toSet //ignore ids which are under-constrained already
 
       //try out the different combinations till we find a unique combination that resolves
       val testedStatesCombinations = combinations(state.underconstrained, ignoredIds, state.constraints).map { combinations =>
         //TODO: .par to improve speed?
-        combinations.map { combination => 
+        combinations.map { combination =>
           val implicitVariants = combination.map { variant =>
-            new Id(variant.id) -> variant
+            variant.id -> variant
           }.toMap
 
           val implicitState = state.copy(
-            underconstrained = state.underconstrained -- combination.map(variant => new Id(variant.id)), //we are no longer under-constrained on the implicitVariants
+            underconstrained = state.underconstrained -- combination.map(_.id), //we are no longer under-constrained on the implicitVariants
             implicitVariants = state.implicitVariants ++ implicitVariants)
           implicitResolve(nonImplicitDependencies, implicitState, ignoredIds ++ state.underconstrained) //ignore ids that are already under-constrained at this level
         }.collect {

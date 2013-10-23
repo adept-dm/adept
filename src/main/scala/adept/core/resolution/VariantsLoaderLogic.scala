@@ -30,7 +30,7 @@ trait VariantsLoaderLogic {
 
   def conlicts(constraints: Set[Constraint]) = constraints.groupBy(_.name).exists { case (name, constraints) => constraints.size > 1 }
 
-  def filter(id: String, variants: Set[Variant], constraints: Set[Constraint]): Set[Variant] = {
+  def filter(id: Id, variants: Set[Variant], constraints: Set[Constraint]): Set[Variant] = {
     if (conlicts(constraints)) Set.empty
     else variants.filter { variant =>
       assert(id == variant.id)

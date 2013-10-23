@@ -16,16 +16,16 @@ class ExclusionsTest extends FunSuite with MustMatchers {
   }
 
   test("variant basic hashing") {
-    val variantA1 = Variant("A", Set(Artifact("123", Set(Attribute("master", Set("compile"))))), Set(Attribute("version", Set("A"))), Set(Dependency("B", Set(Constraint("version", Set("X"))))))
-    val variantA2 = Variant("A", Set(Artifact("123", Set(Attribute("master", Set("compile"))))), Set(Attribute("version", Set("A"))), Set(Dependency("B", Set(Constraint("version", Set("X"))))))
+    val variantA1 = Variant(new Id("A"), Set(Artifact("123", Set(Attribute("master", Set("compile"))))), Set(Attribute("version", Set("A"))), Set(Dependency(new Id("B"), Set(Constraint("version", Set("X"))))))
+    val variantA2 = Variant(new Id("A"), Set(Artifact("123", Set(Attribute("master", Set("compile"))))), Set(Attribute("version", Set("A"))), Set(Dependency(new Id("B"), Set(Constraint("version", Set("X"))))))
     //minor variations:
-    val variantA3 = Variant("A", Set(Artifact("12", Set(Attribute("master", Set("compile"))))), Set(Attribute("version", Set("A"))), Set(Dependency("B", Set(Constraint("version", Set("X"))))))
-    val variantA4 = Variant("A", Set(Artifact("123", Set(Attribute("maste", Set("compile"))))), Set(Attribute("version", Set("A"))), Set(Dependency("B", Set(Constraint("version", Set("X"))))))
-    val variantA5 = Variant("A", Set(Artifact("123", Set(Attribute("master", Set("compile"))))), Set(Attribute("version", Set("1A"))), Set(Dependency("B", Set(Constraint("version", Set("X"))))))
-    val variantA6 = Variant("A", Set(Artifact("123", Set(Attribute("master", Set("compile"))))), Set(Attribute("version", Set("A"))), Set(Dependency("B", Set(Constraint("version", Set("X1"))))))
-    val variantA7 = Variant("A", Set(Artifact("123", Set(Attribute("master", Set("compile"))))), Set(Attribute("version", Set("A"))), Set(Dependency("B", Set(Constraint("version1", Set("X"))))))
-    val variantA8 = Variant("A", Set(Artifact("123", Set(Attribute("master", Set("compile1"))))), Set(Attribute("version", Set("A"))), Set(Dependency("B", Set(Constraint("version", Set("X"))))))
-    val variantB = Variant("B", Set(Artifact("123", Set(Attribute("master", Set("compile"))))), Set(Attribute("version", Set("A"))), Set(Dependency("B", Set(Constraint("version", Set("X"))))))
+    val variantA3 = Variant(new Id("A"), Set(Artifact("12", Set(Attribute("master", Set("compile"))))), Set(Attribute("version", Set("A"))), Set(Dependency(new Id("B"), Set(Constraint("version", Set("X"))))))
+    val variantA4 = Variant(new Id("A"), Set(Artifact("123", Set(Attribute("maste", Set("compile"))))), Set(Attribute("version", Set("A"))), Set(Dependency(new Id("B"), Set(Constraint("version", Set("X"))))))
+    val variantA5 = Variant(new Id("A"), Set(Artifact("123", Set(Attribute("master", Set("compile"))))), Set(Attribute("version", Set("1A"))), Set(Dependency(new Id("B"), Set(Constraint("version", Set("X"))))))
+    val variantA6 = Variant(new Id("A"), Set(Artifact("123", Set(Attribute("master", Set("compile"))))), Set(Attribute("version", Set("A"))), Set(Dependency(new Id("B"), Set(Constraint("version", Set("X1"))))))
+    val variantA7 = Variant(new Id("A"), Set(Artifact("123", Set(Attribute("master", Set("compile"))))), Set(Attribute("version", Set("A"))), Set(Dependency(new Id("B"), Set(Constraint("version1", Set("X"))))))
+    val variantA8 = Variant(new Id("A"), Set(Artifact("123", Set(Attribute("master", Set("compile1"))))), Set(Attribute("version", Set("A"))), Set(Dependency(new Id("B"), Set(Constraint("version", Set("X"))))))
+    val variantB = Variant(new Id("B"), Set(Artifact("123", Set(Attribute("master", Set("compile"))))), Set(Attribute("version", Set("A"))), Set(Dependency(new Id("B"), Set(Constraint("version", Set("X"))))))
     
     Hash.calculate(variantA1) must equal(Hash.calculate(variantA2))
     Hash.calculate(variantA1) must not equal (Hash.calculate(variantA3))

@@ -44,7 +44,7 @@ object TestHelpers extends MustMatchers {
     val (id, (attrName, attrValues)) = attr
     import org.scalatest.OptionValues._
     val variant = (state.resolvedVariants ++ state.implicitVariants).get(new Id(id)).value
-    variant.id must equal(id)
+    variant.id must equal(new Id(id))
     (id -> variant.attributes) must equal(id -> Set(Attribute(attrName, attrValues)))
   }
 }

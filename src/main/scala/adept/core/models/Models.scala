@@ -8,11 +8,11 @@ case class Constraint(name: String, values: Set[String]) {
   def toAttribute: Attribute = Attribute(name, values)
 }
 
-case class Dependency(id: String, constraints: Set[Constraint])
+case class Dependency(id: Id, constraints: Set[Constraint])
 
 case class Artifact(hash: String, attributes: Set[Attribute])
 
-case class Variant(id: String, artifacts: Set[Artifact], attributes: Set[Attribute], dependencies: Set[Dependency]) {
+case class Variant(id: Id, artifacts: Set[Artifact], attributes: Set[Attribute], dependencies: Set[Dependency]) {
   def attribute(name: String) = {
     val values = attributes.collect {
       case artifact if artifact.name == name => artifact.values
@@ -26,7 +26,6 @@ case class Variant(id: String, artifacts: Set[Artifact], attributes: Set[Attribu
 
 }
 
-//TODO: change all ids in all case classes to use this one
 class Id(val value: String) extends AnyVal { //make a value class to avoid runtime reference
   override def toString = value
 }

@@ -59,7 +59,7 @@ object Hash {
   }
 
   private def updateWithDependency(dependency: Dependency, currentMd: MessageDigest) = {
-    currentMd.update(dependency.id.getBytes)
+    currentMd.update(dependency.id.value.getBytes)
     dependency.constraints.foreach(updateWithConstraint(_, currentMd))
   }
 
@@ -79,7 +79,7 @@ object Hash {
     val currentMd = md.get()
     currentMd.reset()
     try {
-      currentMd.update(variant.id.getBytes)
+      currentMd.update(variant.id.value.getBytes)
       variant.dependencies.foreach(updateWithDependency(_, currentMd))
       variant.artifacts.foreach(updateWithArtifact(_, currentMd))
       variant.attributes.foreach(updateWithAttribute(_, currentMd))
@@ -92,8 +92,8 @@ object Hash {
 }
 
 //TODO: remove unnecessary fields
-case class ReplaceResult(dependencies: Set[Dependency], newVariants: Set[Variant], attributes: Map[String, Set[Attribute]],
-  includedVariants: Map[String, Variant], graph: Set[Node])
+case class ReplaceResult(dependencies: Set[Dependency], newVariants: Set[Variant], attributes: Map[Id, Set[Attribute]],
+  includedVariants: Map[Id, Variant], graph: Set[Node])
 
 object Extensions {
 
@@ -118,7 +118,7 @@ object Extensions {
     Attribute(ExclusionAttributeName, Set(variant.id + ":" + Hash.calculate(variant)))
   }
 
-  def exclude(baseDependencies: Set[Dependency], graph: Set[Node], variants: Map[String, Variant], query: Query): ReplaceResult = {
+  def exclude(baseDependencies: Set[Dependency], graph: Set[Node], variants: Map[Id, Variant], query: Query): ReplaceResult = {
     replaceNode(baseDependencies, graph, variants, query) { (matchingDependencies, variant) =>
       val excludedAttributes = matchingDependencies.map(dependency => excludedAttribute(variants(dependency.id)))
       val newVariant = variant.copy(dependencies = variant.dependencies.filter(d => !matchingDependencies.contains(d)),
@@ -136,7 +136,7 @@ object Extensions {
     Attribute(OverriddenAttributeName, Set(variant.id + ":" + oldDepsHash + ":" + newDepsHash))
   }
 
-  def overrides(baseDependencies: Set[Dependency], graph: Set[Node], variants: Map[String, Variant], query: Query, replacements: Map[String, Set[Attribute]]): ReplaceResult = {
+  def overrides(baseDependencies: Set[Dependency], graph: Set[Node], variants: Map[Id, Variant], query: Query, replacements: Map[Id, Set[Attribute]]): ReplaceResult = {
     replaceNode(baseDependencies, graph, variants, query) { (matchingDependencies, variant) =>
       val overrideDependencies = variant.dependencies.map { dependency =>
         replacements.get(dependency.id) match {
@@ -155,12 +155,12 @@ object Extensions {
     }
   }
 
-  private def replaceNode(replacementDependencies: Set[Dependency], graph: Set[Node], variants: Map[String, Variant], query: Query)(replaceFun: (Set[Dependency], Variant) => (Set[Attribute], Variant)): ReplaceResult = {
+  private def replaceNode(replacementDependencies: Set[Dependency], graph: Set[Node], variants: Map[Id, Variant], query: Query)(replaceFun: (Set[Dependency], Variant) => (Set[Attribute], Variant)): ReplaceResult = {
     //FIXME: vars...
-    var includedVariants = Map.empty[String, Variant]
+    var includedVariants = Map.empty[Id, Variant]
     var newVariants = Set.empty[Variant]
-    var attributes = Map.empty[String, Set[Attribute]]
-    var dependencies = Map.empty[String, Dependency]
+    var attributes = Map.empty[Id, Set[Attribute]]
+    var dependencies = Map.empty[Id, Dependency]
     var newDependencies = Set.empty[Dependency]
 
     val dependencyMap = replacementDependencies.map { dependency =>
