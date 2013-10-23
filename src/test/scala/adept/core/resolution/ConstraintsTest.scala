@@ -113,28 +113,28 @@ class ConstraintsTest extends FunSuite with MustMatchers {
     checkUnresolved(state, Set())
   }
 
-  test("resolver.resolve basic consistency") {
-    val (dependencies1, first) = useTestData(
-      R("A")("version" -> Set("V"))(
-        X("B")("version" -> Set("Y"))))
-
-    val (dependencies2, second) = useTestData(
-      R("B")("version" -> Set("Y"))(
-        V("A")()()),
-
-      V("A")("version" -> Set("X"))(
-        V("C")("version" -> Set("Z"))()))
-
-    val resolver = new Resolver(new DefinedVariants(first ++ second))
-    val result1 = resolver.resolve(dependencies1)
-    val state1 = resolved(result1)
-    val result2 = resolver.resolve(dependencies2, Some(state1))
-
-    val state2 = resolved(result2)
-
-    checkResolved(state2, Set("A", "B"))
-    checkUnresolved(state2, Set())
-  }
+//  test("resolver.resolve basic consistency") {
+//    val (dependencies1, first) = useTestData(
+//      R("A")("version" -> Set("V"))(
+//        X("B")("version" -> Set("Y"))))
+//
+//    val (dependencies2, second) = useTestData(
+//      R("B")("version" -> Set("Y"))(
+//        V("A")()()),
+//
+//      V("A")("version" -> Set("X"))(
+//        V("C")("version" -> Set("Z"))()))
+//
+//    val resolver = new Resolver(new DefinedVariants(first ++ second))
+//    val result1 = resolver.resolve(dependencies1)
+//    val state1 = resolved(result1)
+//    val result2 = resolver.resolve(dependencies2, Some(state1))
+//
+//    val state2 = resolved(result2)
+//
+//    checkResolved(state2, Set("A", "B"))
+//    checkUnresolved(state2, Set())
+//  }
 
   test("nested constraints") {
     //B is unconstrained, but D forces C v 3.0, only B v 1.0 is constrained on C v 3.0 so B v 1.0 must be used:
@@ -253,6 +253,7 @@ class ConstraintsTest extends FunSuite with MustMatchers {
         X("E")("v" -> Set("3.0")))))
 
     val state = resolved(result)
+    println(state)
 
     checkResolved(state, Set("A", "B", "C", "D", "E"))
     checkVariants(state, "A" -> ("v" -> Set("1.0")))
@@ -341,8 +342,11 @@ class ConstraintsTest extends FunSuite with MustMatchers {
     val result = new Resolver(new DefinedVariants(variants)).resolve(Set(
 //      Dependency("org.scala-lang/scala-library", Set(Constraint("version", Set("2.10.3")))),
 //      Dependency("com.typesafe.akka/akka-actors",  Set(Constraint("version", Set("2.2.0")))),
-      Dependency("com.typesafe.play/play-slick", Set.empty),
-      Dependency("com.typesafe.play/play", Set(Constraint("version", Set("2.2.0"))))))
+      Dependency("com.typesafe.play/play", Set.empty),
+      Dependency("com.typesafe.play/play-slick", Set.empty)
+//      Dependency("com.typesafe.play/play-slick", Set.empty),
+//      Dependency("com.typesafe.play/play", Set.empty)
+      ))
 
     val state = unresolved(result)
     println(state)

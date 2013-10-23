@@ -12,7 +12,7 @@ case class Dependency(id: String, constraints: Set[Constraint])
 
 case class Artifact(hash: String, attributes: Set[Attribute])
 
-case class Variant(moduleId: String, artifacts: Set[Artifact], attributes: Set[Attribute], dependencies: Set[Dependency]) {
+case class Variant(id: String, artifacts: Set[Artifact], attributes: Set[Attribute], dependencies: Set[Dependency]) {
   def attribute(name: String) = {
     val values = attributes.collect {
       case artifact if artifact.name == name => artifact.values
@@ -21,7 +21,12 @@ case class Variant(moduleId: String, artifacts: Set[Artifact], attributes: Set[A
   }
 
   override def toString = {
-    moduleId + " " + attributes.map(a => a.name + "=" + a.values.mkString("(", ",", ")")).mkString("[", ",", "]")
+    id + " " + attributes.map(a => a.name + "=" + a.values.mkString("(", ",", ")")).mkString("[", ",", "]")
   }
 
+}
+
+//TODO: change all ids in all case classes to use this one
+class Id(val value: String) extends AnyVal { //make a value class to avoid runtime reference
+  override def toString = value
 }

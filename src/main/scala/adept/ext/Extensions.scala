@@ -79,7 +79,7 @@ object Hash {
     val currentMd = md.get()
     currentMd.reset()
     try {
-      currentMd.update(variant.moduleId.getBytes)
+      currentMd.update(variant.id.getBytes)
       variant.dependencies.foreach(updateWithDependency(_, currentMd))
       variant.artifacts.foreach(updateWithArtifact(_, currentMd))
       variant.attributes.foreach(updateWithAttribute(_, currentMd))
@@ -115,7 +115,7 @@ object Extensions {
 
   /** excluded attributes looks like this: "exclusions": [ "foo/bar:123aef" ] */
   def excludedAttribute(variant: Variant): Attribute = {
-    Attribute(ExclusionAttributeName, Set(variant.moduleId + ":" + Hash.calculate(variant)))
+    Attribute(ExclusionAttributeName, Set(variant.id + ":" + Hash.calculate(variant)))
   }
 
   def exclude(baseDependencies: Set[Dependency], graph: Set[Node], variants: Map[String, Variant], query: Query): ReplaceResult = {
@@ -133,7 +133,7 @@ object Extensions {
     val newDepsHash = Hash.calculate(newDependencies)
     val oldDepsHash = Hash.calculate(variant.dependencies)
     
-    Attribute(OverriddenAttributeName, Set(variant.moduleId + ":" + oldDepsHash + ":" + newDepsHash))
+    Attribute(OverriddenAttributeName, Set(variant.id + ":" + oldDepsHash + ":" + newDepsHash))
   }
 
   def overrides(baseDependencies: Set[Dependency], graph: Set[Node], variants: Map[String, Variant], query: Query, replacements: Map[String, Set[Attribute]]): ReplaceResult = {

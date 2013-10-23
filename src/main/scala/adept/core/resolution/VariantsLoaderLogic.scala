@@ -33,7 +33,7 @@ trait VariantsLoaderLogic {
   def filter(id: String, variants: Set[Variant], constraints: Set[Constraint]): Set[Variant] = {
     if (conlicts(constraints)) Set.empty
     else variants.filter { variant =>
-      assert(id == variant.moduleId)
+      assert(id == variant.id)
       matches(variant.attributes, constraints)
     }
   }

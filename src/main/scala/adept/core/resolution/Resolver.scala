@@ -3,226 +3,143 @@ package adept.core.resolution
 import adept.core.models._
 import adept.core.models.internal._
 
-class Resolver(variantsLoader: VariantsLoaderEngine) extends VariantsLoaderLogic {
+class Resolver(variantsLoader: VariantsLoaderEngine) {
 
-  private[adept] def getVariants(id: String, state: State) = {
-    state.forcedVariants.get(id) match {
-      case Some(variant) => Set(variant)
-      case None => variantsLoader.get(id, state.constraints(id))
+  /**
+   * Calculate all possible combinations of variants that should be implicit
+   * Starts with the simplest combination (one and one variant), then continues with pairs, etc etc
+   *
+   * TODO: return iterators to be lazy and avoid calculating the more complicated combinations
+   */
+  def combinations(ids: Set[Id], ignoredIds: Set[Id], constraints: Map[Id, Set[Constraint]]): Iterator[Iterator[List[Variant]]] = {
+
+    val variants = ids.filter { id =>
+      !ignoredIds(id) //ignore ids: can be either implicit already or under-constrained 
+    }.flatMap { id =>
+      variantsLoader.get(id.value, constraints.getOrElse(id, Set.empty)) //only add a combination of something that is not constrained
+    }
+
+    (1 to ids.size).iterator.map { size =>
+      variants.toList.combinations(size)
     }
   }
 
-  private[adept] def resolveVariants(id: String, variants: Set[Variant], state: State): Node = {
-    val node = state.nodes.getOrElse(id, Node(id, Set.empty))
-    state.nodes += id -> node
-
-    if (!state.visited(variants)) {
-      state.visited += variants
-      if (variants.size == 1) { // exactly one variant == resolved
-        val variant = variants.head
-
-        state.resolved += id
-        state.underconstrained -= id
-        state.overconstrained -= id
-        state.resolvedVariants += id -> variant
-
-        val children = resolveDependencies(variant.dependencies, state) // continue
-        node.children = children
-      } else if (variants.size > 1) { // under-constrained
-        state.underconstrained += id
-        state.resolved -= id
-      } else if (variants.size < 1) { // over-constrained
-        state.overconstrained += id
-        state.resolved -= id
-      } else {
-        throw new Exception("unexpected amount of variants: " + variants.size + " in " + variants)
-      }
-    }
-    node
-  }
-
-  private[adept] def resolveDependencies(dependencies: Set[Dependency], state: State): Set[Node] = {
-    dependencies.map { dependency: Dependency =>
-      val id = dependency.id
-      val constraints = dependency.constraints ++ state.constraints.get(dependency.id).getOrElse(Set.empty)
-      state.constraints += id -> constraints
-      val variants = getVariants(dependency.id, state)
-      resolveVariants(id, variants, state)
-    }
-  }
-
-  private[adept] def variantCombinations(ids: Set[String], state: State): Set[Set[Variant]] = {
-    if (ids.isEmpty) Set(Set.empty)
-    else {
-      for {
-        id <- ids
-        rest = ids - id
-        combination <- variantCombinations(rest, state)
-        variant <- getVariants(id, state)
-      } yield {
-        combination + variant
-      }
-    }
-  }
-
-  private[adept] def combinationSets(underconstrained: Set[String], state: State, checkedCombinations: Set[Set[Variant]]) = {
-    val allVariantCombinations = variantCombinations(underconstrained, state)
-    val combinationSize = underconstrained.size
-
-    //TODO: limit to a max number of paths to try?
-    // or warning if large amount of combinations required to iterate over: 
-    // underconstrained.size * allVariantCombinations
-
-    val combinationSets = for { //the ordered sequence of each size of combinations to try, starting with the least amount of variants to constrain
-      size <- (1 to combinationSize).toList
-      combination <- allVariantCombinations.toList if !checkedCombinations(combination)
-    } yield {
-      val combinations = (for {
-        variantList <- combination.toList.combinations(size).toList //TODO: implement combinations of sets?
-      } yield {
-        variantList.toSet
-      })
-      
-      //FIXME: we sort (later) and start with the least amount of of forced variants
-      // many combinations (should fix variantCombinations!!! instead)
-      // it is used for grouping later on
-      if (size == 1) size -> List(combinations.flatten.toSet)
-      else size -> combinations
-    }
-    //TODO: add possibility to remove combinations that we will discard later (for example: lower point versions)
-    
-    combinationSets
-  }
-
-  def resolve(dependencies: Set[Dependency], initState: Option[State] = None): Either[State, State] = {
-    var checkedCombinations = Set.empty[Set[Variant]] //FIXME: this is currently the reason why we cannot be .par
-    var optimalUnderconstrainedStates = Set.empty[State]
-    var forcedVariantsUsed = Int.MaxValue
-
-    def forceVariants(combinations: List[Set[Variant]], state: State, previouslyUnderConstrained: Set[String]): List[Option[(State, Set[Node])]] = {
-      combinations.map { combination =>
-        if (checkedCombinations(combination)) {
-          None
-        } else {
-          val forcedVariants = combination.groupBy(_.moduleId).map {
-            case (id, variants) =>
-              if (variants.size != 1) throw new Exception("expected exactly one variant but got: " + variants)
-              else id -> variants.head
-          }
-
-          //check if we are trying to force a module that is already forced
-          val alreadyForced = state.forcedVariants.exists {
-            case (id1, variant1) =>
-              forcedVariants.exists {
-                case (id2, variant2) =>
-                  (id1 == id2) && (variant1 != variant2)
-              }
-          }
-          checkedCombinations += combination //MUTATE
-          if (alreadyForced) None
-          else {
-            val newConstraints = (for {
-              (id, variant) <- forcedVariants
-              dependency <- variant.dependencies
-            } yield dependency.id -> dependency.constraints).toMap
-
-            val overconstrained = { //check if there exists a forced variant which has constraints that matches another forced variant
-
-              val currentConstraints = dependencies.map { dependency =>
-                dependency.id -> (dependency.constraints ++ newConstraints.getOrElse(dependency.id, Set.empty))
-              }.toMap
-
-              (state.forcedVariants ++ forcedVariants).exists {
-                case (id, variant) if currentConstraints.isDefinedAt(id) =>
-                  !matches(variant.attributes, currentConstraints(id) ++ state.constraints.getOrElse(id, Set.empty))
-                case _ => false
-              }
-            }
-            //            println()
-            if (!overconstrained) {
-              val forcedState = state.copy(forcedVariants = forcedVariants)
-              forcedState.constraints ++= newConstraints
-              //              println("harmonized forced variants: " + forcedVariants)
-              resolve(dependencies ++ forcedVariants.flatMap { case (_, variant) => variant.dependencies }, forcedState, previouslyUnderConstrained)
-            } else {
-              //              println("over-constrained forced variants: " + forcedVariants)
-              None
-            }
-          }
-        }
-      }
-    }
-
-    def resolve(depedencies: Set[Dependency], state: State, previouslyUnderConstrained: Set[String]): Option[(State, Set[Node])] = {
-      val initState = state.copy() //saving state, in case we need a new try
-      val nodes = resolveDependencies(dependencies, state)
-
-      if (state.overconstrained.size == 0 && state.underconstrained.size > 0) {
-        //under-constrained, but not over-constrained, so try to find the first set of variants that can resolve this:
-        //basically it involves finding all possible combinations of variants, then trying to find the smallest amount of the variants that unambiguously resolves
-        val underconstrained = state.underconstrained ++ previouslyUnderConstrained
-
-        //TODO: grouping and sorting does not feel optimal at all! we already have the size so it should not be necessary + plus we should add it to a sorted list 
-        //group by sizes, for each size we want to check if there is a unique resolve before continuing
-        val resolvedStates = combinationSets(underconstrained, state, checkedCombinations).groupBy(_._1).toList.sortBy(_._1) map { //TODO: add .view  (removed because we use resolvedStates again later) is here to avoid mapping over solutions where we have already found one
-          case (size, combinationsSizes) =>
-            combinationsSizes.toList.flatMap {
-              case (_, combinations) =>
-                val resolvedStates = forceVariants(combinations, initState, underconstrained).toList
-                resolvedStates.collect {
-                  case res if res.isDefined => res
-                }
-            }
-        }
-
-        val chosenState = resolvedStates find { combinationStates =>
-          combinationStates.size == 1 //we found exactly one combination
-        }
-
-        chosenState match {
-          case Some(Some(resolvedState) :: Nil) =>
-            Some(resolvedState) //we found exactly one resolved state for all current combinations
-          case _ =>
-            //we found more than one possible states:
-            resolvedStates.foreach { a => 
-              val b = a.collect { //use only the ones that resolve 
-                case Some((state, nodes)) =>
-                  state.graph = nodes
-                  state
-              }
-
-              //...then store the states that used the least amount of forced variants to resolve
-              b.foreach { c =>
-                if (c.forcedVariants.size == forcedVariantsUsed) {
-                  optimalUnderconstrainedStates += c
-                } else if (c.forcedVariants.size < forcedVariantsUsed) {
-                  forcedVariantsUsed = c.forcedVariants.size
-                  optimalUnderconstrainedStates = Set(c)
-                }
-              }
-            }
-
-            None //none or more than one resolved states so we failed
-        }
-      } else if (state.underconstrained.size == 0 && state.overconstrained.size == 0) {
-        Some(state -> nodes)
-      } else {
-        None
-      }
-    }
-
-    val currentState = initState.getOrElse(new State())
-    resolve(dependencies, currentState, Set.empty) match {
-      case Some((state, nodes)) => { //found a state that resolves
-        state.graph = nodes //setting root nodes
-        Right(state)
-      }
+  def resolveVariant(dependency: Dependency, state: State): (Option[Variant], State) = {
+    state.implicitVariants.get(new Id(dependency.id)) match {
+      case Some(variant) =>
+        Some(variant) -> state
       case None =>
-        println("===========================")
-        println(optimalUnderconstrainedStates)
-        println("===========================")
-        Left(currentState) //found no path to resolution, so return first graph for debug
+        val id = new Id(dependency.id)
+        val currentConstraints = dependency.constraints ++ state.constraints.getOrElse(id, Set.empty)
+
+        val variants = variantsLoader.get(dependency.id, currentConstraints)
+        if (variants.size == 1) { //resolved
+          val variant = variants.head //TODO: use pattern match instead
+
+          Some(variant) -> state.copy(
+            resolved = state.resolved + id,
+            resolvedVariants = state.resolvedVariants + (id -> variant),
+            underconstrained = state.underconstrained - id,
+            overconstrained = state.overconstrained - id,
+            constraints = state.constraints + (id -> currentConstraints))
+        } else if (variants.size > 1) { //under-constrained
+          None -> state.copy(
+            resolved = state.resolved - id,
+            resolvedVariants = state.resolvedVariants - id,
+            underconstrained = state.underconstrained + id,
+            overconstrained = state.overconstrained - id,
+            constraints = state.constraints + (id -> currentConstraints))
+        } else if (variants.size < 1) { //over-constrained
+          None -> state.copy(
+            resolved = state.resolved - id,
+            resolvedVariants = state.resolvedVariants - id,
+            underconstrained = state.underconstrained - id,
+            overconstrained = state.overconstrained + id,
+            constraints = state.constraints + (id -> currentConstraints))
+        } else {
+          throw new Exception("Unexpected number of variants: " + variants)
+        }
     }
+  }
+
+  def resolveDependencies(dependencies: Set[Dependency], visited: Set[Dependency], lastState: State): State = {
+    val newDependencies = dependencies.filter { dependency =>
+      !visited(dependency) //remove dependencies we have already visited
+    }
+
+    //TODO: evaluate whether breadth-first is normally faster than depth-first (used now) or find an heuristic that is good at _finding constraints_ that are _likely_ to be used: I believe this is what it is all about 
+    newDependencies.foldLeft(lastState) { (state, dependency) => //collapse all dependencies that can be found into one
+      resolveVariant(dependency, state) match {
+        case (Some(variant), resolvedState) =>
+          if (variant.dependencies.isEmpty) resolvedState
+          else resolveDependencies(variant.dependencies, visited + dependency, resolvedState)
+        case (None, unresolvedState) if !unresolvedState.isResolved =>
+          unresolvedState
+        case _ => throw new Exception("Could not find a variant for a resolved state")
+      }
+    }
+  }
+
+  def resolve(dependencies: Set[Dependency]) = {
+    val initState = new State(
+      resolved = Set.empty,
+      underconstrained = Set.empty,
+      overconstrained = Set.empty,
+      resolvedVariants = Map.empty,
+      implicitVariants = Map.empty,
+      constraints = Map.empty)
+
+    implicitResolve(dependencies, initState, Set.empty)
+  }
+
+  private def implicitResolve(dependencies: Set[Dependency], currentState: State, previouslyUnderconstrained: Set[Id]): Either[State, State] = {
+
+    val state = resolveDependencies(dependencies, Set.empty, currentState)
+
+    if (state.isUnderconstrained) {
+      //under-constrained; perhaps there is a unique combination of variants where we still can resolve:
+
+      val nonImplicitDependencies = dependencies.filter { dependency =>
+        !state.implicitVariants.isDefinedAt(new Id(dependency.id))
+      }
+
+      val ignoredIds = (state.implicitVariants.values.map { variant => //ignore id of implicit variants
+        new Id(variant.id)
+      } ++ previouslyUnderconstrained).toSet //ignore ids which are under-constrained already
+
+      //try out the different combinations till we find a unique combination that resolves
+      val testedStatesCombinations = combinations(state.underconstrained, ignoredIds, state.constraints).map { combinations =>
+        //TODO: .par to improve speed?
+        combinations.map { combination => 
+          val implicitVariants = combination.map { variant =>
+            new Id(variant.id) -> variant
+          }.toMap
+
+          val implicitState = state.copy(
+            underconstrained = state.underconstrained -- combination.map(variant => new Id(variant.id)), //we are no longer under-constrained on the implicitVariants
+            implicitVariants = state.implicitVariants ++ implicitVariants)
+          implicitResolve(nonImplicitDependencies, implicitState, ignoredIds ++ state.underconstrained) //ignore ids that are already under-constrained at this level
+        }.collect {
+          case Right(state) => state
+        }.toList //TODO: is there a way to avoid this toList? We need to use this iterator to find then extract, which is why it is there
+      }
+      testedStatesCombinations find (_.size > 0) match {
+        case Some(resolvedState +: Nil) => Right(resolvedState)
+        case None => Left(state)
+        case result =>
+          println("=====================")
+          println(result.map(_.mkString("\n\n")))
+          println("=====================")
+          Left(state)
+      }
+    } else if (state.isOverconstrained) {
+      Left(state)
+    } else if (state.isResolved) {
+      Right(state)
+    } else {
+      throw new Exception("State is neither resolved, underconstrained nor overconstrained: " + state)
+    }
+
   }
 }
 
