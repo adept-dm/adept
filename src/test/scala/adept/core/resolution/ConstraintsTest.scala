@@ -274,16 +274,19 @@ class ConstraintsTest extends FunSuite with MustMatchers {
     val (dependencies, variants) = useTestData(LargeDataSets.basic: _*)
 
     val result = new Resolver(new DefinedVariants(variants)).resolve(Set(
-            Dependency(Id("org.scala-lang/scala-library"), Set(Constraint("version", Set("2.10.3")))),
-            Dependency(Id("com.typesafe.akka/akka-actors"),  Set(Constraint("version", Set("2.2.0")))),
+// uncomment to resolve:
+//            Dependency(Id("org.scala-lang/scala-library"), Set(Constraint("version", Set("2.10.3")))),
+//            Dependency(Id("com.typesafe.akka/akka-actors"),  Set(Constraint("version", Set("2.2.0")))),
       Dependency(Id("com.typesafe.play/play"), Set.empty),
-      Dependency(Id("com.typesafe.play/play-slick"), Set.empty) //      Dependency("com.typesafe.play/play-slick", Set.empty),
-      //      Dependency("com.typesafe.play/play", Set.empty)
+      Dependency(Id("com.typesafe.play/play-slick"), Set.empty)
       ))
 
-    println(result)
+
     val state = unresolved(result)
-    pending
+    result match {
+      case result: UnderconstrainedResult => result.optimalStates must have size 8
+      case _ => assert(false, "result was not under constrained: " + result)
+    }
   }
 
 }
