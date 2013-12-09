@@ -138,7 +138,7 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true) {
 
     val artifacts = artifactInfos.map {
       case (location, file, hash) =>
-        Artifact(hash, Set(location))
+        Artifact(hash, file.length, Set(location))
     }
     val artifactRefs = artifactInfos.map {
       case (_, file, hash) =>

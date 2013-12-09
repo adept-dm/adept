@@ -1,3 +1,3 @@
 package adept.core.models
 
-case class Artifact(hash: Hash, locations: Set[String])
+case class Artifact(hash: Hash, size: Long, locations: Set[String])
