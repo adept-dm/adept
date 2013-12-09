@@ -64,6 +64,21 @@ object IvyHelper {
 class IvyHelper(ivy: Ivy, changing: Boolean = true) {
   import AttributeDefaults.{ NameAttribute, OrgAttribute, VersionAttribute, ConfAttribute }
   import IvyHelper._
+  
+  /**
+   * Import from ivy based on coordinates
+   * 
+   * TODO: high pri return overrides as well, they are needed to resolve in the same way as Ivy 
+   */
+  def ivyImport(org: String, name: String, version: String): Either[String, Set[IvyImportResult]] = {
+    ivy.synchronized { // ivy is not thread safe
+      val mrid = ModuleRevisionId.newInstance(org, name, version)
+      val dependencies = createDependencyTree(mrid)
+      val workingNode = dependencies(ModuleRevisionId.newInstance(org, name + "-caller", "working")).head.getId
+      val result = results(workingNode)(dependencies)
+      Right(result)
+    }
+  }
 
   def createDependencyTree(mrid: ModuleRevisionId) = {
     var dependencies = Map.empty[ModuleRevisionId, Set[IvyNode]]
@@ -188,20 +203,5 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true) {
       val childId = childNode.getId
       results(childId)(dependencies ++ createDependencyTree(childId))
     } ++ currentVariants
-  }
-
-  /**
-   * Import from ivy based on a 
-   * 
-   * TODO: high pri return overrides as well, they are needed to resolve in the same way as Ivy 
-   */
-  def ivyImport(org: String, name: String, version: String): Either[String, Set[IvyImportResult]] = {
-    ivy.synchronized { // ivy is not thread safe
-      val mrid = ModuleRevisionId.newInstance(org, name, version)
-      val dependencies = createDependencyTree(mrid)
-      val workingNode = dependencies(ModuleRevisionId.newInstance(org, name + "-caller", "working")).head.getId
-      val result = results(workingNode)(dependencies)
-      Right(result)
-    }
   }
 }
