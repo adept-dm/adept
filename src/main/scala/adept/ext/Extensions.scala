@@ -5,11 +5,11 @@ import adept.core.models._
 import java.security.MessageDigest
 import java.io._
 
-sealed trait Query
-case class QueryExpr(exprs: Seq[(String, String)]) extends Query
-case class QueryId(id: Id) extends Query
+private[adept] sealed trait Query
+private[adept] case class QueryExpr(exprs: Seq[(String, String)]) extends Query
+private[adept] case class QueryId(id: Id) extends Query
 
-object Query {
+private[adept] object Query {
   def apply(id: Id) = QueryId(id)
   def apply(exprs: (String, String)*) = QueryExpr(exprs)
   
@@ -45,10 +45,9 @@ object Query {
  *
  */
 //TODO: remove unnecessary fields
-case class ReplaceResult(dependencies: Set[Dependency], newVariants: Set[Variant], attributes: Map[Id, Set[Attribute]],
-  includedVariants: Map[Id, Variant], graph: Set[Node])
+private[adept] case class ReplaceResult(dependencies: Set[Dependency], newVariants: Set[Variant], attributes: Map[Id, Set[Attribute]], includedVariants: Map[Id, Variant], graph: Set[Node])
 
-object Extensions {
+private[adept] object Extensions {
 
   def mergeAttributes(allAttributes: Set[Attribute]*): Set[Attribute] = {
     allAttributes.flatten.groupBy(_.name).map {

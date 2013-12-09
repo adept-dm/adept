@@ -11,7 +11,7 @@ object VersionConflictResolver {
    * The new result (can still be over-constrained, but not on versions);
    * The new variants which were created
    * 
-   * TODO: sniff sniff. is there a code smell here?
+   * TODO: sniff sniff. is there a code smell here? consider rewriting, overrides and this part - just seems very complicated to me
    */
   def resolveHighestConflicts(result: ResolveResult, dependencies: Set[Dependency], loaderEngine: VariantsLoaderEngine): (ResolveResult, Set[Variant]) = {
     val initVariants = result.state.resolvedVariants ++ result.state.implicitVariants
