@@ -2,95 +2,48 @@ package adept.ext
 
 import adept.core.resolution.Resolver
 import adept.core.models._
-import adept.core.models.internal._
 import java.security.MessageDigest
+import java.io._
 
-case class Query(exprs: (String, String)*)
+sealed trait Query
+case class QueryExpr(exprs: Seq[(String, String)]) extends Query
+case class QueryId(id: Id) extends Query
 
 object Query {
+  def apply(id: Id) = QueryId(id)
+  def apply(exprs: (String, String)*) = QueryExpr(exprs)
+  
   def matches(variant: Variant, query: Query): Boolean = {
-    val attributes = variant.attributes
-    val constraints = query.exprs
-    val zipped = query.exprs.map {
-      case expr @ (exprName, _) =>
-        expr -> attributes.filter(attribute => attribute.name == exprName)
-    }
-    zipped.forall {
-      case ((exprName, exprValue), matchingAttributes) =>
-        matchingAttributes.exists { attribute =>
-          exprValue match {
-            case "*" => true
-            case _ =>
-              attribute.values.contains(exprValue)
-          }
+    query match {
+      case QueryExpr(constraints) =>
+        val attributes = variant.attributes
+        val zipped = constraints.map {
+          case expr @ (exprName, _) =>
+            expr -> attributes.filter(attribute => attribute.name == exprName)
         }
+        zipped.forall {
+          case ((exprName, exprValue), matchingAttributes) =>
+            matchingAttributes.exists { attribute =>
+              exprValue match {
+                case "*" => true
+                case _ =>
+                  attribute.values.contains(exprValue)
+              }
+            }
+        }
+      case QueryId(id) => variant.id == id
     }
   }
 }
 
-object Hash {
-  private lazy val md: ThreadLocal[MessageDigest] = new ThreadLocal[MessageDigest] { //make message digest thread-"safe"
-    override def initialValue() = {
-      MessageDigest.getInstance("SHA-256")
-    }
-  }
-
-  private def encode(bytes: Array[Byte]) = {
-    md.get().digest(bytes).map(b => "%02X" format b).mkString.toLowerCase
-  }
-
-  private def updateWithConstraint(constraint: Constraint, currentMd: MessageDigest) = {
-    currentMd.update(constraint.name.getBytes)
-    constraint.values.foreach { value =>
-      currentMd.update(value.getBytes)
-    }
-  }
-
-  private def updateWithArtifact(artifact: Artifact, currentMd: MessageDigest) = {
-    currentMd.update(artifact.hash.getBytes)
-    artifact.attributes.foreach(updateWithAttribute(_, currentMd))
-  }
-
-  private def updateWithAttribute(attribute: Attribute, currentMd: MessageDigest) = {
-    currentMd.update(attribute.name.getBytes)
-    attribute.values.foreach { value =>
-      currentMd.update(value.getBytes)
-    }
-  }
-
-  private def updateWithDependency(dependency: Dependency, currentMd: MessageDigest) = {
-    currentMd.update(dependency.id.value.getBytes)
-    dependency.constraints.foreach(updateWithConstraint(_, currentMd))
-  }
-
-  def calculate(dependencies: Set[Dependency]): String = {
-    val currentMd = md.get()
-    currentMd.reset()
-    try {
-      dependencies.foreach(updateWithDependency(_, currentMd))
-
-      currentMd.digest().map(b => "%02X" format b).mkString.toLowerCase
-    } finally {
-      currentMd.reset()
-    }
-  }
-
-  def calculate(variant: Variant): String = {
-    val currentMd = md.get()
-    currentMd.reset()
-    try {
-      currentMd.update(variant.id.value.getBytes)
-      variant.dependencies.foreach(updateWithDependency(_, currentMd))
-      variant.artifacts.foreach(updateWithArtifact(_, currentMd))
-      variant.attributes.foreach(updateWithAttribute(_, currentMd))
-
-      currentMd.digest().map(b => "%02X" format b).mkString.toLowerCase
-    } finally {
-      currentMd.reset()
-    }
-  }
-}
-
+/**
+ * @param dependencies the dependencies that needs to be used based on replace
+ * @param newVariants the new variants generated
+ * @param attributes the attributes that was replaced
+ * @includedVariants all the variants used for input
+ * @graph the new graph
+ *
+ */
 //TODO: remove unnecessary fields
 case class ReplaceResult(dependencies: Set[Dependency], newVariants: Set[Variant], attributes: Map[Id, Set[Attribute]],
   includedVariants: Map[Id, Variant], graph: Set[Node])
@@ -132,10 +85,11 @@ object Extensions {
   def overriddenAttribute(variant: Variant, newDependencies: Set[Dependency]): Attribute = {
     val newDepsHash = Hash.calculate(newDependencies)
     val oldDepsHash = Hash.calculate(variant.dependencies)
-    
+
     Attribute(OverriddenAttributeName, Set(variant.id + ":" + oldDepsHash + ":" + newDepsHash))
   }
 
+  //TODO: doc that @param variants are the variants that are already resolved and might have sub dependencies that also should be overridden
   def overrides(baseDependencies: Set[Dependency], graph: Set[Node], variants: Map[Id, Variant], query: Query, replacements: Map[Id, Set[Attribute]]): ReplaceResult = {
     replaceNode(baseDependencies, graph, variants, query) { (matchingDependencies, variant) =>
       val overrideDependencies = variant.dependencies.map { dependency =>
@@ -148,7 +102,7 @@ object Extensions {
         }
       }
       val overriddenAttributes = matchingDependencies.map(dependency => overriddenAttribute(variants(dependency.id), overrideDependencies))
-      
+
       val newVariant = variant.copy(dependencies = overrideDependencies,
         attributes = mergeAttributes(variant.attributes, overriddenAttributes))
       overriddenAttributes -> newVariant
@@ -195,8 +149,10 @@ object Extensions {
 
         val excludedIds = matchingDependencies.map(_.id)
 
-        val children = transitiveReplace(node.children.filter { child => //remove all excluded children
-          !excludedIds.contains(child.id)
+        val children = transitiveReplace(node.children.filter { child =>
+          //remove children that we are replacing:
+          !excludedIds.contains(child.id) &&
+            variants.isDefinedAt(child.id) //include only variants that are defined
         })
         node.copy(id = node.id, children = children)
       }

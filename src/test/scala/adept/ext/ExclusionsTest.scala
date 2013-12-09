@@ -6,7 +6,7 @@ import adept.test.TestDSL._
 import adept.test.TestHelpers._
 import adept.core.models._
 import adept.core.resolution.Resolver
-import adept.test.DefinedVariants
+import adept.ext.DefinedVariants
 
 class ExclusionsTest extends FunSuite with MustMatchers {
 
@@ -16,17 +16,17 @@ class ExclusionsTest extends FunSuite with MustMatchers {
   }
 
   test("variant basic hashing") {
-    val variantA1 = Variant(new Id("A"), Set(Artifact("123", Set(Attribute("master", Set("compile"))))), Set(Attribute("version", Set("A"))), Set(Dependency(new Id("B"), Set(Constraint("version", Set("X"))))))
-    val variantA2 = Variant(new Id("A"), Set(Artifact("123", Set(Attribute("master", Set("compile"))))), Set(Attribute("version", Set("A"))), Set(Dependency(new Id("B"), Set(Constraint("version", Set("X"))))))
+    val variantA1 = Variant(Id("A"), Set(ArtifactRef(Hash("123"), Set(Attribute("master", Set("compile"))), None)), Set(Attribute("version", Set("A"))), Set(Dependency(new Id("B"), Set(Constraint("version", Set("X"))))))
+    val variantA2 = Variant(Id("A"), Set(ArtifactRef(Hash("123"), Set(Attribute("master", Set("compile"))), None)), Set(Attribute("version", Set("A"))), Set(Dependency(new Id("B"), Set(Constraint("version", Set("X"))))))
     //minor variations:
-    val variantA3 = Variant(new Id("A"), Set(Artifact("12", Set(Attribute("master", Set("compile"))))), Set(Attribute("version", Set("A"))), Set(Dependency(new Id("B"), Set(Constraint("version", Set("X"))))))
-    val variantA4 = Variant(new Id("A"), Set(Artifact("123", Set(Attribute("maste", Set("compile"))))), Set(Attribute("version", Set("A"))), Set(Dependency(new Id("B"), Set(Constraint("version", Set("X"))))))
-    val variantA5 = Variant(new Id("A"), Set(Artifact("123", Set(Attribute("master", Set("compile"))))), Set(Attribute("version", Set("1A"))), Set(Dependency(new Id("B"), Set(Constraint("version", Set("X"))))))
-    val variantA6 = Variant(new Id("A"), Set(Artifact("123", Set(Attribute("master", Set("compile"))))), Set(Attribute("version", Set("A"))), Set(Dependency(new Id("B"), Set(Constraint("version", Set("X1"))))))
-    val variantA7 = Variant(new Id("A"), Set(Artifact("123", Set(Attribute("master", Set("compile"))))), Set(Attribute("version", Set("A"))), Set(Dependency(new Id("B"), Set(Constraint("version1", Set("X"))))))
-    val variantA8 = Variant(new Id("A"), Set(Artifact("123", Set(Attribute("master", Set("compile1"))))), Set(Attribute("version", Set("A"))), Set(Dependency(new Id("B"), Set(Constraint("version", Set("X"))))))
-    val variantB = Variant(new Id("B"), Set(Artifact("123", Set(Attribute("master", Set("compile"))))), Set(Attribute("version", Set("A"))), Set(Dependency(new Id("B"), Set(Constraint("version", Set("X"))))))
-    
+    val variantA3 = Variant(Id("A"), Set(ArtifactRef(Hash("12"), Set(Attribute("master", Set("compile"))), None)), Set(Attribute("version", Set("A"))), Set(Dependency(new Id("B"), Set(Constraint("version", Set("X"))))))
+    val variantA4 = Variant(Id("A"), Set(ArtifactRef(Hash("123"), Set(Attribute("maste", Set("compile"))), None)), Set(Attribute("version", Set("A"))), Set(Dependency(new Id("B"), Set(Constraint("version", Set("X"))))))
+    val variantA5 = Variant(Id("A"), Set(ArtifactRef(Hash("123"), Set(Attribute("master", Set("compile"))), None)), Set(Attribute("version", Set("1A"))), Set(Dependency(new Id("B"), Set(Constraint("version", Set("X"))))))
+    val variantA6 = Variant(Id("A"), Set(ArtifactRef(Hash("123"), Set(Attribute("master", Set("compile"))), None)), Set(Attribute("version", Set("A"))), Set(Dependency(new Id("B"), Set(Constraint("version", Set("X1"))))))
+    val variantA7 = Variant(Id("A"), Set(ArtifactRef(Hash("123"), Set(Attribute("master", Set("compile"))), None)), Set(Attribute("version", Set("A"))), Set(Dependency(new Id("B"), Set(Constraint("version1", Set("X"))))))
+    val variantA8 = Variant(Id("A"), Set(ArtifactRef(Hash("123"), Set(Attribute("master", Set("compile1"))), None)), Set(Attribute("version", Set("A"))), Set(Dependency(new Id("B"), Set(Constraint("version", Set("X"))))))
+    val variantB = Variant(Id("B"), Set(ArtifactRef(Hash("123"), Set(Attribute("master", Set("compile"))), None)), Set(Attribute("version", Set("A"))), Set(Dependency(new Id("B"), Set(Constraint("version", Set("X"))))))
+
     Hash.calculate(variantA1) must equal(Hash.calculate(variantA2))
     Hash.calculate(variantA1) must not equal (Hash.calculate(variantA3))
     Hash.calculate(variantA1) must not equal (Hash.calculate(variantA4))
@@ -63,37 +63,37 @@ class ExclusionsTest extends FunSuite with MustMatchers {
     val excludeResolveResult = excludeResolver.resolve(exclusions.toSet)
     val excludeState = resolved(excludeResolveResult)
     unresolved(excludeResolver.resolve(dependencies)) //check that this is really unresolved
-    
+
     //we find which new variants which needs to be created and...
-    //...which dependencies we need add (since we are adding new variants)... 
+    //...which dependencies we need add (since we are adding new variants)...
     val excludeVariants = excludeState.implicitVariants ++ excludeState.resolvedVariants
-//    val exclusionResult = Extensions.exclude(dependencies, excludeState.graph, excludeVariants, 
-//        query = exclusionQuery)
-//    val newDependencies = exclusionResult.dependencies
-//    val newVariants = exclusionResult.newVariants
-//
-//    import OptionValues._
-//
-//    newVariants must have size(1)
-//    val bVariant = newVariants.headOption.value
-//    bVariant.id must be === "B"
-//    bVariant.attributes.filter(_.name == "exclusions").flatMap(_.values) must have size(2)
-//    
-//    val newIds = newVariants.map {
-//      case variant =>
-//        variant.id -> variant.dependencies.map(_.id)
-//    }
-//
-//    newIds must be === Set(
-//      "B" -> Set())
-//    
-//    val resolver = new Resolver(new DefinedVariants(variants ++ newVariants))
-//
-//    val result = resolver.resolve(newDependencies) //resolving again, but specifying which exclusion we want
-//    println("FINAL RESULT: " + result)
-//    val state = resolved(result)
-//    state.implicitVariants must be('empty) //excluded constraints are added so resolution in this case should not be forced
-//    state.resolvedVariants.collect{ case (id, variant) if id == "B" => variant }.toSet must be === newVariants
+    val exclusionResult = Extensions.exclude(dependencies, excludeResolveResult.graph, excludeVariants,
+        query = exclusionQuery)
+    val newDependencies = exclusionResult.dependencies
+    val newVariants = exclusionResult.newVariants
+
+    import OptionValues._
+
+    newVariants must have size(1)
+    val bVariant = newVariants.headOption.value
+    bVariant.id must be === Id("B")
+    bVariant.attributes.filter(_.name == "exclusions").flatMap(_.values) must have size(2)
+
+    val newIds = newVariants.map {
+      case variant =>
+        variant.id -> variant.dependencies.map(_.id)
+    }
+
+    newIds must be === Set(
+      Id("B") -> Set())
+
+    val resolver = new Resolver(new DefinedVariants(variants ++ newVariants))
+
+    val result = resolver.resolve(newDependencies) //resolving again, but specifying which exclusion we want
+    println("FINAL RESULT: " + result)
+    val state = resolved(result)
+    state.implicitVariants must be('empty) //excluded constraints are added so resolution in this case should not be forced
+    state.resolvedVariants.collect{ case (id, variant) if id == Id("B") => variant }.toSet must be === newVariants
   }
 
 }

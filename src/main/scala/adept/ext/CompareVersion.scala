@@ -11,7 +11,7 @@ object Version {
   /**
    * Compares versions as in LatestVersionStrategy.MridComparator in Ivy.
    * This is again similar to the compare_version in PHP and works as described:
-   * The function first replaces _, - and + with a dot . in the version strings and also inserts dots . before and after any non number so that for example '4.3.2RC1' becomes '4.3.2.RC.1'.
+   * The method first replaces _, - and + with a dot . in the version strings and also inserts dots . before and after any non number so that for example '4.3.2RC1' becomes '4.3.2.RC.1'.
    * Then it splits the results on the dot.
    * Then it compares the parts starting from left to right.
    * If a part contains special version strings these are handled in the following order: dev < any string not found in this list < rc < final as in the val SpecialMeanings
@@ -59,7 +59,7 @@ object Version {
   }
 }
 
-case class Version(private val value: String) extends Ordered[Version] {
+case class Version(val value: String) extends Ordered[Version] {
   def compare(that: Version) = {
     Version.stringVersionCompare(this.value, that.value)
   }

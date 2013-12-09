@@ -2,26 +2,27 @@ package adept.test
 
 import adept.core.models._
 import adept.core.resolution._
-import adept.core.models.internal._
 import org.scalatest.matchers.MustMatchers
+import adept.core.models.State
+import adept.ext.DefinedVariants
 
 object TestHelpers extends MustMatchers {
 
-  def load(testData: (Set[Dependency], Seq[Variant])): Either[State, State] = {
+  def load(testData: (Set[Dependency], Seq[Variant])): ResolveResult = {
     val (dependencies, all) = testData
 
     val resolver = new Resolver(new DefinedVariants(all))
     resolver.resolve(dependencies)
   }
 
-  def resolved(state: Either[State, State]): State = {
-    assert(state.isRight, "could not find resolved state:\n" + state)
-    state.right.get
+  def resolved(result: ResolveResult): State = {
+    assert(result.state.isResolved, "could not find resolved state:\n" + result)
+    result.state
   }
 
-  def unresolved(state: Either[State, State]): State = {
-    assert(state.isLeft, "could not find unresolved state:\n" + state)
-    state.left.get
+  def unresolved(result: ResolveResult): State = {
+    assert(!result.state.isResolved, "could not find unresolved state:\n" + result)
+    result.state
   }
 
   def checkUnresolved(state: State, ids: Set[String]) = {

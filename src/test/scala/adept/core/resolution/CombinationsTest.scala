@@ -6,7 +6,7 @@ import adept.test.TestDSL._
 import adept.test.TestHelpers._
 import org.scalatest._
 import org.scalatest.matchers.MustMatchers
-import adept.test.DefinedVariants
+import adept.ext.DefinedVariants
 
 class CombinationsTest extends FunSuite with MustMatchers {
   test("combinations should work") {

@@ -64,9 +64,9 @@ object TestDSL {
 
   implicit def overridesType[A <: BuildableTestType](testType: A) = {
     new {
-      def overrides(query: Query, attrs: (String, (String, Set[String]))*)(implicit overrides: collection.mutable.Set[(Dependency, Map[String, Set[Attribute]])]): A = {
+      def overrides(query: Query, attrs: (String, (String, Set[String]))*)(implicit overrides: collection.mutable.Set[(Dependency, Map[Id, Set[Attribute]])]): A = {
         val dependency = toDependency(testType)
-        overrides += dependency -> attrs.map{ case (id, (name, values)) => id -> Set(Attribute(name, values)) }.toMap
+        overrides += dependency -> attrs.map{ case (id, (name, values)) => Id(id) -> Set(Attribute(name, values)) }.toMap
         testType
       }
     }

@@ -6,7 +6,7 @@ import adept.test.TestDSL._
 import adept.test.TestHelpers._
 import adept.core.models._
 import adept.core.resolution.Resolver
-import adept.test.DefinedVariants
+import adept.ext.DefinedVariants
 
 class OverridesTest extends FunSuite with MustMatchers {
 
@@ -17,7 +17,7 @@ class OverridesTest extends FunSuite with MustMatchers {
     //and also there is a dependency on C v Z
     //by so we construct a query that finds C under A (B is under A)
     //and create a new variant of this one that uses C v Z instead
-    implicit val overrides = collection.mutable.Set.empty[(Dependency, Map[String, Set[Attribute]])]
+    implicit val overrides = collection.mutable.Set.empty[(Dependency, Map[Id, Set[Attribute]])]
     val (dependencies, variants) = useTestData(
       R("A")("v" -> Set("V"), "organization" -> Set("foo.com"), "name" -> Set("A"), "overrides" -> Set.empty, "exclusions" -> Set.empty)(
         X("B")("v" -> Set("X"))) overrides(overrideQuery, "C" -> ("v" -> Set("Z"))),
@@ -40,35 +40,36 @@ class OverridesTest extends FunSuite with MustMatchers {
     unresolved(overridesResolver.resolve(dependencies)) //check that this is really unresolved
     
     val overridesVariants = overridesState.implicitVariants ++ overridesState.resolvedVariants
-    val replacements = overrides.foldLeft(Map.empty[String, Set[Attribute]])(_ ++ _._2)
-//    val overrideResult = Extensions.overrides(dependencies, overridesState.graph, overridesVariants, 
-//        query = overrideQuery, replacements)
-//    val newDependencies = overrideResult.dependencies
-//    val newVariants = overrideResult.newVariants
-//    
-//    
-//    import OptionValues._
-//
-//    newVariants must have size(1)
-//    val bVariant = newVariants.headOption.value
-//    bVariant.id must be === "B"
-//    bVariant.attributes.filter(_.name == "overrides").flatMap(_.values) must have size(2)
-//    
-//    val newIds = newVariants.map {
-//      case variant =>
-//        variant.id -> variant.dependencies.map(_.id)
-//    }
-//
-//    newIds must be === Set(
-//      "B" -> Set("C"))
-//    
-//    val resolver = new Resolver(new DefinedVariants(variants ++ newVariants))
-//
-//    val result = resolver.resolve(newDependencies) //resolving again, but specifying which exclusion we want
-//    println("FINAL RESULT: " + result)
-//    val state = resolved(result)
-//    state.implicitVariants must be('empty) //excluded constraints are added so resolution in this case should not be forced
-//    state.resolvedVariants.collect{ case (id, variant) if id == "B" => variant }.toSet must be === newVariants
+    val replacements = overrides.foldLeft(Map.empty[Id, Set[Attribute]])(_ ++ _._2)
+    
+    val overrideResult = Extensions.overrides(dependencies, overridesResolveResult.graph, overridesVariants, 
+        query = overrideQuery, replacements)
+    val newDependencies = overrideResult.dependencies
+    val newVariants = overrideResult.newVariants
+    
+    
+    import OptionValues._
+
+    newVariants must have size(1)
+    val bVariant = newVariants.headOption.value
+    bVariant.id must be === Id("B")
+    bVariant.attributes.filter(_.name == "overrides").flatMap(_.values) must have size(2)
+    
+    val newIds = newVariants.map {
+      case variant =>
+        variant.id -> variant.dependencies.map(_.id)
+    }
+
+    newIds must be === Set(
+      Id("B") -> Set(Id("C")))
+    
+    val resolver = new Resolver(new DefinedVariants(variants ++ newVariants))
+
+    val result = resolver.resolve(newDependencies) //resolving again, but specifying which exclusion we want
+    println("FINAL RESULT: " + result)
+    val state = resolved(result)
+    state.implicitVariants must be('empty) //excluded constraints are added so resolution in this case should not be forced
+    state.resolvedVariants.collect{ case (id, variant) if id == Id("B") => variant }.toSet must be === newVariants
   }
 
 }

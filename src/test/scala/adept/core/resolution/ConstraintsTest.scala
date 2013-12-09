@@ -4,9 +4,10 @@ import adept.core.models._
 import adept.core._
 import adept.test.TestDSL._
 import adept.test.TestHelpers._
-import adept.test.DefinedVariants
+import adept.ext.DefinedVariants
 import org.scalatest._
 import org.scalatest.matchers.MustMatchers
+import adept.test.LargeDataSets
 
 class ConstraintsTest extends FunSuite with MustMatchers {
 
@@ -35,6 +36,7 @@ class ConstraintsTest extends FunSuite with MustMatchers {
       V("D")("version" -> Set("X"))()))
 
     val state = resolved(result)
+    println(result)
     checkResolved(state, Set("A", "B", "C", "D"))
     checkUnresolved(state, Set())
     checkVariants(state, "D" -> ("version" -> Set("X")))
@@ -48,6 +50,7 @@ class ConstraintsTest extends FunSuite with MustMatchers {
       V("B")("version" -> Set("1.0"), "binary-version" -> Set("X"))(),
       V("B")("version" -> Set("1.1"), "binary-version" -> Set("X"))()))
 
+    println(result)
     val state = unresolved(result)
     checkResolved(state, Set("A"))
     checkUnresolved(state, Set("B"))
@@ -59,7 +62,8 @@ class ConstraintsTest extends FunSuite with MustMatchers {
         V("B")("version" -> Set("X"))()),
 
       R("B")("version" -> Set("Y"))()))
-
+    
+    println(result)
     val state = unresolved(result)
     checkResolved(state, Set("A"))
     checkUnresolved(state, Set("B"))
@@ -90,6 +94,7 @@ class ConstraintsTest extends FunSuite with MustMatchers {
       R("B")("version" -> Set("X"))(
         X("A")("version" -> Set("V")))))
 
+    println(result)
     val state = resolved(result)
 
     checkResolved(state, Set("A", "B"))
@@ -107,34 +112,34 @@ class ConstraintsTest extends FunSuite with MustMatchers {
       V("A")("version" -> Set("X"))(
         V("C")("version" -> Set("Z"))())))
 
+    println(result)
     val state = resolved(result)
-    println(state)
     checkResolved(state, Set("A", "B"))
     checkUnresolved(state, Set())
   }
 
-//  test("resolver.resolve basic consistency") {
-//    val (dependencies1, first) = useTestData(
-//      R("A")("version" -> Set("V"))(
-//        X("B")("version" -> Set("Y"))))
-//
-//    val (dependencies2, second) = useTestData(
-//      R("B")("version" -> Set("Y"))(
-//        V("A")()()),
-//
-//      V("A")("version" -> Set("X"))(
-//        V("C")("version" -> Set("Z"))()))
-//
-//    val resolver = new Resolver(new DefinedVariants(first ++ second))
-//    val result1 = resolver.resolve(dependencies1)
-//    val state1 = resolved(result1)
-//    val result2 = resolver.resolve(dependencies2, Some(state1))
-//
-//    val state2 = resolved(result2)
-//
-//    checkResolved(state2, Set("A", "B"))
-//    checkUnresolved(state2, Set())
-//  }
+  //  test("resolver.resolve basic consistency") {
+  //    val (dependencies1, first) = useTestData(
+  //      R("A")("version" -> Set("V"))(
+  //        X("B")("version" -> Set("Y"))))
+  //
+  //    val (dependencies2, second) = useTestData(
+  //      R("B")("version" -> Set("Y"))(
+  //        V("A")()()),
+  //
+  //      V("A")("version" -> Set("X"))(
+  //        V("C")("version" -> Set("Z"))()))
+  //
+  //    val resolver = new Resolver(new DefinedVariants(first ++ second))
+  //    val result1 = resolver.resolve(dependencies1)
+  //    val state1 = resolved(result1)
+  //    val result2 = resolver.resolve(dependencies2, Some(state1))
+  //
+  //    val state2 = resolved(result2)
+  //
+  //    checkResolved(state2, Set("A", "B"))
+  //    checkUnresolved(state2, Set())
+  //  }
 
   test("nested constraints") {
     //B is unconstrained, but D forces C v 3.0, only B v 1.0 is constrained on C v 3.0 so B v 1.0 must be used:
@@ -221,6 +226,7 @@ class ConstraintsTest extends FunSuite with MustMatchers {
       V("B")("v" -> Set("2.0"))(
         X("C")("v" -> Set("3.0")))))
 
+    println(result)
     val state = resolved(result)
     checkResolved(state, Set("A", "B", "C"))
     checkUnresolved(state, Set())
@@ -252,8 +258,8 @@ class ConstraintsTest extends FunSuite with MustMatchers {
       V("D")("v" -> Set("2.0"))(
         X("E")("v" -> Set("3.0")))))
 
+    println(result)
     val state = resolved(result)
-    println(state)
 
     checkResolved(state, Set("A", "B", "C", "D", "E"))
     checkVariants(state, "A" -> ("v" -> Set("1.0")))
@@ -265,91 +271,20 @@ class ConstraintsTest extends FunSuite with MustMatchers {
   }
 
   test("larger unconstrained graphs") {
-    val (dependencies, variants) = useTestData(
-      V("com.typesafe.play/play")("version" -> Set("2.1.0"),
-        "organization" -> Set("com.typesafe.play"),
-        "name" -> Set("play"),
-        "binary-version" -> Set("2.1"),
-        "exclusions" -> Set.empty, "overrides" -> Set.empty)(
-          X("com.typesafe.akka/akka-actors")("binary-version" -> Set("2.1")),
-          X("org.scala-lang/scala-library")("binary-version" -> Set("2.10"))),
-      V("com.typesafe.play/play")("version" -> Set("2.2.0"),
-        "organization" -> Set("com.typesafe.play"),
-        "name" -> Set("play"),
-        "binary-version" -> Set("2.2"),
-        "exclusions" -> Set.empty, "overrides" -> Set.empty)(
-          X("com.typesafe.akka/akka-actors")("binary-version" -> Set("2.2")),
-          X("org.scala-lang/scala-library")("binary-version" -> Set("2.10"))),
-
-      V("org.scala-lang/scala-library")("version" -> Set("2.9.2"),
-        "binary-version" -> Set("2.9"),
-        "exclusions" -> Set.empty, "overrides" -> Set.empty)(),
-      V("org.scala-lang/scala-library")("version" -> Set("2.9.3"),
-        "binary-version" -> Set("2.9"),
-        "exclusions" -> Set.empty, "overrides" -> Set.empty)(),
-      V("org.scala-lang/scala-library")("version" -> Set("2.10.2"),
-        "binary-version" -> Set("2.10"),
-        "exclusions" -> Set.empty, "overrides" -> Set.empty)(),
-      V("org.scala-lang/scala-library")("version" -> Set("2.10.3"),
-        "binary-version" -> Set("2.10"),
-        "exclusions" -> Set.empty, "overrides" -> Set.empty)(),
-
-      V("com.typesafe.play/play-slick")("version" -> Set("0.5.0.8"),
-        "organization" -> Set("com.typesafe.play"),
-        "name" -> Set("play-slick"),
-        "exclusions" -> Set.empty, "overrides" -> Set.empty)(
-          X("com.typesafe.play/play")("binary-version" -> Set("2.2")),
-          X("org.scala-lang/scala-library")("binary-version" -> Set("2.10"))),
-
-      V("com.typesafe.play/play-slick")("version" -> Set("0.4.0"),
-        "organization" -> Set("com.typesafe.play"),
-        "name" -> Set("play-slick"),
-        "exclusions" -> Set.empty, "overrides" -> Set.empty)(
-          X("com.typesafe.play/play")("binary-version" -> Set("2.1")),
-          X("org.scala-lang/scala-library")("binary-version" -> Set("2.10"))),
-
-      V("com.typesafe.akka/akka-actors")("version" -> Set("2.0.5"),
-        "organization" -> Set("com.typesafe.akka"),
-        "binary-version" -> Set("2.0"),
-        "name" -> Set("akka-actors"),
-        "exclusions" -> Set.empty, "overrides" -> Set.empty)(
-          X("org.scala-lang/scala-library")("binary-version" -> Set("2.9"))),
-      V("com.typesafe.akka/akka-actors")("version" -> Set("2.1.0"),
-        "organization" -> Set("com.typesafe.akka"),
-        "binary-version" -> Set("2.1"),
-        "name" -> Set("akka-actors"),
-        "exclusions" -> Set.empty, "overrides" -> Set.empty)(
-          X("org.scala-lang/scala-library")("binary-version" -> Set("2.10"))),
-      V("com.typesafe.akka/akka-actors")("version" -> Set("2.1.1"),
-        "organization" -> Set("com.typesafe.akka"),
-        "binary-version" -> Set("2.1"),
-        "name" -> Set("akka-actors"),
-        "exclusions" -> Set.empty, "overrides" -> Set.empty)(
-          X("org.scala-lang/scala-library")("binary-version" -> Set("2.10"))),
-      V("com.typesafe.akka/akka-actors")("version" -> Set("2.2.0"),
-        "organization" -> Set("com.typesafe.akka"),
-        "binary-version" -> Set("2.2"),
-        "name" -> Set("akka-actors"),
-        "exclusions" -> Set.empty, "overrides" -> Set.empty)(
-          X("org.scala-lang/scala-library")("binary-version" -> Set("2.10"))),
-      V("com.typesafe.akka/akka-actors")("version" -> Set("2.2.1"),
-        "organization" -> Set("com.typesafe.akka"),
-        "binary-version" -> Set("2.2"),
-        "name" -> Set("akka-actors"),
-        "exclusions" -> Set.empty, "overrides" -> Set.empty)(
-          X("org.scala-lang/scala-library")("binary-version" -> Set("2.10"))))
+    val (dependencies, variants) = useTestData(LargeDataSets.basic: _*)
 
     val result = new Resolver(new DefinedVariants(variants)).resolve(Set(
-//      Dependency("org.scala-lang/scala-library", Set(Constraint("version", Set("2.10.3")))),
-//      Dependency("com.typesafe.akka/akka-actors",  Set(Constraint("version", Set("2.2.0")))),
-      Dependency(new Id("com.typesafe.play/play"), Set.empty),
-      Dependency(new Id("com.typesafe.play/play-slick"), Set.empty)
-//      Dependency("com.typesafe.play/play-slick", Set.empty),
-//      Dependency("com.typesafe.play/play", Set.empty)
+            Dependency(Id("org.scala-lang/scala-library"), Set(Constraint("version", Set("2.10.3")))),
+            Dependency(Id("com.typesafe.akka/akka-actors"),  Set(Constraint("version", Set("2.2.0")))),
+      Dependency(Id("com.typesafe.play/play"), Set.empty),
+      Dependency(Id("com.typesafe.play/play-slick"), Set.empty) //      Dependency("com.typesafe.play/play-slick", Set.empty),
+      //      Dependency("com.typesafe.play/play", Set.empty)
       ))
 
+    println(result)
     val state = unresolved(result)
-    println(state)
+    pending
   }
 
 }
+

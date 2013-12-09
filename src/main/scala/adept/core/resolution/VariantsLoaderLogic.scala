@@ -2,7 +2,10 @@ package adept.core.resolution
 
 import adept.core.models._
 
-trait VariantsLoaderLogic {
+/**
+ * Defines how constraints and attributes matches
+ */
+class VariantsLoaderLogic {
   def matches(attributes: Set[Attribute], constraints: Set[Constraint]): Boolean = {
     if (constraints.nonEmpty) {
       val zipped = constraints.map { constraint =>
