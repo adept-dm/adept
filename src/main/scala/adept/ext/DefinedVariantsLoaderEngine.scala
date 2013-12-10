@@ -4,6 +4,8 @@ import adept.core.models._
 import adept.core.resolution.VariantsLoaderEngine
 import adept.core.resolution.VariantsLoaderLogic
 
+
+//TODO: move to core.resolution?
 class DefinedVariants(variants: Seq[Variant], override val logic: VariantsLoaderLogic = new VariantsLoaderLogic) extends VariantsLoaderEngine(logic) {
   val variantsById = variants.groupBy(_.id)
 
