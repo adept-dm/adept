@@ -30,3 +30,8 @@ bin/adept
 # Gradle specific:
 .gradle
 build
+
+# IDEA
+.idea/*.iws
+.idea/workspace.xml
+.idea/tasks.xml
