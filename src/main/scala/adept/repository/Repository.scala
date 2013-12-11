@@ -7,17 +7,19 @@ object Repository {
   val ArtifactDescriptorDirName = "artifacts"
   val ArtifactCacheDirName = "cache"
   val MetadataDirName = "metadata"
+  val ReposDirName = "repos"
   val JsonFileEnding = "json"
 
-  def artifactDescriptorsDir(baseDir: File) = new File(baseDir, ArtifactDescriptorDirName)
+  private def repoDir(baseDir: File, name: String) = new File(new File(baseDir, ReposDirName), name)
+  def artifactDescriptorsDir(baseDir: File, name: String) = new File(repoDir(baseDir, name), ArtifactDescriptorDirName)
   def artifactsCacheDir(baseDir: File) = new File(baseDir, ArtifactCacheDirName)
-  def metadataDir(baseDir: File, name: String) = new File(new File(baseDir, MetadataDirName), name)
+  def metadataDir(baseDir: File, name: String) =  new File(repoDir(baseDir, name), MetadataDirName)
 }
 
 case class Repository(val baseDir: File, val name: String) {
 
   import Repository._
-  val artifactDescriptorsDir = Repository.artifactDescriptorsDir(baseDir)
+  val artifactDescriptorsDir = Repository.artifactDescriptorsDir(baseDir, name)
   val metadataDir = Repository.metadataDir(baseDir, name)
 
   private def usingReadLock[A](f: => A) = { //TODO: implement using Actor (ideally can use any file writer/reader as long as no other actor/process touches this file?)
@@ -149,9 +151,11 @@ case class Repository(val baseDir: File, val name: String) {
     if (file.isFile) {
       readArtifactDescriptor(artifact.hash) match {
         case Right(oldArtifact) =>
-          usingWriter(file) { fw =>
-            writePretty(artifact.copy(locations = artifact.locations ++ oldArtifact.locations), fw)
-          }
+          if (oldArtifact.hash == artifact.hash && oldArtifact.size == artifact.size) {
+            usingWriter(file) { fw =>
+              writePretty(artifact.copy(locations = artifact.locations ++ oldArtifact.locations), fw)
+            }
+          } else Left(s"Cannot write and merge new with old artifact! Found old file for ${artifact.hash}: '$file', but it does not have expected hash and size: {size: ${oldArtifact.size}, expected size: ${artifact.size}; hash: ${oldArtifact.hash}, expected hash: ${artifact.hash} }")
         case Left(errorMsg) => Left(s"Cannot write and merge new artifact: found previous file for ${artifact.hash}: '$file', but could not read it. Error: $errorMsg")
       }
     } else {
