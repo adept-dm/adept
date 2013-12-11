@@ -9,15 +9,15 @@ object Repository {
   val MetadataDirName = "metadata"
   val JsonFileEnding = "json"
 
-  def artifactDescriptorsDir(baseDir: File, name: String) = new File(new File(baseDir, name), ArtifactDescriptorDirName)
+  def artifactDescriptorsDir(baseDir: File) = new File(baseDir, ArtifactDescriptorDirName)
   def artifactsCacheDir(baseDir: File) = new File(baseDir, ArtifactCacheDirName)
-  def metadataDir(baseDir: File, name: String) = new File(new File(baseDir, name), MetadataDirName)
+  def metadataDir(baseDir: File, name: String) = new File(new File(baseDir, MetadataDirName), name)
 }
 
 case class Repository(val baseDir: File, val name: String) {
 
   import Repository._
-  val artifactDescriptorsDir = Repository.artifactDescriptorsDir(baseDir, name)
+  val artifactDescriptorsDir = Repository.artifactDescriptorsDir(baseDir)
   val metadataDir = Repository.metadataDir(baseDir, name)
 
   private def usingReadLock[A](f: => A) = { //TODO: implement using Actor (ideally can use any file writer/reader as long as no other actor/process touches this file?)
@@ -146,8 +146,18 @@ case class Repository(val baseDir: File, val name: String) {
     import adept.serialization.Formats._
 
     val file = getArtifactDescriptorFile(artifact.hash)
-    usingWriter(file) { fw =>
-      writePretty(artifact, fw)
+    if (file.isFile) {
+      readArtifactDescriptor(artifact.hash) match {
+        case Right(oldArtifact) =>
+          usingWriter(file) { fw =>
+            writePretty(artifact.copy(locations = artifact.locations ++ oldArtifact.locations), fw)
+          }
+        case Left(errorMsg) => Left(s"Cannot write and merge new artifact: found previous file for ${artifact.hash}: '$file', but could not read it. Error: $errorMsg")
+      }
+    } else {
+      usingWriter(file) { fw =>
+        writePretty(artifact, fw)
+      }
     }
   }
 
