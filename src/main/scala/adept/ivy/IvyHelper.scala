@@ -19,7 +19,7 @@ import org.apache.ivy.util.AbstractMessageLogger
 
 class IvyResolveException(msg: String) extends RuntimeException(msg)
 
-case class IvyImportResult(variant: Variant, artifacts: Set[Artifact])
+case class IvyImportResult(variant: Variant, artifacts: Set[Artifact], localFiles: Map[Artifact, File])
 
 object IvyHelper {
   def convert(org: String, name: String) = {
@@ -136,9 +136,9 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true) {
       (artifactReport.getArtifactOrigin().getLocation(), file, Hash.calculate(file))
     }.toSet
 
-    val artifacts = artifactInfos.map {
+    val artifactFiles = artifactInfos.map {
       case (location, file, hash) =>
-        Artifact(hash, file.length, Set(location))
+        Artifact(hash, file.length, Set(location)) -> file
     }
     val artifactRefs = artifactInfos.map {
       case (_, file, hash) =>
@@ -146,7 +146,9 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true) {
     }
     val variant = Variant(id, attributes = attributes, artifacts = artifactRefs, dependencies = dependencies)
 
-    IvyImportResult(variant, artifacts)
+    val artifacts = artifactFiles.map(_._1)
+    
+    IvyImportResult(variant, artifacts, artifactFiles.toMap)
   }
 
   def createIvyResult(mrid: ModuleRevisionId, children: Set[IvyNode]): Set[IvyImportResult] = {
@@ -181,8 +183,9 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true) {
         val resultVariant = mainResult.variant.copy(attributes = attributes,
           artifacts = mainResult.variant.artifacts ++ runtimeResult.variant.artifacts)
         val resultArtifacts = mainResult.artifacts ++ runtimeResult.artifacts
+        val resultArtifactFiles = mainResult.localFiles ++ runtimeResult.localFiles
 
-        Set(IvyImportResult(resultVariant, resultArtifacts))
+        Set(IvyImportResult(resultVariant, resultArtifacts, resultArtifactFiles))
       } else {
         Set(mainResult, runtimeResult)
       }

@@ -17,10 +17,6 @@ object Hash {
     }
   }
 
-  private def encode(bytes: Array[Byte]) = {
-    md.get().digest(bytes).map(b => "%02X" format b).mkString.toLowerCase
-  }
-
   private def updateWithConstraint(constraint: Constraint, currentMd: MessageDigest) = {
     currentMd.update(constraint.name.getBytes)
     constraint.values.foreach { value =>
@@ -52,12 +48,15 @@ object Hash {
     variant.attributes.foreach(updateWithAttribute(_, currentMd))
   }
 
+  private def digest(currentMd: MessageDigest) = currentMd.digest().map(b => "%02x" format b).mkString
+
   def calculate(dependencies: Set[Dependency]): Hash = {
     val currentMd = md.get()
     currentMd.reset()
     try {
       dependencies.foreach(updateWithDependency(_, currentMd))
-      Hash(currentMd.digest().map(b => "%02X" format b).mkString.toLowerCase)
+
+      Hash(digest(currentMd))
     } finally {
       currentMd.reset()
     }
@@ -69,21 +68,20 @@ object Hash {
     try {
       updateWithVariant(variant, currentMd)
 
-      Hash(currentMd.digest().map(b => "%02X" format b).mkString.toLowerCase)
+      Hash(digest(currentMd))
     } finally {
       currentMd.reset()
     }
   }
 
+  @deprecated("will be removed, since it is not strictly needed")
   def calculate(variants: Seq[Variant]): Hash = {
     val currentMd = md.get() /* thread-safe because of thread local */
     currentMd.reset()
     try {
-      variants.foreach { variant =>
-        updateWithVariant(variant, currentMd)
-      }
-      Hash(currentMd.digest().map(b => "%02X" format b).mkString.toLowerCase)
+      variants.foreach(updateWithVariant(_, currentMd))
 
+      Hash(digest(currentMd))
     } finally {
       currentMd.reset()
     }
@@ -100,8 +98,8 @@ object Hash {
         currentMd.update(buf, 0, len)
         len = in.read(buf)
       }
-      //was streaming is about 4 times more efficient than using digest on Array[Byte]
-      Hash(currentMd.digest().map(b => "%02X" format b).mkString.toLowerCase)
+      //streaming was much more efficient than using digest on Array[Byte] - to be verified...
+      Hash(digest(currentMd))
     } finally {
       currentMd.reset()
       in.close
@@ -109,7 +107,12 @@ object Hash {
   }
 
   def calculate(file: File): Hash = {
-    calculate(new FileInputStream(file))
+    val fis = new FileInputStream(file)
+    try {
+      calculate(fis)
+    } finally {
+      fis.close()
+    }
   }
 
 }

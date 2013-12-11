@@ -2,6 +2,10 @@ package adept.core.resolution
 
 import adept.core.models._
 
+object VariantsLoaderLogic {
+  def default() = new VariantsLoaderLogic
+}
+
 /**
  * Defines how constraints and attributes matches
  */

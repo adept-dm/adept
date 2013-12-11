@@ -5,8 +5,23 @@ import adept.core.resolution._
 import org.scalatest.matchers.MustMatchers
 import adept.core.models.State
 import adept.ext.DefinedVariants
+import java.io.File
 
 object TestHelpers extends MustMatchers {
+
+  def usingTempDir(f: File => Unit) = {
+    val rootDir = "test-tmp"
+    
+    val tmpDir = new File(rootDir, "tmp-dir-" + System.currentTimeMillis)
+    try {
+      if (tmpDir.mkdirs()) {
+        f(tmpDir)
+      } else throw new Exception("Could not create tmp dir: " + tmpDir)
+    } finally {
+      import scala.reflect.io.Directory
+      if (tmpDir.isDirectory) (new Directory(tmpDir)).deleteRecursively()
+    }
+  }
 
   def load(testData: (Set[Dependency], Seq[Variant])): ResolveResult = {
     val (dependencies, all) = testData
@@ -49,7 +64,6 @@ object TestHelpers extends MustMatchers {
     (id -> variant.attributes) must equal(id -> Set(Attribute(attrName, attrValues)))
   }
 }
-
 
 object VariantsLoaderEngineTester extends VariantsLoaderLogic with MustMatchers {
   def testMatches(attributes: Set[Attribute], constraints: Set[Constraint], expectMatchValue: Boolean) = {
