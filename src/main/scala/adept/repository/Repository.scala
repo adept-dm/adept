@@ -138,7 +138,7 @@ case class Repository(val baseDir: File, val name: String) {
   def getArtifactDescriptorFile(hash: Hash): File = {
     val level1Dir = hash.value.slice(0, 4)
     val level2Dir = hash.value.slice(4, 8)
-    new File(new File(new File(artifactDescriptorsDir, level1Dir), level1Dir), hash.value + "." + JsonFileEnding)
+    new File(new File(new File(artifactDescriptorsDir, level1Dir), level2Dir), hash.value + "." + JsonFileEnding)
   }
 
   def writeArtifactDescriptor(artifact: Artifact): Either[String, File] = {
