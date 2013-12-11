@@ -109,7 +109,7 @@ case class Repository(val baseDir: File, val name: String) {
       } finally {
         fw.close()
       }
-    } else Left(s"Cannot write '$file' to  parent directory '${file.getParentFile}': { can read: ${file.getParentFile.canWrite}, is dir: ${file.getParentFile.isDirectory} }")
+    } else Left(s"Cannot write '$file' to  parent directory '${file.getParentFile}': { can write: ${file.getParentFile.canWrite}, is dir: ${file.getParentFile.isDirectory} }")
   }
 
   def writeVariant(variant: Variant): Either[String, File] = {
