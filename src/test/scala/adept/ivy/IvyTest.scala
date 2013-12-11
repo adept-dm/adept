@@ -66,7 +66,7 @@ class IvyTest extends FunSuite with MustMatchers {
     val failedResult = resolver.resolve(dependencies)
     unresolved(failedResult)
     
-    val (result, newVariants) = VersionConflictResolver.resolveHighestConflicts(failedResult, dependencies, loaderEngine)
+    val (result, newVariants) = VersionConflictResolver.resolveHighestConflicts(failedResult, dependencies, loaderEngine).right.value
     newVariants must have size 5
     
     val state = resolved(result)
