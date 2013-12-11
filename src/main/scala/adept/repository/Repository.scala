@@ -4,6 +4,7 @@ import adept.core.models._
 import java.io._
 
 object Repository {
+  
   val ArtifactDescriptorDirName = "artifacts"
   val ArtifactCacheDirName = "cache"
   val MetadataDirName = "metadata"
@@ -101,7 +102,7 @@ case class Repository(val baseDir: File, val name: String) {
 
   private def usingWriter(file: File)(f: FileWriter => Unit): Either[String, File] = usingWriteLock {
     if ((file.getParentFile.isDirectory || file.getParentFile.mkdirs()) && file.getParentFile.canWrite) {
-      val fw = new FileWriter(file)
+      val fw = new FileWriter(file.getAbsoluteFile)
       try {
         f(fw)
         fw.flush()
@@ -109,7 +110,7 @@ case class Repository(val baseDir: File, val name: String) {
       } finally {
         fw.close()
       }
-    } else Left(s"Cannot write '$file' to  parent directory '${file.getParentFile}': { can write: ${file.getParentFile.canWrite}, is dir: ${file.getParentFile.isDirectory} }")
+    } else Left(s"Cannot write '${file.getAbsoluteFile}' to  parent directory '${file.getParentFile}': { can write: ${file.getParentFile.canWrite}, is dir: ${file.getParentFile.isDirectory} }")
   }
 
   def writeVariant(variant: Variant): Either[String, File] = {
