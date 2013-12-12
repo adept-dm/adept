@@ -11,6 +11,8 @@ case class Hash(val value: String) extends AnyVal { //make a value class to avoi
 }
 
 object Hash {
+  import Ordering._
+
   private lazy val md: ThreadLocal[MessageDigest] = new ThreadLocal[MessageDigest] { //make message digest thread-"safe"
     override def initialValue() = {
       MessageDigest.getInstance("SHA-256")
@@ -19,33 +21,33 @@ object Hash {
 
   private def updateWithConstraint(constraint: Constraint, currentMd: MessageDigest) = {
     currentMd.update(constraint.name.getBytes)
-    constraint.values.foreach { value =>
+    constraint.values.toSeq.sorted.foreach { value =>
       currentMd.update(value.getBytes)
     }
   }
 
   private def updateWithArtifactRef(artifactRef: ArtifactRef, currentMd: MessageDigest) = {
     currentMd.update(artifactRef.hash.value.getBytes)
-    artifactRef.attributes.foreach(updateWithAttribute(_, currentMd))
+    artifactRef.attributes.toSeq.sorted.foreach(updateWithAttribute(_, currentMd))
   }
 
   private def updateWithAttribute(attribute: Attribute, currentMd: MessageDigest) = {
     currentMd.update(attribute.name.getBytes)
-    attribute.values.foreach { value =>
+    attribute.values.toSeq.sorted.foreach { value =>
       currentMd.update(value.getBytes)
     }
   }
 
   private def updateWithDependency(dependency: Dependency, currentMd: MessageDigest) = {
     currentMd.update(dependency.id.value.getBytes)
-    dependency.constraints.foreach(updateWithConstraint(_, currentMd))
+    dependency.constraints.toSeq.sorted.foreach(updateWithConstraint(_, currentMd))
   }
 
   private def updateWithVariant(variant: Variant, currentMd: MessageDigest): Unit = {
     currentMd.update(variant.id.value.getBytes)
-    variant.dependencies.foreach(updateWithDependency(_, currentMd))
-    variant.artifacts.foreach(updateWithArtifactRef(_, currentMd))
-    variant.attributes.foreach(updateWithAttribute(_, currentMd))
+    variant.dependencies.toSeq.sorted.foreach(updateWithDependency(_, currentMd))
+    variant.artifacts.toSeq.sorted.foreach(updateWithArtifactRef(_, currentMd))
+    variant.attributes.toSeq.sorted.foreach(updateWithAttribute(_, currentMd))
   }
 
   private def digest(currentMd: MessageDigest) = currentMd.digest().map(b => "%02x" format b).mkString
@@ -114,5 +116,88 @@ object Hash {
       fis.close()
     }
   }
+}
 
+object Ordering {
+
+  private def stringSetCompare(x: Set[String], y: Set[String]) = {
+    if (x.size == y.size) {
+      x.toSeq.sorted.zip(y.toSeq.sorted).foldLeft(0) {
+        case (res, (a, b)) =>
+          if (res == 0) scala.math.Ordering.String.compare(a, b)
+          else res
+      }
+    } else
+      x.size - y.size
+  }
+
+  implicit val attributeOrdering: Ordering[Attribute] = new Ordering[Attribute] {
+    def compare(x: Attribute, y: Attribute): Int = {
+      if (x.name < y.name)
+        -1
+      else if (x.name > y.name)
+        1
+      else {
+        assert(x.name == y.name)
+        stringSetCompare(x.values, y.values)
+      }
+    }
+  }
+
+  implicit val constraintOrdering: Ordering[Constraint] = new Ordering[Constraint] {
+    def compare(x: Constraint, y: Constraint): Int = {
+      if (x.name < y.name)
+        -1
+      else if (x.name > y.name)
+        1
+      else {
+        assert(x.name == y.name)
+        stringSetCompare(x.values, y.values)
+      }
+    }
+  }
+
+  implicit val dependencyOrdering: Ordering[Dependency] = new Ordering[Dependency] {
+    def compare(x: Dependency, y: Dependency): Int = {
+      if (x.id.value < y.id.value)
+        -1
+      else if (x.id.value > y.id.value)
+        1
+      else {
+        assert(x.id.value == y.id.value)
+        if (x.constraints.size == y.constraints.size) {
+          x.constraints.toSeq.sorted.zip(y.constraints.toSeq.sorted).foldLeft(0) {
+            case (res, (cx, cy)) =>
+              if (res == 0) constraintOrdering.compare(cx, cy)
+              else res
+          }
+        } else x.constraints.size - y.constraints.size
+      }
+    }
+  }
+
+  implicit val artifactRefOrdering: Ordering[ArtifactRef] = new Ordering[ArtifactRef] {
+    def compare(x: ArtifactRef, y: ArtifactRef): Int = {
+      if (x.hash.value < y.hash.value)
+        -1
+      else if (x.hash.value > y.hash.value)
+        1
+      else {
+        assert(x.hash.value == y.hash.value)
+        if (x.attributes.size == y.attributes.size) {
+          val res = x.attributes.toSeq.sorted.zip(y.attributes.toSeq.sorted).foldLeft(0) {
+            case (res, (a, b)) =>
+              if (res == 0) attributeOrdering.compare(a, b)
+              else res
+          }
+          if (res == 0) {
+            val s = x.filename.size - y.filename.size
+            if (s == 0) {
+              scala.math.Ordering.String.compare(x.filename.toString, y.filename.toString)
+            } else s
+          } else res
+        } else x.attributes.size - y.attributes.size
+      }
+    }
+  }
 }
