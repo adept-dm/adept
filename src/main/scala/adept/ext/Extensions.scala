@@ -48,7 +48,8 @@ private[adept] object Query {
 private[adept] case class ReplaceResult(dependencies: Set[Dependency], newVariants: Set[Variant], attributes: Map[Id, Set[Attribute]], includedVariants: Map[Id, Variant], graph: Set[Node])
 
 private[adept] object Extensions {
-
+  import AttributeDefaults._
+  
   def mergeAttributes(allAttributes: Set[Attribute]*): Set[Attribute] = {
     allAttributes.flatten.groupBy(_.name).map {
       case (name, attrs) =>
@@ -63,11 +64,9 @@ private[adept] object Extensions {
     }(collection.breakOut)
   }
 
-  val ExclusionAttributeName = "exclusions"
-
   /** excluded attributes looks like this: "exclusions": [ "foo/bar:123aef" ] */
   def excludedAttribute(variant: Variant): Attribute = {
-    Attribute(ExclusionAttributeName, Set(variant.id + ":" + Hash.calculate(variant)))
+    Attribute(ExclusionAttribute, Set(variant.id + ":" + Hash.calculate(variant)))
   }
 
   def exclude(baseDependencies: Set[Dependency], graph: Set[Node], variants: Map[Id, Variant], query: Query): ReplaceResult = {
@@ -79,13 +78,11 @@ private[adept] object Extensions {
     }
   }
 
-  val OverriddenAttributeName = "overrides"
-
   def overriddenAttribute(variant: Variant, newDependencies: Set[Dependency]): Attribute = {
     val newDepsHash = Hash.calculate(newDependencies)
     val oldDepsHash = Hash.calculate(variant.dependencies)
 
-    Attribute(OverriddenAttributeName, Set(variant.id + ":" + oldDepsHash + ":" + newDepsHash))
+    Attribute(OverridesAttribute, Set(variant.id + ":" + oldDepsHash + ":" + newDepsHash))
   }
 
   //TODO: doc that @param variants are the variants that are already resolved and might have sub dependencies that also should be overridden

@@ -5,4 +5,6 @@ object AttributeDefaults {
   val OrgAttribute = "organization"
   val VersionAttribute = "version"
   val ConfAttribute = "configuration"
+  val ExclusionAttribute = "exclusions"
+  val OverridesAttribute = "overrides"
 }

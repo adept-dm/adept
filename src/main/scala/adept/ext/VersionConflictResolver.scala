@@ -1,7 +1,7 @@
 package adept.ext
 
 import adept.core.models._
-import AttributeDefaults._
+import adept.ext.AttributeDefaults._
 import adept.core.resolution._
 
 case class Resolution
@@ -32,10 +32,17 @@ object VersionConflictResolver {
           val (lastVersion, (query, replacementAttribute)) = queryAttributeReplacement(id, constraints, dependencies)
           val resolvedVariants = loaderEngine.get(id, constraints.filter(_.name != VersionAttribute) + Constraint(VersionAttribute, Set(lastVersion.value)))
 
-          if (resolvedVariants.size > 1) Left(id -> constraints)
-          else if (resolvedVariants.size == 0) Left(id -> constraints)
-
-          else Right(id -> resolvedVariants.head)
+          if (resolvedVariants.size == 0) {
+            Left(id -> constraints)
+          } else {
+            //find the "clean" variant without overrides:
+            val candidates = resolvedVariants.filter(_.attributes.find(_.name == OverridesAttribute).isEmpty)
+            if (candidates.size == 1) {
+              Right(id -> candidates.head)
+            } else {
+              Left(id -> constraints)
+            }
+          }
       }
 
       val errors = newVariants.collect {
