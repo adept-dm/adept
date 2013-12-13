@@ -81,7 +81,7 @@ class GitRepositoryEngine private[repository] (override val baseDir: File, repos
       case (hash, refs) =>
         caches.flatMap {
           case (repo, cache) =>
-            val cacheObject = cache.get(hash.value) 
+            val cacheObject = cache.get(hash.value)
             if (cache.isKeyInCache(hash.value) && cacheObject != null) {
               Some(cacheObject.getValue().asInstanceOf[(Artifact, Set[ArtifactRef])])
             } else {
@@ -151,9 +151,9 @@ class GitRepositoryEngine private[repository] (override val baseDir: File, repos
   }
 
   private def get(repo: LocalGitRepository, cache: Ehcache, id: Id, constraints: Set[Constraint]): Set[Variant] = {
-    val variants =
-      if (cache.isKeyInCache(id.value)) {
-        val cachedValues = cache.get(id.value)
+    val variants = {
+      val cachedValues = cache.get(id.value)
+      if (cache.isKeyInCache(id.value) && cachedValues != null) {
         cachedValues.getValue().asInstanceOf[Set[Variant]]
       } else {
         logger.debug(s"Cache miss on $id so loading from disk...")
@@ -166,6 +166,7 @@ class GitRepositoryEngine private[repository] (override val baseDir: File, repos
             throw new CorruptGitRepositoryException(repo, id, errorMsg)
         }
       }
+    }
 
     logic.filter(id, variants, constraints)
   }
