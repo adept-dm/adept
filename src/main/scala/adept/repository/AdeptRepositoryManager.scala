@@ -4,7 +4,7 @@ import java.io.File
 import net.sf.ehcache.CacheManager
 import org.eclipse.jgit.api.Git
 
-//TODO: change name! RepositoryDirectories perhaps?
+//TODO: change name! RepositoryHandle perhaps?
 class RepositoryRefs private[repository] (private[repository] val result: Either[Set[String], Set[LocalGitRepository]]) {
   def isFailure(): Boolean = result.isLeft
   def getErrorMessages(): Set[String] = result.fold(errors => errors, repos => Set.empty)
@@ -56,7 +56,7 @@ object AdeptRepositoryManager {
   def getExisting(baseDir: File, name: String, commit: Commit = Commit.Head): RepositoryRefs = {
     val result: Either[Set[String], Set[LocalGitRepository]] = if (baseDir.isDirectory) {
       val repoDir = Repository.getRepoDir(baseDir, name)
-      if (repoDir.isDirectory()) Left(Set(s"Could not find a directory for repository: '$repoDir'"))
+      if (!repoDir.isDirectory()) Left(Set(s"Could not find a directory for repository: '$repoDir'"))
       else { //TODO: check if commit exists!
         Right(Set(new LocalGitRepository(baseDir, name, commit)))
       }

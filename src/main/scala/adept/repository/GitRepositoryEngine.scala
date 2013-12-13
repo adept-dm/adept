@@ -81,9 +81,9 @@ class GitRepositoryEngine private[repository] (override val baseDir: File, repos
       case (hash, refs) =>
         caches.flatMap {
           case (repo, cache) =>
-            if (cache.isKeyInCache(hash.value)) {
-              val cachedValues = cache.get(hash.value)
-              Some(cachedValues.getValue().asInstanceOf[(Artifact, Set[ArtifactRef])])
+            val cacheObject = cache.get(hash.value) 
+            if (cache.isKeyInCache(hash.value) && cacheObject != null) {
+              Some(cacheObject.getValue().asInstanceOf[(Artifact, Set[ArtifactRef])])
             } else {
               if (repo.hasArtifactDescriptor(hash)) {
                 repo.readArtifactDescriptor(hash) match {

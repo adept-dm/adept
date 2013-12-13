@@ -216,10 +216,12 @@ class LocalGitRepository(val baseDir: File, val name: String, val commitRef: Com
   def getArtifactDescriptorPath(hash: Hash) = {
     val level1Dir = hash.value.slice(0, 4)
     val level2Dir = hash.value.slice(4, 8)
-    artifactDescriptorsDir + GitPathSep + level1Dir + GitPathSep + level2Dir + GitPathSep + hash.value + "." + JsonFileEnding
+    ArtifactDescriptorDirName + GitPathSep + level1Dir + GitPathSep + level2Dir + GitPathSep + hash.value + "." + JsonFileEnding
   }
 
-  override def hasArtifactDescriptor(hash: Hash): Boolean = createTreeWalk(getArtifactDescriptorPath(hash)).next()
+  override def hasArtifactDescriptor(hash: Hash): Boolean = {
+    createTreeWalk(getArtifactDescriptorPath(hash)).next()
+  }
 
   override def readArtifactDescriptor(hash: Hash): Either[String, Artifact] = {
     import org.json4s.native.Serialization.read

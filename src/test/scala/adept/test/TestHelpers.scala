@@ -6,6 +6,7 @@ import org.scalatest.matchers.MustMatchers
 import adept.core.models.State
 import adept.ext.DefinedVariants
 import java.io.File
+import net.sf.ehcache.CacheManager
 
 object TestHelpers extends MustMatchers {
 
@@ -26,6 +27,16 @@ object TestHelpers extends MustMatchers {
     } finally {
       import scala.reflect.io.Directory
       if (tmpDir.isDirectory) (new Directory(tmpDir)).deleteRecursively()
+    }
+  }
+  
+  
+  def usingCacheManager(f: CacheManager => Unit) = {
+    val cacheManager = CacheManager.create()
+    try {
+      f(cacheManager)
+    } finally {
+      cacheManager.shutdown()
     }
   }
 
