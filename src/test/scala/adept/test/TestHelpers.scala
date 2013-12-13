@@ -9,6 +9,12 @@ import java.io.File
 
 object TestHelpers extends MustMatchers {
 
+  def timer(f: => Unit): Long = {
+    val time = System.currentTimeMillis
+    f
+    System.currentTimeMillis - time
+  }
+  
   def usingTempDir(f: File => Unit) = {
     val rootDir = "test-tmp"
     

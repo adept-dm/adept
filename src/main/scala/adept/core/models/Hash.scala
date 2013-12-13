@@ -38,9 +38,13 @@ object Hash {
     }
   }
 
+  private def updateWithIdConstraints(id: Id, constraints: Set[Constraint], currentMd: MessageDigest) = {
+    currentMd.update(id.value.getBytes)
+    constraints.toSeq.sorted.foreach(updateWithConstraint(_, currentMd))
+  }
+
   private def updateWithDependency(dependency: Dependency, currentMd: MessageDigest) = {
-    currentMd.update(dependency.id.value.getBytes)
-    dependency.constraints.toSeq.sorted.foreach(updateWithConstraint(_, currentMd))
+    updateWithIdConstraints(dependency.id, dependency.constraints, currentMd)
   }
 
   private def updateWithVariant(variant: Variant, currentMd: MessageDigest): Unit = {
@@ -51,6 +55,18 @@ object Hash {
   }
 
   private def digest(currentMd: MessageDigest) = currentMd.digest().map(b => "%02x" format b).mkString
+
+  def calculate(id: Id, constraints: Set[Constraint]): Hash = {
+    val currentMd = md.get()
+    currentMd.reset()
+    try {
+      updateWithIdConstraints(id, constraints, currentMd)
+
+      Hash(digest(currentMd))
+    } finally {
+      currentMd.reset()
+    }
+  }
 
   def calculate(dependencies: Set[Dependency]): Hash = {
     val currentMd = md.get()

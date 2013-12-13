@@ -4,47 +4,15 @@ import java.io.File
 import adept.core.models._
 import adept.core.resolution.VariantsLoaderEngine
 import adept.core.resolution.VariantsLoaderLogic
-import net.sf.ehcache.CacheManager
+import adept.logging.Logging
 
-/**
- * A slow and stupid repository engine that reads each file from disk
- * TODO: Implement Git support so we can implement a properly cached behavior
- *
- * Used only for initial testing...
- */
-@deprecated("Will be removed and replaced with CachedRepositoryEngine")
-class SlowRepositoryEngine(val baseDir: File, val repos: Set[Repository]) extends VariantsLoaderEngine(VariantsLoaderLogic.default) {
+class CorruptRepositoryException(val exceptionMsg: String, val id: Id, val errorMsg: String) extends Exception(exceptionMsg)
 
-  def get(id: Id, constraints: Set[Constraint]): Set[Variant] = {
-    val parSet = repos.par.flatMap { repo => //slow and stupid, but not so slow and stupid that we waste good IO on nothing
-      repo.readVariants(id) match {
-        case Right(variants) => variants
-        case Left(errorMsg) => throw new Exception(errorMsg)
-      }
-    }
-    val variants = Set.empty[Variant] ++ parSet //FIXME: <-- ++ ???
+private[repository] abstract class RepositoryEngine extends VariantsLoaderEngine(VariantsLoaderLogic.default) with Logging {
+  val baseDir: File
 
-    logic.filter(id, variants, constraints)
-  }
-
-  def getArtifacts(variant: Variant, constraints: Set[Constraint]): Set[(Artifact, Set[ArtifactRef])] = {
-    val refs = variant.artifacts.filter { artifact =>
-      logic.matches(artifact.attributes, constraints)
-    }
-
-    refs.groupBy(_.hash).flatMap {
-      case (hash, refs) =>
-        val repoCandidates = repos.par.filter(_.hasArtifactDescriptor(hash))
-        repoCandidates.map { repo =>
-          repo.readArtifactDescriptor(hash) match {
-            case Right(artifact) => artifact -> refs
-            case Left(errorMsg) => throw new Exception(errorMsg)
-          }
-        }
-    }.toSet
-  }
-
-  val artifactsCacheDir = Repository.artifactsCacheDir(baseDir)
+  val artifactsCacheDir = Repository.getArtifactsCacheDir(baseDir)
+  val atticDir = Repository.getAtticDir(baseDir)
 
   def cache(file: File): File = {
     val hash = Hash.calculate(file)
@@ -53,10 +21,17 @@ class SlowRepositoryEngine(val baseDir: File, val repos: Set[Repository]) extend
       //skip
       output
     } else {
-      if (output.isFile() && Hash.calculate(output) != hash){ //TODO: re-calculate output hash only once? Assuming this happens rarely, so it is ok for now?
-        //TODO: logger.warn instead
-        System.err.println("Overwriting corrupt cached artifact: " + output + " was supposed to have hash: " + hash + " but had " + Hash.calculate(output))
-        output.delete()
+      if (output.isFile() && Hash.calculate(output) != hash) {
+        //There will be a perf hit because we are hashing files 2 times. Assuming this happens rarely (has to exist a file AND the hash is corrupt are different), so it is ok?
+        val corruptHash = Hash.calculate(output)
+        val atticFile = new File(atticDir, corruptHash.value)
+
+        if ((atticDir.isDirectory || atticDir.mkdirs()) && output.renameTo(atticFile)) {
+          logger.warn("Moved corrupt cached artifact " + output + " (was supposed to have hash: " + hash + " but had " + corruptHash + ") to attic: " + atticFile)
+        } else {
+          logger.warn("Could not store corrupt cached artifact " + output + " (was supposed to have hash: " + hash + " but had " + corruptHash + ") in attic so file is being deleted")
+          output.delete()
+        }
       }
       if ((output.getParentFile.isDirectory || output.getParentFile.mkdirs()) && file.renameTo(output)) output
       else throw new Exception(s"Could not create cache dir to move '$file' to '$output'")

@@ -3,6 +3,8 @@ package adept.core.resolution
 import adept.core.models._
 import adept.core.models.State
 
+class UnexpectedResolutionStateException(msg: String) extends Exception(msg)
+
 class Resolver(variantsLoader: VariantsLoaderEngine) {
 
   /**
@@ -60,7 +62,7 @@ class Resolver(variantsLoader: VariantsLoaderEngine) {
             constraints = state.constraints + (id -> currentConstraints),
             nodes = state.nodes + (dependency.id -> node))
         } else {
-          throw new Exception("Unexpected number of variants: " + variants)
+          throw new UnexpectedResolutionStateException("Unexpected number of variants: " + variants)
         }
     }
   }
@@ -84,7 +86,7 @@ class Resolver(variantsLoader: VariantsLoaderEngine) {
                 resolveNodes(variant.dependencies, state))))
         case (None, unresolvedState) if !unresolvedState.isResolved =>
           unresolvedState
-        case _ => throw new Exception("Could not find a variant for a resolved dependency: " + dependency + " state: " + state)
+        case _ => throw new UnexpectedResolutionStateException("Could not find a variant for a resolved dependency: " + dependency + " state: " + state)
       }
     }
   }
@@ -112,7 +114,7 @@ class Resolver(variantsLoader: VariantsLoaderEngine) {
         } else if (failedState.isOverconstrained) {
           new OverconstrainedResult(failedState, resolveNodes(dependencies, failedState))
         } else {
-          throw new Exception("Failed state was neither under-constrained nor over-constrained: " + failedState)
+          throw new UnexpectedResolutionStateException("Failed state was neither under-constrained nor over-constrained: " + failedState)
         }
     }
   }
@@ -169,7 +171,7 @@ class Resolver(variantsLoader: VariantsLoaderEngine) {
     } else if (state.isResolved) {
       Right(state)
     } else {
-      throw new Exception("State is neither resolved, underconstrained nor overconstrained: " + state)
+      throw new UnexpectedResolutionStateException("State is neither resolved, underconstrained nor overconstrained: " + state)
     }
 
   }

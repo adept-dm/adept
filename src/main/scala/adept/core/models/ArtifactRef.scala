@@ -7,4 +7,8 @@ case class ArtifactRef(hash: Hash, attributes: Set[Attribute], filename: Option[
     }.flatten
     Attribute(name, values)
   }
+  
+  override def toString = {
+    hash  + (if (filename.isDefined) ":" +filename.get else "") + "; " + attributes.map(a => a.name + "=" + a.values.mkString("(", ",", ")")).mkString("[", ",", "]")
+  }
 }

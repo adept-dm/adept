@@ -9,8 +9,12 @@ case class Variant(id: Id, artifacts: Set[ArtifactRef], attributes: Set[Attribut
   }
 
   override def toString = {
-    id + " " + attributes.map(a => a.name + "=" + a.values.mkString("(", ",", ")")).mkString("[", ",", "]") +
-      (if (dependencies.nonEmpty) dependencies.mkString("{", ",", "}") else "")
+    id + " " + attributes.map(a => a.name + "=" + a.values.mkString("(", ",", ")")).mkString("[", ",", "]")
   }
 
+  def fullString = {
+    toString + 
+      (if (dependencies.nonEmpty) dependencies.mkString("{", ",", "}") else "") + 
+      (if (artifacts.nonEmpty) artifacts.mkString("|", ",", "|") else "") 
+  }
 }

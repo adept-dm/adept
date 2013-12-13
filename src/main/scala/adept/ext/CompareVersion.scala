@@ -41,7 +41,7 @@ object Version {
           }
           case (Some(sm1), None) => sm1.compareTo(0)
           case (None, Some(sm2)) => 0.compareTo(sm2)
-          case somethingElse => throw new Exception("while comparing version got unexpected pair of versions: " + somethingElse)
+          case somethingElse => throw new Exception("While comparing versions got an unexpected pair: " + somethingElse)
         }
       case (v1, v2) => v1.compareTo(v2)
     }
