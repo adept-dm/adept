@@ -13,7 +13,11 @@ object VersionConflictResolver {
    * The new result (can still be over-constrained, but not on versions);
    * The new variants which were created
    *
-   * TODO: sniff sniff. is there a code smell here? consider rewriting, overrides and this part - just seems very complicated to me
+   * TODO: sniff sniff. is there a code smell here? consider rewriting, overrides and this part - just seems very complicated to me.
+   * Besides resolving a conflict should not be attribute name bound. It should be possible to resolve any conflict on any attribute
+   * only by passing in the name of the attribute and the function that compares/sorts them.
+   * 
+   * Should not return an Either...
    */
   def resolveHighestConflicts(result: ResolveResult, dependencies: Set[Dependency], loaderEngine: VariantsLoaderEngine): Either[(ResolveResult, Set[(Id, Set[Constraint])]), (ResolveResult, Set[Variant])] = { //TODO: could we simplify this type signature with some classes_
     val initVariants = result.state.resolvedVariants ++ result.state.implicitVariants
@@ -58,6 +62,7 @@ object VersionConflictResolver {
           conflictingVersions.foldLeft(Map.empty[Id, Variant]) { //applying overrides:
             case (current, (id, constraints)) =>
               val (lastVersion, (query, replacementAttribute)) = queryAttributeReplacement(id, constraints, dependencies)
+              
               val replaceResult = Extensions.overrides(dependencies, result.graph, requiredVariants ++ current, query, replacementAttribute)
 
               current ++ replaceResult.includedVariants
