@@ -72,7 +72,7 @@ object Hash {
     val currentMd = md.get()
     currentMd.reset()
     try {
-      dependencies.foreach(updateWithDependency(_, currentMd))
+      dependencies.toSeq.sorted.foreach(updateWithDependency(_, currentMd))
 
       Hash(digest(currentMd))
     } finally {
@@ -97,6 +97,7 @@ object Hash {
     val currentMd = md.get() /* thread-safe because of thread local */
     currentMd.reset()
     try {
+      System.err.println("no realiable hash!")
       variants.foreach(updateWithVariant(_, currentMd))
 
       Hash(digest(currentMd))
