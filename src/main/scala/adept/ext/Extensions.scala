@@ -2,6 +2,7 @@ package adept.ext
 
 import adept.core.resolution.Resolver
 import adept.core.models._
+import adept.logging.Logging
 import java.security.MessageDigest
 import java.io._
 
@@ -47,7 +48,7 @@ private[adept] object Query {
 //TODO: remove unnecessary fields
 private[adept] case class ReplaceResult(dependencies: Set[Dependency], newVariants: Set[Variant], attributes: Map[Id, Set[Attribute]], includedVariants: Map[Id, Variant], graph: Set[Node])
 
-private[adept] object Extensions {
+private[adept] object Extensions extends Logging {
   import AttributeDefaults._
   
   def mergeAttributes(allAttributes: Set[Attribute]*): Set[Attribute] = {
@@ -122,7 +123,12 @@ private[adept] object Extensions {
         val variant = variants(node.id)
         //find matching dependencies based on query
         val matchingDependencies = variant.dependencies.filter { dependency =>
-          Query.matches(variants(dependency.id), query)
+          variants.get(dependency.id) match {
+            case Some(variant) => Query.matches(variant, query)
+            case None => 
+              //logger.error(s"Expected to find ${dependency.id} in ${variants.mkString(", ")}")
+              false
+          }
         }
 
         //find new variant if it is to be replaced or use old one
