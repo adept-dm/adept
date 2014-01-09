@@ -15,10 +15,24 @@ object TestHelpers extends MustMatchers {
     f
     System.currentTimeMillis - time
   }
-  
+
+  def REMOVEMEusingTempDir(f: File => Unit) = {
+    val rootDir = "test-tmp"
+
+    val tmpDir = new File(rootDir, "tmp-dir-" + System.currentTimeMillis)
+    try {
+      if (tmpDir.mkdirs()) {
+        f(tmpDir)
+      } else throw new Exception("Could not create tmp dir: " + tmpDir)
+    } finally {
+      //import scala.reflect.io.Directory
+      //if (tmpDir.isDirectory) (new Directory(tmpDir)).deleteRecursively()
+    }
+  }
+
   def usingTempDir(f: File => Unit) = {
     val rootDir = "test-tmp"
-    
+
     val tmpDir = new File(rootDir, "tmp-dir-" + System.currentTimeMillis)
     try {
       if (tmpDir.mkdirs()) {
@@ -29,8 +43,7 @@ object TestHelpers extends MustMatchers {
       if (tmpDir.isDirectory) (new Directory(tmpDir)).deleteRecursively()
     }
   }
-  
-  
+
   def usingCacheManager(f: CacheManager => Unit) = {
     val cacheManager = CacheManager.create()
     try {
@@ -84,6 +97,6 @@ object TestHelpers extends MustMatchers {
 
 object VariantsLoaderEngineTester extends VariantsLoaderLogic with MustMatchers {
   def testMatches(attributes: Set[Attribute], constraints: Set[Constraint], expectMatchValue: Boolean) = {
-    assert(matches(attributes, constraints) == expectMatchValue, "expected attributes: " + attributes + " constraints: " + constraints + " to " + (if (expectMatchValue) "" else "NOT") + " match")
+    assert(matches(attributes, constraints) == expectMatchValue, "expected attributes: " + attributes + " and constraints: " + constraints + " to " + (if (expectMatchValue) "" else "NOT") + " match")
   }
 }

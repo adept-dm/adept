@@ -5,6 +5,7 @@ import java.io.InputStream
 import java.io.File
 import java.io.FileInputStream
 import java.security.MessageDigest
+import adept.configuration.ConfigurationId
 
 case class Hash(val value: String) extends AnyVal { //make a value class to avoid runtime reference
   override def toString = value
@@ -13,6 +14,7 @@ case class Hash(val value: String) extends AnyVal { //make a value class to avoi
 object Hash {
   import Ordering._
 
+  //TODO: there is not point in this? just create a local varialbe instead
   private lazy val md: ThreadLocal[MessageDigest] = new ThreadLocal[MessageDigest] { //make message digest thread-"safe"
     override def initialValue() = {
       MessageDigest.getInstance("SHA-256")
@@ -74,6 +76,20 @@ object Hash {
     try {
       dependencies.toSeq.sorted.foreach(updateWithDependency(_, currentMd))
 
+      Hash(digest(currentMd))
+    } finally {
+      currentMd.reset()
+    }
+  }
+  
+  def calculate(attributes: Set[Attribute], configurations: Set[ConfigurationId]): Hash = {
+    val currentMd = md.get()
+    currentMd.reset()
+    try {
+      attributes.toSeq.sorted.foreach(updateWithAttribute(_, currentMd))
+      configurations.map(_.value).toSeq.sorted.foreach{ confName =>
+        currentMd.update(confName.getBytes)
+      }
       Hash(digest(currentMd))
     } finally {
       currentMd.reset()

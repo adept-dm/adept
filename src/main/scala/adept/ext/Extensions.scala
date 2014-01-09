@@ -7,18 +7,16 @@ import java.security.MessageDigest
 import java.io._
 
 private[adept] sealed trait Query
-private[adept] case class QueryExpr(exprs: Seq[(String, String)]) extends Query
-private[adept] case class QueryId(id: Id) extends Query
+private[adept] case class QueryExpr(expr: Seq[(String, String)]) extends Query
+private[adept] case class QueryId(id: Id, expr: Seq[(String, String)]) extends Query
 
 private[adept] object Query {
-  def apply(id: Id) = QueryId(id)
+  def apply(id: Id, exprs: (String, String)*) = QueryId(id, exprs)
   def apply(exprs: (String, String)*) = QueryExpr(exprs)
-  
-  def matches(variant: Variant, query: Query): Boolean = {
-    query match {
-      case QueryExpr(constraints) =>
-        val attributes = variant.attributes
-        val zipped = constraints.map {
+
+  private def evaluateExpr(expr: Seq[(String, String)], variant: Variant) = {
+    val attributes = variant.attributes
+        val zipped = expr.map {
           case expr @ (exprName, _) =>
             expr -> attributes.filter(attribute => attribute.name == exprName)
         }
@@ -32,7 +30,12 @@ private[adept] object Query {
               }
             }
         }
-      case QueryId(id) => variant.id == id
+  } 
+  
+  def matches(variant: Variant, query: Query): Boolean = {
+    query match {
+      case QueryExpr(expr) => evaluateExpr(expr, variant)
+      case QueryId(id, expr) => variant.id == id && (if (expr.nonEmpty) evaluateExpr(expr, variant) else true)
     }
   }
 }
@@ -50,7 +53,7 @@ private[adept] case class ReplaceResult(dependencies: Set[Dependency], newVarian
 
 private[adept] object Extensions extends Logging {
   import AttributeDefaults._
-  
+
   def mergeAttributes(allAttributes: Set[Attribute]*): Set[Attribute] = {
     allAttributes.flatten.groupBy(_.name).map {
       case (name, attrs) =>
@@ -83,6 +86,9 @@ private[adept] object Extensions extends Logging {
     val newDepsHash = Hash.calculate(newDependencies)
     val oldDepsHash = Hash.calculate(variant.dependencies)
 
+    
+    println(variant.id + " old:" + oldDepsHash + " -> " + variant.dependencies)
+    println(variant.id + " new:" + newDepsHash + " -> " + newDependencies)
     Attribute(OverridesAttribute, Set(variant.id + ":" + oldDepsHash + ":" + newDepsHash))
   }
 
@@ -98,6 +104,7 @@ private[adept] object Extensions extends Logging {
           case None => dependency
         }
       }
+      println("q" + query)
       val overriddenAttributes = matchingDependencies.map(dependency => overriddenAttribute(variants(dependency.id), overrideDependencies))
 
       val newVariant = variant.copy(dependencies = overrideDependencies,
@@ -125,7 +132,7 @@ private[adept] object Extensions extends Logging {
         val matchingDependencies = variant.dependencies.filter { dependency =>
           variants.get(dependency.id) match {
             case Some(variant) => Query.matches(variant, query)
-            case None => 
+            case None =>
               //logger.error(s"Expected to find ${dependency.id} in ${variants.mkString(", ")}")
               false
           }

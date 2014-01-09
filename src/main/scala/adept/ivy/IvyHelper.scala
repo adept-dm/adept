@@ -16,16 +16,20 @@ import collection.JavaConverters._
 import org.apache.ivy.core.module.descriptor.Configuration.Visibility
 import org.apache.ivy.core.report.ResolveReport
 import org.apache.ivy.util.AbstractMessageLogger
+import adept.configuration.VariantBuilder
+import adept.configuration.ConfiguredDependency
+import adept.configuration.ConfigurationId
+import adept.configuration.ConfiguredVariantInfo
 
 class IvyResolveException(msg: String) extends RuntimeException(msg)
 
-case class IvyImportResult(variant: Variant, artifacts: Set[Artifact], localFiles: Map[Artifact, File])
+case class IvyImportResult(variants: Set[Variant], artifacts: Set[Artifact], localFiles: Map[Artifact, File])
 
 object IvyHelper {
-  def convert(org: String, name: String) = {
-    Id(org + "/" + name)
+  def createId(org: String, name: String) = {
+    Id(org + Id.Sep + name)
   }
-  
+
   def load(path: Option[String] = None, logLevel: Int = Message.MSG_ERR, ivyLogger: AbstractMessageLogger = new DefaultMessageLogger(Message.MSG_ERR)): Either[String, Ivy] = {
     //setting up logging
     Message.setDefaultLogger(ivyLogger)
@@ -64,11 +68,11 @@ object IvyHelper {
 class IvyHelper(ivy: Ivy, changing: Boolean = true) {
   import AttributeDefaults.{ NameAttribute, OrgAttribute, VersionAttribute, ConfAttribute }
   import IvyHelper._
-  
+
   /**
    * Import from ivy based on coordinates
-   * 
-   * TODO: high pri return overrides as well, they are needed to resolve in the same way as Ivy 
+   *
+   * TODO: high pri return overrides as well, they are needed to resolve in the same way as Ivy
    */
   def ivyImport(org: String, name: String, version: String): Either[String, Set[IvyImportResult]] = {
     ivy.synchronized { // ivy is not thread safe
@@ -101,110 +105,83 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true) {
     dependencies
   }
 
-  val MavenConfs = Set("default", "master", "compile", "provided", "runtime", "test", "system", "sources", "javadoc", "optional")
-
-  def ivyResultsForConf(mrid: ModuleRevisionId, report: ResolveReport, confName: String, children: Set[IvyNode]) = {
+  def createIvyResult(mrid: ModuleRevisionId, children: Set[IvyNode]): IvyImportResult = {
+    
+    val id = createId(mrid.getOrganisation, mrid.getName)
     val versionAttribute = Attribute(VersionAttribute, Set(mrid.getRevision()))
     val nameAttribute = Attribute(NameAttribute, Set(mrid.getName()))
     val orgAttribute = Attribute(OrgAttribute, Set(mrid.getOrganisation()))
-    val id = convert(mrid.getOrganisation, mrid.getName)
 
-    val attributes = Set(orgAttribute, nameAttribute, versionAttribute, Attribute(ConfAttribute, Set(confName)))
+    val attributes = Set(orgAttribute, nameAttribute, versionAttribute)
 
-    val dependencies = children.map { ivyNode =>
-      val dependencyId = convert(ivyNode.getId.getOrganisation, ivyNode.getId.getName)
-      val report = ivy.resolve(ivyNode.getId, resolveOptions(confName), changing)
+    //TODO: replace vars with vals? folding becomes too messy IMO, but it would be more idiomatic?
+    var allArtifacts: Set[Artifact] = Set.empty
+    var allArtifactFiles: Map[Artifact, File] = Map.empty
+    var variantBuilder = VariantBuilder.create(id, attributes)
 
-      //we do not care if an ivyNode is evicted, we might still possibly need it so
-      // we do not check if: ivyNode.isEvicted(confName))
+    val moduleDescriptor = ivy.resolve(mrid, resolveOptions(), changing).getModuleDescriptor
+    moduleDescriptor.getConfigurations().foreach { ivyConfiguration =>
+      val confName = ivyConfiguration.getName
 
-      val extraAttributes = report.getModuleDescriptor.getExtraAttributes
-      val constraints: Set[Constraint] = extraAttributes.asScala.flatMap {
-        case (name: String, value: String) =>
-          Some(Constraint(name, Set(value)))
-        case _ => None
-      }.toSet ++ Set(
-        Constraint(OrgAttribute, Set(ivyNode.getId.getOrganisation)),
-        Constraint(NameAttribute, Set(ivyNode.getId.getName)),
-        Constraint(VersionAttribute, Set(ivyNode.getId.getRevision)))
+      val dependencies = children.map { ivyNode =>
+        val dependencyId = createId(ivyNode.getId.getOrganisation, ivyNode.getId.getName)
+        
+        //we do not care if an ivyNode is evicted, we might still possibly need it so
+        //no need to check: ivyNode.isEvicted(confName))
 
-      Dependency(dependencyId, constraints = constraints)
-    }
-
-    val artifactInfos = report.getArtifactsReports(mrid).map { artifactReport =>
-      val file = artifactReport.getLocalFile
-      (artifactReport.getArtifactOrigin().getLocation(), file, Hash.calculate(file))
-    }.toSet
-
-    val artifactFiles = artifactInfos.map {
-      case (location, file, hash) =>
-        Artifact(hash, file.length, Set(location)) -> file
-    }
-    val artifactRefs = artifactInfos.map {
-      case (_, file, hash) =>
-        ArtifactRef(hash, Set(Attribute(ConfAttribute, Set(confName))), Some(file.getName))
-    }
-    val variant = Variant(id, attributes = attributes, artifacts = artifactRefs, dependencies = dependencies)
-
-    val artifacts = artifactFiles.map(_._1)
-    
-    IvyImportResult(variant, artifacts, artifactFiles.toMap)
-  }
-
-  def createIvyResult(mrid: ModuleRevisionId, children: Set[IvyNode]): Set[IvyImportResult] = {
-    val report = ivy.resolve(mrid, resolveOptions(), changing)
-
-    val moduleDescriptor = report.getModuleDescriptor
-
-    val publicConfs = moduleDescriptor.getConfigurations().filter(_.getVisibility() == Visibility.PUBLIC)
-
-    if (publicConfs.map(_.getName).toSet == MavenConfs) {
-      //skip compile because it is not used internally in a module
-      //skip master because maven imported modules does not use it
-      //skip test because it is private and not required to build or use an imported module
-      //skip system, optional and provided because it only is defined on the actual dependencies and not in the actual module itself (you can declare a dependency on another lib as optional, but the lib itself is never optional to itself)
-      val defaultResult = ivyResultsForConf(mrid, ivy.resolve(mrid, resolveOptions("default"), changing), "default", children)
-      val javadocResult = ivyResultsForConf(mrid, ivy.resolve(mrid, resolveOptions("javadoc"), changing), "javadoc", children)
-      val sourcesResult = ivyResultsForConf(mrid, ivy.resolve(mrid, resolveOptions("sources"), changing), "sources", children)
-
-      val mainResult = {
-        val variant = defaultResult.variant.copy(artifacts = defaultResult.variant.artifacts ++ javadocResult.variant.artifacts ++ sourcesResult.variant.artifacts)
-        defaultResult.copy(variant = variant, artifacts = defaultResult.artifacts ++ javadocResult.artifacts ++ sourcesResult.artifacts)
+        val extraAttributes = moduleDescriptor.getExtraAttributes
+        val constraints: Set[Constraint] = extraAttributes.asScala.flatMap {
+          case (name: String, value: String) =>
+            Some(Constraint(name, Set(value)))
+          case _ => None
+        }.toSet ++ Set(
+          Constraint(OrgAttribute, Set(ivyNode.getId.getOrganisation)),
+          Constraint(NameAttribute, Set(ivyNode.getId.getName)),
+          Constraint(VersionAttribute, Set(ivyNode.getId.getRevision)))
+        val configurations = {
+          val ivyConfigurations = ivyNode.getConfigurations(confName).toSet.map(ivyNode.getConfiguration)
+          ivyConfigurations.map(c => ConfigurationId(c.getName))
+        }
+        ConfiguredDependency(dependencyId, configurations, constraints = constraints)
       }
 
-      val runtimeResult = ivyResultsForConf(mrid, ivy.resolve(mrid, resolveOptions("runtime"), changing), "runtime", children)
-
-      if (runtimeResult.variant.id == mainResult.variant.id &&
-        runtimeResult.variant.attributes.filter(a => a.name != ConfAttribute) == mainResult.variant.attributes.filter(a => a.name != ConfAttribute) &&
-        runtimeResult.variant.dependencies == mainResult.variant.dependencies) {
-        val attributes = mainResult.variant.attributes.filter(a => a.name != ConfAttribute) + Attribute(ConfAttribute, Set("compile", "runtime"))
-
-        //merge runtime if it is the same as compile:
-        val resultVariant = mainResult.variant.copy(attributes = attributes,
-          artifacts = mainResult.variant.artifacts ++ runtimeResult.variant.artifacts)
-        val resultArtifacts = mainResult.artifacts ++ runtimeResult.artifacts
-        val resultArtifactFiles = mainResult.localFiles ++ runtimeResult.localFiles
-
-        Set(IvyImportResult(resultVariant, resultArtifacts, resultArtifactFiles))
-      } else {
-        Set(mainResult, runtimeResult)
-      }
-    } else {
-      publicConfs.flatMap { conf =>
-        val result = ivyResultsForConf(mrid, report, conf.getName, children)
-        if (result.variant.dependencies.nonEmpty && result.variant.artifacts.nonEmpty)
-          Some(result)
-        else None
+      val artifactInfos = ivy.resolve(mrid, resolveOptions(ivyConfiguration.getName), changing).getArtifactsReports(mrid).map { artifactReport =>
+        val file = artifactReport.getLocalFile
+        (artifactReport.getArtifactOrigin().getLocation(), artifactReport.getArtifact().getConfigurations(), file, Hash.calculate(file))
       }.toSet
+
+      //TODO: skipping empty configurations? if (artifactInfos.nonEmpty || dependencies.nonEmpty)... 
+      val currentArtifactFiles = artifactInfos.map {
+        case (location, _, file, hash) =>
+          Artifact(hash, file.length, Set(location)) -> file
+      }
+
+      allArtifactFiles ++= currentArtifactFiles //MUTATE!
+
+      val currentArtifacts = currentArtifactFiles.map(_._1)
+      allArtifacts ++= currentArtifacts //MUTATE!
+
+      val artifactRefs = artifactInfos.map {
+        case (_, ivyConfs, file, hash) =>
+          ArtifactRef(hash, Set(Attribute(ConfAttribute, ivyConfs.toSet)), Some(file.getName))
+      }
+
+      variantBuilder = variantBuilder.addConfiguration( //MUTATE!
+        artifacts = artifactRefs,
+        dependencies = dependencies,
+        configuration = ConfigurationId(confName),
+        extendsConfigurations = ivyConfiguration.getExtends().map(ConfigurationId(_)).toSet,
+        description = ivyConfiguration.getDescription)
     }
+    IvyImportResult(variantBuilder.build(), allArtifacts, allArtifactFiles)
   }
 
   def results(mrid: ModuleRevisionId)(dependencies: Map[ModuleRevisionId, Set[IvyNode]]): Set[IvyImportResult] = {
     val children = dependencies.getOrElse(mrid, Set.empty)
-    val currentVariants = createIvyResult(mrid, children).toSet
+    val currentResult = createIvyResult(mrid, children)
     children.flatMap { childNode =>
       val childId = childNode.getId
       results(childId)(dependencies ++ createDependencyTree(childId))
-    } ++ currentVariants
+    } + currentResult
   }
 }

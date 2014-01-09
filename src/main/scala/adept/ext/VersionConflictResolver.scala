@@ -42,6 +42,7 @@ object VersionConflictResolver {
             //find the "clean" variant without overrides:
             val candidates = resolvedVariants.filter(_.attributes.find(_.name == OverridesAttribute).isEmpty)
             if (candidates.size == 1) {
+//              println("choosing: " + id + " from " + candidates.mkString("\n") + " based on " + constraints)
               Right(id -> candidates.head)
             } else {
               Left(id -> constraints)
@@ -58,14 +59,13 @@ object VersionConflictResolver {
       } else {
         val requiredVariants = previousVariants ++ newVariants.map(_.right.get)
 
-        val knownVariants =
-          conflictingVersions.foldLeft(Map.empty[Id, Variant]) { //applying overrides:
-            case (current, (id, constraints)) =>
+        val (newDependencies, knownVariants) = //TODO: return new dependencies as well?
+          conflictingVersions.foldLeft(Set.empty[Dependency] -> Map.empty[Id, Variant]) { //applying overrides:
+            case ((newDependencies, current), (id, constraints)) =>
               val (lastVersion, (query, replacementAttribute)) = queryAttributeReplacement(id, constraints, dependencies)
-              
+              println("replacing " + id + " with " + lastVersion  + " ->  " + (requiredVariants ++ current)(id))
               val replaceResult = Extensions.overrides(dependencies, result.graph, requiredVariants ++ current, query, replacementAttribute)
-
-              current ++ replaceResult.includedVariants
+              (newDependencies ++ replaceResult.dependencies) -> (current ++ replaceResult.includedVariants)
           }
 
         val allNewVariants = knownVariants.map { case (_, variant) => variant }

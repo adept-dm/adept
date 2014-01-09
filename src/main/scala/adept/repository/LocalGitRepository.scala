@@ -10,6 +10,7 @@ import org.eclipse.jgit.treewalk.TreeWalk
 import org.eclipse.jgit.treewalk.filter.PathFilter
 import java.io.InputStream
 import java.io.InputStreamReader
+import org.eclipse.jgit.merge.MergeStrategy
 
 object Commit {
   val Head = Commit(Constants.HEAD)
@@ -48,14 +49,13 @@ class LocalGitRepository(val baseDir: File, val name: String, val commitRef: Com
 
   private lazy val gitDir = repoDir
   private lazy val git = Git.open(gitDir)
-  private def gitRepo = git.getRepository()
+  private def gitRepo = git.getRepository() //TODO: withGitRepo[A](f: org.eclipse.jgit.Repository => A) = {val gitRepo = git.getRepository; try { f(gitRepo) } finally { gitRepo.close() } }   
 
   /** Use commit() on GitRepositoryEngine instead */
   private[repository] def commit(msg: String): LocalGitRepository = {
     val revCommit = git.commit()
       .setMessage(msg)
       .call()
-
     new LocalGitRepository(baseDir, name, Commit(revCommit.name))
   }
 
@@ -80,7 +80,8 @@ class LocalGitRepository(val baseDir: File, val name: String, val commitRef: Com
     val treeWalk = new TreeWalk(gitRepo)
     treeWalk.addTree(tree)
     treeWalk.setRecursive(false)
-
+    treeWalk.setFilter(PathFilter.create(MetadataDirName)) //TODO: check this!
+    
     var variants = Set.empty[Variant]
 
     while (treeWalk.next()) {

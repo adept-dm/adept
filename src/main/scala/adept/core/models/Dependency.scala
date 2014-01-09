@@ -1,5 +1,6 @@
 package adept.core.models
 
-case class Dependency(id: Id, constraints: Set[Constraint]) {
+//Rename Dependency to CoreRequirement and ConfiguredDependency to Requirement
+case class Dependency(id: Id, constraints: Set[Constraint]) { //TODO: replace id: id: DependencyId/RequirementId
   override def toString = id + " " + constraints.map(c => c.name + "=" + c.values.mkString("(", ",", ")")).mkString("[", ",", "]")
 }

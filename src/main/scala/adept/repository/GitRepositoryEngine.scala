@@ -76,7 +76,7 @@ class GitRepositoryEngine private[repository] (override val baseDir: File, repos
     val refs = variant.artifacts.filter { artifact =>
       logic.matches(artifact.attributes, constraints)
     }
-
+    
     refs.groupBy(_.hash).flatMap {
       case (hash, refs) =>
         caches.flatMap {
