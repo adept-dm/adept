@@ -19,15 +19,15 @@ class ConfigurationsTest extends FunSuite with MustMatchers {
       dependencies = Set(ConfiguredDependency(new Id("B"), Set(ConfigurationId("compile"), ConfigurationId("master")), Set.empty)),
       configuration = ConfigurationId("compile"),
       description = "this is the default scope, used if none is specified. Compile dependencies are available in all classpaths.")
-      .addConfiguration( //MASTER:
+      .withConfiguration( //MASTER:
         artifacts = Set(ArtifactRef(Hash("aeb123"), Set(Attribute("configuration", Set("default"))), None)),
         dependencies = Set.empty,
         ConfigurationId("master"), Set.empty, "contains only the artifact published by this module itself, with no transitive dependencies")
-      .addConfiguration( //RUNTIME:
+      .withConfiguration( //RUNTIME:
         artifacts = Set.empty,
         dependencies = Set.empty,
         ConfigurationId("runtime"), Set(ConfigurationId("compile")), "this scope indicates that the dependency is not required for compilation, but is for execution. It is in the runtime and test classpaths, but not the compile classpath.")
-      .addConfiguration( //TEST:
+      .withConfiguration( //TEST:
           artifacts = Set.empty,
         dependencies = Set(ConfiguredDependency(new Id("B"), Set(ConfigurationId("runtime")), Set.empty)),
         ConfigurationId("test"), Set(ConfigurationId("runtime")), "this scope indicates that the dependency is not required for normal use of the application, and is only available for the test compilation and execution phases")
@@ -40,15 +40,15 @@ class ConfigurationsTest extends FunSuite with MustMatchers {
       dependencies = Set.empty,
       configuration = ConfigurationId("compile"),
       description = "this is the default scope, used if none is specified. Compile dependencies are available in all classpaths.")
-      .addConfiguration( //MASTER:
+      .withConfiguration( //MASTER:
         artifacts = Set(ArtifactRef(Hash("bcd567"), Set(Attribute("configuration", Set("default"))), None)),
         dependencies = Set.empty,
         ConfigurationId("master"), Set.empty, "contains only the artifact published by this module itself, with no transitive dependencies")
-      .addConfiguration( //RUNTIME:
+      .withConfiguration( //RUNTIME:
         artifacts = Set.empty,
         dependencies = Set.empty,
         ConfigurationId("runtime"), Set(ConfigurationId("compile")), "this scope indicates that the dependency is not required for compilation, but is for execution. It is in the runtime and test classpaths, but not the compile classpath.")
-      .addConfiguration( //TEST:
+      .withConfiguration( //TEST:
           artifacts = Set.empty,
         dependencies = Set.empty,
         ConfigurationId("test"), Set(ConfigurationId("runtime")), "this scope indicates that the dependency is not required for normal use of the application, and is only available for the test compilation and execution phases")

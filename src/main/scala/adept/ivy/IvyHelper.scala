@@ -20,12 +20,43 @@ import adept.configuration.VariantBuilder
 import adept.configuration.ConfiguredDependency
 import adept.configuration.ConfigurationId
 import adept.configuration.ConfiguredVariantInfo
+import adept.repository.AdeptRepositoryManager
+import adept.repository.Commit
 
 class IvyResolveException(msg: String) extends RuntimeException(msg)
 
-case class IvyImportResult(variants: Set[Variant], artifacts: Set[Artifact], localFiles: Map[Artifact, File])
+case class IvyImportResult(mrid: ModuleRevisionId, variants: Set[Variant], artifacts: Set[Artifact], localFiles: Map[Artifact, File])
 
 object IvyHelper {
+
+  def getRepoName(ivyResult: IvyImportResult) = ivyResult.mrid.getOrganisation
+
+  def insert(results: Set[IvyImportResult], baseDir: File) = {
+    val repositories = results.map { ivyResult =>
+      val repoName = getRepoName(ivyResult)
+      val repoRef =
+        if (!AdeptRepositoryManager.exists(baseDir, repoName)) 
+          AdeptRepositoryManager.init(baseDir, repoName)
+        else {
+          val commit = Commit("") //scan backwards to right commit
+
+          AdeptRepositoryManager.getExisting(baseDir, repoName, commit)
+        }
+
+      if (repoRef.isFailure) throw new Exception("Failed to import ivy to " + baseDir + ". Got errors: " + repoRef.getErrorMessages.mkString(" and "))
+      else {
+        val engine = AdeptRepositoryManager.open(baseDir, repoRef)
+        results.flatMap { ivyResult =>
+          val repoName = getRepoName(ivyResult)
+          ivyResult.variants.map { variant =>
+            engine.addVariant(repoName, variant)
+          }
+          engine.commit("Ivy import " + ivyResult.mrid)
+        }
+      }
+    }
+  }
+
   def createId(org: String, name: String) = {
     Id(org + Id.Sep + name)
   }
@@ -78,6 +109,7 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true) {
     ivy.synchronized { // ivy is not thread safe
       val mrid = ModuleRevisionId.newInstance(org, name, version)
       val dependencies = createDependencyTree(mrid)
+      println(dependencies)
       val workingNode = dependencies(ModuleRevisionId.newInstance(org, name + "-caller", "working")).head.getId
       val result = results(workingNode)(dependencies)
       Right(result)
@@ -106,7 +138,7 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true) {
   }
 
   def createIvyResult(mrid: ModuleRevisionId, children: Set[IvyNode]): IvyImportResult = {
-    
+
     val id = createId(mrid.getOrganisation, mrid.getName)
     val versionAttribute = Attribute(VersionAttribute, Set(mrid.getRevision()))
     val nameAttribute = Attribute(NameAttribute, Set(mrid.getName()))
@@ -125,7 +157,7 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true) {
 
       val dependencies = children.map { ivyNode =>
         val dependencyId = createId(ivyNode.getId.getOrganisation, ivyNode.getId.getName)
-        
+
         //we do not care if an ivyNode is evicted, we might still possibly need it so
         //no need to check: ivyNode.isEvicted(confName))
 
@@ -166,14 +198,14 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true) {
           ArtifactRef(hash, Set(Attribute(ConfAttribute, ivyConfs.toSet)), Some(file.getName))
       }
 
-      variantBuilder = variantBuilder.addConfiguration( //MUTATE!
+      variantBuilder = variantBuilder.withConfiguration( //MUTATE!
         artifacts = artifactRefs,
         dependencies = dependencies,
         configuration = ConfigurationId(confName),
         extendsConfigurations = ivyConfiguration.getExtends().map(ConfigurationId(_)).toSet,
         description = ivyConfiguration.getDescription)
     }
-    IvyImportResult(variantBuilder.build(), allArtifacts, allArtifactFiles)
+    IvyImportResult(mrid, variantBuilder.build(), allArtifacts, allArtifactFiles)
   }
 
   def results(mrid: ModuleRevisionId)(dependencies: Map[ModuleRevisionId, Set[IvyNode]]): Set[IvyImportResult] = {

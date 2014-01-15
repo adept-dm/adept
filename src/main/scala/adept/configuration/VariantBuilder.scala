@@ -5,7 +5,7 @@ import adept.core.models._
 class ConfiguredVariantInfo private[adept](val artifacts: Set[ArtifactRef], val dependencies: Set[ConfiguredDependency], val configuration: ConfigurationId, val extendsConfigurations: Set[ConfigurationId], val description: String)
 
 class VariantBuilder(id: Id, attributes: Set[Attribute], configuredVariants: Seq[ConfiguredVariantInfo] = IndexedSeq.empty) {
-  def addConfiguration(artifacts: Set[ArtifactRef], dependencies: Set[ConfiguredDependency], configuration: ConfigurationId, extendsConfigurations: Set[ConfigurationId], description: String = ""): VariantBuilder = {
+  def withConfiguration(artifacts: Set[ArtifactRef], dependencies: Set[ConfiguredDependency], configuration: ConfigurationId, extendsConfigurations: Set[ConfigurationId], description: String = ""): VariantBuilder = {
     new VariantBuilder(id, attributes, configuredVariants :+ new ConfiguredVariantInfo(artifacts, dependencies, configuration, extendsConfigurations, description))
   }
   
@@ -50,6 +50,6 @@ object VariantBuilder {
   }
 
   def create(id: Id, attributes: Set[Attribute], artifacts: Set[ArtifactRef], dependencies: Set[ConfiguredDependency], configuration: ConfigurationId, extendsConfigurations: Set[ConfigurationId] = Set.empty, description: String = ""): VariantBuilder = {
-    create(id, attributes).addConfiguration(artifacts, dependencies, configuration, extendsConfigurations, description)
+    create(id, attributes).withConfiguration(artifacts, dependencies, configuration, extendsConfigurations, description)
   }
 }
