@@ -74,11 +74,13 @@ object AdeptRepositoryManager {
           .call()
 
         //We need a commit in order to be able to reference it from the very start:
-        Git.open(repoDir)
-          .commit()
+        val gitRepo = Git.open(repoDir)
+        
+        gitRepo.commit()
           .setMessage("Initialised " + name)
           .call()
-
+        gitRepo.tag().setName(Repository.InitTag).call()
+          
         Right(Set(new LocalGitRepository(baseDir, name, Commit.Head)))
       } else {
         Left(Set(s"Could not make directory '$repoDir'"))

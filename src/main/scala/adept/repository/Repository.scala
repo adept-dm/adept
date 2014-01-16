@@ -4,7 +4,7 @@ import adept.core.models._
 import java.io._
 
 object Repository {
-  
+
   //avoid cache collisions with hashes which are 64 chars
   val MaxIdLength = 63
 
@@ -14,6 +14,7 @@ object Repository {
   val ReposDirName = "repos"
   val JsonFileEnding = "json"
   val AtticDir = "attic"
+  val InitTag = "init"
 
   val IdDirSep = "/" //the character in an ID that indicates a different directory
 
@@ -81,7 +82,7 @@ private[repository] trait Repository extends RepositoryBase {
   def writeVariant(variant: Variant): Either[String, File]
 
   def deleteVariant(variant: Variant): Either[String, File]
-  
+
   /// Artifact Descriptor
 
   def hasArtifactDescriptor(hash: Hash): Boolean

@@ -20,8 +20,8 @@ import adept.configuration.VariantBuilder
 import adept.configuration.ConfiguredDependency
 import adept.configuration.ConfigurationId
 import adept.configuration.ConfiguredVariantInfo
-import adept.repository.AdeptRepositoryManager
-import adept.repository.Commit
+import adept.repository._
+import adept.ext.Version
 
 class IvyResolveException(msg: String) extends RuntimeException(msg)
 
@@ -29,29 +29,63 @@ case class IvyImportResult(mrid: ModuleRevisionId, variants: Set[Variant], artif
 
 object IvyHelper {
 
+  def getVersion(variant: Variant): Option[Version] = {
+    val versionValues = variant.attribute("version").values
+    if (versionValues.size > 1) {
+      println("Found multiple versions for: " + variant) //TODO: logger.warn
+      None
+    } else {
+      versionValues.headOption.map(Version.apply _)
+    }
+  }
+
   def getRepoName(ivyResult: IvyImportResult) = ivyResult.mrid.getOrganisation
 
   def insert(results: Set[IvyImportResult], baseDir: File) = {
     val repositories = results.map { ivyResult =>
       val repoName = getRepoName(ivyResult)
-      val repoRef =
-        if (!AdeptRepositoryManager.exists(baseDir, repoName)) 
-          AdeptRepositoryManager.init(baseDir, repoName)
-        else {
-          val commit = Commit("") //scan backwards to right commit
 
-          AdeptRepositoryManager.getExisting(baseDir, repoName, commit)
-        }
+      if (!AdeptRepositoryManager.exists(baseDir, repoName)) {
 
-      if (repoRef.isFailure) throw new Exception("Failed to import ivy to " + baseDir + ". Got errors: " + repoRef.getErrorMessages.mkString(" and "))
-      else {
-        val engine = AdeptRepositoryManager.open(baseDir, repoRef)
-        results.flatMap { ivyResult =>
-          val repoName = getRepoName(ivyResult)
-          ivyResult.variants.map { variant =>
-            engine.addVariant(repoName, variant)
+        val repoRef = AdeptRepositoryManager.init(baseDir, repoName)
+        if (repoRef.isFailure) throw new Exception("Failed to import ivy to " + baseDir + ". Got errors: " + repoRef.getErrorMessages.mkString(" and "))
+      }
+      results.flatMap { ivyResult =>
+        println("working on " + ivyResult.mrid)
+        val repoName = getRepoName(ivyResult)
+        val repo = new LocalGitRepository(baseDir, name = repoName, Commit.Head)
+        val commitMsg = "Ivy import of: " + ivyResult.mrid
+        ivyResult.variants.map { variant =>
+          val version = getVersion(variant)
+          repo.scan(variant.id) { scannedVariant =>
+            val res = for {
+              scannedVersion <- getVersion(scannedVariant)
+              version <- version
+            } yield {
+              val a = scannedVersion < version
+              println("  " + scannedVariant + " is smaller than " + variant + " " + a)
+              a
+            }
+
+            res.getOrElse(false)
+          } match {
+            case Some(commit) =>
+              println("wedging: " + variant)
+              val revCommit = repo.wedge(variant, commit, commitMsg)
+//              new LocalGitRepository(baseDir, repoName, Commit(revCommit.name))
+            case None =>
+              if (repo.nonEmpty) {
+                println("smallest variant yet, wedging after init")
+                
+                val revCommit = repo.wedge(variant, Commit(Repository.InitTag), commitMsg)
+                
+//                new LocalGitRepository(baseDir, repoName, Commit(revCommit.name))
+              } else {
+                println("first variant" + variant)
+                repo.writeVariant(variant)
+                repo.commit(commitMsg)
+              }
           }
-          engine.commit("Ivy import " + ivyResult.mrid)
         }
       }
     }

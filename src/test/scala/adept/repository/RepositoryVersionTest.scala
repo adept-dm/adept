@@ -17,48 +17,24 @@ class RepositoryVersionTest extends FunSuite with Matchers {
 
     val baseDir = new File("test-dir")
 
-    //    IvyHelper.insert(Set(IvyImportResult(ModuleRevisionId.newInstance("com.typesafe.akka", "akka-actors", "2.2.1"), variants = Set(
-    //      Variant(Id("akka-actors"), attributes = Set(Attribute("version", Set("2.2.1"))), artifacts = Set.empty, dependencies = Set.empty)), artifacts = Set.empty, localFiles = Map.empty)), baseDir)
-    //
-    //    IvyHelper.insert(Set(IvyImportResult(ModuleRevisionId.newInstance("com.typesafe.akka", "akka-actors", "2.2.0"), variants = Set(
-    //      Variant(Id("akka-actors"), attributes = Set(Attribute("version", Set("2.2.0"))), artifacts = Set.empty, dependencies = Set.empty)), artifacts = Set.empty, localFiles = Map.empty)), baseDir)
-
     import scala.reflect.io.Directory
     (new Directory(baseDir)).deleteRecursively()
 
-    AdeptRepositoryManager.init(baseDir, "wedge-test")
-    val v205 = Variant(Id("akka-actors"), attributes = Set(Attribute("version", Set("2.0.5"))), artifacts = Set.empty, dependencies = Set.empty)
+    IvyHelper.insert(Set(IvyImportResult(ModuleRevisionId.newInstance("com.typesafe.akka", "akka-actors", "2.2.1"), variants = Set(
+      Variant(Id("akka-actors"), attributes = Set(Attribute("version", Set("2.2.1"))), artifacts = Set.empty, dependencies = Set.empty)), artifacts = Set.empty, localFiles = Map.empty)),
+      baseDir)
 
-    val repo = new LocalGitRepository(baseDir, name = "wedge-test", Commit.Head)
-    
-    repo.writeVariant(v205)
-    repo.commit("2.0.5 release")
-    val v220 = Variant(Id("akka-actors"), attributes = Set(Attribute("version", Set("2.2.0"))), artifacts = Set.empty, dependencies = Set.empty)
-    repo.deleteVariant(v205)
-    repo.writeVariant(v220)
-    repo.commit("2.2.0 release")
-    repo.deleteVariant(v220)
-    repo.writeVariant(Variant(Id("akka-actors"), attributes = Set(Attribute("version", Set("2.2.2"))), artifacts = Set.empty, dependencies = Set.empty))
-    repo.commit("2.2.2 release")
+    IvyHelper.insert(Set(IvyImportResult(ModuleRevisionId.newInstance("com.typesafe.akka", "akka-actors", "2.2.0"), variants = Set(
+      Variant(Id("akka-actors"), attributes = Set(Attribute("version", Set("2.2.0"))), artifacts = Set.empty, dependencies = Set.empty)), artifacts = Set.empty, localFiles = Map.empty)),
+      baseDir)
 
-    def getVersion(variant: Variant): Option[Version] = {
-      val versionValues = variant.attribute("version").values
-      if (versionValues.size > 1) {
-        println("Found multiple versions for: " + variant) //TODO: logger.warn
-        None
-      } else {
-        versionValues.headOption.map(Version.apply _)
-      }
-    }
-    val variant = Variant(Id("akka-actors"), attributes = Set(Attribute("version", Set("2.2.1"))), artifacts = Set.empty, dependencies = Set.empty)
-    val version = getVersion(variant)
-    val commit = repo.scan(Id("akka-actors")) { currentVariant =>
-      getVersion(currentVariant) < version
-    }.get
-    println(commit)
+    IvyHelper.insert(Set(IvyImportResult(ModuleRevisionId.newInstance("com.typesafe.akka", "akka-actors", "2.0.5"), variants = Set(
+      Variant(Id("akka-actors"), attributes = Set(Attribute("version", Set("2.0.5"))), artifacts = Set.empty, dependencies = Set.empty)), artifacts = Set.empty, localFiles = Map.empty)),
+      baseDir)
 
-    repo.wedge(variant, commit)
-
+//    IvyHelper.insert(Set(IvyImportResult(ModuleRevisionId.newInstance("com.typesafe.akka", "akka-actors", "2.2.3"), variants = Set(
+//      Variant(Id("akka-actors"), attributes = Set(Attribute("version", Set("2.2.3"))), artifacts = Set.empty, dependencies = Set.empty)), artifacts = Set.empty, localFiles = Map.empty)),
+//      baseDir)
     //
     //    val ivyResults1 = ivyHelper.ivyImport("com.typesafe.akka", "akka-actor_2.10", "2.2.1").right.value
     //    

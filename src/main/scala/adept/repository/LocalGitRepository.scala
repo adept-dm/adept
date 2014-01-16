@@ -23,11 +23,21 @@ case class Commit(value: String) extends AnyVal {
 }
 
 class LocalGitRepository(val baseDir: File, val name: String, val commitRef: Commit) extends Repository {
-  def isClean(): Boolean = {
+  def isClean: Boolean = {
     git.status().call().isClean()
   }
 
-  private def getMostRecentCommit() = {
+  def nonEmpty: Boolean = { //more than one commit
+    val logIt = git.log()
+      .call()
+      .iterator()
+    if (logIt.hasNext()) {
+      logIt.next()
+      logIt.hasNext()
+    } else false
+  }
+
+  private def getMostRecentCommit = {
     val logIt = git.log()
       .call()
       .iterator()
@@ -37,7 +47,7 @@ class LocalGitRepository(val baseDir: File, val name: String, val commitRef: Com
   val commit: Commit = {
     try {
       if (commitRef == Commit(Constants.HEAD)) { //get actual ref of HEAD
-        getMostRecentCommit()
+        getMostRecentCommit
       } else commitRef
     } catch {
       case e: org.eclipse.jgit.api.errors.NoHeadException => throw e //handle?
@@ -55,7 +65,7 @@ class LocalGitRepository(val baseDir: File, val name: String, val commitRef: Com
   private def gitRepo = git.getRepository() //TODO: withGitRepo[A](f: org.eclipse.jgit.Repository => A) = {val gitRepo = git.getRepository; try { f(gitRepo) } finally { gitRepo.close() } }   
 
   /** Use commit() on GitRepositoryEngine instead */
-  private[repository] def commit(msg: String): LocalGitRepository = {
+  private[adept] def commit(msg: String): LocalGitRepository = {
     val revCommit = git.commit()
       .setMessage(msg)
       .call()
@@ -63,8 +73,9 @@ class LocalGitRepository(val baseDir: File, val name: String, val commitRef: Com
   }
 
   //TODO: fix LocalGitRepository! this method doesn't make sense to have here, because now localgitrepo is bound to one commit. think through how it should work
-  private[adept] def scan(id: Id)(predicate: Variant => Boolean): Option[Commit] = {
-    val revWalk = new RevWalk(gitRepo)
+  private[adept] def scan(id: Id)(predicate: Variant => Boolean) = {
+    val currentGitRepo = gitRepo
+    val revWalk = new RevWalk(currentGitRepo)
     revWalk.markStart(revWalk.lookupCommit(gitRepo.resolve(Constants.HEAD)))
 
     //skip merges
@@ -75,7 +86,7 @@ class LocalGitRepository(val baseDir: File, val name: String, val commitRef: Com
     while (it.hasNext && matchingCommit.isEmpty) {
       val revCommit = it.next()
       val tree = revCommit.getTree()
-      val treeWalk = new TreeWalk(gitRepo)
+      val treeWalk = new TreeWalk(currentGitRepo)
       treeWalk.addTree(tree)
       treeWalk.setRecursive(false)
       treeWalk.setFilter(PathFilter.create(getVariantsBasePath(id)))
@@ -98,38 +109,75 @@ class LocalGitRepository(val baseDir: File, val name: String, val commitRef: Com
           }
         }
       }
+      treeWalk.release()
     }
+    revWalk.release()
+    currentGitRepo.close()
     matchingCommit
   }
 
   /** wedge (using merge) a variant in after a commit - will keep the current commits */
-  private[adept] def wedge(variant: Variant, commit: Commit) = {
+  private[adept] def wedge(variant: Variant, commit: Commit, msg: String) = {
     //TODO: use constants instead of strings!
     val branchName = variant.attribute("version").values.mkString(" ")
     println(branchName)
+
+    //
+    //    val previousCommit = {
+    //      val currentGitRepo = gitRepo
+    //      val revWalk = new RevWalk(currentGitRepo)
+    //      revWalk.markStart(revWalk.lookupCommit(gitRepo.resolve(Constants.HEAD)))
+    //      val it = revWalk.iterator()
+    //      
+    //      val resolvedBaseCommit = Commit(revWalk.lookupCommit(gitRepo.resolve(commit.value)).name)
+    //      var currentCommit: Option[Commit] = None
+    //      var previousCommit: Option[Commit] = None
+    //      
+    //      while (it.hasNext() && previousCommit.isEmpty) {
+    //        val walkedCommit = Commit(it.next().name())
+    //        println("checking " +walkedCommit +  " with " + resolvedBaseCommit )
+    //        if (walkedCommit == resolvedBaseCommit) previousCommit = currentCommit
+    //        else  currentCommit = Some(walkedCommit)
+    //      }
+    //      
+    //      
+    //      revWalk.release()
+    //      currentGitRepo.close()
+    //      previousCommit
+    //    }
+
     git.branchCreate().setStartPoint(commit.value).setName(branchName).call()
-    
+
     val previousVariants = readVariants(variant.id).right.get //TODO: fix right...
     git.checkout().setName(branchName).call()
+
+    //TODO: fix this piece of code. readVariants is too heavy and unnecessary. should be able to support more than one variant. rm is unsafe. the list goes on...
+    if (previousVariants.size > 1) throw new Exception("Wedge with more than one variant is not supported yet")
+    git.rm().addFilepattern(getVariantsBasePath(variant.id)).call()
+    writeVariant(variant)
     val wedgedCommit = {
-      //TODO: fix this piece of code. readVariants is too heavy and unnecessary. should be able to support more than one variant. rm is unsafe. the list goes on...
-      if (previousVariants.size > 1) throw new Exception("Wedge with more than one variant is not supported yet")
-      git.rm().addFilepattern(getVariantsBasePath(variant.id)).call()
-      writeVariant(variant)
       git.commit()
-        .setMessage(variant.attribute("version").values.mkString(" "))
+        .setMessage(msg)
         .call()
     }
 
-    git.checkout().setName("master").call()
-    git.merge().setStrategy(MergeStrategy.OURS).include(wedgedCommit).setCommit(false).call()
+    //    val mergedOntoCommit = previousCommit.getOrElse(Commit("master"))
+    //    println("merge onto: " + mergedOntoCommit)
+    if (variant.attribute("version").values == Set("2.0.5")) { //TODO: debug remove this
+      git.checkout().setName("2.2.0").call()
+    } else {
+      git.checkout().setName("master").call()
 
+    }
+    val mergeStrategy = MergeStrategy.OURS
+    git.merge().setStrategy(mergeStrategy).include(wedgedCommit).setCommit(false).call()
     previousVariants.foreach { variant =>
-      deleteVariant(variant)
+      deleteVariant(variant) //TODO: delete confs too...
     }
 
     val mergeCommit = git.commit().setMessage("Wedged " + variant + " after " + commit.value).call()
     val masterRef = git.checkout().setName("master").call()
+   
     wedgedCommit
   }
 
@@ -286,6 +334,7 @@ class LocalGitRepository(val baseDir: File, val name: String, val commitRef: Com
         case (Left(errorMsg1), Left(errorMsg2)) => result = Left(errorMsg1 + "; " + errorMsg2)
       }
     }
+    treeWalk.release()
     result
   }
 
