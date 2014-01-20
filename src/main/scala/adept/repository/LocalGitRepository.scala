@@ -121,41 +121,59 @@ class LocalGitRepository(val baseDir: File, val name: String, val commitRef: Com
     matchingCommit.map(commit => new LocalGitRepository(baseDir = baseDir, name = name, commit))
   }
 
-  //TODO: UGLY!
-  private def readModications(branchName: String) = {
-    val revWalk = new RevWalk(gitRepo)
-    val revCommit = revWalk.lookupCommit(gitRepo.resolve(branchName)) //Head of new branch
-    val tree = revCommit.getTree()
-    if (tree != null) {
-
-      val treeWalk = new TreeWalk(gitRepo)
-      treeWalk.addTree(tree)
-      treeWalk.setRecursive(false)
-      treeWalk.setFilter(PathFilter.create("history/modifications"))
-
-      if (treeWalk.next() && !treeWalk.isSubtree()) {
-        readBlob(treeWalk) { is =>
-          if (is != null) {
-            val reader = new BufferedReader(new InputStreamReader(is))
-            try {
-              var lines = Vector.empty[String]
-              var l = reader.readLine()
-              while (l != null) {
-                lines = lines :+ l
-                l = reader.readLine()
-              }
-              lines
-            } finally {
-              reader.close()
-            }
-          } else {
-            Vector.empty[String]
-          }
-        }.right.get //TODO: fix right.get
-      } else {
-        Seq.empty[String]
+  //TODO: UGLY! (move to object)
+  private def readModications(commit: Commit) = {
+    //TODO: constants
+    readBlobFile(commit, "history/modifications") { isr =>
+      val reader = new BufferedReader(isr)
+      try {
+        var lines = Vector.empty[String]
+        var l = reader.readLine()
+        while (l != null) {
+          lines = lines :+ l
+          l = reader.readLine()
+        }
+        lines
+      } finally {
+        reader.close()
       }
-    } else Vector.empty[String]
+    }
+
+    //    val revWalk = new RevWalk(gitRepo)
+    //    println(gitRepo)
+    //    val revCommit = revWalk.lookupCommit(gitRepo.resolve("HEAD"))
+    //    val tree = revCommit.getTree()
+    //    if (tree != null) {
+    //      val treeWalk = new TreeWalk(gitRepo)
+    //      treeWalk.addTree(tree)
+    //      treeWalk.setRecursive(false)
+    //      treeWalk.setFilter(PathFilter.create("history/modifications"))
+    //      println("__>>>")
+    //      if (treeWalk.next() && !treeWalk.isSubtree()) {
+    //        println("tree on " + treeWalk.getPathString())
+    //        readBlob(treeWalk) { is =>
+    //          if (is != null) {
+    //            val reader = new BufferedReader(new InputStreamReader(is))
+    //            try {
+    //              var lines = Vector.empty[String]
+    //              var l = reader.readLine()
+    //              while (l != null) {
+    //                lines = lines :+ l
+    //                l = reader.readLine()
+    //              }
+    //              println("read: " + lines.mkString("\n"))
+    //              lines
+    //            } finally {
+    //              reader.close()
+    //            }
+    //          } else {
+    //            Vector.empty[String]
+    //          }
+    //        }.right.get //TODO: fix right.get
+    //      } else {
+    //        Seq.empty[String]
+    //      }
+    //    } else Vector.empty[String]
   }
 
   /**
@@ -197,27 +215,30 @@ class LocalGitRepository(val baseDir: File, val name: String, val commitRef: Com
         writeVariant(variant)
         git.commit.setMessage("Wedged " + variant).call()
 
+        var mergedCommitMsg: Option[String] = None
         val mapping = revCommits.map { revCommit =>
 
           val cherryPickResult = git.cherryPick().include(revCommit).call()
-
-          revCommit -> cherryPickResult.getNewHead()
+          mergedCommitMsg = Some(revCommit.getFullMessage())
+          cherryPickResult.getNewHead() -> revCommit
         }
 
-        val allLines = readModications(branchName) ++ mapping.map { case (a, b) => a.name + "=" + b.name }
-
+        val allLines = mapping.map { case (a, b) => a.name + "=" + b.name }
         if (allLines.nonEmpty) {
-          println(allLines.mkString("\n"))
           val modificationsDir = new File(repoDir, "history")
           if (!(modificationsDir.isDirectory() || modificationsDir.mkdirs())) throw new Exception("cannot create: " + modificationsDir)
-          val a = new BufferedWriter(new FileWriter(new File(repoDir, "history/modifications")))
-          a.write(allLines.mkString("\n"))
-          a.flush()
-          git.add().addFilepattern("history/modifications").call()
-
-          git.commit.setAmend(true).setMessage(">>>").call()
+          val append = true
+          val writer = new BufferedWriter(new FileWriter(new File(repoDir, "history/modifications"), append))
+          try {
+            writer.write(allLines.mkString("", "\n", "\n"))
+            writer.flush()
+            git.add().addFilepattern("history/modifications").call()
+            val msg = mergedCommitMsg.get //should be here
+            git.commit.setMessage("Wegde modifications").call()
+          } finally {
+            writer.close()
+          }
         }
-
         git.branchRename().setOldName("master").setNewName("wedge-backup-" + Hash.calculate(variant)).call()
         git.branchRename().setNewName("master").setOldName(branchName).call()
 
@@ -230,33 +251,54 @@ class LocalGitRepository(val baseDir: File, val name: String, val commitRef: Com
     }
   }
 
-  private lazy val EqualModificationPattern = """^(\d+)\=(\d+)$""".r
+  private lazy val EqualModificationPattern = """^([0-9a-f]+)\=([0-9a-f]+)$""".r
 
   def compare(that: LocalGitRepository): Int = { //TODO: we cannot really use Orderd and compare here. we might be larger/smaller/equal OR we can be not comparable.
+
     val branchName = "master"
 
     if (that.name != this.name) throw new Exception("Cannot compare 2 different repositories")
 
-    //    val allModLines = that.readModications(branchName) ++ this.readModications(branchName)
-    //    val allMods = allModLines.map {
-    //      case EqualModificationPattern(a, b) => a -> b
-    //    }.toMap
+    val allModLines = that.readModications(that.commit).right.get ++ this.readModications(this.commit).right.get
+    val allMods: Set[(String, String)] = allModLines.map {
+      case EqualModificationPattern(a, b) => a -> b
+    }.toSet
+    
+    
+    
+    def equalCommits(commitValue: String): Set[String] = {
+      allMods.flatMap{ case (a, b) =>
+        if (a == commit.value) Set(b) ++ equalCommits(b)
+        else if (b == commit.value) Set(a) ++ equalCommits(a)
+        else Set.empty[String]
+      } + commit.value
+    }
+    
+    def checkMatch(current: RevCommit): Option[Commit] = {
+      println(equalCommits(this.commit.value).toString + " AND " + equalCommits(that.commit.value))
+      if (equalCommits(this.commit.value).contains(current.name)) {
+        Some(this.commit)
+      } else if (equalCommits(that.commit.value).contains(current.name)) {
+        Some(that.commit)
+      } else None
+    }
 
     val revWalk = new RevWalk(gitRepo)
     revWalk.markStart(revWalk.lookupCommit(gitRepo.resolve(Commit.Head.value)))
     revWalk.setRevFilter(RevFilter.NO_MERGES)
     val it = revWalk.iterator()
-    var first: Option[Commit] = None 
-    var second: Option[Commit] = None 
-    
+
+    //TODO: fold instead?
+    var first: Option[Commit] = None
+    var second: Option[Commit] = None
+
+    //TODO: factor this code I almost cry when I read it (knowing I wrote it) still time is scarce :(
     while (it.hasNext && (first.isEmpty || second.isEmpty)) {
       val current = it.next()
-      if (first.isEmpty) { //TODO: factor this code:
-        if (current.name == this.commit.value) first = Some(this.commit)
-        else if (current.name == that.commit.value) first = Some(that.commit) 
+      if (first.isEmpty) {
+        first = checkMatch(current)
       } else if (first.nonEmpty && second.isEmpty) {
-        if (current.name == this.commit.value) first = Some(this.commit)
-        else if (current.name == that.commit.value) first = Some(that.commit) 
+        second = checkMatch(current)
       }
     }
     if (first.nonEmpty && second.nonEmpty) {

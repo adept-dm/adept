@@ -41,9 +41,14 @@ object IvyHelper {
 
   def getRepoName(ivyResult: IvyImportResult) = ivyResult.mrid.getOrganisation
 
-  
   def insert(results: Set[IvyImportResult], baseDir: File) = {
-    val repositories = results.map { ivyResult =>
+    def updateRepo(repo: LocalGitRepository, variant: Variant, msg: String) = {
+      repo.writeVariant(variant)
+      repo.readVariants(variant.id).right.get.foreach(repo.deleteVariant) //TODO: this is not right!
+      repo.commit(msg)
+    }
+
+    val repositories = results.flatMap { ivyResult =>
       val repoName = getRepoName(ivyResult)
 
       if (!AdeptRepositoryManager.exists(baseDir, repoName)) {
@@ -73,9 +78,7 @@ object IvyHelper {
             case Some(lgr) =>
               if (lgr.commit == repo.commit) { //means we are on Head TODO: this is brittle because it relies on LocalGitRepository to be at Head
                 println("appending")
-                repo.writeVariant(variant)
-                repo.readVariants(variant.id).right.get.foreach(repo.deleteVariant) //TODO: this is not right!
-                repo.commit(commitMsg)
+                updateRepo(repo, variant, commitMsg)
               } else {
                 println("wedging: " + variant)
                 repo.wedge(variant, lgr.commit, "master") //TODO: constants
@@ -86,9 +89,7 @@ object IvyHelper {
                 repo.wedge(variant, Commit("init"), "master") //TODO: constants
               } else {
                 println("latest variant" + variant)
-                repo.writeVariant(variant)
-                repo.readVariants(variant.id).right.get.foreach(repo.deleteVariant) //TODO: this is not right!
-                repo.commit(commitMsg)
+                updateRepo(repo, variant, commitMsg)
               }
           }
         }
