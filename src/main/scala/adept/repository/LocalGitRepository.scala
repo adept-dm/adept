@@ -13,6 +13,11 @@ import java.io.InputStreamReader
 import org.eclipse.jgit.merge.MergeStrategy
 import org.eclipse.jgit.revwalk.RevCommit
 import org.eclipse.jgit.revwalk.filter.RevFilter
+import java.io.BufferedReader
+import java.io.BufferedWriter
+import java.io.FileOutputStream
+import java.io.FileWriter
+import scala.math.Ordered
 
 object Commit {
   val Head = Commit(Constants.HEAD)
@@ -22,7 +27,7 @@ case class Commit(value: String) extends AnyVal {
   override def toString = value
 }
 
-class LocalGitRepository(val baseDir: File, val name: String, val commitRef: Commit) extends Repository {
+class LocalGitRepository(val baseDir: File, val name: String, val commitRef: Commit) extends Repository with Ordered[LocalGitRepository] {
   def isClean: Boolean = {
     git.status().call().isClean()
   }
@@ -44,7 +49,7 @@ class LocalGitRepository(val baseDir: File, val name: String, val commitRef: Com
     Commit(logIt.next.getId().name)
   }
 
-  val commit: Commit = {
+  val commit: Commit = { //TODO: change name of this (commit) and commitRef....
     try {
       if (commitRef == Commit(Constants.HEAD)) { //get actual ref of HEAD
         getMostRecentCommit
@@ -72,7 +77,7 @@ class LocalGitRepository(val baseDir: File, val name: String, val commitRef: Com
     new LocalGitRepository(baseDir, name, Commit(revCommit.name))
   }
 
-  //TODO: fix LocalGitRepository! this method doesn't make sense to have here, because now localgitrepo is bound to one commit. think through how it should work
+  //TODO: fix LocalGitRepository! this method doesn't make sense to have here, because now localgitrepo is bound to one commit. think through how it should work and fix!
   private[adept] def scan(id: Id)(predicate: Variant => Boolean) = {
     val currentGitRepo = gitRepo
     val revWalk = new RevWalk(currentGitRepo)
@@ -113,77 +118,160 @@ class LocalGitRepository(val baseDir: File, val name: String, val commitRef: Com
     }
     revWalk.release()
     currentGitRepo.close()
-    matchingCommit
+    matchingCommit.map(commit => new LocalGitRepository(baseDir = baseDir, name = name, commit))
   }
 
-  /** wedge (using merge) a variant in after a commit - will keep the current commits */
-  private[adept] def wedge(variant: Variant, commit: Commit, msg: String) = {
-    //TODO: use constants instead of strings!
-    val branchName = variant.attribute("version").values.mkString(" ")
-    println(branchName)
+  //TODO: UGLY!
+  private def readModications(branchName: String) = {
+    val revWalk = new RevWalk(gitRepo)
+    val revCommit = revWalk.lookupCommit(gitRepo.resolve(branchName)) //Head of new branch
+    val tree = revCommit.getTree()
+    if (tree != null) {
 
-    //
-    //    val previousCommit = {
-    //      val currentGitRepo = gitRepo
-    //      val revWalk = new RevWalk(currentGitRepo)
-    //      revWalk.markStart(revWalk.lookupCommit(gitRepo.resolve(Constants.HEAD)))
-    //      val it = revWalk.iterator()
-    //      
-    //      val resolvedBaseCommit = Commit(revWalk.lookupCommit(gitRepo.resolve(commit.value)).name)
-    //      var currentCommit: Option[Commit] = None
-    //      var previousCommit: Option[Commit] = None
-    //      
-    //      while (it.hasNext() && previousCommit.isEmpty) {
-    //        val walkedCommit = Commit(it.next().name())
-    //        println("checking " +walkedCommit +  " with " + resolvedBaseCommit )
-    //        if (walkedCommit == resolvedBaseCommit) previousCommit = currentCommit
-    //        else  currentCommit = Some(walkedCommit)
-    //      }
-    //      
-    //      
-    //      revWalk.release()
-    //      currentGitRepo.close()
-    //      previousCommit
-    //    }
+      val treeWalk = new TreeWalk(gitRepo)
+      treeWalk.addTree(tree)
+      treeWalk.setRecursive(false)
+      treeWalk.setFilter(PathFilter.create("history/modifications"))
 
-    git.branchCreate().setStartPoint(commit.value).setName(branchName).call()
+      if (treeWalk.next() && !treeWalk.isSubtree()) {
+        readBlob(treeWalk) { is =>
+          if (is != null) {
+            val reader = new BufferedReader(new InputStreamReader(is))
+            try {
+              var lines = Vector.empty[String]
+              var l = reader.readLine()
+              while (l != null) {
+                lines = lines :+ l
+                l = reader.readLine()
+              }
+              lines
+            } finally {
+              reader.close()
+            }
+          } else {
+            Vector.empty[String]
+          }
+        }.right.get //TODO: fix right.get
+      } else {
+        Seq.empty[String]
+      }
+    } else Vector.empty[String]
+  }
 
-    val previousVariants = readVariants(variant.id).right.get //TODO: fix right...
-    git.checkout().setName(branchName).call()
+  /**
+   * wedge (using cherry picks and branches) a variant in after a commit
+   *
+   *  TODO: this code is awful Fredrik - promise yourself to fix... please!
+   */
+  private[adept] def wedge(variant: Variant, commit: Commit, startPoint: String = "master") = { //TODO: constants
+    try {
 
-    //TODO: fix this piece of code. readVariants is too heavy and unnecessary. should be able to support more than one variant. rm is unsafe. the list goes on...
-    if (previousVariants.size > 1) throw new Exception("Wedge with more than one variant is not supported yet")
-    git.rm().addFilepattern(getVariantsBasePath(variant.id)).call()
-    writeVariant(variant)
-    val wedgedCommit = {
-      git.commit()
-        .setMessage(msg)
-        .call()
-    }
-
-    //    val mergedOntoCommit = previousCommit.getOrElse(Commit("master"))
-    //    println("merge onto: " + mergedOntoCommit)
-    if (variant.attribute("version").values == Set("2.0.5")) { //TODO: debug remove this
-      git.checkout().setName("2.2.0").call()
-    } else {
       git.checkout().setName("master").call()
 
-    }
-    val mergeStrategy = MergeStrategy.OURS
-    git.merge().setStrategy(mergeStrategy).include(wedgedCommit).setCommit(false).call()
-    previousVariants.foreach { variant =>
-      deleteVariant(variant) //TODO: delete confs too...
-    }
+      val revWalk = new RevWalk(gitRepo)
 
-    val mergeCommit = git.commit().setMessage("Wedged " + variant + " after " + commit.value).call()
-    val masterRef = git.checkout().setName("master").call()
-   
-    wedgedCommit
+      //TODO: clean up resources
+      revWalk.markStart(revWalk.lookupCommit(gitRepo.resolve(startPoint)))
+
+      val it = revWalk.iterator
+      var finished = false
+      var revCommits = Seq.empty[RevCommit]
+
+      while (it.hasNext && !finished) {
+        val revCommit = it.next()
+        println("-> " + revCommit.name)
+
+        if (revCommit.name == commit.value || (commit.value == InitTag && revCommit.getParentCount() == 0)) { //TODO: this is an aweful hack because I cannot figure out how to get the sha1 for a tag
+          finished = true
+        } else {
+          revCommits = revCommit +: revCommits
+        }
+      }
+      if (finished) {
+        val branchName = "wedge-insert-" + Hash.calculate(variant)
+        git.branchList().call().iterator().next().getName()
+        git.branchCreate().setStartPoint(commit.value).setName(branchName).call()
+
+        git.checkout().setName(branchName).call()
+
+        writeVariant(variant)
+        git.commit.setMessage("Wedged " + variant).call()
+
+        val mapping = revCommits.map { revCommit =>
+
+          val cherryPickResult = git.cherryPick().include(revCommit).call()
+
+          revCommit -> cherryPickResult.getNewHead()
+        }
+
+        val allLines = readModications(branchName) ++ mapping.map { case (a, b) => a.name + "=" + b.name }
+
+        if (allLines.nonEmpty) {
+          println(allLines.mkString("\n"))
+          val modificationsDir = new File(repoDir, "history")
+          if (!(modificationsDir.isDirectory() || modificationsDir.mkdirs())) throw new Exception("cannot create: " + modificationsDir)
+          val a = new BufferedWriter(new FileWriter(new File(repoDir, "history/modifications")))
+          a.write(allLines.mkString("\n"))
+          a.flush()
+          git.add().addFilepattern("history/modifications").call()
+
+          git.commit.setAmend(true).setMessage(">>>").call()
+        }
+
+        git.branchRename().setOldName("master").setNewName("wedge-backup-" + Hash.calculate(variant)).call()
+        git.branchRename().setNewName("master").setOldName(branchName).call()
+
+        println(finished + "   >>> " + revCommits)
+      } else {
+        Set.empty
+      }
+    } finally {
+      git.checkout().setName("master").call()
+    }
+  }
+
+  private lazy val EqualModificationPattern = """^(\d+)\=(\d+)$""".r
+
+  def compare(that: LocalGitRepository): Int = { //TODO: we cannot really use Orderd and compare here. we might be larger/smaller/equal OR we can be not comparable.
+    val branchName = "master"
+
+    if (that.name != this.name) throw new Exception("Cannot compare 2 different repositories")
+
+    //    val allModLines = that.readModications(branchName) ++ this.readModications(branchName)
+    //    val allMods = allModLines.map {
+    //      case EqualModificationPattern(a, b) => a -> b
+    //    }.toMap
+
+    val revWalk = new RevWalk(gitRepo)
+    revWalk.markStart(revWalk.lookupCommit(gitRepo.resolve(Commit.Head.value)))
+    revWalk.setRevFilter(RevFilter.NO_MERGES)
+    val it = revWalk.iterator()
+    var first: Option[Commit] = None 
+    var second: Option[Commit] = None 
+    
+    while (it.hasNext && (first.isEmpty || second.isEmpty)) {
+      val current = it.next()
+      if (first.isEmpty) { //TODO: factor this code:
+        if (current.name == this.commit.value) first = Some(this.commit)
+        else if (current.name == that.commit.value) first = Some(that.commit) 
+      } else if (first.nonEmpty && second.isEmpty) {
+        if (current.name == this.commit.value) first = Some(this.commit)
+        else if (current.name == that.commit.value) first = Some(that.commit) 
+      }
+    }
+    if (first.nonEmpty && second.nonEmpty) {
+      if (first.get == this.commit) 1
+      else if (second.get == this.commit) -1
+      else 0
+    } else {
+      throw new Exception("Cannot compare " + this + " with " + that)
+    }
   }
 
   private def tree(commit: Commit) = { //TODO: make val?
     val currentCommitId = gitRepo.resolve(commit.value)
 
+    //TODO: clean up resources!
     val revWalk = new RevWalk(gitRepo)
     val revCommit = revWalk.parseCommit(currentCommitId)
     revCommit.getTree()

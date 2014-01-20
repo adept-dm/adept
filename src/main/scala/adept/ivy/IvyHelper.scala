@@ -41,6 +41,7 @@ object IvyHelper {
 
   def getRepoName(ivyResult: IvyImportResult) = ivyResult.mrid.getOrganisation
 
+  
   def insert(results: Set[IvyImportResult], baseDir: File) = {
     val repositories = results.map { ivyResult =>
       val repoName = getRepoName(ivyResult)
@@ -69,20 +70,24 @@ object IvyHelper {
 
             res.getOrElse(false)
           } match {
-            case Some(commit) =>
-              println("wedging: " + variant)
-              val revCommit = repo.wedge(variant, commit, commitMsg)
-//              new LocalGitRepository(baseDir, repoName, Commit(revCommit.name))
+            case Some(lgr) =>
+              if (lgr.commit == repo.commit) { //means we are on Head TODO: this is brittle because it relies on LocalGitRepository to be at Head
+                println("appending")
+                repo.writeVariant(variant)
+                repo.readVariants(variant.id).right.get.foreach(repo.deleteVariant) //TODO: this is not right!
+                repo.commit(commitMsg)
+              } else {
+                println("wedging: " + variant)
+                repo.wedge(variant, lgr.commit, "master") //TODO: constants
+              }
             case None =>
               if (repo.nonEmpty) {
                 println("smallest variant yet, wedging after init")
-                
-                val revCommit = repo.wedge(variant, Commit(Repository.InitTag), commitMsg)
-                
-//                new LocalGitRepository(baseDir, repoName, Commit(revCommit.name))
+                repo.wedge(variant, Commit("init"), "master") //TODO: constants
               } else {
-                println("first variant" + variant)
+                println("latest variant" + variant)
                 repo.writeVariant(variant)
+                repo.readVariants(variant.id).right.get.foreach(repo.deleteVariant) //TODO: this is not right!
                 repo.commit(commitMsg)
               }
           }
