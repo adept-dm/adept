@@ -41,7 +41,7 @@ object IvyHelper {
 
   def getRepoName(ivyResult: IvyImportResult) = ivyResult.mrid.getOrganisation
 
-  def insert(results: Set[IvyImportResult], baseDir: File) = {
+  def insert(results: Set[IvyImportResult], baseDir: File): Set[LocalGitRepository] = {
 
     def updateRepo(repo: LocalGitRepository, variants: Set[Variant], msg: String) = {
       variants.foreach { variant =>
@@ -56,7 +56,7 @@ object IvyHelper {
       repo.commit(msg)
     }
 
-    val repositories = results.flatMap { ivyResult =>
+    results.flatMap { ivyResult =>
       val repoName = getRepoName(ivyResult)
 
       if (!AdeptRepositoryManager.exists(baseDir, repoName)) {
@@ -64,16 +64,13 @@ object IvyHelper {
         val repoRef = AdeptRepositoryManager.init(baseDir, repoName)
         if (repoRef.isFailure) throw new Exception("Failed to import ivy to " + baseDir + ". Got errors: " + repoRef.getErrorMessages.mkString(" and "))
       }
-      println("working on " + ivyResult.mrid)
       val repo = new LocalGitRepository(baseDir, name = repoName, Commit.Head)
 
       //TODO: check if there the variant in questions is 
       val commitMsg = "Ivy import of: " + ivyResult.mrid
 
-      ivyResult.variants.groupBy(v => getVersion(v) -> VariantBuilder.stripConfig(v.id)).map {
+      val repository: Set[LocalGitRepository] = ivyResult.variants.groupBy(v => getVersion(v) -> VariantBuilder.stripConfig(v.id)).flatMap {
         case ((version, id), variants) =>
-          println("grouped variants on id " + id + " " + variants)
-
           //check if any of these variants are here:
           val hashedVariants = variants.map(Hash.calculate)
           val firstExistingCommit = repo.scan(id) { scannedVariant =>
@@ -92,19 +89,21 @@ object IvyHelper {
             } match {
               case Some(lgr) =>
                 if (lgr.commit == repo.commit) { //means we are on Head TODO: this is brittle because it relies on LocalGitRepository to be at Head
-                  updateRepo(repo, variants, commitMsg)
+                  Set(updateRepo(repo, variants, commitMsg))
                 } else {
-                  repo.wedge(variants, lgr.commit, commitMsg, "master") //TODO: constants
+                  repo.wedge(variants, lgr.commit, commitMsg, LocalGitRepository.MasterBranchName) //TODO: constants
                 }
               case None =>
                 if (repo.nonEmpty) {
                   repo.wedge(variants, Commit("init"), commitMsg, "master") //TODO: constants
                 } else {
-                  updateRepo(repo, variants, commitMsg)
+                  Set(updateRepo(repo, variants, commitMsg))
                 }
             }
-          }
-      }
+          } else Set.empty[LocalGitRepository]
+      }.toSet
+
+      repository
     }
   }
 

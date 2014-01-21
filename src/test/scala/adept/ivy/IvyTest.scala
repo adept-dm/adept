@@ -176,17 +176,25 @@ class IvyTest extends FunSuite with MustMatchers {
   test("ivy and repository test") {
     REMOVEMEusingTempDir { tmpDir =>
       val baseDir = tmpDir
+      println(baseDir.getAbsolutePath())
       import EitherValues._
       val ivy = IvyHelper.load().right.value
       val ivyHelper = new IvyHelper(ivy)
       val org = "com.typesafe.akka"
       val name = "akka-actor_2.10"
-      val importResults1 = (ivyHelper.ivyImport(org, name, "2.2.1")).right.value
 
-      println(importResults1.mkString("\n"))
+      val importResults1 = (ivyHelper.ivyImport(org, name, "2.2.2")).right.value
       IvyHelper.insert(importResults1, baseDir)
+
       val importResults2 = (ivyHelper.ivyImport(org, name, "2.2.0")).right.value
       IvyHelper.insert(importResults2, baseDir)
+
+      val importResults3 = (ivyHelper.ivyImport(org, name, "2.2.1")).right.value
+      IvyHelper.insert(importResults3, baseDir)
+
+      val importResults4 = (ivyHelper.ivyImport(org, name, "2.2.3")).right.value
+      IvyHelper.insert(importResults4, baseDir)
+
       println(baseDir)
 
       val engine = AdeptRepositoryManager.open(baseDir, AdeptRepositoryManager.getExisting(baseDir))

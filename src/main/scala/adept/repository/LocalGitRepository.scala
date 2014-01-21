@@ -29,6 +29,8 @@ case class Commit(value: String) extends AnyVal {
 
 object LocalGitRepository {
 
+  val MasterBranchName = "master"
+
   private[adept] def compressModifications(lines: Map[String, String]) = {
     var compressedStrings = Set.empty[Set[String]]
     var checked = Set.empty[String]
@@ -220,12 +222,17 @@ class LocalGitRepository(val baseDir: File, val name: String, val commitRef: Com
     //    } else Vector.empty[String]
   }
 
+  import LocalGitRepository._
+  
+  private val HistoryDirName = "history"
+  private val ModificationsFileName = "modifications"
+
   /**
    * wedge (using cherry picks and branches) a variant in after a commit
    *
    *  TODO: this code is awful Fredrik - promise yourself to fix... please!
    */
-  private[adept] def wedge(variants: Set[Variant], commit: Commit, commitMsg: String, startPoint: String = "master") = { //TODO: constants
+  private[adept] def wedge(variants: Set[Variant], commit: Commit, commitMsg: String, startPoint: String = MasterBranchName): Set[LocalGitRepository] = {
 
     def deletePreviousVariants(commit: Commit) = {
       //delete previous variants TODO: refactor!
@@ -237,10 +244,9 @@ class LocalGitRepository(val baseDir: File, val name: String, val commitRef: Com
 
       previousVariants.foreach(deleteVariant)
     }
-    
-    try {
 
-      git.checkout().setName("master").call()
+    try {
+      git.checkout().setName(MasterBranchName).call()
 
       val revWalk = new RevWalk(gitRepo)
 
@@ -260,12 +266,14 @@ class LocalGitRepository(val baseDir: File, val name: String, val commitRef: Com
           revCommits = revCommit +: revCommits
         }
       }
+      val wedgeCommitMsg = "Wegde modifications"
       if (finished) {
         val branchName = "wedge-insert-" + Hash.calculate(variants.toSeq)
         git.branchList().call().iterator().next().getName()
         git.branchCreate().setStartPoint(commit.value).setName(branchName).call()
 
-        git.checkout().setName(branchName).call()
+        val newBranchInit = git.checkout().setName(branchName).call()
+        deletePreviousVariants(Commit(branchName))
 
         variants.foreach(writeVariant)
 
@@ -274,41 +282,46 @@ class LocalGitRepository(val baseDir: File, val name: String, val commitRef: Com
         var lastCommitMsg = commitMsg
 
         var mergedCommitMsg: Option[String] = None
-        val mapping = revCommits.map { revCommit =>
+        val modificationsMappings = revCommits.map { revCommit =>
 
           val cherryPickResult = git.cherryPick().include(revCommit).call()
           lastCommitMsg = revCommit.getFullMessage()
           mergedCommitMsg = Some(revCommit.getFullMessage())
+          val amend = if (revCommit.getFullMessage() != wedgeCommitMsg) {
+            deletePreviousVariants(Commit(prevCommit.name))
+            true
+          } else false
+          prevCommit = git.commit().setAmend(amend).setMessage(lastCommitMsg).call()
 
-          deletePreviousVariants(Commit(prevCommit.name))
-          prevCommit = git.commit().setAmend(true).setMessage(lastCommitMsg).call()
-          
           prevCommit -> revCommit
         }
 
-        val allLines = mapping.map { case (a, b) => a.name + "=" + b.name }
-        if (allLines.nonEmpty) {
-          val modificationsDir = new File(repoDir, "history")
+        val allLines = modificationsMappings.map { case (a, b) => a.name + "=" + b.name }
+        val finalCommits: Set[RevCommit] = if (allLines.nonEmpty) {
+          val modificationsDir = new File(repoDir, HistoryDirName)
           if (!(modificationsDir.isDirectory() || modificationsDir.mkdirs())) throw new Exception("cannot create: " + modificationsDir)
           val append = true
-          val writer = new BufferedWriter(new FileWriter(new File(repoDir, "history/modifications"), append))
+          val writer = new BufferedWriter(new FileWriter(new File(modificationsDir, ModificationsFileName), append))
           try {
             writer.write(allLines.mkString("", "\n", "\n"))
             writer.flush()
-            git.add().addFilepattern("history/modifications").call()
-            val msg = mergedCommitMsg.get //should be here
-            git.commit.setMessage("Wegde modifications").call()
+            git.add().addFilepattern(HistoryDirName + GitPathSep + ModificationsFileName).call()
+            val msg = mergedCommitMsg.get //should be here if allLines.nonEmpty is true
+            Set(git.commit.setMessage(wedgeCommitMsg).call())
           } finally {
             writer.close()
           }
-        }
-        git.branchRename().setOldName("master").setNewName("wedge-backup-" + Hash.calculate(variants.toSeq)).call()
-        git.branchRename().setNewName("master").setOldName(branchName).call()
+        } else Set.empty[RevCommit]
+
+        git.branchRename().setOldName(MasterBranchName).setNewName("wedge-backup-" + Hash.calculate(variants.toSeq)).call()
+        git.branchRename().setNewName(MasterBranchName).setOldName(branchName).call()
+        finalCommits.map(revCommit => new LocalGitRepository(baseDir, name, Commit(revCommit.name))) ++
+          modificationsMappings.map { case (newCommit, oldCommit) => new LocalGitRepository(baseDir, name, Commit(newCommit.name)) }
       } else {
-        Set.empty
+        Set(new LocalGitRepository(baseDir, name, getMostRecentCommit))
       }
     } finally {
-      git.checkout().setName("master").call()
+      git.checkout().setName(MasterBranchName).call()
     }
   }
 
@@ -316,7 +329,7 @@ class LocalGitRepository(val baseDir: File, val name: String, val commitRef: Com
 
   def compare(that: LocalGitRepository): Int = { //TODO: we cannot really use Ordered and compare here. we might be larger/smaller/equal OR we can be not comparable.
 
-    val branchName = "master"
+    val branchName = MasterBranchName
 
     if (that.name != this.name) throw new Exception("Cannot compare 2 different repositories")
 
