@@ -40,7 +40,7 @@ class VariantsLoaderLogic {
   def filter(id: Id, variants: Set[Variant], constraints: Set[Constraint]): Set[Variant] = {
     if (conlicts(constraints)) Set.empty
     else variants.filter { variant =>
-      assert(id == variant.id)
+      assert(id == variant.id, "expected id: " + id + " to be equal to " + variant.id + " in " + variant)
       matches(variant.attributes, constraints)
     }
   }

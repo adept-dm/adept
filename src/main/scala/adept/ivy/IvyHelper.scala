@@ -42,9 +42,17 @@ object IvyHelper {
   def getRepoName(ivyResult: IvyImportResult) = ivyResult.mrid.getOrganisation
 
   def insert(results: Set[IvyImportResult], baseDir: File) = {
-    def updateRepo(repo: LocalGitRepository, variant: Variant, msg: String) = {
-      repo.writeVariant(variant)
-      repo.readVariants(variant.id).right.get.foreach(repo.deleteVariant) //TODO: this is not right!
+
+    def updateRepo(repo: LocalGitRepository, variants: Set[Variant], msg: String) = {
+      variants.foreach { variant =>
+        val previousVariants = repo.readVariants(variant.id).right.get
+        println("previous variants: " + variant.id + " " + repo.commit + "  " + previousVariants)
+        repo.readVariants(variant.id).right.get.foreach(repo.deleteVariant) //TODO: this is not right!
+      }
+
+      variants.foreach { variant =>
+        repo.writeVariant(variant)
+      }
       repo.commit(msg)
     }
 
@@ -56,43 +64,46 @@ object IvyHelper {
         val repoRef = AdeptRepositoryManager.init(baseDir, repoName)
         if (repoRef.isFailure) throw new Exception("Failed to import ivy to " + baseDir + ". Got errors: " + repoRef.getErrorMessages.mkString(" and "))
       }
-      results.flatMap { ivyResult =>
-        println("working on " + ivyResult.mrid)
-        val repoName = getRepoName(ivyResult)
-        val repo = new LocalGitRepository(baseDir, name = repoName, Commit.Head)
-        val commitMsg = "Ivy import of: " + ivyResult.mrid
-        ivyResult.variants.map { variant =>
-          val version = getVersion(variant)
-          repo.scan(variant.id) { scannedVariant =>
-            val res = for {
-              scannedVersion <- getVersion(scannedVariant)
-              version <- version
-            } yield {
-              val a = scannedVersion < version
-              println("  " + scannedVariant + " is smaller than " + variant + " " + a)
-              a
-            }
+      println("working on " + ivyResult.mrid)
+      val repo = new LocalGitRepository(baseDir, name = repoName, Commit.Head)
 
-            res.getOrElse(false)
-          } match {
-            case Some(lgr) =>
-              if (lgr.commit == repo.commit) { //means we are on Head TODO: this is brittle because it relies on LocalGitRepository to be at Head
-                println("appending")
-                updateRepo(repo, variant, commitMsg)
-              } else {
-                println("wedging: " + variant)
-                repo.wedge(variant, lgr.commit, "master") //TODO: constants
-              }
-            case None =>
-              if (repo.nonEmpty) {
-                println("smallest variant yet, wedging after init")
-                repo.wedge(variant, Commit("init"), "master") //TODO: constants
-              } else {
-                println("latest variant" + variant)
-                updateRepo(repo, variant, commitMsg)
-              }
+      //TODO: check if there the variant in questions is 
+      val commitMsg = "Ivy import of: " + ivyResult.mrid
+
+      ivyResult.variants.groupBy(v => getVersion(v) -> VariantBuilder.stripConfig(v.id)).map {
+        case ((version, id), variants) =>
+          println("grouped variants on id " + id + " " + variants)
+
+          //check if any of these variants are here:
+          val hashedVariants = variants.map(Hash.calculate)
+          val firstExistingCommit = repo.scan(id) { scannedVariant =>
+            hashedVariants.contains(Hash.calculate(scannedVariant))
           }
-        }
+
+          if (firstExistingCommit.isEmpty) {
+            repo.scan(id) { scannedVariant =>
+              val res = for {
+                scannedVersion <- getVersion(scannedVariant)
+                version <- version
+              } yield {
+                scannedVersion < version
+              }
+              res.getOrElse(false)
+            } match {
+              case Some(lgr) =>
+                if (lgr.commit == repo.commit) { //means we are on Head TODO: this is brittle because it relies on LocalGitRepository to be at Head
+                  updateRepo(repo, variants, commitMsg)
+                } else {
+                  repo.wedge(variants, lgr.commit, commitMsg, "master") //TODO: constants
+                }
+              case None =>
+                if (repo.nonEmpty) {
+                  repo.wedge(variants, Commit("init"), commitMsg, "master") //TODO: constants
+                } else {
+                  updateRepo(repo, variants, commitMsg)
+                }
+            }
+          }
       }
     }
   }

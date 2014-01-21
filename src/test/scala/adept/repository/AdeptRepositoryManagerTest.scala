@@ -10,7 +10,7 @@ class AdeptRepositoryManagerTest extends FunSuite with MustMatchers {
   import adept.test.TestHelpers._
 
   test("example 1") {
-    usingTempDir { tmpDir =>
+    REMOVEMEusingTempDir { tmpDir =>
       val cacheManager = CacheManager.create()
       try {
 
@@ -26,15 +26,18 @@ class AdeptRepositoryManagerTest extends FunSuite with MustMatchers {
 
         engine.addVariant(repoName1, variantA)
 
-        unresolved(resolver.resolve(Set(Dependency(Id("A"), Set.empty))))
+        //add some nested dependencies (simple config):
+        engine.addVariant(repoName1, Variant(Id("Aurora/pretty/config/compile"), Set(ArtifactRef(Hash("abc123"), Set(Attribute("configuration", Set("compile", "runtime"))), Some("filenama1.jar")), ArtifactRef(Hash("aartihash123"), Set(Attribute("configuration", Set("javadoc"))), None)), Set(Attribute("version", Set("1.0"))), Set(Dependency(new Id("Bobo/foo/zoo"), Set(Constraint("version", Set("2.0")))))))
+        unresolved(resolver.resolve(Set(Dependency(Id("Aurora/pretty"), Set.empty))))
 
         engine.addVariant(repoName1, variantB1)
         engine.commit("fixed required meta-data")
-        resolved(resolver.resolve(Set(Dependency(Id("A"), Set.empty))))
+        resolved(resolver.resolve(Set(Dependency(Id("Aurora/pretty"), Set.empty))))
 
         engine.addVariant(repoName2, variantB2)
         engine.commit("an extra similar but the same variant in " + repoName2)
-        unresolved(resolver.resolve(Set(Dependency(Id("A"), Set.empty))))
+        unresolved(resolver.resolve(Set(Dependency(Id("Aurora/pretty"), Set.empty))))
+
       } finally {
         cacheManager.shutdown()
       }

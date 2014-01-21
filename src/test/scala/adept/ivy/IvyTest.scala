@@ -11,6 +11,8 @@ import org.apache.ivy.core.module.id.ModuleRevisionId
 import adept.ext._
 import org.apache.ivy.core.search.OrganisationEntry
 import adept.configuration._
+import adept.repository.AdeptRepositoryManager
+import adept.repository.Commit
 
 class IvyTest extends FunSuite with MustMatchers {
 
@@ -169,6 +171,32 @@ class IvyTest extends FunSuite with MustMatchers {
     //just an addition random check: 
     state1.resolvedVariants(Id("org.codehaus.jackson/jackson-core-asl")).attribute("version").values must be === Set("1.8.9")
 
+  }
+
+  test("ivy and repository test") {
+    REMOVEMEusingTempDir { tmpDir =>
+      val baseDir = tmpDir
+      import EitherValues._
+      val ivy = IvyHelper.load().right.value
+      val ivyHelper = new IvyHelper(ivy)
+      val org = "com.typesafe.akka"
+      val name = "akka-actor_2.10"
+      val importResults1 = (ivyHelper.ivyImport(org, name, "2.2.1")).right.value
+
+      println(importResults1.mkString("\n"))
+      IvyHelper.insert(importResults1, baseDir)
+      val importResults2 = (ivyHelper.ivyImport(org, name, "2.2.0")).right.value
+      IvyHelper.insert(importResults2, baseDir)
+      println(baseDir)
+
+      val engine = AdeptRepositoryManager.open(baseDir, AdeptRepositoryManager.getExisting(baseDir))
+
+      val resolver = new Resolver(engine)
+      val result = resolver.resolve(ConfiguredDependency(Id(org + "/" + name), Set(ConfigurationId("compile"), ConfigurationId("master")), Set()).toDependencies)
+      println(result)
+      println(tmpDir)
+      result.state.isResolved must be === true
+    }
   }
 
 }

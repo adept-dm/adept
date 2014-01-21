@@ -2,15 +2,15 @@ package adept.configuration
 
 import adept.core.models._
 
-class ConfiguredVariantInfo private[adept](val artifacts: Set[ArtifactRef], val dependencies: Set[ConfiguredDependency], val configuration: ConfigurationId, val extendsConfigurations: Set[ConfigurationId], val description: String)
+class ConfiguredVariantInfo private[adept] (val artifacts: Set[ArtifactRef], val dependencies: Set[ConfiguredDependency], val configuration: ConfigurationId, val extendsConfigurations: Set[ConfigurationId], val description: String)
 
 class VariantBuilder(id: Id, attributes: Set[Attribute], configuredVariants: Seq[ConfiguredVariantInfo] = IndexedSeq.empty) {
   def withConfiguration(artifacts: Set[ArtifactRef], dependencies: Set[ConfiguredDependency], configuration: ConfigurationId, extendsConfigurations: Set[ConfigurationId], description: String = ""): VariantBuilder = {
     new VariantBuilder(id, attributes, configuredVariants :+ new ConfiguredVariantInfo(artifacts, dependencies, configuration, extendsConfigurations, description))
   }
-  
+
   def +(configuredVariantInfo: ConfiguredVariantInfo) = configuredVariants :+ configuredVariantInfo
-  
+
   def build(): Set[Variant] = {
     if (id.value.isEmpty) throw new Exception("Cannot build a variant with an empty Id. Attributes: " + attributes.mkString(","))
 
@@ -40,6 +40,14 @@ object VariantBuilder {
   val ConfigIdValue = "config"
   val ConfigHashAttributeName = "configuration-hash"
   val ConfigDescriptionAttributeName = "configuration-description"
+
+  val NoConfRegEx = ("^(.*)/" + VariantBuilder.ConfigIdValue + "/.*?$").r
+  def stripConfig(id: Id): Id = {
+    id.value match {
+      case NoConfRegEx(stripped) => Id(stripped)
+      case _ => Id(id.value)
+    }
+  }
 
   def mapId(id: Id, configId: ConfigurationId) = {
     Id(id.value + Id.Sep + ConfigIdValue + Id.Sep + configId.value)

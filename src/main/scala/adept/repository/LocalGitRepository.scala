@@ -225,7 +225,19 @@ class LocalGitRepository(val baseDir: File, val name: String, val commitRef: Com
    *
    *  TODO: this code is awful Fredrik - promise yourself to fix... please!
    */
-  private[adept] def wedge(variant: Variant, commit: Commit, startPoint: String = "master") = { //TODO: constants
+  private[adept] def wedge(variants: Set[Variant], commit: Commit, commitMsg: String, startPoint: String = "master") = { //TODO: constants
+
+    def deletePreviousVariants(commit: Commit) = {
+      //delete previous variants TODO: refactor!
+      val previousVariants = variants.flatMap { v =>
+        val foundVariants = readVariants(commit, v.id).right.get //TODO: right.get should be fixed
+        if (foundVariants.size > 1) throw new Exception("Wedge of more than one variant is currently not supported. Found: " + foundVariants.mkString(" ")) //TODO: support this
+        foundVariants
+      }
+
+      previousVariants.foreach(deleteVariant)
+    }
+    
     try {
 
       git.checkout().setName("master").call()
@@ -241,7 +253,6 @@ class LocalGitRepository(val baseDir: File, val name: String, val commitRef: Com
 
       while (it.hasNext && !finished) {
         val revCommit = it.next()
-        println("-> " + revCommit.name)
 
         if (revCommit.name == commit.value || (commit.value == InitTag && revCommit.getParentCount() == 0)) { //TODO: this is an aweful hack because I cannot figure out how to get the sha1 for a tag
           finished = true
@@ -250,21 +261,29 @@ class LocalGitRepository(val baseDir: File, val name: String, val commitRef: Com
         }
       }
       if (finished) {
-        val branchName = "wedge-insert-" + Hash.calculate(variant)
+        val branchName = "wedge-insert-" + Hash.calculate(variants.toSeq)
         git.branchList().call().iterator().next().getName()
         git.branchCreate().setStartPoint(commit.value).setName(branchName).call()
 
         git.checkout().setName(branchName).call()
 
-        writeVariant(variant)
-        git.commit.setMessage("Wedged " + variant).call()
+        variants.foreach(writeVariant)
+
+        //TODO: please fix this ugly code
+        var prevCommit = git.commit.setMessage(commitMsg).call()
+        var lastCommitMsg = commitMsg
 
         var mergedCommitMsg: Option[String] = None
         val mapping = revCommits.map { revCommit =>
 
           val cherryPickResult = git.cherryPick().include(revCommit).call()
+          lastCommitMsg = revCommit.getFullMessage()
           mergedCommitMsg = Some(revCommit.getFullMessage())
-          cherryPickResult.getNewHead() -> revCommit
+
+          deletePreviousVariants(Commit(prevCommit.name))
+          prevCommit = git.commit().setAmend(true).setMessage(lastCommitMsg).call()
+          
+          prevCommit -> revCommit
         }
 
         val allLines = mapping.map { case (a, b) => a.name + "=" + b.name }
@@ -283,10 +302,8 @@ class LocalGitRepository(val baseDir: File, val name: String, val commitRef: Com
             writer.close()
           }
         }
-        git.branchRename().setOldName("master").setNewName("wedge-backup-" + Hash.calculate(variant)).call()
+        git.branchRename().setOldName("master").setNewName("wedge-backup-" + Hash.calculate(variants.toSeq)).call()
         git.branchRename().setNewName("master").setOldName(branchName).call()
-
-        println(finished + "   >>> " + revCommits)
       } else {
         Set.empty
       }
@@ -458,7 +475,7 @@ class LocalGitRepository(val baseDir: File, val name: String, val commitRef: Com
     if (!treeWalk.next()) {
       Left(s"Could not find git object for path: '$path' in '${gitDir.getAbsolutePath}' for commit: $commit")
     } else {
-
+      println("reading path: " + treeWalk.getPathString())
       readBlob(treeWalk) { is =>
         val reader = new InputStreamReader(is)
         try {
@@ -479,32 +496,48 @@ class LocalGitRepository(val baseDir: File, val name: String, val commitRef: Com
     }
   }
 
-  override def readVariants(id: Id): Either[String, Set[Variant]] = {
+  private val IdPathRegEx = """^(.*)/.*?$""".r
+
+  private def extractIdPath(path: String): Option[String] = {
+    path match {
+      case IdPathRegEx(v) => Some(v)
+      case _ => None
+    }
+  }
+
+  def readVariants(commit: Commit, id: Id): Either[String, Set[Variant]] = {
     import org.json4s.native.Serialization.read
     import adept.serialization.Formats._
+    val idPath = getVariantsBasePath(id)
+    val treeWalk = createTreeWalk(commit, idPath)
 
-    val treeWalk = createTreeWalk(commit, getVariantsBasePath(id))
     //imperative style makes this easier to read:
     var result: Either[String, Set[Variant]] = Right(Set.empty[Variant])
     while (treeWalk.next()) {
-      val maybeVariant: Either[String, Variant] = readBlob(treeWalk) { is =>
-        val reader = new InputStreamReader(is)
-        try { //TODO: add validation of json
-          read[Variant](reader)
-        } finally {
-          reader.close()
+      if (extractIdPath(treeWalk.getPathString()).getOrElse("") == idPath) {
+        val maybeVariant: Either[String, Variant] = readBlob(treeWalk) { is =>
+          val reader = new InputStreamReader(is)
+          try { //TODO: add validation of json
+            read[Variant](reader)
+          } finally {
+            reader.close()
+          }
         }
-      }
 
-      (result, maybeVariant) match {
-        case (Right(variants), Right(variant)) => result = Right(variants + variant)
-        case (Left(errorMsg), Right(variant)) => result = Left(errorMsg)
-        case (Right(variants), Left(errorMsg)) => result = Left(errorMsg)
-        case (Left(errorMsg1), Left(errorMsg2)) => result = Left(errorMsg1 + "; " + errorMsg2)
+        (result, maybeVariant) match {
+          case (Right(variants), Right(variant)) => result = Right(variants + variant)
+          case (Left(errorMsg), Right(variant)) => result = Left(errorMsg)
+          case (Right(variants), Left(errorMsg)) => result = Left(errorMsg)
+          case (Left(errorMsg1), Left(errorMsg2)) => result = Left(errorMsg1 + "; " + errorMsg2)
+        }
       }
     }
     treeWalk.release()
     result
+  }
+
+  override def readVariants(id: Id): Either[String, Set[Variant]] = {
+    readVariants(commit, id)
   }
 
   def getArtifactDescriptorPath(hash: Hash) = {
