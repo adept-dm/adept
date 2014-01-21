@@ -62,7 +62,7 @@ class ConstraintsTest extends FunSuite with MustMatchers {
         V("B")("version" -> Set("X"))()),
 
       R("B")("version" -> Set("Y"))()))
-    
+
     println(result)
     val state = unresolved(result)
     checkResolved(state, Set("A"))
@@ -229,6 +229,9 @@ class ConstraintsTest extends FunSuite with MustMatchers {
     println(result)
     val state = resolved(result)
     checkResolved(state, Set("A", "B", "C"))
+    checkVariants(state, "A" -> ("v" -> Set("1.0")))
+    checkVariants(state, "B" -> ("v" -> Set("1.0")))
+    checkVariants(state, "C" -> ("v" -> Set("2.0")))
     checkUnresolved(state, Set())
   }
 
@@ -274,13 +277,11 @@ class ConstraintsTest extends FunSuite with MustMatchers {
     val (dependencies, variants) = useTestData(LargeDataSets.basic: _*)
 
     val result = new Resolver(new DefinedVariants(variants)).resolve(Set(
-// uncomment to resolve:
-//            Dependency(Id("org.scala-lang/scala-library"), Set(Constraint("version", Set("2.10.3")))),
-//            Dependency(Id("com.typesafe.akka/akka-actors"),  Set(Constraint("version", Set("2.2.0")))),
+      // uncomment to resolve:
+      //            Dependency(Id("org.scala-lang/scala-library"), Set(Constraint("version", Set("2.10.3")))),
+      //            Dependency(Id("com.typesafe.akka/akka-actors"),  Set(Constraint("version", Set("2.2.0")))),
       Dependency(Id("com.typesafe.play/play"), Set.empty),
-      Dependency(Id("com.typesafe.play/play-slick"), Set.empty)
-      ))
-
+      Dependency(Id("com.typesafe.play/play-slick"), Set.empty)))
 
     val state = unresolved(result)
     result match {

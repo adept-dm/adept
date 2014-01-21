@@ -27,6 +27,50 @@ case class Commit(value: String) extends AnyVal {
   override def toString = value
 }
 
+object LocalGitRepository {
+
+  private[adept] def compressModifications(lines: Map[String, String]) = {
+    var compressedStrings = Set.empty[Set[String]]
+    var checked = Set.empty[String]
+
+    def checkThenAdd(checkedValue: String, addedValue: String) = {
+      val (newStrings, oldStrings) = compressedStrings.partition(_.contains(checkedValue)) //TODO: I think this  partition is the slowest part of this algo, because it re iterates every found set AGAIN. consider using a lookup map
+      compressedStrings = oldStrings + (newStrings.flatten ++ Set(addedValue))
+      checked += addedValue
+    }
+
+    lines.foreach {
+      case (left, right) =>
+        if (!(checked(left) || checked(right))) { //first time we see either value
+          var currentSet = Set(left, right)
+          checked ++= currentSet
+          var currentValue: Option[String] = Some(right)
+
+          //TODO: we can recurse here instead, but I wonder if it really makes it easier to read 
+          //add all right-hand side values:
+          while (currentValue.isDefined && !checked(currentValue.get)) {
+            currentValue match {
+              case Some(v) =>
+                currentValue = lines.get(v)
+                checked += v
+                currentSet += v
+              case None =>
+                assert(true,
+                  "While optimizing modifications table matched a None when it should never happen (concurrent issue?). Compressed strings:\n" + compressedStrings.mkString("\n") + "\n\n all lines: " + lines.mkString("\n"))
+            }
+          }
+          compressedStrings += currentSet
+        } else if (checked(right)) {
+          checkThenAdd(right, left)
+        } else if (checked(left)) {
+          checkThenAdd(left, right)
+        }
+    }
+
+    compressedStrings
+  }
+}
+
 class LocalGitRepository(val baseDir: File, val name: String, val commitRef: Commit) extends Repository with Ordered[LocalGitRepository] {
   def isClean: Boolean = {
     git.status().call().isClean()
@@ -253,32 +297,27 @@ class LocalGitRepository(val baseDir: File, val name: String, val commitRef: Com
 
   private lazy val EqualModificationPattern = """^([0-9a-f]+)\=([0-9a-f]+)$""".r
 
-  def compare(that: LocalGitRepository): Int = { //TODO: we cannot really use Orderd and compare here. we might be larger/smaller/equal OR we can be not comparable.
+  def compare(that: LocalGitRepository): Int = { //TODO: we cannot really use Ordered and compare here. we might be larger/smaller/equal OR we can be not comparable.
 
     val branchName = "master"
 
     if (that.name != this.name) throw new Exception("Cannot compare 2 different repositories")
 
     val allModLines = that.readModications(that.commit).right.get ++ this.readModications(this.commit).right.get
-    val allMods: Set[(String, String)] = allModLines.map {
+    val allMods = LocalGitRepository.compressModifications(allModLines.map {
       case EqualModificationPattern(a, b) => a -> b
-    }.toSet
-    
-    
-    
-    def equalCommits(commitValue: String): Set[String] = {
-      allMods.flatMap{ case (a, b) =>
-        if (a == commit.value) Set(b) ++ equalCommits(b)
-        else if (b == commit.value) Set(a) ++ equalCommits(a)
-        else Set.empty[String]
-      } + commit.value
+    }.toMap)
+
+    def equalCommits(commitValue1: String, commitValue2: String): Boolean = {
+      commitValue1 == commitValue2 || allMods.exists { commits =>
+        commits.contains(commitValue1) && commits.contains(commitValue2)
+      }
     }
-    
+
     def checkMatch(current: RevCommit): Option[Commit] = {
-      println(equalCommits(this.commit.value).toString + " AND " + equalCommits(that.commit.value))
-      if (equalCommits(this.commit.value).contains(current.name)) {
+      if (equalCommits(this.commit.value, current.name)) {
         Some(this.commit)
-      } else if (equalCommits(that.commit.value).contains(current.name)) {
+      } else if (equalCommits(that.commit.value, current.name)) {
         Some(that.commit)
       } else None
     }
@@ -306,7 +345,7 @@ class LocalGitRepository(val baseDir: File, val name: String, val commitRef: Com
       else if (second.get == this.commit) -1
       else 0
     } else {
-      throw new Exception("Cannot compare " + this + " with " + that)
+      throw new Exception("Cannot compare " + this + " with " + that + ". Found values: " + first + " " + second)
     }
   }
 
