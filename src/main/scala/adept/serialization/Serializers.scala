@@ -31,7 +31,7 @@ class AttributeSerializer extends Serializer[Attribute] {
   def serialize(implicit formats: Formats): PartialFunction[Any, JValue] = {
     case v: Attribute =>
       import JsonDSL._
-      (v.name -> v.values.toList)
+      (v.name -> v.values.toList.sorted)
   }
 }
 
@@ -53,7 +53,7 @@ class ConstraintSerializer extends Serializer[Constraint] {
   def serialize(implicit formats: Formats): PartialFunction[Any, JValue] = {
     case v: Constraint =>
       import JsonDSL._
-      (v.name -> v.values.toList)
+      (v.name -> v.values.toList.sorted)
   }
 }
 

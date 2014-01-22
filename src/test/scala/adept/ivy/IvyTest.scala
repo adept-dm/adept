@@ -195,9 +195,12 @@ class IvyTest extends FunSuite with MustMatchers {
       val importResults4 = (ivyHelper.ivyImport(org, name, "2.2.3")).right.value
       IvyHelper.insert(importResults4, baseDir)
 
+      val importResults4 = (ivyHelper.ivyImport(org, name, "2.2.3")).right.value
+      IvyHelper.insert(importResults4, baseDir)
+
       println(baseDir)
 
-      val engine = AdeptRepositoryManager.open(baseDir, AdeptRepositoryManager.getExisting(baseDir))
+      val engine = AdeptRepositoryManager.open(baseDir, AdeptRepositoryManager.)
 
       val resolver = new Resolver(engine)
       val result = resolver.resolve(ConfiguredDependency(Id(org + "/" + name), Set(ConfigurationId("compile"), ConfigurationId("master")), Set()).toDependencies)
