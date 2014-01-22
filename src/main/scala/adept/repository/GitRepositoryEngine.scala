@@ -157,7 +157,6 @@ class GitRepositoryEngine private[repository] (override val baseDir: File, repos
         cachedValues.getValue().asInstanceOf[Set[Variant]]
       } else {
         logger.debug(s"Cache miss on $id so loading from disk...")
-        println("reading: " + id + "  " + repo.readVariants(id))
         repo.readVariants(id) match {
           case Right(variants) =>
             val element = new Element(id.value, variants)

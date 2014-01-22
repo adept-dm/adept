@@ -488,7 +488,6 @@ class LocalGitRepository(val baseDir: File, val name: String, val commitRef: Com
     if (!treeWalk.next()) {
       Left(s"Could not find git object for path: '$path' in '${gitDir.getAbsolutePath}' for commit: $commit")
     } else {
-      println("reading path: " + treeWalk.getPathString())
       readBlob(treeWalk) { is =>
         val reader = new InputStreamReader(is)
         try {

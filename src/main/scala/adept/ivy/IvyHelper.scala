@@ -22,17 +22,18 @@ import adept.configuration.ConfigurationId
 import adept.configuration.ConfiguredVariantInfo
 import adept.repository._
 import adept.ext.Version
+import adept.logging.Logging
 
 class IvyResolveException(msg: String) extends RuntimeException(msg)
 
 case class IvyImportResult(mrid: ModuleRevisionId, variants: Set[Variant], artifacts: Set[Artifact], localFiles: Map[Artifact, File])
 
-object IvyHelper {
+object IvyHelper extends Logging {
 
   def getVersion(variant: Variant): Option[Version] = {
     val versionValues = variant.attribute("version").values
     if (versionValues.size > 1) {
-      println("Found multiple versions for: " + variant) //TODO: logger.warn
+      logger.warn("Found multiple versions for: " + variant)
       None
     } else {
       versionValues.headOption.map(Version.apply _)
@@ -46,7 +47,7 @@ object IvyHelper {
     def updateRepo(repo: LocalGitRepository, variants: Set[Variant], msg: String) = {
       variants.foreach { variant =>
         val previousVariants = repo.readVariants(variant.id).right.get
-        println("previous variants: " + variant.id + " " + repo.commit + "  " + previousVariants)
+        logger.trace("previous variants: " + variant.id + " " + repo.commit + "  " + previousVariants)
         repo.readVariants(variant.id).right.get.foreach(repo.deleteVariant) //TODO: this is not right!
       }
 
@@ -158,10 +159,10 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true) {
   def ivyImport(org: String, name: String, version: String): Either[String, Set[IvyImportResult]] = {
     ivy.synchronized { // ivy is not thread safe
       val mrid = ModuleRevisionId.newInstance(org, name, version)
-      val dependencies = createDependencyTree(mrid)
-      println(dependencies)
-      val workingNode = dependencies(ModuleRevisionId.newInstance(org, name + "-caller", "working")).head.getId
-      val result = results(workingNode)(dependencies)
+      val dependencyTree = createDependencyTree(mrid)
+      println("dependencies: " + dependencyTree)
+      val workingNode = dependencyTree(ModuleRevisionId.newInstance(org, name + "-caller", "working")).head.getId
+      val result = results(workingNode)(dependencyTree)
       Right(result)
     }
   }
@@ -263,7 +264,9 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true) {
     val currentResult = createIvyResult(mrid, children)
     children.flatMap { childNode =>
       val childId = childNode.getId
-      results(childId)(dependencies ++ createDependencyTree(childId))
+      val dependencyTree = createDependencyTree(childId)
+      println("dependencies: " + dependencyTree)
+      results(childId)(dependencies ++ dependencyTree)
     } + currentResult
   }
 }
