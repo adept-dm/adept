@@ -42,7 +42,7 @@ object VariantBuilder {
   val ConfigDescriptionAttributeName = "configuration-description"
 
   val NoConfRegEx = ("^(.*)/" + VariantBuilder.ConfigIdValue + "/.*?$").r
-  def stripConfig(id: Id): Id = {
+  def stripConfig(id: Id): Id = { //TODO: move this method to Configuration-something
     id.value match {
       case NoConfRegEx(stripped) => Id(stripped)
       case _ => Id(id.value)

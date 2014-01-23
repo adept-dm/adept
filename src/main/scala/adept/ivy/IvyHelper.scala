@@ -29,6 +29,7 @@ class IvyResolveException(msg: String) extends RuntimeException(msg)
 case class IvyImportResult(mrid: ModuleRevisionId, variants: Set[Variant], artifacts: Set[Artifact], localFiles: Map[Artifact, File])
 
 object IvyHelper extends Logging {
+  import AttributeDefaults.{ NameAttribute, OrgAttribute, VersionAttribute, ConfAttribute }
 
   def getVersion(variant: Variant): Option[Version] = {
     val versionValues = variant.attribute("version").values
@@ -40,10 +41,64 @@ object IvyHelper extends Logging {
     }
   }
 
+  def createId(org: String, name: String) = {
+    Id(org + Id.Sep + name)
+  }
+
+  def splitId(id: Id): (String, String) = {
+    val elems = id.value.split(Id.Sep)
+    elems.head -> elems.tail.mkString(Id.Sep)
+  }
+
+  private def getVersionString(dependency: Dependency) = {
+    val versionConstraint = dependency.constraint(VersionAttribute)
+    if (versionConstraint.values.size > 1) throw new Exception("Cannot convert: " + dependency + " to module revision id, because there are more than one version value")
+    else if (versionConstraint.values.size == 0) throw new Exception("Cannot convert: " + dependency + " to module revision id, because there are no version values")
+    versionConstraint.values.head
+  }
+
+  def dependencyAsMrid(dependency: Dependency): ModuleRevisionId = {
+    val (org, name) = splitId(VariantBuilder.stripConfig(dependency.id))
+    ModuleRevisionId.newInstance(org, name, getVersionString(dependency))
+  }
+
   def getRepoName(ivyResult: IvyImportResult) = ivyResult.mrid.getOrganisation
 
-  def insert(results: Set[IvyImportResult], baseDir: File): Set[LocalGitRepository] = {
+  private val SafeGuardLimit = 1000
 
+  def insert(results: Set[IvyImportResult], baseDir: File): Set[LocalGitRepository] = {
+    var repositories = Set.empty[LocalGitRepository]
+    var repositoryMap = Map.empty[ModuleRevisionId, LocalGitRepository]
+    var handledResults = Set.empty[ModuleRevisionId]
+    var unhandledResults = results
+
+    var safeGuard = 0
+    while (handledResults.size < results.size) {
+      safeGuard += 1
+      if (safeGuard == SafeGuardLimit) throw new Exception("Got into loop while inserting from Ivy? Tried to insert: " + SafeGuardLimit + " times, which is set as max")
+
+      val currentResults = unhandledResults.filter { result => //TODO: stop when currentResults is 0 instead of silly safe guard!
+        result.variants.forall { variant =>
+          variant.dependencies.isEmpty || {
+            variant.dependencies.forall { dependency =>
+              if (VariantBuilder.stripConfig(dependency.id) == VariantBuilder.stripConfig(variant.id)) { //TODO: evaluate if this is right - we do it because of the "configuration" dependencies that just depend on the module itself  
+                true
+              } else {
+                handledResults(dependencyAsMrid(dependency)) //we are relying on the fact that we get the complete tree even if the id, values are already present
+              }
+            }
+          }
+        }
+      }
+      val currentRepositories = updateRepositories(results, baseDir) 
+      repositories ++= currentRepositories
+      handledResults ++= currentResults.map(_.mrid)
+      unhandledResults --= currentResults
+    }
+    repositories
+  }
+
+  private def updateRepositories(results: Set[IvyImportResult], baseDir: File): Set[LocalGitRepository] = {
     def updateRepo(repo: LocalGitRepository, variants: Set[Variant], msg: String) = {
       variants.foreach { variant =>
         val previousVariants = repo.readVariants(variant.id).right.get
@@ -106,10 +161,6 @@ object IvyHelper extends Logging {
 
       repository
     }
-  }
-
-  def createId(org: String, name: String) = {
-    Id(org + Id.Sep + name)
   }
 
   def load(path: Option[String] = None, logLevel: Int = Message.MSG_ERR, ivyLogger: AbstractMessageLogger = new DefaultMessageLogger(Message.MSG_ERR)): Either[String, Ivy] = {
