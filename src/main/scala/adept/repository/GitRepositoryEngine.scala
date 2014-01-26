@@ -15,9 +15,9 @@ class GitRepositoryNotFoundException(val baseDir: File, val name: String) extend
  * The default Repository engine that writes slow, but reads fast.
  * Is thread-safe and uses a cache to be faster.
  *
- * First read uses approx the same amount of time as the FileRepository engine,
+ * First read uses approx the same amount of time as reading from files directly,
  * consecutive reads are much faster: for 1000 variants with a HD (not SSD),
- * it is about 5-20 times faster.
+ * it is at least d5-20 times faster than simple disk reads.
  *
  * When executing a complicated resolution this matters a lot.
  *

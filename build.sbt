@@ -16,6 +16,6 @@ libraryDependencies ++= Seq(
   "net.sf.ehcache" % "ehcache-core" % "2.6.6", //needed by adept.repository.RepositoryEnginec
   "javax.transaction" % "jta" % "1.1", //needed by ehcache?
   "ch.qos.logback" % "logback-classic" % "1.0.13",
-  "org.json4s" %% "json4s-native" % "3.2.5" % "compile", 
+  "org.json4s" %% "json4s-native" % "3.2.5" % "compile", //REMOVE
   "org.apache.ivy"  % "ivy" % "2.3.0" % "compile",
   "org.scalatest" %% "scalatest" % "2.0" % "test")

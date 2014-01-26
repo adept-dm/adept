@@ -23,10 +23,11 @@ import adept.configuration.ConfiguredVariantInfo
 import adept.repository._
 import adept.ext.Version
 import adept.logging.Logging
+import adept.serialization.AdeptMetadata
 
 class IvyResolveException(msg: String) extends RuntimeException(msg)
 
-case class IvyImportResult(mrid: ModuleRevisionId, variants: Set[Variant], artifacts: Set[Artifact], localFiles: Map[Artifact, File])
+case class IvyImportResult(mrid: ModuleRevisionId, adeptMetadata: AdeptMetadata, artifacts: Set[Artifact], localFiles: Map[Artifact, File])
 
 object IvyHelper extends Logging {
   import AttributeDefaults.{ NameAttribute, OrgAttribute, VersionAttribute, ConfAttribute }
