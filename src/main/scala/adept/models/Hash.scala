@@ -21,7 +21,7 @@ object Hash {
   import Ordering._
 
   //TODO: there is not point in this? just create a local varialbe instead
-  private lazy val md: ThreadLocal[MessageDigest] = new ThreadLocal[MessageDigest] { //make message digest thread-"safe"
+  private[adept] lazy val md: ThreadLocal[MessageDigest] = new ThreadLocal[MessageDigest] { //make message digest thread-"safe"
     override def initialValue() = {
       MessageDigest.getInstance("SHA-256")
     }
