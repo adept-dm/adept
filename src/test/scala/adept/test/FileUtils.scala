@@ -5,7 +5,7 @@ import adept.logging.Logging
 
 object FileUtils extends Logging {
 
-  def usingTempDir(f: File => Unit) = {
+  def usingTmpDir(f: File => Unit) = {
     val rootDir = new File("tmp")
 
     if (rootDir.isDirectory) {
@@ -14,11 +14,11 @@ object FileUtils extends Logging {
       (new Directory(rootDir)).deleteRecursively()
     }
 
-    val tmpDir = new File(rootDir, "tmp-dir-" + System.currentTimeMillis)
-    if (tmpDir.mkdirs()) {
-      logger.debug("Created tmp dir: " + tmpDir.getAbsolutePath)
-      f(tmpDir)
-    } else throw new Exception("Could not create tmp dir: " + tmpDir)
+    val testDir = new File(rootDir, "test-dir-" + System.currentTimeMillis)
+    if (testDir.mkdirs()) {
+      logger.debug("Created testdir: " + testDir.getAbsolutePath)
+      f(testDir)
+    } else throw new Exception("Could not create test dir: " + testDir)
   }
 
 }
