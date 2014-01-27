@@ -5,6 +5,7 @@ import java.io.InputStream
 import java.io.File
 import java.io.FileInputStream
 import java.security.MessageDigest
+import adept.repository.models.ConfiguredVariantsMetadata
 
 /**
  * Represents unique variants or artifacts
@@ -141,5 +142,5 @@ object Hash {
       fis.close()
     }
   }
-}
+  }
 

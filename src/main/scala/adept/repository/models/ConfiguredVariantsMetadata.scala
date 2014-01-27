@@ -41,26 +41,29 @@ object ConfiguredVariantsMetadata {
 }
 
 case class ConfiguredVariantsMetadata(id: Id, metadata: Set[MetadataInfo], attributes: Set[Attribute], configurations: Set[Configuration]) {
+  override lazy val toString = {
+    id + " " + attributes.map(a => a.name + "=" + a.values.mkString("(", ",", ")")).mkString("[", ",", "]")
+  }
+
+  lazy val hash = {
+    //FIXME: move to Hash? Is this safe?
+    var strings = Set.empty[String]
+    configurations.foreach { configuration =>
+      strings ++= configuration.attributes.map(_.toString)
+      strings += configuration.id.value
+      strings ++= configuration.requirements.map(_.toString)
+    }
+    val md = Hash.md.get
+
+    strings.toSeq.sorted.foreach { string =>
+      md.update(string.getBytes)
+    }
+    Hash(md.digest().map(b => "%02x" format b).mkString)
+  }
 
   def toVariants(): Set[(Variant, Set[RepositoryMetadata])] = {
-    val configureHash = {
-      //FIXME: move to Hash? Is this safe?
-      var strings = Set.empty[String]
-      configurations.foreach { configuration =>
-        strings ++= configuration.attributes.map(_.toString)
-        strings += configuration.id.value
-        strings ++= configuration.requirements.map(_.toString)
-      }
-      val md = Hash.md.get
-
-      strings.toSeq.sorted.foreach { string =>
-        md.update(string.getBytes)
-      }
-      md.digest().map(b => "%02x" format b).mkString
-    }
-    
     //This Variant is needed to make sure there never different variants in different configurations with the same 'base' Id that is correctly resolved
-    val baseVariant = Variant(id, attributes = attributes + Attribute(Configuration.ConfigurationHashAttributeName, Set(configureHash)))
+    val baseVariant = Variant(id, attributes = attributes + Attribute(Configuration.ConfigurationHashAttributeName, Set(hash.value)))
 
     configurations.map { configuration =>
       val variantId = ConfigurationId.join(id, configuration.id)
@@ -74,7 +77,7 @@ case class ConfiguredVariantsMetadata(id: Id, metadata: Set[MetadataInfo], attri
           repositories += configuredRequirement.commit //MUTATE!
           Requirement(variantRequirementId, configuredRequirement.constraints)
         }
-      } + Requirement(id, Set(Constraint(Configuration.ConfigurationHashAttributeName, Set(configureHash))))
+      } + Requirement(id, Set(Constraint(Configuration.ConfigurationHashAttributeName, Set(hash.value))))
 
       Variant(variantId, variantAttributes, variantArtifacts, variantRequirements) -> repositories
     } + (baseVariant -> Set.empty)

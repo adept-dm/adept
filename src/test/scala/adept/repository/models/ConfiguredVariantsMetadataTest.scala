@@ -7,7 +7,7 @@ import adept.repository.models.configuration._
 import java.io.StringWriter
 import java.io.StringReader
 
-class ConfiguredVariantsMetadataTest extends FunSuite with MustMatchers {
+object ConfiguredVariantsMetadataTestData {
 
   val compileConf = Configuration(
     id = ConfigurationId("compile"),
@@ -45,6 +45,10 @@ class ConfiguredVariantsMetadataTest extends FunSuite with MustMatchers {
       testConf,
       compileConf,
       runtimeConf))
+}
+
+class ConfiguredVariantsMetadataTest extends FunSuite with MustMatchers {
+  import ConfiguredVariantsMetadataTestData._
 
   test("Serialization of ConfiguredVariantsMetadata") {
     val writer = new StringWriter()
@@ -56,17 +60,17 @@ class ConfiguredVariantsMetadataTest extends FunSuite with MustMatchers {
   }
 
   test("Transformation of Variants") {
-    
+
     val variantsMetadata = metadata.toVariants
-    variantsMetadata.map{ case (variant, _) => variant.id.value } must be === Set("foo/bar", "foo/bar/config/runtime", "foo/bar/config/compile", "foo/bar/config/test")
-    
-    //TODO:
+    variantsMetadata.map { case (variant, _) => variant.id.value } must be === Set("foo/bar", "foo/bar/config/runtime", "foo/bar/config/compile", "foo/bar/config/test")
+
+    //FIXME: add test that tests:
     //(foo/bar/config/test [organization=(foo),version=(1.1.2),binary-version=(1.0,1.1),attr3=(foo)],Set(RepositoryMetadata(zoo.com,Set(git@git://github.com/zoo/loo.git),loo123commit,version = 2.1.1)))
     //(foo/bar/config/compile [organization=(foo),version=(1.1.2),binary-version=(1.0,1.1),attr1=(foo)],Set(RepositoryMetadata(loco.com,Set(git@git://github.com/loco/mooboo.git),mooboo456commit,version = 1.0.0)))
     //(foo/bar/config/runtime [organization=(foo),version=(1.1.2),binary-version=(1.0,1.1),attr2=(foo)],Set())
     //(foo/bar [organization=(foo),version=(1.1.2),binary-version=(1.0,1.1),configuration-hash=(4618fa38119766489ea263349107e20e8518bd0872e43ca7a5aba0e0aaaa4f07)],Set())
     println(variantsMetadata.mkString("\n"))
-    
+
     pending
   }
 }
