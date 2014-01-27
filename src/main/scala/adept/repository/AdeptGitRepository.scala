@@ -14,6 +14,8 @@ import java.io.FileWriter
 import adept.models._
 import org.eclipse.jgit.treewalk.TreeWalk
 import org.eclipse.jgit.treewalk.filter.PathFilter
+import java.io.InputStream
+import java.io.InputStreamReader
 
 case class WriteLockException(repo: AdeptGitRepository, reason: String) extends Exception("Could not lock '" + repo.dir.getAbsolutePath + "': " + reason)
 case class InitException(repo: AdeptGitRepository, reason: String) extends Exception("Could not initialize '" + repo.dir.getAbsolutePath + "': " + reason)
@@ -170,7 +172,16 @@ class AdeptGitRepository(val baseDir: File, val name: String) extends Logging {
     try {
       func(revWalk)
     } finally {
-      revWalk.dispose()
+      revWalk.release()
+    }
+  }
+
+  private def usingTreeWalk[A](gitRepo: JGitRepository)(func: TreeWalk => A) = {
+    val treeWalk = new TreeWalk(gitRepo)
+    try {
+      func(treeWalk)
+    } finally {
+      treeWalk.release()
     }
   }
 
@@ -185,7 +196,7 @@ class AdeptGitRepository(val baseDir: File, val name: String) extends Logging {
     val dir = id.value.split(IdDirSep).foldLeft(getVariantsDir(baseDir, name)) { (currentPath, dir) =>
       new File(currentPath, dir)
     }
-    if (!dir.isDirectory() || !dir.mkdirs()) throw InitException(this, "Could not create variants metadata dir: " + dir.getAbsolutePath)
+    if (!(dir.isDirectory() || dir.mkdirs())) throw InitException(this, "Could not create variants metadata dir: " + dir.getAbsolutePath)
     dir
   }
 
@@ -201,50 +212,76 @@ class AdeptGitRepository(val baseDir: File, val name: String) extends Logging {
     }
   }
 
+  private def readBlob[A](treeWalk: TreeWalk, gitRepo: JGitRepository)(f: InputStream => A) = {
+    val objectId = treeWalk.getObjectId(0) //nth == 0, means we are reading the 0th tree
+    val loader = gitRepo.open(objectId)
+    val stream = loader.openStream()
+    try {
+      Right(f(loader.openStream()))
+    } finally {
+      stream.close()
+    }
+  }
+
   //TODO: optimize to only look in certain paths?
   private[adept] def listContent(commit: Commit): MetadataContent = requiringLock {
+    var configuredVariantsMetadata = Set.empty[ConfiguredVariantsMetadata]
+
     usingGitRepo { gitRepo =>
       val metadata = {
         val containingDir = VariantsDirName
         usingRevWalk(gitRepo) { revWalk =>
           val revCommit = revWalk.lookupCommit(gitRepo.resolve(commit.value))
-          val treeWalk = new TreeWalk(gitRepo)
+          revWalk.markStart(revCommit)
+          usingTreeWalk(gitRepo) { treeWalk =>
+            val currentTree = revCommit.getTree()
+            if (currentTree != null) { //if null means we on empty commit
+              treeWalk.addTree(currentTree)
+              treeWalk.setRecursive(true)
+              treeWalk.setFilter(PathFilter.create(containingDir))
 
-          treeWalk.addTree(revCommit.getTree)
-          treeWalk.setRecursive(true)
-          treeWalk.setFilter(PathFilter.create(containingDir))
-
-          var configuredVariantsMetadata = Set.empty[ConfiguredVariantsMetadata]
-          
-          while (treeWalk.next()) {
-            if (treeWalk.getPathString.startsWith(containingDir)) {
-              configuredVariantsMetadata
+              while (treeWalk.next()) {
+                val currentPath = treeWalk.getPathString
+                if (treeWalk.isSubtree()) {
+                  treeWalk.enterSubtree()
+                } else if (currentPath.startsWith(containingDir) && currentPath.endsWith(JsonFileEnding)) { //TODO: more verifications?
+                  readBlob(treeWalk, gitRepo) { is =>
+                    val reader = new InputStreamReader(is)
+                    try {
+                      configuredVariantsMetadata += ConfiguredVariantsMetadata.fromJson(reader)
+                    } finally {
+                      reader.close()
+                    }
+                  }
+                }
+              }
+            } else {
+              logger.debug("Skipped empty commit: " + commit + " in " + dir)
             }
           }
-          
         }
       }
     }
-    MetadataContent(Set.empty, Set.empty)
+    MetadataContent(configuredVariantsMetadata, Set.empty)
   }
 
-  /** 
-   *  Update metadata and artifacts after the `commit`. Rewrites the history if needed. 
-   *  
-   *  `additions` is a function that is based on the content of the current commit, returns some (new) files to be added. 
-   *  `removals` does the inverse (i.e. removes the files)
+  /**
+   *  Update metadata and artifacts after the `commit`. Rewrites the history if needed.
+   *
+   *  `removals` is a function that is based on the content of the current commit, returns some (old) files to be removed.
+   *  `additions` does the inverse (i.e. adds new files)
    */
-  def updateMetadata(additions: MetadataContent => Seq[File], removals: MetadataContent => Seq[File], commitMsg: String, commit: Commit = Commit(Head)): AdeptCommit = usingWriteLock {
+  def updateMetadata(removals: MetadataContent => Seq[File], additions: MetadataContent => Seq[File], commitMsg: String, commit: Commit = Commit(Head)): AdeptCommit = usingWriteLock {
     val mostRecentCommit = getMostRecentCommit
     if (!isClean) throw UpdateMetadataException(this, "Directory is not clean")
     else if (commit == mostRecentCommit.commit || commit.value == Head) {
 
-      additions(listContent(commit)).foreach { file =>
-        git.add().addFilepattern(gitPath(file)).call()
-      }
-
       removals(listContent(commit)).foreach { file =>
         git.rm().addFilepattern(gitPath(file)).call()
+      }
+
+      additions(listContent(commit)).foreach { file =>
+        git.add().addFilepattern(gitPath(file)).call()
       }
 
       val status = git.status.call()

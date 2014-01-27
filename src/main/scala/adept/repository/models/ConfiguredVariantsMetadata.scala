@@ -7,6 +7,9 @@ import java.io.Writer
 import java.io.BufferedReader
 import java.io.BufferedWriter
 import adept.repository.models.serialization.DeserializationException
+import adept.repository.AdeptGitRepository
+import java.io.File
+import java.io.FileWriter
 
 object ConfiguredVariantsMetadata {
   import play.api.libs.json._
@@ -40,6 +43,7 @@ object ConfiguredVariantsMetadata {
   }
 }
 
+//TODO: nicer name?
 case class ConfiguredVariantsMetadata(id: Id, metadata: Set[MetadataInfo], attributes: Set[Attribute], configurations: Set[Configuration]) {
   override lazy val toString = {
     id + " " + attributes.map(a => a.name + "=" + a.values.mkString("(", ",", ")")).mkString("[", ",", "]")
@@ -100,5 +104,20 @@ case class ConfiguredVariantsMetadata(id: Id, metadata: Set[MetadataInfo], attri
 
     val content = Json.prettyPrint(Json.toJson(this))
     writeString(writer, content)
+  }
+
+  def file(repository: AdeptGitRepository): File = {
+    repository.getVariantsMetadataFile(id, hash)
+  }
+
+  def write(repository: AdeptGitRepository): File = {
+    val currentFile = file(repository)
+    val writer = new FileWriter(currentFile)
+    try {
+      toJson(writer)
+      currentFile
+    } finally {
+      writer.close()
+    }
   }
 }
