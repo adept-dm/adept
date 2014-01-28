@@ -78,7 +78,7 @@ case class ConfiguredVariantsMetadata(id: Id, metadata: Set[MetadataInfo], attri
       val variantRequirements = configuration.requirements.flatMap { configuredRequirement =>
         configuredRequirement.configurations.map { requirementConfig =>
           val variantRequirementId = ConfigurationId.join(configuredRequirement.id, requirementConfig)
-          repositories += configuredRequirement.commit //MUTATE!
+          repositories ++= configuredRequirement.commits //MUTATE!
           Requirement(variantRequirementId, configuredRequirement.constraints)
         }
       } + Requirement(id, Set(Constraint(Configuration.ConfigurationHashAttributeName, Set(hash.value))))
