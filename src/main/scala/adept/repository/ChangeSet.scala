@@ -1,5 +1,8 @@
 package adept.repository
 
-class ChangeSet {
+
+
+class ChangeSet private() {
+  
 
 }

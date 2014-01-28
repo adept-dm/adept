@@ -27,7 +27,7 @@ class AdeptGitRepositoryTest extends FunSuite with MustMatchers {
     usingTmpDir { tmpDir =>
       import adept.repository.models.ConfiguredVariantsMetadataTestData.metadata
 
-      val adeptGitRepo = new AdeptGitRepository(tmpDir, "foo")
+      val adeptGitRepo = new AdeptGitRepository(tmpDir, "adept-git-repo-basic")
 
       val commit1 = adeptGitRepo.updateMetadata({ content =>
         content.artifactsMetadata must be('empty)
@@ -50,8 +50,13 @@ class AdeptGitRepositoryTest extends FunSuite with MustMatchers {
       }, "updating with extra stuff")
 
       commit1.canCompare(commit2) must be === true
-      println(commit1.compare(commit2))
-      //commit1.compare(commit2) == 0
+
+      commit1 < commit2 must be === true
+      commit1 > commit2 must be === false
+      commit1 == commit2 must be === false
+      commit2 < commit1 must be === false
+      commit2 == commit1 must be === false
+      commit2 > commit1 must be === true
     }
     
   }

@@ -82,7 +82,7 @@ class AdeptGitRepository(val baseDir: File, val name: String) extends Logging {
     git.tag().setName(InitTag).call()
   }
 
-  private val git = usingWriteLock {
+  private[repository] val git = usingWriteLock {
     if (dir.isDirectory()) {
       val git = Git.open(dir)
       val repo = git.getRepository()
@@ -103,7 +103,7 @@ class AdeptGitRepository(val baseDir: File, val name: String) extends Logging {
     }
   }
 
-  private def usingGitRepo[A](func: JGitRepository => A): A = {
+  private[repository] def usingGitRepo[A](func: JGitRepository => A): A = {
     var repo: JGitRepository = null
     try {
       repo = git.getRepository()
@@ -129,10 +129,8 @@ class AdeptGitRepository(val baseDir: File, val name: String) extends Logging {
     } else false
   }
 
-  def getMostRecentCommit: AdeptCommit = usingGitRepo { gitRepo =>
-    usingRevWalk(gitRepo) { revWalk =>
-      new AdeptCommit(this, revWalk.lookupCommit(gitRepo.resolve(InitTag)))
-    }
+  def getMostRecentCommit: AdeptCommit = usingRevWalk { (gitRepo, revWalk) =>
+    new AdeptCommit(this, revWalk.lookupCommit(gitRepo.resolve(InitTag)))
   }
 
   def lockFile = new File(baseDir, "." + name + ".lock")
@@ -167,29 +165,28 @@ class AdeptGitRepository(val baseDir: File, val name: String) extends Logging {
     Commit(revCommit.name)
   }
 
-  private def usingRevWalk[A](gitRepo: JGitRepository)(func: RevWalk => A) = {
-    val revWalk = new RevWalk(gitRepo)
-    try {
-      func(revWalk)
-    } finally {
-      revWalk.release()
+  private def usingRevWalk[A](func: (JGitRepository, RevWalk) => A) = {
+    usingGitRepo { gitRepo =>
+      val revWalk = new RevWalk(gitRepo)
+      try {
+        func(gitRepo, revWalk)
+      } finally {
+        revWalk.release()
+      }
     }
   }
 
-  private def usingTreeWalk[A](gitRepo: JGitRepository)(func: TreeWalk => A) = {
-    val treeWalk = new TreeWalk(gitRepo)
-    try {
-      func(treeWalk)
-    } finally {
-      treeWalk.release()
-    }
-  }
+  private def usingTreeWalk[A](func: (JGitRepository, RevWalk, TreeWalk) => A) = {
+    usingRevWalk { (gitRepo, revWalk) =>
 
-  private def lookup(gitRepo: JGitRepository, string: String): AdeptCommit = {
-    usingRevWalk(gitRepo) { revWalk =>
-      val revCommit = revWalk.lookupCommit(gitRepo.resolve(InitTag))
-      new AdeptCommit(this, revCommit)
+      val treeWalk = new TreeWalk(gitRepo)
+      try {
+        func(gitRepo, revWalk, treeWalk)
+      } finally {
+        treeWalk.release()
+      }
     }
+
   }
 
   def getVariantsMetadataDir(id: Id): File = requiringLock {
@@ -223,43 +220,39 @@ class AdeptGitRepository(val baseDir: File, val name: String) extends Logging {
     }
   }
 
+  private def lookup(gitRepo: JGitRepository, revWalk: RevWalk, commit: Commit) = revWalk.lookupCommit(gitRepo.resolve(commit.value))
+
   //TODO: optimize to only look in certain paths?
   private[adept] def listContent(commit: Commit): MetadataContent = requiringLock {
     var configuredVariantsMetadata = Set.empty[ConfiguredVariantsMetadata]
 
-    usingGitRepo { gitRepo =>
-      val metadata = {
-        val containingDir = VariantsDirName
-        usingRevWalk(gitRepo) { revWalk =>
-          val revCommit = revWalk.lookupCommit(gitRepo.resolve(commit.value))
-          revWalk.markStart(revCommit)
-          usingTreeWalk(gitRepo) { treeWalk =>
-            val currentTree = revCommit.getTree()
-            if (currentTree != null) { //if null means we on empty commit
-              treeWalk.addTree(currentTree)
-              treeWalk.setRecursive(true)
-              treeWalk.setFilter(PathFilter.create(containingDir))
+    usingTreeWalk { (gitRepo, revWalk, treeWalk) =>
+      val containingDir = VariantsDirName
+      val revCommit = lookup(gitRepo, revWalk, commit)
+      revWalk.markStart(revCommit)
+      val currentTree = revCommit.getTree()
+      if (currentTree != null) { //if null means we on an empty commit (no tree)
+        treeWalk.addTree(currentTree)
+        treeWalk.setRecursive(true)
+        treeWalk.setFilter(PathFilter.create(containingDir))
 
-              while (treeWalk.next()) {
-                val currentPath = treeWalk.getPathString
-                if (treeWalk.isSubtree()) {
-                  treeWalk.enterSubtree()
-                } else if (currentPath.startsWith(containingDir) && currentPath.endsWith(JsonFileEnding)) { //TODO: more verifications?
-                  readBlob(treeWalk, gitRepo) { is =>
-                    val reader = new InputStreamReader(is)
-                    try {
-                      configuredVariantsMetadata += ConfiguredVariantsMetadata.fromJson(reader)
-                    } finally {
-                      reader.close()
-                    }
-                  }
-                }
+        while (treeWalk.next()) {
+          val currentPath = treeWalk.getPathString
+          if (treeWalk.isSubtree()) {
+            treeWalk.enterSubtree()
+          } else if (currentPath.startsWith(containingDir) && currentPath.endsWith(JsonFileEnding)) { //TODO: more verifications?
+            readBlob(treeWalk, gitRepo) { is =>
+              val reader = new InputStreamReader(is)
+              try {
+                configuredVariantsMetadata += ConfiguredVariantsMetadata.fromJson(reader)
+              } finally {
+                reader.close()
               }
-            } else {
-              logger.debug("Skipped empty commit: " + commit + " in " + dir)
             }
           }
         }
+      } else {
+        logger.debug("Skipped empty commit: " + commit + " in " + dir)
       }
     }
     MetadataContent(configuredVariantsMetadata, Set.empty)
