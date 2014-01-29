@@ -199,7 +199,6 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true) {
         attributes = attributes,
         requirements = requirements)
     }
-    //    case class ConfiguredVariantsMetadata(id: Id, metadata: Set[MetadataInfo], attributes: Set[Attribute], configurations: Set[Configuration]) {
 
     val metadata = ConfiguredVariantsMetadata(id,
       metadata = Set.empty,

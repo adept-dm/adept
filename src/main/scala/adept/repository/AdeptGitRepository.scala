@@ -267,7 +267,7 @@ class AdeptGitRepository(val baseDir: File, val name: String) extends Logging {
   def updateMetadata(removals: MetadataContent => Seq[File], additions: MetadataContent => Seq[File], commitMsg: String, commit: Commit = Commit(Head)): AdeptCommit = usingWriteLock {
     val mostRecentCommit = getMostRecentCommit
     if (!isClean) throw UpdateMetadataException(this, "Directory is not clean")
-    else if (commit == mostRecentCommit.commit || commit.value == Head) {
+    else if (commit == mostRecentCommit.commit || commit.value == Head) { //we are on Head of our branch, nothing funky required
 
       removals(listContent(commit)).foreach { file =>
         git.rm().addFilepattern(gitPath(file)).call()
@@ -292,7 +292,7 @@ class AdeptGitRepository(val baseDir: File, val name: String) extends Logging {
       } else {
         mostRecentCommit
       }
-    } else {
+    } else { //we must wedge data in between some existing commits
       ???
     }
   }
