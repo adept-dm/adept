@@ -21,15 +21,16 @@ class IvyHelperTest extends FunSuite with MustMatchers {
   }
 
   test("Ivy advanced tests (uses other resolvers, more complicated resolution)") {
-    val ivy = IvyHelper.load(Some("src/test/resources/ivysettings.xml"), ivyLogger = IvyHelper.debugIvyLogger)
-    
-    
-        ivy.resolve(ModuleRevisionId.newInstance("com.typesafe.play", "play-json_2.10", "2.2.1"), IvyHelper.resolveOptions(), true)
-    
-    
-    //val ivyHelper = new IvyHelper(ivy)
-
-    import EitherValues._
+      
+//    val ivy = IvyHelper.load(Some("src/test/resources/ivysettings.xml"), ivyLogger = IvyHelper.debugIvyLogger)
+//    
+//    
+//        ivy.resolve(ModuleRevisionId.newInstance("com.typesafe.play", "play-json_2.10", "2.2.1"), IvyHelper.resolveOptions(), true)
+//    
+//    
+//    //val ivyHelper = new IvyHelper(ivy)
+//
+//     import EitherValues._
 
     //val results = ivyHelper.ivyImport("com.typesafe.play", "play-json_2.10", "2.2.1").right.value
     //results.foreach { result =>
