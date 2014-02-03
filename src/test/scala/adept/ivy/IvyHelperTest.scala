@@ -21,22 +21,26 @@ class IvyHelperTest extends FunSuite with MustMatchers {
   }
 
   test("Ivy advanced tests (uses other resolvers, more complicated resolution)") {
-      
-//    val ivy = IvyHelper.load(Some("src/test/resources/ivysettings.xml"), ivyLogger = IvyHelper.debugIvyLogger)
-//    
-//    
-//        ivy.resolve(ModuleRevisionId.newInstance("com.typesafe.play", "play-json_2.10", "2.2.1"), IvyHelper.resolveOptions(), true)
-//    
-//    
-//    //val ivyHelper = new IvyHelper(ivy)
-//
-//     import EitherValues._
 
-    //val results = ivyHelper.ivyImport("com.typesafe.play", "play-json_2.10", "2.2.1").right.value
-    //results.foreach { result =>
-      //println(result.variantsMetadata.toString)
-    //}
+    //    val ivy = IvyHelper.load(Some("src/test/resources/ivysettings.xml"), ivyLogger = IvyHelper.debugIvyLogger)
 
-    //ivyHelper.insert(results, baseDir)
+    //    val ivyHelper = new IvyHelper(ivy)
+    //    val results = ivyHelper.ivyImport("com.typesafe.play", "play-json_2.10", "2.2.1").right.value
+
+    //    results.foreach { result =>
+    //      println(result.variantsMetadata.toString)
+    //    }
+    //
+    //    ivyHelper.insert(results, baseDir)
   }
+
+  test("Ivy insert test") {
+    import EitherValues._
+    val ivy = IvyHelper.load()
+    val ivyHelper = new IvyHelper(ivy)
+    val results = ivyHelper.ivyImport("net.sf.ehcache", "ehcache-core", "2.6.6").right.value
+    
+    
+  }
+
 }

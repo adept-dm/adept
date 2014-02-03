@@ -25,6 +25,7 @@ import adept.repository.models.configuration._
 case class AdeptIvyResolveException(msg: String) extends Exception(msg)
 case class AdeptIvyException(msg: String) extends Exception(msg)
 
+//case class IvyImportResult(mrid: ModuleRevisionId, variantsMetadata: ConfiguredVariantsMetadata, dependencyTree: Map[ModuleRevisionId, Set[ModuleRevisionId]], artifacts: Set[Artifact], localFiles: Map[Artifact, File])
 case class IvyImportResult(mrid: ModuleRevisionId, variantsMetadata: ConfiguredVariantsMetadata, artifacts: Set[Artifact], localFiles: Map[Artifact, File])
 
 object IvyHelper extends Logging {
@@ -33,7 +34,7 @@ object IvyHelper extends Logging {
   def createId(name: String) = {
     Id(name)
   }
-  
+
   lazy val errorIvyLogger = new DefaultMessageLogger(Message.MSG_ERR)
   lazy val warnIvyLogger = new DefaultMessageLogger(Message.MSG_WARN)
   lazy val infoIvyLogger = new DefaultMessageLogger(Message.MSG_INFO)
@@ -73,7 +74,7 @@ object IvyHelper extends Logging {
   }
 }
 
-class IvyHelper(ivy: Ivy, changing: Boolean = true) {
+class IvyHelper(ivy: Ivy, changing: Boolean = true) extends Logging {
   import AttributeDefaults.{ NameAttribute, OrgAttribute, VersionAttribute, ArtifactConfAttribute }
   import IvyHelper._
 
@@ -103,7 +104,7 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true) {
       if (safeGuard == SafeGuardLimit) throw AdeptIvyException("Got into loop while inserting from Ivy? Tried to insert: " + SafeGuardLimit + " times, which is set as max")
 
       val currentResults = unhandledResults.filter { result => //TODO: stop when currentResults is 0 instead of silly safe guard!
-        
+
         true
       }
     }
@@ -127,11 +128,11 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true) {
         if (caller.getModuleRevisionId != ivyNode.getId) addDependency(caller.getModuleRevisionId, ivyNode)
       }
     }
+    println(dependencies)
     dependencies
   }
 
-  def createIvyResult(mrid: ModuleRevisionId, children: Set[IvyNode]): IvyImportResult = {
-
+  def createIvyResult(mrid: ModuleRevisionId, unloadedChildren: Set[IvyNode]): IvyImportResult = {
     val id = createId(mrid.getName)
     val versionAttribute = Attribute(VersionAttribute, Set(mrid.getRevision()))
     val nameAttribute = Attribute(NameAttribute, Set(mrid.getName()))
@@ -143,16 +144,31 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true) {
     var allArtifacts: Set[Artifact] = Set.empty
     var allArtifactFiles: Map[Artifact, File] = Map.empty
     var configurations = Set.empty[Configuration]
+    val dependencyReport = ivy.resolve(mrid, resolveOptions(), changing)
+    val moduleDescriptor = dependencyReport.getModuleDescriptor()
+    val unloadedChildrenMrid = unloadedChildren.map(_.getId())
 
-    val moduleDescriptor = ivy.resolve(mrid, resolveOptions(), changing).getModuleDescriptor
     moduleDescriptor.getConfigurations().foreach { ivyConfiguration =>
       val confName = ivyConfiguration.getName
 
-      val requirements = children.map { ivyNode =>
-        val requirementId = createId(ivyNode.getId.getName)
+      val children = dependencyReport.getDependencies().asScala.flatMap { //we cannot use unloadedChildren directly, because they might not be loaded (if they are provided/eviceted)
+        case ivyNode: IvyNode =>
+          if (unloadedChildrenMrid(ivyNode.getId)) {
+            Some(ivyNode)
+          } else None
+      }.toSet
 
-        //we do not care if an ivyNode is evicted, we might still possibly need it so
-        //no need to check: ivyNode.isEvicted(confName))
+      val (loaded, notLoaded) = children.partition(_.isLoaded)
+
+      notLoaded.foreach { ivyNode =>
+        if (ivyNode.isEvicted(confName))
+          logger.warn(ivyNode + " was not loaded but it is also evicted, so skipping! ") //TODO: is this acceptable? if not find a way to load ivy nodes...
+        else
+          logger.error(ivyNode + " was not loaded and NOT evicted, so skipping! This is potentially a problem") //TODO: is this acceptable? if not find a way to load ivy nodes...
+      }
+
+      val requirements = loaded.map { ivyNode => //evicted nodes are not loaded, we are importing one by one so it is fine
+        val requirementId = createId(ivyNode.getId.getName)
 
         val extraAttributes = moduleDescriptor.getExtraAttributes
         val constraints: Set[Constraint] = extraAttributes.asScala.flatMap {
@@ -164,6 +180,7 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true) {
           Constraint(NameAttribute, Set(ivyNode.getId.getName)),
           Constraint(VersionAttribute, Set(ivyNode.getId.getRevision)))
         val configurations = {
+          println(mrid + " @ " + ivyNode + "   " + confName + " is " + ivyNode.isEvicted(confName))
           val ivyConfigurations = ivyNode.getConfigurations(confName).toSet.map(ivyNode.getConfiguration)
           ivyConfigurations.map(c => ConfigurationId(c.getName))
         }
