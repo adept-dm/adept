@@ -14,6 +14,8 @@ sealed trait ResolveResult {
   val state: State
   val graph: Set[Node]
 
+  def isResolved = state.isResolved
+  
   def graphAsString: String = {
     var printedIds = Set.empty[Id]
 

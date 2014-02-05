@@ -25,9 +25,6 @@ import adept.repository.models.configuration._
 case class AdeptIvyResolveException(msg: String) extends Exception(msg)
 case class AdeptIvyException(msg: String) extends Exception(msg)
 
-//case class IvyImportResult(mrid: ModuleRevisionId, variantsMetadata: ConfiguredVariantsMetadata, dependencyTree: Map[ModuleRevisionId, Set[ModuleRevisionId]], artifacts: Set[Artifact], localFiles: Map[Artifact, File])
-case class IvyImportResult(mrid: ModuleRevisionId, variantsMetadata: ConfiguredVariantsMetadata, artifacts: Set[Artifact], localFiles: Map[Artifact, File])
-
 object IvyHelper extends Logging {
   import AttributeDefaults.{ NameAttribute, OrgAttribute, VersionAttribute }
 
@@ -71,6 +68,51 @@ object IvyHelper extends Logging {
     resolveOptions.setDownload(true)
     resolveOptions.setOutputReport(false) //TODO: to true?
     resolveOptions
+  }
+  
+  
+  def insert(results: Set[IvyImportResult], baseDir: File) = {
+    logger.warn("NOT IMPLEMENTED")
+    results.foreach { result =>
+      val repoId = result.mrid.getOrganisation()
+      val adeptGitRepo = new AdeptGitRepository(baseDir, repoId)
+      
+      adeptGitRepo.updateMetadata({ content =>
+        content.variantsMetadata.map(_.file(adeptGitRepo)).toSeq
+      }, { content =>
+        Seq(result.variantsMetadata.write(adeptGitRepo))
+      }, "Ivy import of: " + result.mrid)
+    }
+    
+//    var repositories = Set.empty[AdeptCommit]
+//    var repositoryMap = Map.empty[ModuleRevisionId, LocalGitRepository]
+//    var handledResults = Set.empty[ModuleRevisionId]
+//    var unhandledResults = results
+//
+//    var safeGuard = 0
+//    while (handledResults.size < results.size) {
+//      safeGuard += 1
+//      if (safeGuard == SafeGuardLimit) throw new Exception("Got into loop while inserting from Ivy? Tried to insert: " + SafeGuardLimit + " times, which is set as max")
+//
+//      val currentResults = unhandledResults.filter { result => //TODO: stop when currentResults is 0 instead of silly safe guard!
+//        result.variants.forall { variant =>
+//          variant.dependencies.isEmpty || {
+//            variant.dependencies.forall { dependency =>
+//              if (VariantBuilder.stripConfig(dependency.id) == VariantBuilder.stripConfig(variant.id)) { //TODO: evaluate if this is right - we do it because of the "configuration" dependencies that just depend on the module itself  
+//                true
+//              } else {
+//                handledResults(dependencyAsMrid(dependency)) //we are relying on the fact that we get the complete tree even if the id, values are already present
+//              }
+//            }
+//          }
+//        }
+//      }
+//      val currentRepositories = updateRepositories(results, baseDir) 
+//      repositories ++= currentRepositories
+//      handledResults ++= currentResults.map(_.mrid)
+//      unhandledResults --= currentResults
+//    }
+//    repositories
   }
 }
 

@@ -65,7 +65,7 @@ case class ConfiguredVariantsMetadata(id: Id, metadata: Set[MetadataInfo], attri
     Hash(md.digest().map(b => "%02x" format b).mkString)
   }
 
-  def toVariants(): Set[(Variant, Set[RepositoryMetadata])] = {
+  def toVariants: Set[(Variant, Set[RepositoryMetadata])] = {
     //This Variant is needed to make sure there never different variants in different configurations with the same 'base' Id that is correctly resolved
     val baseVariant = Variant(id, attributes = attributes + Attribute(Configuration.ConfigurationHashAttributeName, Set(hash.value)))
 

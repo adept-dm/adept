@@ -16,7 +16,7 @@ object ConfiguredVariantsMetadataTestData {
     artifacts = Set(ArtifactRef(Hash("12345"), Set(Attribute("configuration", Set("master"))), Some("filename.jar"))),
     attributes = Set(Attribute("attr1", Set("foo"))),
     requirements = Set(ConfiguredRequirement(Id("mooboo"), Set(ConfigurationId("compile"), ConfigurationId("master")),
-      constraints = Set(Constraint("binary-version", Set("1.0"))),
+      constraints = Set(Constraint("version", Set("1.0.0"))),
       commits = Set(RepositoryMetadata("loco.com", commit = Commit("mooboo456commit"), uris = Set("git@git://github.com/loco/mooboo.git"), info = "version = 1.0.0")))))
 
   val runtimeConf = Configuration(

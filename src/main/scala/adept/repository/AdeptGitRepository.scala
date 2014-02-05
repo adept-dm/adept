@@ -16,6 +16,7 @@ import org.eclipse.jgit.treewalk.TreeWalk
 import org.eclipse.jgit.treewalk.filter.PathFilter
 import java.io.InputStream
 import java.io.InputStreamReader
+import org.eclipse.jgit.revwalk.filter.RevFilter
 
 case class WriteLockException(repo: AdeptGitRepository, reason: String) extends Exception("Could not lock '" + repo.dir.getAbsolutePath + "': " + reason)
 case class InitException(repo: AdeptGitRepository, reason: String) extends Exception("Could not initialize '" + repo.dir.getAbsolutePath + "': " + reason)
@@ -137,28 +138,27 @@ class AdeptGitRepository(val baseDir: File, val name: String) extends Logging {
 
   @volatile private var locked = false
 
-  private def usingWriteLock[A](func: => A): A = synchronized {
-    var lock: FileLock = null
-    try {
-      val channel = new RandomAccessFile(lockFile, "rw").getChannel();
-      lock = channel.tryLock() //TODO: re-throw: java.nio.channels.OverlappingFileLockException
-      if (lock == null) throw WriteLockException(this, "Could not acquire lock: " + lockFile + ".")
-      else {
-        locked = true
-        func
+  private def usingWriteLock[A](func: => A): A = {
+    if (!locked) {
+      synchronized {
+        var lock: FileLock = null
+        try {
+          val channel = new RandomAccessFile(lockFile, "rw").getChannel();
+          lock = channel.tryLock() //TODO: re-throw: java.nio.channels.OverlappingFileLockException
+          if (lock == null) throw WriteLockException(this, "Could not acquire lock: " + lockFile + ".")
+          else {
+            locked = true
+            func
+          }
+        } finally {
+          if (lock != null) {
+            lock.release()
+            lockFile.delete()
+            locked = false
+          }
+        }
       }
-    } finally {
-      if (lock != null) {
-        lock.release()
-        lockFile.delete()
-        locked = false
-      }
-    }
-  }
-
-  private def requiringLock[A](func: => A): A = {
-    if (locked == false) throw WriteLockException(this, "Required lock, but it was not set.")
-    func
+    } else throw WriteLockException(this, "Could not acquire lock (this is already locked): " + lockFile + ".")
   }
 
   private implicit def revCommitToCommit(revCommit: RevCommit): Commit = {
@@ -176,6 +176,15 @@ class AdeptGitRepository(val baseDir: File, val name: String) extends Logging {
     }
   }
 
+  private def usingTreeWalk[A](gitRepo: JGitRepository, revWalk: RevWalk)(func: (JGitRepository, RevWalk, TreeWalk) => A) = {
+    val treeWalk = new TreeWalk(gitRepo)
+    try {
+      func(gitRepo, revWalk, treeWalk)
+    } finally {
+      treeWalk.release()
+    }
+  }
+
   private def usingTreeWalk[A](func: (JGitRepository, RevWalk, TreeWalk) => A) = {
     usingRevWalk { (gitRepo, revWalk) =>
 
@@ -189,7 +198,7 @@ class AdeptGitRepository(val baseDir: File, val name: String) extends Logging {
 
   }
 
-  def getVariantsMetadataDir(id: Id): File = requiringLock {
+  def getVariantsMetadataDir(id: Id): File = {
     val dir = id.value.split(IdDirSep).foldLeft(getVariantsDir(baseDir, name)) { (currentPath, dir) =>
       new File(currentPath, dir)
     }
@@ -220,42 +229,45 @@ class AdeptGitRepository(val baseDir: File, val name: String) extends Logging {
     }
   }
 
-  private def lookup(gitRepo: JGitRepository, revWalk: RevWalk, commit: Commit) = revWalk.lookupCommit(gitRepo.resolve(commit.value))
+  private def lookup(gitRepo: JGitRepository, revWalk: RevWalk, commitString: String) = revWalk.lookupCommit(gitRepo.resolve(commitString))
 
   //TODO: optimize to only look in certain paths?
-  private[adept] def listContent(commit: Commit): MetadataContent = requiringLock {
+  private[adept] def listContent(commitString: String, gitRepo: JGitRepository, revWalk: RevWalk, treeWalk: TreeWalk) = {
     var configuredVariantsMetadata = Set.empty[ConfiguredVariantsMetadata]
+    val containingDir = VariantsDirName
+    val revCommit = lookup(gitRepo, revWalk, commitString)
+    revWalk.markStart(revCommit)
+    val currentTree = revCommit.getTree()
+    if (currentTree != null) { //if null means we on an empty commit (no tree)
+      treeWalk.addTree(currentTree)
+      treeWalk.setRecursive(true)
+      treeWalk.setFilter(PathFilter.create(containingDir))
 
-    usingTreeWalk { (gitRepo, revWalk, treeWalk) =>
-      val containingDir = VariantsDirName
-      val revCommit = lookup(gitRepo, revWalk, commit)
-      revWalk.markStart(revCommit)
-      val currentTree = revCommit.getTree()
-      if (currentTree != null) { //if null means we on an empty commit (no tree)
-        treeWalk.addTree(currentTree)
-        treeWalk.setRecursive(true)
-        treeWalk.setFilter(PathFilter.create(containingDir))
-
-        while (treeWalk.next()) {
-          val currentPath = treeWalk.getPathString
-          if (treeWalk.isSubtree()) {
-            treeWalk.enterSubtree()
-          } else if (currentPath.startsWith(containingDir) && currentPath.endsWith(JsonFileEnding)) { //TODO: more verifications?
-            readBlob(treeWalk, gitRepo) { is =>
-              val reader = new InputStreamReader(is)
-              try {
-                configuredVariantsMetadata += ConfiguredVariantsMetadata.fromJson(reader)
-              } finally {
-                reader.close()
-              }
+      while (treeWalk.next()) {
+        val currentPath = treeWalk.getPathString
+        if (treeWalk.isSubtree()) {
+          treeWalk.enterSubtree()
+        } else if (currentPath.startsWith(containingDir) && currentPath.endsWith(JsonFileEnding)) { //TODO: more verifications?
+          readBlob(treeWalk, gitRepo) { is =>
+            val reader = new InputStreamReader(is)
+            try {
+              configuredVariantsMetadata += ConfiguredVariantsMetadata.fromJson(reader)
+            } finally {
+              reader.close()
             }
           }
         }
-      } else {
-        logger.debug("Skipped empty commit: " + commit + " in " + dir)
       }
+    } else {
+      logger.debug("Skipped empty commit: " + commitString + " in " + dir)
     }
     MetadataContent(configuredVariantsMetadata, Set.empty)
+  }
+
+  private[adept] def listContent(commitString: String): MetadataContent = {
+    usingTreeWalk { (gitRepo, revWalk, treeWalk) =>
+      listContent(commitString, gitRepo, revWalk, treeWalk)
+    }
   }
 
   /**
@@ -269,11 +281,11 @@ class AdeptGitRepository(val baseDir: File, val name: String) extends Logging {
     if (!isClean) throw UpdateMetadataException(this, "Directory is not clean")
     else if (commit == mostRecentCommit.commit || commit.value == Head) {
 
-      removals(listContent(commit)).foreach { file =>
+      removals(listContent(commit.value)).foreach { file =>
         git.rm().addFilepattern(gitPath(file)).call()
       }
 
-      additions(listContent(commit)).foreach { file =>
+      additions(listContent(commit.value)).foreach { file =>
         git.add().addFilepattern(gitPath(file)).call()
       }
 
@@ -297,25 +309,43 @@ class AdeptGitRepository(val baseDir: File, val name: String) extends Logging {
     }
   }
 
+
   /**
-   *  Search backwards in the Git history and find the first metadata
-   *  matching the `func` function.
+   *  Search backwards in the Git history for some metadata
+   *  matching `func`.
+   *
+   *  Returns all content
    */
-  def scanFirst(func: ConfiguredVariantsMetadata => Boolean): Option[(AdeptCommit, ConfiguredVariantsMetadata)] = {
-    ???
+  private[adept] def scanFirst(func: MetadataContent => Boolean): Option[(AdeptCommit, MetadataContent)] = {
+    scanAll(true)(func).headOption
   }
 
   /**
-   *  Search backwards in the Git history and find all metadata matching the
-   *  `func` function.
+   * Search backwards in the Git history and finds all commits
+   * where metadata content matches `func`.
    */
-  def scan(func: ConfiguredVariantsMetadata => Boolean): Seq[(AdeptCommit, ConfiguredVariantsMetadata)] = {
-    ???
+  private[adept] def scan(func: MetadataContent => Boolean): Seq[(AdeptCommit, MetadataContent)] = {
+    scanAll(false)(func)
   }
 
-  private def scanAll(stopAtFirst: Boolean)(func: ConfiguredVariantsMetadata => Boolean): Seq[(AdeptCommit, ConfiguredVariantsMetadata)] = {
+  private def scanAll(stopAtFirst: Boolean)(func: MetadataContent => Boolean): Seq[(AdeptCommit, MetadataContent)] = {
+    usingRevWalk { (gitRepo, revWalk) =>
+      revWalk.markStart(revWalk.lookupCommit(gitRepo.resolve(Constants.HEAD)))
 
-    ???
+      revWalk.setRevFilter(RevFilter.NO_MERGES) //skip merges because a merge does not map to a release (I am not a 100% sure that this is correct)
+      val it = revWalk.iterator()
+      var results: Seq[(AdeptCommit, MetadataContent)] = Seq.empty
+
+      while (it.hasNext && !(results.nonEmpty && stopAtFirst)) { //if there are results and we stop at first, we stop...
+        val revCommit = it.next()
+        val content = usingTreeWalk(gitRepo, revWalk)((gitRepo, revWalk, treeWalk) => listContent(revCommit.name, gitRepo, revWalk, treeWalk))
+
+        if (func(content)) {
+          results =  results :+ (AdeptCommit(this, Commit(revCommit.name)) -> content)
+        }
+      }
+      results
+    }
   }
 
 }

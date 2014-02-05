@@ -5,4 +5,5 @@ object AttributeDefaults {
   val OrgAttribute = "organization"
   val VersionAttribute = "version"
   val ArtifactConfAttribute = "configurations"
+  val BinaryVersionAttribute = "binary-version"
 }
