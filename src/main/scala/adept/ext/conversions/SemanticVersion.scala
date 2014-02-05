@@ -28,10 +28,11 @@ class SemanticVersion(ids: Set[Id]) extends Conversion {
           val binaryConstraint = requirement.constraints.find(_.name == AttributeDefaults.VersionAttribute) match {
             case Some(Constraint(AttributeDefaults.VersionAttribute, values)) if values.size == 1 => values.headOption.flatMap { version =>
               version match {
+                //we might fail if the version constraints looks different than what we are expected to. perhaps better?
                 case SemanticVersionRegEx(major, minor, point) => Some(Constraint(AttributeDefaults.BinaryVersionAttribute, Set(major + "." + minor)))
-                case _ => None
               }
-            } //we might fail if the version constraints looks different than what we are expected to. perhaps better?
+            } 
+            case None => None
           }
           Some(requirement.copy(constraints = requirement.constraints ++ binaryConstraint))
         } else Some(requirement)
