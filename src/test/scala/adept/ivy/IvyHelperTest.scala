@@ -58,10 +58,10 @@ class IvyHelperTest extends FunSuite with MustMatchers {
         import EitherValues._
         ivyResults.right.value.map(_.convertWith(ScalaBinaryVersion).value.convertWith(semanticVersion).value)
       }
+      IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe.akka", "akka-actor", "2.0.5")), tmpDir)
       println(convert(ivyHelper.ivyImport("com.typesafe.akka", "akka-actor_2.10", "2.1.0")).mkString("\n"))
 
 
-      //      IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe.akka", "akka-actor", "2.0.5")), tmpDir)
       //      IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe.akka", "akka-actor_2.10", "2.1.0")), tmpDir)
       //      IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe.akka", "akka-actor_2.10", "2.2.0")), tmpDir)
       //      IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe.akka", "akka-actor_2.10", "2.2.1")), tmpDir)
