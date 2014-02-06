@@ -17,6 +17,9 @@ import adept.repository.models.configuration.ConfigurationId
 import net.sf.ehcache.CacheManager
 import adept.repository.models.RepositoryMetadata
 import adept.repository.models.configuration.ConfiguredRequirement
+import adept.resolution.models.UnderconstrainedResult
+import adept.resolution.models.ResolvedResult
+import adept.resolution.models.OverconstrainedResult
 
 object AdeptRepository {
   import sbt.complete.DefaultParsers._
@@ -115,6 +118,8 @@ object Faked { //REMOVE THIS when finished testing (used for hard coding)
 class AdeptManager(baseDir: File, lockFile: File) {
 
   def install(repo: String, conf: String, id: String, constraints: Set[(String, Seq[String])]) = {
+    val firstTime = System.currentTimeMillis
+
     val parsedConstraints = constraints.map { case (name, values) => Constraint(name, values.toSet) }
     val gitRepo = new AdeptGitRepository(baseDir, repo)
 
@@ -122,17 +127,51 @@ class AdeptManager(baseDir: File, lockFile: File) {
 
     val newReq = ConfiguredRequirement(id = Id(id), configurations = Set(ConfigurationId("compile")), commit = RepositoryMetadata(repo, Set.empty, Commit("HEAD"), "ivy import"),
       constraints = parsedConstraints)
+
+    //TODO: lookup first variant, load all of it's transitive repos from /repos/akka-actor/14122132.json
     Faked.fakeRequirements = Faked.fakeRequirements + newReq
 
     val gitVariantsLoader = new GitVariantsLoader(Faked.fakeCommits, cacheManager = CacheManager.create)
     val gitResolver = new Resolver(gitVariantsLoader)
 
     val requirements = Faked.fakeRequirements.flatMap(_.asRequirements)
-    println(requirements)
+    //println(requirements)
     val result = gitResolver.resolve(requirements)
 
-    println(result)
-    if (result.state.isOverconstrained) {
+    //println(result)
+    val resultString =
+      result match {
+        case _: ResolvedResult =>
+          "Resolved (" + (System.currentTimeMillis - firstTime) + "ms)"
+        case _: OverconstrainedResult =>
+          val help = result.state.overconstrained.toSeq.sortBy(_.value).map { id =>
+            if (gitVariantsLoader.loadVariants(id, result.state.constraints(id)).isEmpty) {
+              if (gitVariantsLoader.loadVariants(id, Set.empty).isEmpty) {
+                id + " cannot be found in repositories: " + Faked.fakeCommits.map(_.repo.name).mkString(" or ")
+              } else {
+                id + result.state.constraints(id).map(c => c.name + "=" + c.values.mkString("(", ",", ")")).mkString(" with ", " and ", " does not exist")
+              }
+            } else {
+              id + " conflicts " + result.state.constraints(id).map(c => c.name + "=" + c.values.mkString("(", ",", ")")).mkString(",")
+            }
+          }.mkString("\n")
+          "Over-constrained (" + (System.currentTimeMillis - firstTime) + "ms):\n" + help
+        case underConstrainedResult: UnderconstrainedResult =>
+          val help = "Choose between:\n" + (if (underConstrainedResult.optimalStates.nonEmpty) {
+            underConstrainedResult.optimalStates.map(s => (s.implicitVariants ++ s.resolvedVariants).flatMap {
+              case (foundId, foundVariant) =>
+                if (result.state.underconstrained(foundId)) Some(foundVariant)
+                else None
+            }.toSet): Set[Set[Variant]]
+          } else {
+            result.state.underconstrained.map(id => gitVariantsLoader.loadVariants(id, parsedConstraints)): Set[Set[Variant]]
+          }).map(_.map(_.attributes.map(a => a.name + "=" + a.values.mkString("(", ",", ")")).mkString("<", ",", ">")).mkString(" OR ")).mkString("\n")
+          //println(underConstrainedResult)
+          "Under-constrained (" + (System.currentTimeMillis - firstTime) + "ms): " + result.state.underconstrained.mkString(",") + ":\n" + help
+      }
+    println(resultString)
+    
+    if (!result.isResolved) { //TODO: I am not sure whether it is right to only store result if resolvd (if we are under-constrained it would be nice to increase precision..)
       Faked.fakeRequirements -= newReq
     }
 
@@ -158,17 +197,16 @@ object AdeptPlugin extends Plugin {
 
       val repositoires = token(Space ~> AdeptRepository.repositoryParser) flatMap { repo =>
         token(RepositorySep ~> AdeptRepository.idParser(repo)).flatMap { id =>
-          token(Space ~> charClass(_ => true, "").*).map { binaryVersionChars =>
-            val binaryVersion = binaryVersionChars.mkString.trim()
-
+          token((Space ~> charClass(_ => true, "").*) | charClass(_ => true, "").*).map { binaryVersionsChars =>
+            val binaryVersionsString = binaryVersionsChars.mkString
+            val binaryVersion = binaryVersionsString.trim().split(" ").map(_.trim()).filter(_.nonEmpty)
             val constraints =
               if (binaryVersion.isEmpty)
                 Set.empty[(String, Seq[String])]
               else
-                Set("binary-version" -> Seq(binaryVersion))
+                Set("binary-version" -> binaryVersion.toSeq)
 
             new InstallAdeptCommand(repo, "compile", id, constraints)(adeptManager)
-
           }
         }
       }

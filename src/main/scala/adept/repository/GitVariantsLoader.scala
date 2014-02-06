@@ -13,7 +13,7 @@ class GitVariantsLoader(commits: Set[AdeptCommit], cacheManager: CacheManager) e
 
   private def createCache(commit: AdeptCommit) = {
     val cacheName = commit.repo.name + "-" + commit.repo.baseDir.getAbsolutePath.hashCode + "-" + this.hashCode + "-" + commit.commit.value
-    cacheManager.addCache(cacheName) //TODO: if cache.exists then use
+    cacheManager.addCacheIfAbsent(cacheName) //TODO: if cache.exists then use
     commit -> cacheManager.getEhcache(cacheName)
   }
 
@@ -22,15 +22,15 @@ class GitVariantsLoader(commits: Set[AdeptCommit], cacheManager: CacheManager) e
       case (adeptCommit, cache) =>
         val repo = adeptCommit.repo
         val commit = adeptCommit.commit //FIXME: AdeptCommit is perhaps not a good name, because it makes this awkward
-        
+
         val allVariants = {
           val cachedValues = cache.get(id.value)
           if (cache.isKeyInCache(id.value) && cachedValues != null) {
             cachedValues.getValue().asInstanceOf[Set[Variant]]
           } else {
             val allVariants: Set[Variant] = repo.listContent(commit.value).variantsMetadata.flatMap(_.toVariants(repo.name)).map(_._1)
-//            println("FOUND")
-//            println(allVariants.mkString("\n"))
+            //            println("FOUND")
+            //            println(allVariants.mkString("\n"))
             val element = new Element(id.value, allVariants)
             cache.put(element)
             allVariants
