@@ -20,6 +20,7 @@ import adept.repository.models.configuration.ConfiguredRequirement
 import adept.resolution.models.UnderconstrainedResult
 import adept.resolution.models.ResolvedResult
 import adept.resolution.models.OverconstrainedResult
+import adept.resolution.models.ResolveResult
 
 object AdeptRepository {
   import sbt.complete.DefaultParsers._
@@ -68,11 +69,11 @@ class IvyImportCommand(org: String, name: String, revision: String) extends Adep
   }
 }
 
-class InstallAdeptCommand(repo: String, conf: String, id: String, constraints: Set[(String, Seq[String])])(adeptManager: AdeptManager) extends AdeptCommand {
+class SetAdeptCommand(repo: String, conf: String, id: String, constraints: Set[(String, Seq[String])])(adeptManager: AdeptManager) extends AdeptCommand {
   import sbt.complete.DefaultParsers._
 
   def execute(): Unit = {
-    adeptManager.install(repo, conf, id, constraints)
+    adeptManager.set(repo, conf, id, constraints)
   }
 }
 
@@ -113,11 +114,14 @@ object Faked { //REMOVE THIS when finished testing (used for hard coding)
   def fakeCommits = fakeRequirements.map { r =>
     AdeptCommit(new AdeptGitRepository(baseDir, r.commit.name), r.commit.commit)
   }
+  val cacheManager = CacheManager.create
+  var result: Option[ResolveResult] = None
 }
 
 class AdeptManager(baseDir: File, lockFile: File) {
 
-  def install(repo: String, conf: String, id: String, constraints: Set[(String, Seq[String])]) = {
+  def set(repo: String, conf: String, id: String, constraints: Set[(String, Seq[String])]) = {
+    Faked.fakeRequirements = Faked.fakeRequirements.filter(_.id != Id(id))
     val firstTime = System.currentTimeMillis
 
     val parsedConstraints = constraints.map { case (name, values) => Constraint(name, values.toSet) }
@@ -127,14 +131,13 @@ class AdeptManager(baseDir: File, lockFile: File) {
 
     val newReq = ConfiguredRequirement(id = Id(id), configurations = Set(ConfigurationId("compile")), commit = RepositoryMetadata(repo, Set.empty, Commit("HEAD"), "ivy import"),
       constraints = parsedConstraints)
-    val cacheManager = CacheManager.create
 
     //TODO: lookup first variant, load all of it's transitive repos from /repos/akka-actor/14122132.json
     Faked.fakeRequirements = Faked.fakeRequirements + newReq
     val commits = {
 
       val requiredCommits = Faked.fakeCommits
-      val gitVariantsLoader = new GitVariantsLoader(requiredCommits, cacheManager = cacheManager)
+      val gitVariantsLoader = new GitVariantsLoader(requiredCommits, cacheManager = Faked.cacheManager)
 
       val newMatchingVariants = gitVariantsLoader.read(Id(id), parsedConstraints)
       //We need the repositories associated with 
@@ -150,12 +153,14 @@ class AdeptManager(baseDir: File, lockFile: File) {
       } ++ requiredCommits
     }
 
-    val gitVariantsLoader = new GitVariantsLoader(commits, cacheManager = cacheManager)
+    val gitVariantsLoader = new GitVariantsLoader(commits, cacheManager = Faked.cacheManager)
     val gitResolver = new Resolver(gitVariantsLoader)
 
     val requirements = Faked.fakeRequirements.flatMap(_.asRequirements)
     //println(requirements)
     val result = gitResolver.resolve(requirements)
+
+    Faked.result = Some(result)
 
     //println(result)
     val resultString =
@@ -208,7 +213,8 @@ object AdeptPlugin extends Plugin {
     adeptDirectory := Path.userHome / ".adept",
     sbt.Keys.commands += {
 
-      val Install = token("install")
+      val SetCommand = token("set")
+      val StateCommand = token("state")
       val IvyImport = token("ivy-import")
 
       val RepositorySep = token("/")
@@ -225,12 +231,12 @@ object AdeptPlugin extends Plugin {
               else
                 Set("binary-version" -> binaryVersion.toSeq)
 
-            new InstallAdeptCommand(repo, "compile", id, constraints)(adeptManager)
+            new SetAdeptCommand(repo, "compile", id, constraints)(adeptManager)
           }
         }
       }
 
-      val install = Install ~> repositoires
+      val set = SetCommand ~> repositoires
 
       val ivyImport = (IvyImport ~> (Space ~> charClass(_ => true, "ivy-organization").+.flatMap { orgChars =>
         val org = orgChars.mkString
@@ -243,7 +249,15 @@ object AdeptPlugin extends Plugin {
         }
       }))
 
-      val adept = (Space ~> (install | ivyImport))
+      val state = StateCommand.map { _ =>
+        new AdeptCommand {
+          def execute() = {
+            println(Faked.result)
+          }
+        }
+
+      }
+      val adept = (Space ~> (set | ivyImport | state))
 
       Command("adept")(_ => adept) { (state, adeptCommand) =>
         adeptCommand.execute()
