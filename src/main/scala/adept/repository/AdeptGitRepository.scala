@@ -236,7 +236,13 @@ class AdeptGitRepository(val baseDir: File, val name: String) extends Logging {
     var configuredVariantsMetadata = Set.empty[ConfiguredVariantsMetadata]
     val containingDir = VariantsDirName
     val revCommit = lookup(gitRepo, revWalk, commitString)
-    revWalk.markStart(revCommit)
+    try { 
+      revWalk.markStart(revCommit)
+    } catch {
+      case e: org.eclipse.jgit.errors.MissingObjectException => 
+        throw new Exception("Cannot find commit: " + commitString + " in " + dir, e)
+    }
+    
     val currentTree = revCommit.getTree()
     if (currentTree != null) { //if null means we on an empty commit (no tree)
       treeWalk.addTree(currentTree)
@@ -265,7 +271,7 @@ class AdeptGitRepository(val baseDir: File, val name: String) extends Logging {
   }
 
   private[adept] def listContent(commitString: String): MetadataContent = {
-    usingTreeWalk { (gitRepo, revWalk, treeWalk) =>
+    usingTreeWalk { (gitRepo, revWalk, treeWalk) => 
       listContent(commitString, gitRepo, revWalk, treeWalk)
     }
   }

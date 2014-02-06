@@ -11,6 +11,11 @@ import adept.repository.models.configuration.ConfiguredRequirement
 import adept.repository.AdeptCommit
 import adept.resolution.Resolver
 import adept.repository.GitVariantsLoader
+import adept.repository.models.Commit
+import adept.repository.models.configuration.ConfiguredRequirement
+import adept.repository.models.configuration.ConfigurationId
+import net.sf.ehcache.CacheManager
+import adept.repository.models.RepositoryMetadata
 
 object AdeptRepository {
   import sbt.complete.DefaultParsers._
@@ -63,11 +68,11 @@ class IvyImportCommand(org: String, name: String, revision: String) extends Adep
   }
 }
 
-class InstallAdeptCommand(repo: String, id: String, constraints: Set[(String, String)])(adeptManager: AdeptManager) extends AdeptCommand {
+class InstallAdeptCommand(repo: String, conf: String, id: String, constraints: Set[(String, Seq[String])])(adeptManager: AdeptManager) extends AdeptCommand {
   import sbt.complete.DefaultParsers._
 
   def execute(): Unit = {
-    adeptManager.install(repo, id, constraints)
+    adeptManager.install(repo, conf, id, constraints)
   }
 }
 
@@ -103,24 +108,39 @@ object LockFile {
 class AdeptManager(baseDir: File, lockFile: File) {
 
   def install(repo: String, conf: String, id: String, constraints: Set[(String, Seq[String])]) = {
+    val parsedConstraints = constraints.map { case (name, values) => Constraint(name, values.toSet) }
     val gitRepo = new AdeptGitRepository(baseDir, repo)
-    val (configuredRequirements, commits) = LockFile.read(lockFile).getResolveInfo
-     
-    val gitVariantsLoader = new GitVariantsLoader(commits, cacheManager = null)
-    val gitResolver = new Resolver(gitVariantsLoader)
-    
-    val requirements = configuredRequirements.flatMap(_.asRequirements)
 
-    val result = gitResolver.resolve(requirements)
-    
-    if (result.isResolved) {
-      
-      LockFile.write()
-    } else {
-      
+    //val (configuredRequirements, commits) = LockFile.read(lockFile).getResolveInfo
+    val fakeCommits = {
+      println("Using fake commits")
+      Set( //replace with real lockfile commits
+        AdeptCommit(new AdeptGitRepository(baseDir, "com.typesafe"), Commit("HEAD")),
+        AdeptCommit(new AdeptGitRepository(baseDir, "org.scala-lang"), Commit("HEAD")))
+    } + AdeptCommit(new AdeptGitRepository(baseDir, repo), Commit("HEAD"))
+
+    val fakeRequirements = {
+      println("Using fake requirements")
+      Set(
+        //case class ConfiguredRequirement(id: Id, configurations: Set[ConfigurationId], commits: Set[RepositoryMetadata], constraints: Set[Constraint]) {
+
+        ConfiguredRequirement(id = Id("scala-library"), configurations = Set(ConfigurationId("compile")), commit = RepositoryMetadata("org.scala-lang", Set.empty, Commit("HEAD"), "ivy import"),
+          constraints = Set(Constraint("binary-version", Set("2.10")))),
+        ConfiguredRequirement(id = Id(id), configurations = Set(ConfigurationId("compile")), commit = RepositoryMetadata(repo, Set.empty, Commit("HEAD"), "ivy import"),
+          constraints = parsedConstraints))
     }
+
+    val gitVariantsLoader = new GitVariantsLoader(fakeCommits, cacheManager = CacheManager.create)
+    val gitResolver = new Resolver(gitVariantsLoader)
+
+    val requirements = fakeRequirements.flatMap(_.asRequirements)
+    println(requirements)
+    val result = gitResolver.resolve(requirements)
+
+    println(result)
+  
+
     //read lockfile and use all commits, (id, constraints)s and resolve
-    
     //if resolves then create a new lockfile
     //else fail
   }
@@ -134,17 +154,26 @@ object AdeptPlugin extends Plugin {
     adeptDirectory := Path.userHome / ".adept",
     sbt.Keys.commands += {
 
-      val lockFile = LockFile.read(new File("adept.lock"))
-
       val Install = token("install")
       val IvyImport = token("ivy-import")
 
       val RepositorySep = token("/")
-      val adeptManager = new AdeptManager(adeptDirectory.value)
+      val adeptManager = new AdeptManager(adeptDirectory.value, new File("adept.lock"))
 
       val repositoires = token(Space ~> AdeptRepository.repositoryParser) flatMap { repo =>
-        token(RepositorySep ~> AdeptRepository.idParser(repo)).map { id =>
-          new InstallAdeptCommand(repo, id, Set.empty)(adeptManager)
+        token(RepositorySep ~> AdeptRepository.idParser(repo)).flatMap { id =>
+          token(Space ~> charClass(_ => true, "").*).map { binaryVersionChars =>
+            val binaryVersion = binaryVersionChars.mkString.trim()
+
+            val constraints =
+              if (binaryVersion.isEmpty)
+                Set.empty[(String, Seq[String])]
+              else
+                Set("binary-version" -> Seq(binaryVersion))
+
+            new InstallAdeptCommand(repo, "compile", id, constraints)(adeptManager)
+
+          }
         }
       }
 

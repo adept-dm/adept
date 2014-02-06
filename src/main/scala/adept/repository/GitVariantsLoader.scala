@@ -21,28 +21,22 @@ class GitVariantsLoader(commits: Set[AdeptCommit], cacheManager: CacheManager) e
     caches.flatMap {
       case (adeptCommit, cache) =>
         val repo = adeptCommit.repo
-        val commit = adeptCommit.commit //AdeptCommit is perhaps not a good name
+        val commit = adeptCommit.commit //FIXME: AdeptCommit is perhaps not a good name, because it makes this awkward
         
-        val variants = {
+        val allVariants = {
           val cachedValues = cache.get(id.value)
           if (cache.isKeyInCache(id.value) && cachedValues != null) {
             cachedValues.getValue().asInstanceOf[Set[Variant]]
           } else {
-//            val allVariants = repo.scanFirst(commit.value){ configuredVariant => 
-//              configuredVariant.id == id
-//            }.flatMap{ configuredVariant =>
-//              configuredVariant.toVariants.map(_._1)
-//            }
-//            val matchingVariants = AttributeConstraintFilter.filter(id, allVariants, constraints)
-//            
-//            val element = new Element(id.value, matchingVariants)
-//            cache.put(element)
-//            matchingVariants
+            val allVariants: Set[Variant] = repo.listContent(commit.value).variantsMetadata.flatMap(_.toVariants(repo.name)).map(_._1)
+//            println("FOUND")
+//            println(allVariants.mkString("\n"))
+            val element = new Element(id.value, allVariants)
+            cache.put(element)
+            allVariants
           }
         }
-//        variants
-       Set.empty 
+        AttributeConstraintFilter.filter(id, allVariants, constraints)
     }.toSet
-    ???
   }
 }

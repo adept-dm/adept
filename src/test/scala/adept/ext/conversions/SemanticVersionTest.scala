@@ -20,12 +20,13 @@ class SemanticVersionTest extends FunSuite with MustMatchers {
       metadata = Set.empty[MetadataInfo],
       artifacts = Set.empty,
       attributes = Set.empty,
-      requirements = Set(ConfiguredRequirement(binaryVersionReqId, Set(ConfigurationId("compile"), ConfigurationId("master")),
+      requirements = Set(
+          ConfiguredRequirement(binaryVersionReqId, Set(ConfigurationId("compile"), ConfigurationId("master")),
         constraints = Set(Constraint("version", Set("2.1.0"))),
-        commits = Set.empty),
+        commit = RepositoryMetadata("repo1", Set.empty, Commit("bogus"), "blahblah")),
         ConfiguredRequirement(noBinaryVersionReqId, Set(ConfigurationId("compile"), ConfigurationId("master")),
           constraints = Set(Constraint("version", Set("2.1.0"))),
-          commits = Set.empty)))
+          commit = RepositoryMetadata("repo1", Set.empty, Commit("bogus"), "blahblah"))))
 
     val configuredVariant = ConfiguredVariantsMetadata(
       id = masterId,
@@ -35,8 +36,8 @@ class SemanticVersionTest extends FunSuite with MustMatchers {
         compileConf))
 
     import OptionValues._
-    val sematicVersionConversion = new SemanticVersion(Set(binaryVersionReqId, masterId))
-    val converted = sematicVersionConversion.convert(configuredVariant).value
+    val sematicVersionConversion = new SemanticVersion(Set(binaryVersionReqId -> "repo1", masterId -> "doesnotmatter"))
+    val converted = sematicVersionConversion.convert(configuredVariant, Set.empty).value
 
     val config = converted.configurations.headOption.value
     config.requirements.find(_.id == binaryVersionReqId).flatMap(_.constraints.find(_.name == AttributeDefaults.BinaryVersionAttribute)) must be === Some(Constraint(AttributeDefaults.BinaryVersionAttribute, Set("2.1")))

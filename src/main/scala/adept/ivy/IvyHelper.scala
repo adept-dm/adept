@@ -21,6 +21,7 @@ import adept.ext.Version
 import adept.logging.Logging
 import adept.repository.models._
 import adept.repository.models.configuration._
+import adept.ext.conversions.SemanticVersion
 
 case class AdeptIvyResolveException(msg: String) extends Exception(msg)
 case class AdeptIvyException(msg: String) extends Exception(msg)
@@ -69,50 +70,57 @@ object IvyHelper extends Logging {
     resolveOptions.setOutputReport(false) //TODO: to true?
     resolveOptions
   }
-  
-  
+
   def insert(results: Set[IvyImportResult], baseDir: File) = {
-    logger.warn("NOT IMPLEMENTED")
+    def hasSameAttribute(attributeName: String, attributes1: Set[Attribute], attributes2: Set[Attribute]): Boolean = {
+      attributes1.find(_.name == attributeName) == attributes2.find(_.name == attributeName)
+    }
+
+    logger.warn("IvyInsert is currently NOT properly IMPLEMENTED")
     results.foreach { result =>
       val repoId = result.mrid.getOrganisation()
       val adeptGitRepo = new AdeptGitRepository(baseDir, repoId)
-      
+
       adeptGitRepo.updateMetadata({ content =>
-        content.variantsMetadata.map(_.file(adeptGitRepo)).toSeq
+        content.variantsMetadata
+          .filter { old => 
+            hasSameAttribute(AttributeDefaults.BinaryVersionAttribute, old.attributes, result.variantsMetadata.attributes) || //only remove the ones with the same binary attribute
+            SemanticVersion.getSemanticVersion(old.attributes).find{ case (major, minor, point) => major.toInt == 0 }.isDefined //remove if old is a semantic version with a prerelease 
+          }.map(_.file(adeptGitRepo)).toSeq
       }, { content =>
         Seq(result.variantsMetadata.write(adeptGitRepo))
       }, "Ivy import of: " + result.mrid)
     }
-    
-//    var repositories = Set.empty[AdeptCommit]
-//    var repositoryMap = Map.empty[ModuleRevisionId, LocalGitRepository]
-//    var handledResults = Set.empty[ModuleRevisionId]
-//    var unhandledResults = results
-//
-//    var safeGuard = 0
-//    while (handledResults.size < results.size) {
-//      safeGuard += 1
-//      if (safeGuard == SafeGuardLimit) throw new Exception("Got into loop while inserting from Ivy? Tried to insert: " + SafeGuardLimit + " times, which is set as max")
-//
-//      val currentResults = unhandledResults.filter { result => //TODO: stop when currentResults is 0 instead of silly safe guard!
-//        result.variants.forall { variant =>
-//          variant.dependencies.isEmpty || {
-//            variant.dependencies.forall { dependency =>
-//              if (VariantBuilder.stripConfig(dependency.id) == VariantBuilder.stripConfig(variant.id)) { //TODO: evaluate if this is right - we do it because of the "configuration" dependencies that just depend on the module itself  
-//                true
-//              } else {
-//                handledResults(dependencyAsMrid(dependency)) //we are relying on the fact that we get the complete tree even if the id, values are already present
-//              }
-//            }
-//          }
-//        }
-//      }
-//      val currentRepositories = updateRepositories(results, baseDir) 
-//      repositories ++= currentRepositories
-//      handledResults ++= currentResults.map(_.mrid)
-//      unhandledResults --= currentResults
-//    }
-//    repositories
+
+    //    var repositories = Set.empty[AdeptCommit]
+    //    var repositoryMap = Map.empty[ModuleRevisionId, LocalGitRepository]
+    //    var handledResults = Set.empty[ModuleRevisionId]
+    //    var unhandledResults = results
+    //
+    //    var safeGuard = 0
+    //    while (handledResults.size < results.size) {
+    //      safeGuard += 1
+    //      if (safeGuard == SafeGuardLimit) throw new Exception("Got into loop while inserting from Ivy? Tried to insert: " + SafeGuardLimit + " times, which is set as max")
+    //
+    //      val currentResults = unhandledResults.filter { result => //TODO: stop when currentResults is 0 instead of silly safe guard!
+    //        result.variants.forall { variant =>
+    //          variant.dependencies.isEmpty || {
+    //            variant.dependencies.forall { dependency =>
+    //              if (VariantBuilder.stripConfig(dependency.id) == VariantBuilder.stripConfig(variant.id)) { //TODO: evaluate if this is right - we do it because of the "configuration" dependencies that just depend on the module itself  
+    //                true
+    //              } else {
+    //                handledResults(dependencyAsMrid(dependency)) //we are relying on the fact that we get the complete tree even if the id, values are already present
+    //              }
+    //            }
+    //          }
+    //        }
+    //      }
+    //      val currentRepositories = updateRepositories(results, baseDir) 
+    //      repositories ++= currentRepositories
+    //      handledResults ++= currentResults.map(_.mrid)
+    //      unhandledResults --= currentResults
+    //    }
+    //    repositories
   }
 }
 
@@ -128,6 +136,7 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true) extends Logging {
       val mrid = ModuleRevisionId.newInstance(org, name, version)
       val dependencyTree = createDependencyTree(mrid)
       val workingNode = dependencyTree(ModuleRevisionId.newInstance(org, name + "-caller", "working")).head.getId
+      println(dependencyTree.mkString("\b"))
       val result = results(workingNode)(dependencyTree)
       Right(result)
     }
@@ -174,6 +183,8 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true) extends Logging {
     dependencies
   }
 
+  protected val skippableConf = Set("javadoc", "source")
+
   def createIvyResult(mrid: ModuleRevisionId, unloadedChildren: Set[IvyNode]): IvyImportResult = {
     val id = createId(mrid.getName)
     val versionAttribute = Attribute(VersionAttribute, Set(mrid.getRevision()))
@@ -217,21 +228,26 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true) extends Logging {
           case (name: String, value: String) =>
             Some(Constraint(name, Set(value)))
           case _ => None
-        }.toSet ++ Set(
-          Constraint(OrgAttribute, Set(ivyNode.getId.getOrganisation)),
-          Constraint(NameAttribute, Set(ivyNode.getId.getName)),
-          Constraint(VersionAttribute, Set(ivyNode.getId.getRevision)))
+        }.toSet
+        //disabled constraints on versions, names, orgs
+        //       ++ Set(
+        //          Constraint(OrgAttribute, Set(ivyNode.getId.getOrganisation)),
+        //          Constraint(NameAttribute, Set(ivyNode.getId.getName)),
+        //          Constraint(VersionAttribute, Set(ivyNode.getId.getRevision)))
+
         val configurations = {
-          println(mrid + " @ " + ivyNode + "   " + confName + " is " + ivyNode.isEvicted(confName))
           val ivyConfigurations = ivyNode.getConfigurations(confName).toSet.map(ivyNode.getConfiguration)
           ivyConfigurations.map(c => ConfigurationId(c.getName))
         }
-        ConfiguredRequirement(requirementId, configurations, commits = Set.empty, constraints = constraints)
+
+        ConfiguredRequirement(requirementId, configurations, commit = RepositoryMetadata(ivyNode.getId.getOrganisation, Set.empty, Commit("TODO"), "ivy import"), constraints = constraints)
       }
 
-      val artifactInfos = ivy.resolve(mrid, resolveOptions(ivyConfiguration.getName), changing).getArtifactsReports(mrid).map { artifactReport =>
+      val artifactInfos = ivy.resolve(mrid, resolveOptions(ivyConfiguration.getName), changing).getArtifactsReports(mrid).flatMap { artifactReport =>
         val file = artifactReport.getLocalFile
-        (artifactReport.getArtifactOrigin().getLocation(), artifactReport.getArtifact().getConfigurations(), file, Hash.calculate(file))
+        if (artifactReport.isDownloaded() && skippableConf(ivyConfiguration.getName()))
+          Some((artifactReport.getArtifactOrigin().getLocation(), artifactReport.getArtifact().getConfigurations(), file, Hash.calculate(file)))
+        else None
       }.toSet
 
       //TODO: skipping empty configurations? if (artifactInfos.nonEmpty || dependencies.nonEmpty)... 
@@ -252,7 +268,7 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true) extends Logging {
 
       configurations += Configuration(
         id = ConfigurationId(confName),
-        extendsConfigurations = ivyConfiguration.getExtends().map(ConfigurationId(_)).toSet,
+        extendsConfigurations = ivyConfiguration.getExtends().map(ConfigurationId(_)).toSet, //FIXME: does not seem to work?
         metadata = Set.empty, //TODO: configuration description?
         artifacts = artifactRefs,
         attributes = attributes,

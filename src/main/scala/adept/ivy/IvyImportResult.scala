@@ -7,8 +7,8 @@ import java.io.File
 import adept.ext.conversions.Conversion
 
 case class IvyImportResult(mrid: ModuleRevisionId, variantsMetadata: ConfiguredVariantsMetadata, artifacts: Set[Artifact], localFiles: Map[Artifact, File]) {
- def convertWith(conversion: Conversion) = {
-   conversion.convert(variantsMetadata).map { oldMetadata =>
+ def convertWith(conversion: Conversion, others: Set[ConfiguredVariantsMetadata]) = {
+   conversion.convert(variantsMetadata, others).map { oldMetadata =>
      this.copy( variantsMetadata = oldMetadata )
    }
  }

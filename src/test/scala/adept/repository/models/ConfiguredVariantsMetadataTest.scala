@@ -17,7 +17,7 @@ object ConfiguredVariantsMetadataTestData {
     attributes = Set(Attribute("attr1", Set("foo"))),
     requirements = Set(ConfiguredRequirement(Id("mooboo"), Set(ConfigurationId("compile"), ConfigurationId("master")),
       constraints = Set(Constraint("version", Set("1.0.0"))),
-      commits = Set(RepositoryMetadata("loco.com", commit = Commit("mooboo456commit"), uris = Set("git@git://github.com/loco/mooboo.git"), info = "version = 1.0.0")))))
+      commit = RepositoryMetadata("loco.com", commit = Commit("mooboo456commit"), uris = Set("git@git://github.com/loco/mooboo.git"), info = "version = 1.0.0"))))
 
   val runtimeConf = Configuration(
     id = ConfigurationId("runtime"),
@@ -35,10 +35,10 @@ object ConfiguredVariantsMetadataTestData {
     attributes = Set(Attribute("attr3", Set("foo"))),
     requirements = Set(ConfiguredRequirement(Id("loo"), Set(ConfigurationId("compile"), ConfigurationId("master")),
       constraints = Set(Constraint("binary-version", Set("2.1"))),
-      commits = Set(RepositoryMetadata("zoo.com", commit = Commit("loo123commit"), uris = Set("git@git://github.com/zoo/loo.git"), info = "version = 2.1.1")))))
+      commit = RepositoryMetadata("zoo.com", commit = Commit("loo123commit"), uris = Set("git@git://github.com/zoo/loo.git"), info = "version = 2.1.1"))))
 
   val metadata = ConfiguredVariantsMetadata(
-    id = Id("foo/bar"),
+    id = Id("bar"),
     metadata = Set(MetadataInfo("authors", Set("fredrik", "arve")), MetadataInfo("license", Set.empty), MetadataInfo("homepage", Set("http://foo.com/bar"))),
     attributes = Set(Attribute("organization", Set("foo")), Attribute("version", Set("1.1.2")), Attribute("binary-version", Set("1.0", "1.1"))), //backwards compatible: because 1.1 and 1.0
     configurations = Set(
@@ -61,7 +61,7 @@ class ConfiguredVariantsMetadataTest extends FunSuite with MustMatchers {
 
   test("Transformation of Variants") {
 
-    val variantsMetadata = metadata.toVariants
+    val variantsMetadata = metadata.toVariants("foo")
     variantsMetadata.map { case (variant, _) => variant.id.value } must be === Set("foo/bar", "foo/bar/config/runtime", "foo/bar/config/compile", "foo/bar/config/test")
 
     //FIXME: add test that tests:
