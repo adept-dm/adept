@@ -71,7 +71,6 @@ class IvyHelperTest extends FunSuite with MustMatchers {
         import AttributeDefaults._
         val scalaLibBinaryVersion = Set("2.9.2")
         
-        
         convert(ivyHelper.ivyImport("com.typesafe.akka", "akka-actor", "2.0.5")).map { r =>
           val configurations = r.variantsMetadata.configurations.map { c =>
             val requirements = c.requirements.map { r =>

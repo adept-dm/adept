@@ -127,11 +127,30 @@ class AdeptManager(baseDir: File, lockFile: File) {
 
     val newReq = ConfiguredRequirement(id = Id(id), configurations = Set(ConfigurationId("compile")), commit = RepositoryMetadata(repo, Set.empty, Commit("HEAD"), "ivy import"),
       constraints = parsedConstraints)
+    val cacheManager = CacheManager.create
 
     //TODO: lookup first variant, load all of it's transitive repos from /repos/akka-actor/14122132.json
     Faked.fakeRequirements = Faked.fakeRequirements + newReq
+    val commits = {
 
-    val gitVariantsLoader = new GitVariantsLoader(Faked.fakeCommits, cacheManager = CacheManager.create)
+      val requiredCommits = Faked.fakeCommits
+      val gitVariantsLoader = new GitVariantsLoader(requiredCommits, cacheManager = cacheManager)
+
+      val newMatchingVariants = gitVariantsLoader.read(Id(id), parsedConstraints)
+      //We need the repositories associated with 
+      //Here we load all repositories from all configurations for ALL variants matching the constraints
+      //It means we might resolve more repositories than strictly needed, but we avoid round-trips while resolving
+      //We can optimize this a bit more, but it is still a good approximation
+      newMatchingVariants.flatMap { variant => //TODO: this code is WEIRRRRRD!
+        variant.configurations.flatMap { configuration =>
+          configuration.requirements.map { r =>
+            AdeptCommit(new AdeptGitRepository(baseDir, r.commit.name), r.commit.commit)
+          }
+        }
+      } ++ requiredCommits
+    }
+
+    val gitVariantsLoader = new GitVariantsLoader(commits, cacheManager = cacheManager)
     val gitResolver = new Resolver(gitVariantsLoader)
 
     val requirements = Faked.fakeRequirements.flatMap(_.asRequirements)
@@ -147,7 +166,7 @@ class AdeptManager(baseDir: File, lockFile: File) {
           val help = result.state.overconstrained.toSeq.sortBy(_.value).map { id =>
             if (gitVariantsLoader.loadVariants(id, result.state.constraints(id)).isEmpty) {
               if (gitVariantsLoader.loadVariants(id, Set.empty).isEmpty) {
-                id + " cannot be found in repositories: " + Faked.fakeCommits.map(_.repo.name).mkString(" or ")
+                id + " cannot be found in repositories: " + commits.map(_.repo.name).mkString(" or ")
               } else {
                 id + result.state.constraints(id).map(c => c.name + "=" + c.values.mkString("(", ",", ")")).mkString(" with ", " and ", " does not exist")
               }
@@ -170,7 +189,7 @@ class AdeptManager(baseDir: File, lockFile: File) {
           "Under-constrained (" + (System.currentTimeMillis - firstTime) + "ms): " + result.state.underconstrained.mkString(",") + ":\n" + help
       }
     println(resultString)
-    
+
     if (!result.isResolved) { //TODO: I am not sure whether it is right to only store result if resolvd (if we are under-constrained it would be nice to increase precision..)
       Faked.fakeRequirements -= newReq
     }

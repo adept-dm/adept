@@ -240,7 +240,7 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true) extends Logging {
           ivyConfigurations.map(c => ConfigurationId(c.getName))
         }
 
-        ConfiguredRequirement(requirementId, configurations, commit = RepositoryMetadata(ivyNode.getId.getOrganisation, Set.empty, Commit("TODO"), "ivy import"), constraints = constraints)
+        ConfiguredRequirement(requirementId, configurations, commit = RepositoryMetadata(ivyNode.getId.getOrganisation, Set.empty, Commit("HEAD"), "ivy import"), constraints = constraints) //FIXME: fix commit!
       }
 
       val artifactInfos = ivy.resolve(mrid, resolveOptions(ivyConfiguration.getName), changing).getArtifactsReports(mrid).flatMap { artifactReport =>

@@ -4,6 +4,8 @@ import adept.models._
 import net.sf.ehcache.CacheManager
 import net.sf.ehcache.Ehcache
 import net.sf.ehcache.Element
+import adept.repository.models.configuration.ConfiguredRequirement
+import adept.repository.models.ConfiguredVariantsMetadata
 
 class GitVariantsLoader(commits: Set[AdeptCommit], cacheManager: CacheManager) extends VariantsLoader {
 
@@ -15,6 +17,17 @@ class GitVariantsLoader(commits: Set[AdeptCommit], cacheManager: CacheManager) e
     val cacheName = commit.repo.name + "-" + commit.repo.baseDir.getAbsolutePath.hashCode + "-" + this.hashCode + "-" + commit.commit.value
     cacheManager.addCacheIfAbsent(cacheName) //TODO: if cache.exists then use
     commit -> cacheManager.getEhcache(cacheName)
+  }
+
+  //TODO: please rename this?
+  private[adept] def read(id: Id, constraints: Set[Constraint]): Set[ConfiguredVariantsMetadata] = {
+    caches.flatMap {
+      case (adeptCommit, cache) =>
+        val repo = adeptCommit.repo
+        val commit = adeptCommit.commit //FIXME: AdeptCommit is perhaps not a good name, because it makes this awkward
+
+        repo.listContent(commit.value).variantsMetadata
+    }.toSet
   }
 
   def loadVariants(id: Id, constraints: Set[Constraint]): Set[Variant] = {
