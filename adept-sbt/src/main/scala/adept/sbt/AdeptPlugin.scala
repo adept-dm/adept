@@ -16,19 +16,16 @@ import adept.repository.models.configuration.ConfiguredRequirement
 import adept.repository.models.configuration.ConfigurationId
 import net.sf.ehcache.CacheManager
 import adept.repository.models.RepositoryMetadata
+import adept.repository.models.configuration.ConfiguredRequirement
 
 object AdeptRepository {
   import sbt.complete.DefaultParsers._
 
-  val repositories = Set[String](
-    "com.typesafe.akka",
-    "org.eclipse.jgit",
-    "com.typesafe.play")
+  def repositories = (Faked.baseDir / "repos").listFiles().filter(_.isDirectory).map(_.getName)
 
-  val modules = Map(
-    "com.typesafe.akka" -> Set("akka-actor", "akka-remote"),
-    "org.eclipse.jgit" -> Set("org.eclipse.jgit"),
-    "com.typesafe.play" -> Set("play", "play-json"))
+  def modules(repoName: String) = {
+    (Faked.baseDir / "repos" / repoName / "variants").listFiles().filter(_.isDirectory).map(_.getName)
+  }
 
   def repositoryParser: Parser[String] = {
     val candidates = repositories.toList.sorted
@@ -105,6 +102,16 @@ object LockFile {
   }
 }
 
+object Faked { //REMOVE THIS when finished testing (used for hard coding)
+  val baseDir = Path.userHome / ".adept"
+
+  var fakeRequirements = Set.empty[ConfiguredRequirement]
+
+  def fakeCommits = fakeRequirements.map { r =>
+    AdeptCommit(new AdeptGitRepository(baseDir, r.commit.name), r.commit.commit)
+  }
+}
+
 class AdeptManager(baseDir: File, lockFile: File) {
 
   def install(repo: String, conf: String, id: String, constraints: Set[(String, Seq[String])]) = {
@@ -112,33 +119,22 @@ class AdeptManager(baseDir: File, lockFile: File) {
     val gitRepo = new AdeptGitRepository(baseDir, repo)
 
     //val (configuredRequirements, commits) = LockFile.read(lockFile).getResolveInfo
-    val fakeCommits = {
-      println("Using fake commits")
-      Set( //replace with real lockfile commits
-        AdeptCommit(new AdeptGitRepository(baseDir, "com.typesafe"), Commit("HEAD")),
-        AdeptCommit(new AdeptGitRepository(baseDir, "org.scala-lang"), Commit("HEAD")))
-    } + AdeptCommit(new AdeptGitRepository(baseDir, repo), Commit("HEAD"))
 
-    val fakeRequirements = {
-      println("Using fake requirements")
-      Set(
-        //case class ConfiguredRequirement(id: Id, configurations: Set[ConfigurationId], commits: Set[RepositoryMetadata], constraints: Set[Constraint]) {
+    val newReq = ConfiguredRequirement(id = Id(id), configurations = Set(ConfigurationId("compile")), commit = RepositoryMetadata(repo, Set.empty, Commit("HEAD"), "ivy import"),
+      constraints = parsedConstraints)
+    Faked.fakeRequirements = Faked.fakeRequirements + newReq
 
-        ConfiguredRequirement(id = Id("scala-library"), configurations = Set(ConfigurationId("compile")), commit = RepositoryMetadata("org.scala-lang", Set.empty, Commit("HEAD"), "ivy import"),
-          constraints = Set(Constraint("binary-version", Set("2.10")))),
-        ConfiguredRequirement(id = Id(id), configurations = Set(ConfigurationId("compile")), commit = RepositoryMetadata(repo, Set.empty, Commit("HEAD"), "ivy import"),
-          constraints = parsedConstraints))
-    }
-
-    val gitVariantsLoader = new GitVariantsLoader(fakeCommits, cacheManager = CacheManager.create)
+    val gitVariantsLoader = new GitVariantsLoader(Faked.fakeCommits, cacheManager = CacheManager.create)
     val gitResolver = new Resolver(gitVariantsLoader)
 
-    val requirements = fakeRequirements.flatMap(_.asRequirements)
+    val requirements = Faked.fakeRequirements.flatMap(_.asRequirements)
     println(requirements)
     val result = gitResolver.resolve(requirements)
 
     println(result)
-  
+    if (result.state.isOverconstrained) {
+      Faked.fakeRequirements -= newReq
+    }
 
     //read lockfile and use all commits, (id, constraints)s and resolve
     //if resolves then create a new lockfile
