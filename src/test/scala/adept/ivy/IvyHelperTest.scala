@@ -39,38 +39,34 @@ class IvyHelperTest extends FunSuite with MustMatchers {
     //    ivyHelper.insert(results, baseDir)
   }
 
-  test("Ivy insert test") {
-    import EitherValues._
-    val ivy = IvyHelper.load()
-    val ivyHelper = new IvyHelper(ivy)
-    //    val results = ivyHelper.ivyImport("net.sf.ehcache", "ehcache-core", "2.6.6").right.value
+  import adept.test.FileUtils._
 
+
+  val semanticVersion = {
+    val semanticVersionIds = Set(Id("akka-actor") -> "com.typesafe.akka", Id("scala-library") -> "org.scala-lang", Id("config") -> "com.typesafe")
+    new SemanticVersion(semanticVersionIds)
   }
 
-  import adept.test.FileUtils._
+  def convert(ivyResults: Either[_, Set[IvyImportResult]]): Set[IvyImportResult] = {
+    import OptionValues._
+    import EitherValues._
+    val projectedResuluts = ivyResults.right.value
+    val all = projectedResuluts.map(_.variantsMetadata)
+    projectedResuluts.map(_.convertWith(ScalaBinaryVersion, all).value.convertWith(semanticVersion, all).value)
+  }
+
   test("End to end basic test") {
     usingTmpDir { tmpDir =>
       val ivy = IvyContext.getContext.getIvy //TODO: is this right?
 
       ivy.configure(new File("src/test/resources/typesafe-ivy-settings.xml"))
       val ivyHelper = new IvyHelper(ivy)
-      val semanticVersion = {
-        val semanticVersionIds = Set(Id("akka-actor") -> "com.typesafe.akka", Id("scala-library") -> "org.scala-lang", Id("config") -> "com.typesafe")
-        new SemanticVersion(semanticVersionIds)
-      }
-      def convert(ivyResults: Either[_, Set[IvyImportResult]]): Set[IvyImportResult] = {
-        import OptionValues._
-        import EitherValues._
-        val projectedResuluts = ivyResults.right.value
-        val all = projectedResuluts.map(_.variantsMetadata)
-        projectedResuluts.map(_.convertWith(ScalaBinaryVersion, all).value.convertWith(semanticVersion, all).value)
-      }
 
       //hack to adjust scala library, should be possible to do in a different way
       val akka205WithAdjustedScalaLib = {
         import AttributeDefaults._
         val scalaLibBinaryVersion = Set("2.9.2")
-        
+
         convert(ivyHelper.ivyImport("com.typesafe.akka", "akka-actor", "2.0.5")).map { r =>
           val configurations = r.variantsMetadata.configurations.map { c =>
             val requirements = c.requirements.map { r =>
