@@ -20,7 +20,6 @@ Adept gives you speed and deterministic behavior:
 * Publish by just pushing to a git repository
 
 
-Note that we are changing the design of Adept!
 ## Find out more
 
 | Technical Docs                  | Setup Guide               | Roadmap                 | Contributing                      |
@@ -30,7 +29,8 @@ Note that we are changing the design of Adept!
 
 ## Contributing
 
-We are rolling out an alpha end of February! It is exciting times in the world of dependency management!
+The guys at adepthub.com is rolling out an Alpha end of February! It is exciting times in the world of dependency management!
+
 
 Do you want to take part in shaping the ultimate dependency managmenet system on the JVM for years to come? 
 
