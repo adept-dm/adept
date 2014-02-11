@@ -129,7 +129,7 @@ class AdeptManager(baseDir: File, lockFile: File) {
 
     //val (configuredRequirements, commits) = LockFile.read(lockFile).getResolveInfo
 
-    val newReq = ConfiguredRequirement(id = Id(id), configurations = Set(ConfigurationId("compile")), commit = RepositoryMetadata(repo, Set.empty, Commit("HEAD"), "ivy import"),
+    val newReq = ConfiguredRequirement(id = Id(id), configurations = Set(ConfigurationId("compile")), commit = RepositoryMetadata(repo, gitRepo.getMostRecentCommit.commit),
       constraints = parsedConstraints)
 
     //TODO: lookup first variant, load all of it's transitive repos from /repos/akka-actor/14122132.json

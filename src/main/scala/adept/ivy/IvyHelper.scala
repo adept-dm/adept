@@ -135,33 +135,32 @@ object IvyHelper extends Logging {
 
     val gitRepos = Set.empty
 
-    val initialResults = results.filter{ result => //TODO: currently this just checks if there is something with the same attributes, but we have to be able to update as well (check artifacts hashes etc etc)
+    val initialResults = results.filter { result => //TODO: currently this just checks if there is something with the same attributes, but we have to be able to update as well (check artifacts hashes etc etc)
       getCommit(result.mrid, baseDir).isEmpty
     }
-    
+
     var handledResults: Map[IvyImportResult, Set[AdeptCommit]] = Map.empty //TODO: load all results that have been handled allready
     var unhandledResults = initialResults
 
     var lastSize = -1
     while (unhandledResults.size != lastSize) {
+      lastSize = unhandledResults.size
 
       unhandledResults.foreach { result =>
         val foundCommits = result.dependencies.flatMap { dependency =>
           getCommit(dependency.getId, baseDir)
         }
         if (result.dependencies.size == foundCommits.size) {
-          println("writing " + result.mrid + " with " + foundCommits.map(c => c.repo.dir + " @ " + c.commit))
           handledResults += result -> foundCommits
           unhandledResults -= result
           updateRepository(baseDir, result, foundCommits)
         } else None
       }
-
-      lastSize = unhandledResults.size
     }
+    
     if (handledResults.size != initialResults.size) throw new Exception("Could not insert some ivy results: " + unhandledResults.mkString("\n")) //TODO: extract from here  
-
   }
+
 }
 
 class IvyHelper(ivy: Ivy, changing: Boolean = true) extends Logging {

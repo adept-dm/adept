@@ -30,26 +30,29 @@ class GitVariantsLoader(commits: Set[AdeptCommit], cacheManager: CacheManager) e
     }.toSet
   }
 
+  def extractRepositoryName(id: Id) = id.value.split("/").head
+
   def loadVariants(id: Id, constraints: Set[Constraint]): Set[Variant] = {
     caches.flatMap {
       case (adeptCommit, cache) =>
         val repo = adeptCommit.repo
-        val commit = adeptCommit.commit //FIXME: AdeptCommit is perhaps not a good name, because it makes this awkward
+        if (repo.name == extractRepositoryName(id)) {
+          val commit = adeptCommit.commit //FIXME: AdeptCommit is perhaps not a good name, because it makes this awkward
 
-        val allVariants = {
-          val cachedValues = cache.get(id.value)
-          if (cache.isKeyInCache(id.value) && cachedValues != null) {
-            cachedValues.getValue().asInstanceOf[Set[Variant]]
-          } else {
-            val allVariants: Set[Variant] = repo.listContent(commit.value).variantsMetadata.flatMap(_.toVariants(repo.name)).map(_._1)
-            //            println("FOUND")
-            //            println(allVariants.mkString("\n"))
-            val element = new Element(id.value, allVariants)
-            cache.put(element)
-            allVariants
+          val allVariants = {
+            val cachedValues = cache.get(id.value)
+            if (cache.isKeyInCache(id.value) && cachedValues != null) {
+              cachedValues.getValue().asInstanceOf[Set[Variant]]
+            } else {
+              val lastTime = System.currentTimeMillis
+              val allVariants: Set[Variant] = repo.listContent(commit.value).variantsMetadata.flatMap(_.toVariants(repo.name)).map(_._1)
+              val element = new Element(id.value, allVariants)
+              cache.put(element)
+              allVariants
+            }
           }
-        }
-        AttributeConstraintFilter.filter(id, allVariants, constraints)
+          AttributeConstraintFilter.filter(id, allVariants, constraints)
+        } else Set.empty[Variant]
     }.toSet
   }
 }

@@ -22,6 +22,7 @@ case class WriteLockException(repo: AdeptGitRepository, reason: String) extends 
 case class InitException(repo: AdeptGitRepository, reason: String) extends Exception("Could not initialize '" + repo.dir.getAbsolutePath + "': " + reason)
 case class UpdateMetadataException(repo: AdeptGitRepository, reason: String) extends Exception("Could not update metadata in '" + repo.dir.getAbsolutePath + "': " + reason)
 case class FileNotFoundException(repo: AdeptGitRepository, file: File) extends Exception("File '" + file.getAbsolutePath() + "' is not git directory: '" + repo.dir.getAbsolutePath + "'.")
+case class GitLookupException(repo: AdeptGitRepository, commitString: String, msg: String) extends Exception(msg)
 
 object AdeptGitRepository {
 
@@ -131,7 +132,7 @@ class AdeptGitRepository(val baseDir: File, val name: String) extends Logging {
   }
 
   def getMostRecentCommit: AdeptCommit = usingRevWalk { (gitRepo, revWalk) =>
-    new AdeptCommit(this, revWalk.lookupCommit(gitRepo.resolve(InitTag)))
+    new AdeptCommit(this, lookup(gitRepo, revWalk, Head))
   }
 
   def lockFile = new File(baseDir, "." + name + ".lock")
@@ -229,20 +230,25 @@ class AdeptGitRepository(val baseDir: File, val name: String) extends Logging {
     }
   }
 
-  private def lookup(gitRepo: JGitRepository, revWalk: RevWalk, commitString: String) = revWalk.lookupCommit(gitRepo.resolve(commitString))
+  private def lookup(gitRepo: JGitRepository, revWalk: RevWalk, commitString: String) = {
+    val resolvedRef = gitRepo.resolve(commitString)
+    if (resolvedRef != null)
+      revWalk.lookupCommit(resolvedRef)
+    else throw new GitLookupException(this, commitString, "Could not resolve: " + commitString + " in " + dir)
+  }
 
   //TODO: optimize to only look in certain paths?
   private[adept] def listContent(commitString: String, gitRepo: JGitRepository, revWalk: RevWalk, treeWalk: TreeWalk) = {
     var configuredVariantsMetadata = Set.empty[ConfiguredVariantsMetadata]
     val containingDir = VariantsDirName
     val revCommit = lookup(gitRepo, revWalk, commitString)
-    try { 
+    try {
       revWalk.markStart(revCommit)
     } catch {
-      case e: org.eclipse.jgit.errors.MissingObjectException => 
+      case e: org.eclipse.jgit.errors.MissingObjectException =>
         throw new Exception("Cannot find commit: " + commitString + " in " + dir, e)
     }
-    
+
     val currentTree = revCommit.getTree()
     if (currentTree != null) { //if null means we on an empty commit (no tree)
       treeWalk.addTree(currentTree)
@@ -271,7 +277,7 @@ class AdeptGitRepository(val baseDir: File, val name: String) extends Logging {
   }
 
   private[adept] def listContent(commitString: String): MetadataContent = {
-    usingTreeWalk { (gitRepo, revWalk, treeWalk) => 
+    usingTreeWalk { (gitRepo, revWalk, treeWalk) =>
       listContent(commitString, gitRepo, revWalk, treeWalk)
     }
   }
@@ -315,7 +321,6 @@ class AdeptGitRepository(val baseDir: File, val name: String) extends Logging {
     }
   }
 
-
   /**
    *  Search backwards in the Git history for some metadata
    *  matching `func`.
@@ -347,7 +352,7 @@ class AdeptGitRepository(val baseDir: File, val name: String) extends Logging {
         val content = usingTreeWalk(gitRepo, revWalk)((gitRepo, revWalk, treeWalk) => listContent(revCommit.name, gitRepo, revWalk, treeWalk))
 
         if (func(content)) {
-          results =  results :+ (AdeptCommit(this, Commit(revCommit.name)) -> content)
+          results = results :+ (AdeptCommit(this, Commit(revCommit.name)) -> content)
         }
       }
       results

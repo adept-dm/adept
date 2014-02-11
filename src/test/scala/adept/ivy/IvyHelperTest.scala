@@ -66,33 +66,33 @@ class IvyHelperTest extends FunSuite with MustMatchers {
       val ivyHelper = new IvyHelper(ivy)
 
       //hack to adjust scala library, should be possible to do in a different way
-      val akka205WithAdjustedScalaLib = {
-        import AttributeDefaults._
-        val scalaLibBinaryVersion = Set("2.9.2")
-
-        convert(ivyHelper.ivyImport("com.typesafe.akka", "akka-actor", "2.0.5")).map { r =>
-          val configurations = r.variantsMetadata.configurations.map { c =>
-            val requirements = c.requirements.map { r =>
-              if (r.id == ScalaBinaryVersion.ScalaLibId) {
-                r.copy(constraints = r.constraints.filter(_.name != BinaryVersionAttribute) + Constraint(BinaryVersionAttribute, scalaLibBinaryVersion))
-              } else r
-            }
-            c.copy(requirements = requirements)
-          }
-          r.copy(variantsMetadata = r.variantsMetadata.copy(configurations = configurations))
-        }.map { r =>
-          val variantsMetadata = {
-            if (r.variantsMetadata.id == ScalaBinaryVersion.ScalaLibId) {
-              val attributes = r.variantsMetadata.attributes.filter(_.name != BinaryVersionAttribute) + Attribute(BinaryVersionAttribute, scalaLibBinaryVersion)
-              r.variantsMetadata.copy(attributes = attributes)
-            } else {
-              r.variantsMetadata
-            }
-          }
-
-          r.copy(variantsMetadata = variantsMetadata)
-        }
-      }
+//      val akka205WithAdjustedScalaLib = {
+//        import AttributeDefaults._
+//        val scalaLibBinaryVersion = Set("2.9.2")
+//
+//        convert(ivyHelper.ivyImport("com.typesafe.akka", "akka-actor", "2.0.5")).map { r =>
+//          val configurations = r.variantsMetadata.configurations.map { c =>
+//            val requirements = c.requirements.map { r =>
+//              if (r.id == ScalaBinaryVersion.ScalaLibId) {
+//                r.copy(constraints = r.constraints.filter(_.name != BinaryVersionAttribute) + Constraint(BinaryVersionAttribute, scalaLibBinaryVersion))
+//              } else r
+//            }
+//            c.copy(requirements = requirements)
+//          }
+//          r.copy(variantsMetadata = r.variantsMetadata.copy(configurations = configurations))
+//        }.map { r =>
+//          val variantsMetadata = {
+//            if (r.variantsMetadata.id == ScalaBinaryVersion.ScalaLibId) {
+//              val attributes = r.variantsMetadata.attributes.filter(_.name != BinaryVersionAttribute) + Attribute(BinaryVersionAttribute, scalaLibBinaryVersion)
+//              r.variantsMetadata.copy(attributes = attributes)
+//            } else {
+//              r.variantsMetadata
+//            }
+//          }
+//
+//          r.copy(variantsMetadata = variantsMetadata)
+//        }
+//      }
 
 //      IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe", "config", "0.3.1")), baseDir)
 //      IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe", "config", "1.0.0")), baseDir)
@@ -102,7 +102,9 @@ class IvyHelperTest extends FunSuite with MustMatchers {
 //      IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe.akka", "akka-actor_2.10", "2.2.1")), baseDir)
 //      IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe.akka", "akka-actor_2.10", "2.2.2")), baseDir)
       IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe.play", "play_2.10", "2.2.1")), baseDir)
-
+//      IvyHelper.insert(convert(ivyHelper.ivyImport("com.github.scala-incubator.io", "scala-io-file_2.10","0.4.2")), baseDir)
+      
+      
 //      val commits = {
 //        val commit = IvyHelper.getCommit(ModuleRevisionId.newInstance("com.typesafe.akka", "akka-actor_2.10", "2.2.0"), baseDir)
 //        val allCommits = commit.loadAllCommits("com.typesafe.akka/akka-actor")
