@@ -1,7 +1,7 @@
 # Adept #
 _- the predictable dependency management system where faith is not required_
 
-<img src="https://raw.github.com/wiki/adept-dm/adept/images/logo_adept_hood.png"
+<img src="https://raw.github.com/wiki/adept-dm/adept/images/logo_adept.png"
  alt="Adept logo" title="Adept" align="right" />
 
 Adept is a platform agnostic dependency management system.
