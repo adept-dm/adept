@@ -15,11 +15,10 @@ object ScalaBinaryVersion extends Conversion {
   }
   
   def convert(configuredVariant: ConfiguredVariantsMetadata, others: Set[ConfiguredVariantsMetadata]): Option[ConfiguredVariantsMetadata] = {
-    configuredVariant.id.value match {
+    (configuredVariant.id.value match { //fix Id and change scala requirement with binary version
       case ScalaLibBinaryVersionRegEx(newId, scalaBinaryVersion) => {
-        
         val configurations = configuredVariant.configurations.map { configuration =>
-          val requirements = configuration.requirements.map { requirement =>
+          val requirements = configuration.requirements.map { requirement => 
             if (requirement.id == ScalaLibId && requirement.constraints.find(_.name == AttributeDefaults.BinaryVersionAttribute).isEmpty) { //if scala lib and binary version is not set
               requirement.copy(constraints = requirement.constraints + Constraint(AttributeDefaults.BinaryVersionAttribute, Set(scalaBinaryVersion)))
             } else requirement
@@ -29,7 +28,14 @@ object ScalaBinaryVersion extends Conversion {
         Some(configuredVariant.copy( id = Id(newId), configurations = configurations ))
       }
       case _ => Some(configuredVariant)
+    }).map{ configuredVariant => //rewrite all requirement ids (foo_2.10 => foo)
+      val configurations = configuredVariant.configurations.map{ configuration =>
+        val requirements = configuration.requirements.map{ requirement =>
+          requirement.copy( id = convertId(requirement.id.value) )
+        }
+        configuration.copy(requirements = requirements)
+      }
+      configuredVariant.copy( configurations = configurations )
     }
   }
-
 }

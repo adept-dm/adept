@@ -91,8 +91,10 @@ object IvyHelper extends Logging {
     adeptGitRepo.updateMetadata({ content =>
       content.variantsMetadata
         .filter { old =>
-          hasSameAttribute(AttributeDefaults.BinaryVersionAttribute, old.attributes, result.variantsMetadata.attributes) || //only remove the ones with the same binary attribute
-            SemanticVersion.getSemanticVersion(old.attributes).find { case (major, minor, point) => major.toInt == 0 }.isDefined //remove if old is a semantic version with a prerelease 
+          hasSameAttribute(AttributeDefaults.NameAttribute, old.attributes, result.variantsMetadata.attributes) &&
+            hasSameAttribute(AttributeDefaults.OrgAttribute, old.attributes, result.variantsMetadata.attributes) &&
+            (hasSameAttribute(AttributeDefaults.BinaryVersionAttribute, old.attributes, result.variantsMetadata.attributes) || //only remove the ones with the same binary attribute
+              SemanticVersion.getSemanticVersion(old.attributes).find { case (major, minor, point) => major.toInt == 0 }.isDefined) //remove if old is a semantic version with a prerelease 
         }.map(_.file(adeptGitRepo)).toSeq
     }, { content =>
       Seq(result.variantsMetadata.write(adeptGitRepo))
@@ -147,17 +149,27 @@ object IvyHelper extends Logging {
       lastSize = unhandledResults.size
 
       unhandledResults.foreach { result =>
-        val foundCommits = result.dependencies.flatMap { dependency =>
-          getCommit(dependency.getId, baseDir)
+        val allTransitiveDependencies = {
+          def traverseResult(result: IvyImportResult): Set[ModuleRevisionId] = {
+            val currentMrids = result.dependencies.map(_.getId)
+            currentMrids ++ results.filter(r => currentMrids(r.mrid)).flatMap(traverseResult)
+          }
+          traverseResult(result)
         }
-        if (result.dependencies.size == foundCommits.size) {
+
+        //        println(result.mrid + " HAS " + allTransitiveDependencies)
+
+        val foundCommits = allTransitiveDependencies.flatMap { mrid =>
+          getCommit(mrid, baseDir)
+        }
+        if (allTransitiveDependencies.size == foundCommits.size) {
           handledResults += result -> foundCommits
           unhandledResults -= result
           updateRepository(baseDir, result, foundCommits)
         } else None
       }
     }
-    
+
     if (handledResults.size != initialResults.size) throw new Exception("Could not insert some ivy results: " + unhandledResults.mkString("\n")) //TODO: extract from here  
   }
 
@@ -166,38 +178,6 @@ object IvyHelper extends Logging {
 class IvyHelper(ivy: Ivy, changing: Boolean = true) extends Logging {
   import AttributeDefaults.{ NameAttribute, OrgAttribute, VersionAttribute, ArtifactConfAttribute }
   import IvyHelper._
-
-  /**
-   * Import from ivy based on coordinates
-   */
-  def ivyImport(org: String, name: String, version: String): Either[String, Set[IvyImportResult]] = {
-    ivy.synchronized { // ivy is not thread safe
-      val mrid = ModuleRevisionId.newInstance(org, name, version)
-      val dependencyTree = createDependencyTree(mrid)
-      val workingNode = dependencyTree(ModuleRevisionId.newInstance(org, name + "-caller", "working")).head.getId
-      val result = results(workingNode)(dependencyTree)
-      Right(result)
-    }
-  }
-
-  private val SafeGuardLimit = 1000
-
-  def insert(results: Set[IvyImportResult], baseDir: File) = {
-    var commits = Map.empty[ModuleRevisionId, AdeptCommit]
-    var handledModules = Set.empty[ModuleRevisionId]
-    var unhandledResults = results
-
-    var safeGuard = 0
-    while (unhandledResults.size > 0) {
-      safeGuard += 1
-      if (safeGuard == SafeGuardLimit) throw AdeptIvyException("Got into loop while inserting from Ivy? Tried to insert: " + SafeGuardLimit + " times, which is set as max")
-
-      val currentResults = unhandledResults.filter { result => //TODO: stop when currentResults is 0 instead of silly safe guard!
-
-        true
-      }
-    }
-  }
 
   def createDependencyTree(mrid: ModuleRevisionId) = { //TODO: rename to requirement? or perhaps not?
     var dependencies = Map.empty[ModuleRevisionId, Set[IvyNode]]
@@ -323,7 +303,20 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true) extends Logging {
     IvyImportResult(mrid, dependencies, metadata, allArtifacts, allArtifactFiles)
   }
 
-  def results(mrid: ModuleRevisionId)(dependencies: Map[ModuleRevisionId, Set[IvyNode]]): Set[IvyImportResult] = {
+  /**
+   * Import from ivy based on coordinates
+   */
+  def ivyImport(org: String, name: String, version: String): Either[String, Set[IvyImportResult]] = {
+    ivy.synchronized { // ivy is not thread safe
+      val mrid = ModuleRevisionId.newInstance(org, name, version)
+      val dependencyTree = createDependencyTree(mrid)
+      val workingNode = dependencyTree(ModuleRevisionId.newInstance(org, name + "-caller", "working")).head.getId
+      val result = results(workingNode)(dependencyTree)
+      Right(result)
+    }
+  }
+
+  private def results(mrid: ModuleRevisionId)(dependencies: Map[ModuleRevisionId, Set[IvyNode]]): Set[IvyImportResult] = {
     val children = dependencies.getOrElse(mrid, Set.empty)
     val currentResult = createIvyResult(mrid, children)
     children.flatMap { childNode =>

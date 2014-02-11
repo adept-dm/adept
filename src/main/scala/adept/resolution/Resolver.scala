@@ -50,6 +50,7 @@ class Resolver(loader: VariantsLoader) {
 
   private[adept] def resolveVariant(requirement: Requirement, state: State): (Option[Variant], State) = {
     val id = requirement.id
+    println("resolving " + id)
     state.implicitVariants.get(id) match {
       case Some(variant) =>
         Some(variant) -> state
@@ -149,10 +150,14 @@ class Resolver(loader: VariantsLoader) {
     }
   }
 
+  val SkipImplicitResolve = true
+  
   private def implicitResolve(requirements: Set[Requirement], currentState: State, previouslyUnderconstrained: Set[Id], optimalUnderconstrainedStates: collection.mutable.Set[State]): Either[State, State] = {
     val state = resolveRequirements(requirements, Set.empty, currentState)
-
-    if (state.isUnderconstrained) {
+    
+    if (state.isUnderconstrained && SkipImplicitResolve) {
+      Left(state)
+    } else if (state.isUnderconstrained && !SkipImplicitResolve) {
       //under-constrained; perhaps there is a unique combination of variants where we still can resolve:
 
       val nonImplicitRequirements = requirements.filter { requirement =>
