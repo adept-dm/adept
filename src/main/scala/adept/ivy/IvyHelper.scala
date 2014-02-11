@@ -22,6 +22,7 @@ import adept.logging.Logging
 import adept.repository.models._
 import adept.repository.models.configuration._
 import adept.ext.conversions.SemanticVersion
+import adept.ext.conversions.ScalaBinaryVersion
 
 case class AdeptIvyResolveException(msg: String) extends Exception(msg)
 case class AdeptIvyException(msg: String) extends Exception(msg)
@@ -71,81 +72,95 @@ object IvyHelper extends Logging {
     resolveOptions
   }
 
-  def insert(results: Set[IvyImportResult], baseDir: File) = {
+  def name2IdConversions(name: String) = { //TODO: make configurable!
+    ScalaBinaryVersion.convertId(name)
+  }
+
+  def org2RepoConversions(org: String) = { //TODO: make configurable! / remove?
+    org
+  }
+
+  def updateRepository(baseDir: File, result: IvyImportResult, commits: Set[AdeptCommit]) = {
     def hasSameAttribute(attributeName: String, attributes1: Set[Attribute], attributes2: Set[Attribute]): Boolean = {
       attributes1.find(_.name == attributeName) == attributes2.find(_.name == attributeName)
     }
 
+    val repoId = result.mrid.getOrganisation()
+    val adeptGitRepo = new AdeptGitRepository(baseDir, repoId)
+
+    adeptGitRepo.updateMetadata({ content =>
+      content.variantsMetadata
+        .filter { old =>
+          hasSameAttribute(AttributeDefaults.BinaryVersionAttribute, old.attributes, result.variantsMetadata.attributes) || //only remove the ones with the same binary attribute
+            SemanticVersion.getSemanticVersion(old.attributes).find { case (major, minor, point) => major.toInt == 0 }.isDefined //remove if old is a semantic version with a prerelease 
+        }.map(_.file(adeptGitRepo)).toSeq
+    }, { content =>
+      Seq(result.variantsMetadata.write(adeptGitRepo))
+    }, "Ivy import of: " + result.mrid)
+
+  }
+
+  def getCommit(mrid: ModuleRevisionId, baseDir: File) = {
+    val org = mrid.getOrganisation() //TODO: create a method or something here (we might change how things are mapped)
+    val repo = org2RepoConversions(org)
+    val name = mrid.getName()
+    val id = name2IdConversions(name)
+    val version = mrid.getRevision()
+
+    val gitRepo = new AdeptGitRepository(baseDir, repo)
+    val maybeMetadataHit = gitRepo.scanFirst { metadata =>
+      metadata.variantsMetadata.exists { variantsMetadata =>
+        val foundVersion = variantsMetadata.attributes.find { a =>
+          a.name == AttributeDefaults.VersionAttribute && a.values == Set(version)
+        }
+        val foundName = variantsMetadata.attributes.find { a =>
+          a.name == AttributeDefaults.NameAttribute && a.values == Set(name)
+        }
+        val foundOrg = variantsMetadata.attributes.find { a =>
+          a.name == AttributeDefaults.OrgAttribute && a.values == Set(org)
+        }
+        val foundPreviousVersioned = foundVersion.isDefined && foundName.isDefined && foundOrg.isDefined
+        foundPreviousVersioned
+      }
+    }
+
+    maybeMetadataHit match {
+      case Some((adeptCommit, _)) => Some(adeptCommit)
+      case _ => None
+    }
+  }
+
+  def insert(results: Set[IvyImportResult], baseDir: File) = {
+    logger.warn("IvyInsert is currently NOT properly IMPLEMENTED") //TODO: this can be removed once we have tested a bit more thouroughly 
+
     val gitRepos = Set.empty
 
+    val initialResults = results.filter{ result => //TODO: currently this just checks if there is something with the same attributes, but we have to be able to update as well (check artifacts hashes etc etc)
+      getCommit(result.mrid, baseDir).isEmpty
+    }
+    
     var handledResults: Map[IvyImportResult, Set[AdeptCommit]] = Map.empty //TODO: load all results that have been handled allready
-    var unhandledResults = results
+    var unhandledResults = initialResults
 
     var lastSize = -1
     while (unhandledResults.size != lastSize) {
 
       unhandledResults.foreach { result =>
-        
-//        val foundCommits = result.flatMap{
-//            //check if there is a variant that matches, org, name and version
-//          None
-//        } 
-//        if (result.dependencies.size == foundCommits.size) {
-//          handledResults += result -> foundCommits
-//          unhandledResults -= result
-//          updateRepostiory(result)
-//        } else None
+        val foundCommits = result.dependencies.flatMap { dependency =>
+          getCommit(dependency.getId, baseDir)
+        }
+        if (result.dependencies.size == foundCommits.size) {
+          println("writing " + result.mrid + " with " + foundCommits.map(c => c.repo.dir + " @ " + c.commit))
+          handledResults += result -> foundCommits
+          unhandledResults -= result
+          updateRepository(baseDir, result, foundCommits)
+        } else None
       }
 
       lastSize = unhandledResults.size
     }
-    if (handledResults.size != results.size) throw new Exception("Could not insert some ivy results: " + unhandledResults.mkString("\n")) //TODO: separate  
+    if (handledResults.size != initialResults.size) throw new Exception("Could not insert some ivy results: " + unhandledResults.mkString("\n")) //TODO: extract from here  
 
-    //logger.warn("IvyInsert is currently NOT properly IMPLEMENTED")
-    //    results.foreach { result =>
-    //      val repoId = result.mrid.getOrganisation()
-    //      val adeptGitRepo = new AdeptGitRepository(baseDir, repoId)
-    //
-    //      adeptGitRepo.updateMetadata({ content =>
-    //        content.variantsMetadata
-    //          .filter { old =>
-    //            hasSameAttribute(AttributeDefaults.BinaryVersionAttribute, old.attributes, result.variantsMetadata.attributes) || //only remove the ones with the same binary attribute
-    //              SemanticVersion.getSemanticVersion(old.attributes).find { case (major, minor, point) => major.toInt == 0 }.isDefined //remove if old is a semantic version with a prerelease 
-    //          }.map(_.file(adeptGitRepo)).toSeq
-    //      }, { content =>
-    //        Seq(result.variantsMetadata.write(adeptGitRepo))
-    //      }, "Ivy import of: " + result.mrid)
-    //    }
-
-    //    var repositories = Set.empty[AdeptCommit]
-    //    var repositoryMap = Map.empty[ModuleRevisionId, LocalGitRepository]
-    //    var handledResults = Set.empty[ModuleRevisionId]
-    //    var unhandledResults = results
-    //
-    //    var safeGuard = 0
-    //    while (handledResults.size < results.size) {
-    //      safeGuard += 1
-    //      if (safeGuard == SafeGuardLimit) throw new Exception("Got into loop while inserting from Ivy? Tried to insert: " + SafeGuardLimit + " times, which is set as max")
-    //
-    //      val currentResults = unhandledResults.filter { result => //TODO: stop when currentResults is 0 instead of silly safe guard!
-    //        result.variants.forall { variant =>
-    //          variant.dependencies.isEmpty || {
-    //            variant.dependencies.forall { dependency =>
-    //              if (VariantBuilder.stripConfig(dependency.id) == VariantBuilder.stripConfig(variant.id)) { //TODO: evaluate if this is right - we do it because of the "configuration" dependencies that just depend on the module itself  
-    //                true
-    //              } else {
-    //                handledResults(dependencyAsMrid(dependency)) //we are relying on the fact that we get the complete tree even if the id, values are already present
-    //              }
-    //            }
-    //          }
-    //        }
-    //      }
-    //      val currentRepositories = updateRepositories(results, baseDir) 
-    //      repositories ++= currentRepositories
-    //      handledResults ++= currentResults.map(_.mrid)
-    //      unhandledResults --= currentResults
-    //    }
-    //    repositories
   }
 }
 
@@ -161,7 +176,6 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true) extends Logging {
       val mrid = ModuleRevisionId.newInstance(org, name, version)
       val dependencyTree = createDependencyTree(mrid)
       val workingNode = dependencyTree(ModuleRevisionId.newInstance(org, name + "-caller", "working")).head.getId
-      println(dependencyTree.mkString("\b"))
       val result = results(workingNode)(dependencyTree)
       Right(result)
     }
@@ -225,6 +239,8 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true) extends Logging {
     val moduleDescriptor = dependencyReport.getModuleDescriptor()
     val unloadedChildrenMrid = unloadedChildren.map(_.getId())
 
+    var dependencies = Set.empty[IvyNode]
+
     moduleDescriptor.getConfigurations().foreach { ivyConfiguration =>
       val confName = ivyConfiguration.getName
 
@@ -243,8 +259,9 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true) extends Logging {
         else
           logger.error(ivyNode + " was not loaded and NOT evicted, so skipping! This is potentially a problem") //TODO: is this acceptable? if not find a way to load ivy nodes...
       }
-
       val requirements = loaded.map { ivyNode => //evicted nodes are not loaded, we are importing one by one so it is fine
+        if (!ivyNode.isEvicted(confName)) dependencies += ivyNode //MUTATE
+
         val requirementId = createId(ivyNode.getId.getName)
         val extraAttributes = moduleDescriptor.getExtraAttributes
         val constraints: Set[Constraint] = extraAttributes.asScala.flatMap {
@@ -263,7 +280,7 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true) extends Logging {
           ivyConfigurations.map(c => ConfigurationId(c.getName))
         }
 
-        ConfiguredRequirement(requirementId, configurations, commit = RepositoryMetadata(ivyNode.getId.getOrganisation, Set.empty, Commit("HEAD"), "ivy import"), constraints = constraints) //FIXME: fix commit!
+        ConfiguredRequirement(requirementId, configurations, commit = RepositoryMetadata(ivyNode.getId.getOrganisation, Commit("HEAD")), constraints = constraints) //FIXME: fix commit!
       }
 
       val artifactInfos = ivy.resolve(mrid, resolveOptions(ivyConfiguration.getName), changing).getArtifactsReports(mrid).flatMap { artifactReport =>
@@ -303,9 +320,8 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true) extends Logging {
       metadata = Set.empty,
       attributes = attributes,
       configurations = configurations)
-      
-      
-    IvyImportResult(mrid, metadata, allArtifacts, allArtifactFiles)
+
+    IvyImportResult(mrid, dependencies, metadata, allArtifacts, allArtifactFiles)
   }
 
   def results(mrid: ModuleRevisionId)(dependencies: Map[ModuleRevisionId, Set[IvyNode]]): Set[IvyImportResult] = {

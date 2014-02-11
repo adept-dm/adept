@@ -11,6 +11,9 @@ import adept.models.Id
 import adept.models.Constraint
 import adept.models.Attribute
 import adept.ext.AttributeDefaults
+import adept.resolution.Resolver
+import org.eclipse.jgit.api.Git
+import adept.repository.GitVariantsLoader
 
 class IvyHelperTest extends FunSuite with MustMatchers {
 
@@ -41,7 +44,6 @@ class IvyHelperTest extends FunSuite with MustMatchers {
 
   import adept.test.FileUtils._
 
-
   val semanticVersion = {
     val semanticVersionIds = Set(Id("akka-actor") -> "com.typesafe.akka", Id("scala-library") -> "org.scala-lang", Id("config") -> "com.typesafe")
     new SemanticVersion(semanticVersionIds)
@@ -57,7 +59,8 @@ class IvyHelperTest extends FunSuite with MustMatchers {
 
   test("End to end basic test") {
     usingTmpDir { tmpDir =>
-      val ivy = IvyContext.getContext.getIvy //TODO: is this right?
+      val baseDir = tmpDir
+      val ivy = IvyHelper.load(ivyLogger = IvyHelper.infoIvyLogger)
 
       ivy.configure(new File("src/test/resources/typesafe-ivy-settings.xml"))
       val ivyHelper = new IvyHelper(ivy)
@@ -91,10 +94,22 @@ class IvyHelperTest extends FunSuite with MustMatchers {
         }
       }
 
-      IvyHelper.insert(akka205WithAdjustedScalaLib, tmpDir)
-      IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe.akka", "akka-actor_2.10", "2.1.0")), tmpDir)
-      IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe.akka", "akka-actor_2.10", "2.2.0")), tmpDir)
-      IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe.akka", "akka-actor_2.10", "2.2.1")), tmpDir)
+//      IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe", "config", "0.3.1")), baseDir)
+//      IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe", "config", "1.0.0")), baseDir)
+//      IvyHelper.insert(akka205WithAdjustedScalaLib, baseDir)
+//      IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe.akka", "akka-actor_2.10", "2.1.0")), baseDir)
+//      IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe.akka", "akka-actor_2.10", "2.2.0")), baseDir)
+//      IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe.akka", "akka-actor_2.10", "2.2.1")), baseDir)
+//      IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe.akka", "akka-actor_2.10", "2.2.2")), baseDir)
+      IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe.play", "play_2.10", "2.2.1")), baseDir)
+
+//      val commits = {
+//        val commit = IvyHelper.getCommit(ModuleRevisionId.newInstance("com.typesafe.akka", "akka-actor_2.10", "2.2.0"), baseDir)
+//        val allCommits = commit.loadAllCommits("com.typesafe.akka/akka-actor")
+//        allCommits  + commit
+//      }
+//      
+      
     }
 
   }

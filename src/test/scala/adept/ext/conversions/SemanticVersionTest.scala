@@ -23,10 +23,10 @@ class SemanticVersionTest extends FunSuite with MustMatchers {
       requirements = Set(
           ConfiguredRequirement(binaryVersionReqId, Set(ConfigurationId("compile"), ConfigurationId("master")),
         constraints = Set(Constraint("version", Set("2.1.0"))),
-        commit = RepositoryMetadata("repo1", Set.empty, Commit("bogus"), "blahblah")),
+        commit = RepositoryMetadata("repo1", Commit("bogus"))),
         ConfiguredRequirement(noBinaryVersionReqId, Set(ConfigurationId("compile"), ConfigurationId("master")),
           constraints = Set(Constraint("version", Set("2.1.0"))),
-          commit = RepositoryMetadata("repo1", Set.empty, Commit("bogus"), "blahblah"))))
+          commit = RepositoryMetadata("repo1", Commit("bogus")))))
 
     val configuredVariant = ConfiguredVariantsMetadata(
       id = masterId,

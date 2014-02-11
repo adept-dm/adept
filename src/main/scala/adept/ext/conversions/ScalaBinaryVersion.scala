@@ -9,6 +9,11 @@ object ScalaBinaryVersion extends Conversion {
   private lazy val ScalaLibBinaryVersionRegEx = """(.*)_(\d\.\d{2})$""".r
   val ScalaLibId = Id("scala-library")
 
+  def convertId(name: String) = name match {
+    case ScalaLibBinaryVersionRegEx(newId, _) => Id(newId)
+    case _ => Id(name)
+  }
+  
   def convert(configuredVariant: ConfiguredVariantsMetadata, others: Set[ConfiguredVariantsMetadata]): Option[ConfiguredVariantsMetadata] = {
     configuredVariant.id.value match {
       case ScalaLibBinaryVersionRegEx(newId, scalaBinaryVersion) => {

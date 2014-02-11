@@ -17,7 +17,7 @@ object ConfiguredVariantsMetadataTestData {
     attributes = Set(Attribute("attr1", Set("foo"))),
     requirements = Set(ConfiguredRequirement(Id("mooboo"), Set(ConfigurationId("compile"), ConfigurationId("master")),
       constraints = Set(Constraint("version", Set("1.0.0"))),
-      commit = RepositoryMetadata("loco.com", commit = Commit("mooboo456commit"), uris = Set("git@git://github.com/loco/mooboo.git"), info = "version = 1.0.0"))))
+      commit = RepositoryMetadata("loco.com", commit = Commit("mooboo456commit")))))
 
   val runtimeConf = Configuration(
     id = ConfigurationId("runtime"),
@@ -35,7 +35,7 @@ object ConfiguredVariantsMetadataTestData {
     attributes = Set(Attribute("attr3", Set("foo"))),
     requirements = Set(ConfiguredRequirement(Id("loo"), Set(ConfigurationId("compile"), ConfigurationId("master")),
       constraints = Set(Constraint("binary-version", Set("2.1"))),
-      commit = RepositoryMetadata("zoo.com", commit = Commit("loo123commit"), uris = Set("git@git://github.com/zoo/loo.git"), info = "version = 2.1.1"))))
+      commit = RepositoryMetadata("zoo.com", commit = Commit("loo123commit")))))
 
   val metadata = ConfiguredVariantsMetadata(
     id = Id("bar"),

@@ -1,5 +1,5 @@
 package adept.repository.models
 
-class ArtifactMetadata {
+case class ArtifactMetadata {
 
 }

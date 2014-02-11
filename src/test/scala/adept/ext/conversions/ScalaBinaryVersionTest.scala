@@ -23,10 +23,10 @@ class ScalaBinaryVersionTest extends FunSuite with MustMatchers {
       attributes = Set.empty,
       requirements = Set(ConfiguredRequirement(ScalaBinaryVersion.ScalaLibId, Set(ConfigurationId("compile"), ConfigurationId("master")),
         constraints = Set.empty,
-        commit = RepositoryMetadata("repo1", Set.empty, Commit("bogus"), "blahblah")),
+        commit = RepositoryMetadata("repo1", Commit("bogus"))),
         ConfiguredRequirement(configId, Set(ConfigurationId("compile"), ConfigurationId("master")),
           constraints = Set.empty,
-          commit = RepositoryMetadata("repo1", Set.empty, Commit("bogus"), "blahblah"))))
+          commit = RepositoryMetadata("repo1", Commit("bogus")))))
 
     val configuredVariant = ConfiguredVariantsMetadata(
       id = Id(akkaName + "_" + scalaVersion),
