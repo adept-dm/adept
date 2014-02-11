@@ -4,14 +4,13 @@ _- the predictable dependency management system where faith is not required_
 <img src="https://raw.github.com/wiki/adept-dm/adept/images/logo_adept_hood.png"
  alt="Adept logo" title="Adept" align="right" />
 
-Adept is a dependency management system for the JVM platform.
+Adept is a platform agnostic dependency management system.
 
-Adept was created because we:
-* Had to! Today's dependency managers does not support reality anymore: one version attribute to handle resolution is not enough with multiple JVMs and _other_ non compatible libraries.
-* Were sick of a 'download the Internet' step in your builds that takes forever
-* Were sick of non-reproducible builds
-* Were sick of mysteriously corrupt caches
-* Were sick of complex publish procedures
+Adept avoids:
+- A 'download the Internet' step in your builds that takes forever
+- Non-reproducible builds
+- Mysteriously corrupt caches
+- Complex publish procedures
 
 Adept gives you speed and deterministic behavior:
 * Smarter metadata gives exactly what you want or tells you what is wrong
@@ -22,12 +21,6 @@ Adept gives you speed and deterministic behavior:
 
 
 Note that we are changing the design of Adept!
-
-The new spec can be found here: https://docs.google.com/document/d/1xU9m2zxva2eKhiXVYYqjmZieaWPJY0mDbEmZ_pE5P5c/edit?usp=sharing
-The new sources are located on the master branch - the old ones are on mark-i.
-
-
-# DEPRECATED
 ## Find out more
 
 | Technical Docs                  | Setup Guide               | Roadmap                 | Contributing                      |
@@ -37,7 +30,7 @@ The new sources are located on the master branch - the old ones are on mark-i.
 
 ## Contributing
 
-Adept is currently in the proposal and discussion stage! 
+We are rolling out an alpha end of February! It is exciting times in the world of dependency management!
 
 Do you want to take part in shaping the ultimate dependency managmenet system on the JVM for years to come? 
 
