@@ -17,6 +17,7 @@ import org.eclipse.jgit.treewalk.filter.PathFilter
 import java.io.InputStream
 import java.io.InputStreamReader
 import org.eclipse.jgit.revwalk.filter.RevFilter
+import java.nio.channels.FileChannel
 
 case class WriteLockException(repo: AdeptGitRepository, reason: String) extends Exception("Could not lock '" + repo.dir.getAbsolutePath + "': " + reason)
 case class InitException(repo: AdeptGitRepository, reason: String) extends Exception("Could not initialize '" + repo.dir.getAbsolutePath + "': " + reason)
@@ -143,8 +144,9 @@ class AdeptGitRepository(val baseDir: File, val name: String) extends Logging {
     if (!locked) {
       synchronized {
         var lock: FileLock = null
+        var channel: FileChannel = null
         try {
-          val channel = new RandomAccessFile(lockFile, "rw").getChannel();
+          channel = new RandomAccessFile(lockFile, "rw").getChannel();
           lock = channel.tryLock() //TODO: re-throw: java.nio.channels.OverlappingFileLockException
           if (lock == null) throw WriteLockException(this, "Could not acquire lock: " + lockFile + ".")
           else {
@@ -156,6 +158,10 @@ class AdeptGitRepository(val baseDir: File, val name: String) extends Logging {
             lock.release()
             lockFile.delete()
             locked = false
+
+          }
+          if (channel != null) {
+            channel.close()
           }
         }
       }
