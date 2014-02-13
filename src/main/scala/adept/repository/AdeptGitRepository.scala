@@ -217,6 +217,16 @@ class AdeptGitRepository(val baseDir: File, val name: String) extends Logging {
     new File(getVariantsMetadataDir(id), hash.value + "." + JsonFileEnding)
   }
 
+  def getArtifactMetadataDir(): File = {
+    val dir = getArtifactDescriptorsDir(baseDir, name)
+    if (!(dir.isDirectory() || dir.mkdirs())) throw InitException(this, "Could not create artifacts metadata dir: " + dir.getAbsolutePath)
+    dir
+  }
+
+  def getArtifactMetadataFile(hash: Hash): File = {
+    new File(getArtifactMetadataDir(), hash.value + "." + JsonFileEnding)
+  }
+
   private def gitPath(file: File): String = {
     if (file.getAbsolutePath().startsWith(dir.getAbsolutePath)) {
       file.getAbsolutePath.replace(dir.getAbsolutePath + File.separator, "")
@@ -244,9 +254,10 @@ class AdeptGitRepository(val baseDir: File, val name: String) extends Logging {
   }
 
   //TODO: optimize to only look in certain paths?
+  //TODO: rename to readContentn
   private[adept] def listContent(commitString: String, gitRepo: JGitRepository, revWalk: RevWalk, treeWalk: TreeWalk) = {
     var configuredVariantsMetadata = Set.empty[ConfiguredVariantsMetadata]
-    val containingDir = VariantsDirName
+    var artifactsMetadata = Set.empty[ArtifactMetadata]
     val revCommit = lookup(gitRepo, revWalk, commitString)
     try {
       revWalk.markStart(revCommit)
@@ -259,17 +270,18 @@ class AdeptGitRepository(val baseDir: File, val name: String) extends Logging {
     if (currentTree != null) { //if null means we on an empty commit (no tree)
       treeWalk.addTree(currentTree)
       treeWalk.setRecursive(true)
-      treeWalk.setFilter(PathFilter.create(containingDir))
 
       while (treeWalk.next()) {
         val currentPath = treeWalk.getPathString
         if (treeWalk.isSubtree()) {
           treeWalk.enterSubtree()
-        } else if (currentPath.startsWith(containingDir) && currentPath.endsWith(JsonFileEnding)) { //TODO: more verifications?
+        } else if ((currentPath.startsWith(VariantsDirName) &&
+          currentPath.endsWith(JsonFileEnding) || currentPath.startsWith(ArtifactDescriptorDirName))) { //TODO: more verifications?
           readBlob(treeWalk, gitRepo) { is =>
             val reader = new InputStreamReader(is)
             try {
-              configuredVariantsMetadata += ConfiguredVariantsMetadata.fromJson(reader)
+              if (currentPath.startsWith(VariantsDirName)) configuredVariantsMetadata += ConfiguredVariantsMetadata.fromJson(reader)
+              if (currentPath.startsWith(ArtifactDescriptorDirName)) artifactsMetadata += ArtifactMetadata.fromJson(reader)
             } finally {
               reader.close()
             }

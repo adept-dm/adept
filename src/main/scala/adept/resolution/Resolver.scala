@@ -7,27 +7,27 @@ import adept.repository.VariantsLoader
 class UnexpectedResolutionStateException(msg: String) extends Exception(msg)
 
 /**
- * Based on a set of requirements (which are just an id and some constraints) 
+ * Based on a set of requirements (which are just an id and some constraints)
  * and a `loader`, which loads variants, the `Resolver` can resolve the dependency graph.
- * 
+ *
  * This means that it will search for a set of variants based on the requirements,
  * where there are exactly one variant per Id.
- * 
+ *
  * If it finds more than one variant per Id, the `ResolvedResult` is "under-constrained".
- * If it there is no variant that matches the Id and constraints, the `ResolvedResult` is 
+ * If it there is no variant that matches the Id and constraints, the `ResolvedResult` is
  * "over-constrained".
- * 
+ *
  * Usage:
  * {{{
- * 
+ *
  * val variants: Set[Variant] = ...
- * val memoryVariantsLoader = new MemoryVariantsLoader(variants) 
+ * val memoryVariantsLoader = new MemoryVariantsLoader(variants)
  * val resolver = new Resolver(memoryVariantsLoader)
- * 
+ *
  * val requirements: Set[Requirement] = ...
  * resolver.resolve(requirements)
- * 
- * }}} 
+ *
+ * }}}
  */
 class Resolver(loader: VariantsLoader) {
 
@@ -50,7 +50,6 @@ class Resolver(loader: VariantsLoader) {
 
   private[adept] def resolveVariant(requirement: Requirement, state: State): (Option[Variant], State) = {
     val id = requirement.id
-    println("resolving " + id)
     state.implicitVariants.get(id) match {
       case Some(variant) =>
         Some(variant) -> state
@@ -103,9 +102,12 @@ class Resolver(loader: VariantsLoader) {
     newRequirements.foldLeft(lastState) { (state, requirement) => //collapse all requirements that can be found into one
       resolveVariant(requirement, state) match {
         case (Some(variant), resolvedState) =>
-          val state = if (variant.requirements.isEmpty) resolvedState
-          else resolveRequirements(variant.requirements, visited + requirement, resolvedState)
+          val state =
+            if (variant.requirements.isEmpty) resolvedState
+            else resolveRequirements(variant.requirements, visited + requirement, resolvedState)
+
           val node = state.nodes(variant.id)
+
           state.copy(nodes = state.nodes +
             (variant.id -> node.copy(children =
               resolveNodes(variant.requirements, state))))
@@ -118,7 +120,7 @@ class Resolver(loader: VariantsLoader) {
 
   /**
    * Resolve the requirements and return the result.
-   * 
+   *
    * Is thread-safe.
    */
   def resolve(requirements: Set[Requirement]): ResolveResult = {
@@ -150,11 +152,11 @@ class Resolver(loader: VariantsLoader) {
     }
   }
 
-  val SkipImplicitResolve = true
-  
+  val SkipImplicitResolve = false
+
   private def implicitResolve(requirements: Set[Requirement], currentState: State, previouslyUnderconstrained: Set[Id], optimalUnderconstrainedStates: collection.mutable.Set[State]): Either[State, State] = {
     val state = resolveRequirements(requirements, Set.empty, currentState)
-    
+
     if (state.isUnderconstrained && SkipImplicitResolve) {
       Left(state)
     } else if (state.isUnderconstrained && !SkipImplicitResolve) {

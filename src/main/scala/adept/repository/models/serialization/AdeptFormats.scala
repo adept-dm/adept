@@ -20,5 +20,5 @@ private[models] object AdeptFormats {
   implicit val formatConfiguredRequirement = Json.format[ConfiguredRequirement]
   implicit val formatConfiguration = Json.format[Configuration]
   implicit val formatConfiguredVariantsMetadata = Json.format[ConfiguredVariantsMetadata]
-
+  implicit val formatArtifactMetadata = Json.format[ArtifactMetadata]
 } 

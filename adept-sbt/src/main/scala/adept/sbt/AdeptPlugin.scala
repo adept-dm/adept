@@ -21,6 +21,7 @@ import adept.resolution.models.UnderconstrainedResult
 import adept.resolution.models.ResolvedResult
 import adept.resolution.models.OverconstrainedResult
 import adept.resolution.models.ResolveResult
+import adept.artifacts.ArtifactCache
 
 object AdeptRepository {
   import sbt.complete.DefaultParsers._
@@ -116,6 +117,16 @@ object Faked { //REMOVE THIS when finished testing (used for hard coding)
   }
   val cacheManager = CacheManager.create
   var result: Option[ResolveResult] = None
+  
+  def artifacts = {
+    result match {
+      case Some(result) =>
+        val variants = result.state.implicitVariants ++ result.state.resolvedVariants
+        println(variants.map(_._2.artifacts))
+        variants.flatMap{ case (_, variant) =>variant.artifacts.map(a => ArtifactCache.getArtifactCacheFile(baseDir, a.hash) -> a.filename)  }.toSeq
+      case None => Seq.empty[(File, String)]
+    }
+  }
 }
 
 class AdeptManager(baseDir: File, lockFile: File) {
@@ -129,7 +140,7 @@ class AdeptManager(baseDir: File, lockFile: File) {
 
     //val (configuredRequirements, commits) = LockFile.read(lockFile).getResolveInfo
 
-    val newReq = ConfiguredRequirement(id = Id(id), configurations = Set(ConfigurationId("compile")), commit = RepositoryMetadata(repo, gitRepo.getMostRecentCommit.commit),
+    val newReq = ConfiguredRequirement(id = Id(id), configurations = Set(ConfigurationId("compile"), ConfigurationId("master")), commit = RepositoryMetadata(repo, gitRepo.getMostRecentCommit.commit),
       constraints = parsedConstraints)
 
     //TODO: lookup first variant, load all of it's transitive repos from /repos/akka-actor/14122132.json
@@ -144,13 +155,13 @@ class AdeptManager(baseDir: File, lockFile: File) {
       //Here we load all repositories from all configurations for ALL variants matching the constraints
       //It means we might resolve more repositories than strictly needed, but we avoid round-trips while resolving
       //We can optimize this a bit more, but it is still a good approximation
-      newMatchingVariants.flatMap { variant => //TODO: this code is WEIRRRRRD!
+      requiredCommits ++ newMatchingVariants.par.flatMap { variant => //TODO: this code is WEIRRRRRD!
         variant.configurations.flatMap { configuration =>
           configuration.requirements.map { r =>
             AdeptCommit(new AdeptGitRepository(baseDir, r.commit.name), r.commit.commit)
           }
         }
-      } ++ requiredCommits
+      }
     }
 
     val gitVariantsLoader = new GitVariantsLoader(commits, cacheManager = Faked.cacheManager)
@@ -211,10 +222,15 @@ object AdeptPlugin extends Plugin {
 
   def adeptSettings = Seq(
     adeptDirectory := Path.userHome / ".adept",
+    adeptClasspath := {
+      Faked.artifacts.map{ case (file, name) =>
+        file
+      }
+    },
     sbt.Keys.commands += {
 
       val SetCommand = token("set")
-      val StateCommand = token("state")
+      val GraphCommand = token("graph")
       val IvyImport = token("ivy-import")
 
       val RepositorySep = token("/")
@@ -249,15 +265,18 @@ object AdeptPlugin extends Plugin {
         }
       }))
 
-      val state = StateCommand.map { _ =>
+      val graph = GraphCommand.map { _ =>
         new AdeptCommand {
           def execute() = {
-            println(Faked.result)
+            println(Faked.result match {
+              case Some(result) => result.graphAsString
+              case None => ""
+            })
           }
         }
 
       }
-      val adept = (Space ~> (set | ivyImport | state))
+      val adept = (Space ~> (set | ivyImport | graph))
 
       Command("adept")(_ => adept) { (state, adeptCommand) =>
         adeptCommand.execute()

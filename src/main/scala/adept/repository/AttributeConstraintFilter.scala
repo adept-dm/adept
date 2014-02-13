@@ -8,7 +8,7 @@ import adept.models._
 private[adept] object AttributeConstraintFilter {
 
   /** Returns true if there is there is a constraint that matches the attributes */
-  protected[adept] def matches(attributes: Set[Attribute], constraints: Set[Constraint]): Boolean = {
+  def matches(attributes: Set[Attribute], constraints: Set[Constraint]): Boolean = {
     if (constraints.nonEmpty) {
       val zipped = constraints.map { constraint =>
         constraint -> attributes.filter(attribute => attribute.name == constraint.name)

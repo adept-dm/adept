@@ -23,6 +23,7 @@ import adept.repository.models._
 import adept.repository.models.configuration._
 import adept.ext.conversions.SemanticVersion
 import adept.ext.conversions.ScalaBinaryVersion
+import adept.artifacts.ArtifactCache
 
 case class AdeptIvyResolveException(msg: String) extends Exception(msg)
 case class AdeptIvyException(msg: String) extends Exception(msg)
@@ -88,16 +89,25 @@ object IvyHelper extends Logging {
     val repoId = result.mrid.getOrganisation()
     val adeptGitRepo = new AdeptGitRepository(baseDir, repoId)
 
+    result.localFiles.foreach { case (artifact, file) => ArtifactCache.cache(baseDir, file, artifact.hash) }
+
     adeptGitRepo.updateMetadata({ content =>
-      content.variantsMetadata
+      val removeVariants = content.variantsMetadata
         .filter { old =>
-          hasSameAttribute(AttributeDefaults.NameAttribute, old.attributes, result.variantsMetadata.attributes) &&
+          old.id == result.variantsMetadata.id &&
+            hasSameAttribute(AttributeDefaults.NameAttribute, old.attributes, result.variantsMetadata.attributes) &&
             hasSameAttribute(AttributeDefaults.OrgAttribute, old.attributes, result.variantsMetadata.attributes) &&
             (hasSameAttribute(AttributeDefaults.BinaryVersionAttribute, old.attributes, result.variantsMetadata.attributes) || //only remove the ones with the same binary attribute
               SemanticVersion.getSemanticVersion(old.attributes).find { case (major, minor, point) => major.toInt == 0 }.isDefined) //remove if old is a semantic version with a prerelease 
-        }.map(_.file(adeptGitRepo)).toSeq
+        }
+
+      val removeArtifactRefs = removeVariants.flatMap(_.configurations.flatMap(_.artifacts))
+
+      removeArtifactRefs.map(a => ArtifactMetadata.file(adeptGitRepo, a.hash)).toSeq ++
+        removeVariants.map(_.file(adeptGitRepo)).toSeq
     }, { content =>
-      Seq(result.variantsMetadata.write(adeptGitRepo))
+      result.artifacts.toSeq.map(ArtifactMetadata.fromArtifact(_).write(adeptGitRepo)) ++
+        Seq(result.variantsMetadata.write(adeptGitRepo))
     }, "Ivy import of: " + result.mrid)
 
   }
@@ -133,8 +143,6 @@ object IvyHelper extends Logging {
   }
 
   def insert(results: Set[IvyImportResult], baseDir: File) = {
-    logger.warn("IvyInsert is currently NOT properly IMPLEMENTED") //TODO: this can be removed once we have tested a bit more thouroughly 
-
     val gitRepos = Set.empty
 
     val initialResults = results.filter { result => //TODO: currently this just checks if there is something with the same attributes, but we have to be able to update as well (check artifacts hashes etc etc)
@@ -175,7 +183,7 @@ object IvyHelper extends Logging {
 
 }
 
-class IvyHelper(ivy: Ivy, changing: Boolean = true) extends Logging {
+class IvyHelper(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[String]] = Some(Set("javadoc", "sources"))) extends Logging {
   import AttributeDefaults.{ NameAttribute, OrgAttribute, VersionAttribute, ArtifactConfAttribute }
   import IvyHelper._
 
@@ -199,8 +207,6 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true) extends Logging {
     }
     dependencies
   }
-
-  protected val skippableConf = Set("javadoc", "source")
 
   def createIvyResult(mrid: ModuleRevisionId, unloadedChildren: Set[IvyNode]): IvyImportResult = {
     val id = createId(mrid.getName)
@@ -248,11 +254,6 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true) extends Logging {
             Some(Constraint(name, Set(value)))
           case _ => None
         }.toSet
-        //disabled constraints on versions, names, orgs
-        //       ++ Set(
-        //          Constraint(OrgAttribute, Set(ivyNode.getId.getOrganisation)),
-        //          Constraint(NameAttribute, Set(ivyNode.getId.getName)),
-        //          Constraint(VersionAttribute, Set(ivyNode.getId.getRevision)))
 
         val configurations = {
           val ivyConfigurations = ivyNode.getConfigurations(confName).toSet.map(ivyNode.getConfiguration)
@@ -264,9 +265,13 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true) extends Logging {
 
       val artifactInfos = ivy.resolve(mrid, resolveOptions(ivyConfiguration.getName), changing).getArtifactsReports(mrid).flatMap { artifactReport =>
         val file = artifactReport.getLocalFile
-        if (artifactReport.isDownloaded() && skippableConf(ivyConfiguration.getName()))
+        if (file != null) {
           Some((artifactReport.getArtifactOrigin().getLocation(), artifactReport.getArtifact().getConfigurations(), file, Hash.calculate(file)))
-        else None
+        } else if (file == null && skippableConf.isDefined && skippableConf.get(ivyConfiguration.getName())) {
+          None
+        } else {
+          throw new Exception("Could not download: " + mrid + " in " + confName)
+        }
       }.toSet
 
       //TODO: skipping empty configurations? if (artifactInfos.nonEmpty || dependencies.nonEmpty)... 
