@@ -23,14 +23,14 @@ object SemanticVersion {
 
 class SemanticVersion(idRepos: Set[(Id, String)]) extends Conversion {
   import SemanticVersion._
-  
+
   val variantIds = idRepos.map(_._1)
   val repoNames = idRepos.map(_._2)
   val idReposMap = idRepos.toMap
 
   def convert(configuredVariant: ConfiguredVariantsMetadata, others: Set[ConfiguredVariantsMetadata]): Option[ConfiguredVariantsMetadata] = {
     if (variantIds(configuredVariant.id)) {
-      val semanticVersion = getSemanticVersion(configuredVariant.attributes).filter{ case (major, minor, point) => major.toInt > 0 } //we might fail if the version attributes looks different than what we are expected to. perhaps better?
+      val semanticVersion = getSemanticVersion(configuredVariant.attributes).filter { case (major, minor, point) => major.toInt > 0 } //we might fail if the version attributes looks different than what we are expected to. perhaps better?
 
       val attributes = semanticVersion match {
         case Some((major, minor, _)) => configuredVariant.attributes + Attribute(AttributeDefaults.BinaryVersionAttribute, Set(major + "." + minor))
@@ -40,8 +40,9 @@ class SemanticVersion(idRepos: Set[(Id, String)]) extends Conversion {
       val configurations = configuredVariant.configurations.map { configuration =>
         val requirements = configuration.requirements.flatMap { requirement =>
           if (variantIds(requirement.id) && repoNames(requirement.commit.name)) {
-            val binaryConstraint = requirement.constraints.filter(_.name != AttributeDefaults.VersionAttribute).find(_.name == AttributeDefaults.VersionAttribute) match {
-              case Some(Constraint(AttributeDefaults.VersionAttribute, values)) if values.size == 1 => values.headOption.flatMap { version =>
+            
+            val binaryConstraint = others.filter(_.id == requirement.id).flatMap(_.attributes).find(_.name == AttributeDefaults.VersionAttribute) match {
+              case Some(Attribute(AttributeDefaults.VersionAttribute, values)) if values.size == 1 => values.headOption.flatMap { version =>
                 version match {
                   //we might fail if the version constraints looks different than what we are expected to. perhaps better?
                   case SemanticVersionRegEx(major, minor, point) => Some(Constraint(AttributeDefaults.BinaryVersionAttribute, Set(major + "." + minor)))
@@ -60,9 +61,11 @@ class SemanticVersion(idRepos: Set[(Id, String)]) extends Conversion {
                 constraints
               }
             }
+            if (requirement.id.value.contains("akka-actor")) println(">>>" + requirement.id + "  " + others.map(_.id) + "  "  + binaryConstraint + others.filter(_.id == requirement.id))
             Some(requirement.copy(constraints = requirement.constraints ++ binaryConstraint))
           } else Some(requirement)
         }.toSet
+        
         configuration.copy(requirements = requirements)
       }
       Some(configuredVariant.copy(attributes = attributes, configurations = configurations))

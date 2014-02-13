@@ -9,11 +9,15 @@ object ArtifactCache {
 
   val ArtifactCacheDirName = "cache"
 
-  private def copy(src: File, dest: File) {
+  private def copy(src: File, dest: File): Unit = {
     import java.io.{ File, FileInputStream, FileOutputStream }
     new FileOutputStream(dest).getChannel.transferFrom(
       new FileInputStream(src).getChannel, 0, Long.MaxValue)
   }
+  
+  def copyFromCache(baseDir: File, hash: Hash, file: File) = {
+    copy(getArtifactCacheFile(baseDir, hash), file)
+  } 
 
   def getArtifactCacheFile(baseDir: File, hash: Hash) = {
     val dir = new File(baseDir, ArtifactCacheDirName)

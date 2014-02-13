@@ -111,19 +111,16 @@ object Faked { //REMOVE THIS when finished testing (used for hard coding)
   val baseDir = Path.userHome / ".adept"
 
   var fakeRequirements = Set.empty[ConfiguredRequirement]
+  var fakeCommits = Set.empty[AdeptCommit]
 
-  def fakeCommits = fakeRequirements.map { r =>
-    AdeptCommit(new AdeptGitRepository(baseDir, r.commit.name), r.commit.commit)
-  }
   val cacheManager = CacheManager.create
   var result: Option[ResolveResult] = None
-  
+
   def artifacts = {
     result match {
       case Some(result) =>
         val variants = result.state.implicitVariants ++ result.state.resolvedVariants
-        println(variants.map(_._2.artifacts))
-        variants.flatMap{ case (_, variant) =>variant.artifacts.map(a => ArtifactCache.getArtifactCacheFile(baseDir, a.hash) -> a.filename)  }.toSeq
+        variants.flatMap { case (_, variant) => variant.artifacts.map(a => ArtifactCache.getArtifactCacheFile(baseDir, a.hash) -> a.filename) }.toSeq
       case None => Seq.empty[(File, String)]
     }
   }
@@ -145,9 +142,12 @@ class AdeptManager(baseDir: File, lockFile: File) {
 
     //TODO: lookup first variant, load all of it's transitive repos from /repos/akka-actor/14122132.json
     Faked.fakeRequirements = Faked.fakeRequirements + newReq
-    val commits = {
+    val oldCommits = Faked.fakeCommits
+    val newCommits = {
 
-      val requiredCommits = Faked.fakeCommits
+      val requiredCommits = Faked.fakeRequirements.map { r =>
+        AdeptCommit(new AdeptGitRepository(baseDir, r.commit.name), r.commit.commit)
+      }
       val gitVariantsLoader = new GitVariantsLoader(requiredCommits, cacheManager = Faked.cacheManager)
 
       val newMatchingVariants = gitVariantsLoader.read(Id(id), parsedConstraints)
@@ -163,8 +163,10 @@ class AdeptManager(baseDir: File, lockFile: File) {
         }
       }
     }
+    Faked.fakeCommits ++= newCommits
+    println("looking in " + Faked.fakeRequirements.mkString("   "))
 
-    val gitVariantsLoader = new GitVariantsLoader(commits, cacheManager = Faked.cacheManager)
+    val gitVariantsLoader = new GitVariantsLoader(Faked.fakeCommits, cacheManager = Faked.cacheManager)
     val gitResolver = new Resolver(gitVariantsLoader)
 
     val requirements = Faked.fakeRequirements.flatMap(_.asRequirements)
@@ -179,10 +181,13 @@ class AdeptManager(baseDir: File, lockFile: File) {
         case _: ResolvedResult =>
           "Resolved (" + (System.currentTimeMillis - firstTime) + "ms)"
         case _: OverconstrainedResult =>
-          val help = result.state.overconstrained.toSeq.sortBy(_.value).map { id =>
+          val requiredIds = newReq.asRequirements.map(_.id)
+          val currentOverconstrained = result.state.overconstrained.filter(requiredIds)
+          val displayErrorIds = if (currentOverconstrained.isEmpty) result.state.overconstrained else currentOverconstrained
+          val help = displayErrorIds.map { id =>
             if (gitVariantsLoader.loadVariants(id, result.state.constraints(id)).isEmpty) {
               if (gitVariantsLoader.loadVariants(id, Set.empty).isEmpty) {
-                id + " cannot be found in repositories: " + commits.map(_.repo.name).mkString(" or ")
+                id + " cannot be found in repositories: " + Faked.fakeCommits.map(_.repo.name).mkString(" or ")
               } else {
                 id + result.state.constraints(id).map(c => c.name + "=" + c.values.mkString("(", ",", ")")).mkString(" with ", " and ", " does not exist")
               }
@@ -208,6 +213,7 @@ class AdeptManager(baseDir: File, lockFile: File) {
 
     if (!result.isResolved) { //TODO: I am not sure whether it is right to only store result if resolvd (if we are under-constrained it would be nice to increase precision..)
       Faked.fakeRequirements -= newReq
+      Faked.fakeCommits = oldCommits
     }
 
     //read lockfile and use all commits, (id, constraints)s and resolve
@@ -223,8 +229,9 @@ object AdeptPlugin extends Plugin {
   def adeptSettings = Seq(
     adeptDirectory := Path.userHome / ".adept",
     adeptClasspath := {
-      Faked.artifacts.map{ case (file, name) =>
-        file
+      Faked.artifacts.map {
+        case (file, name) =>
+          file
       }
     },
     sbt.Keys.commands += {
