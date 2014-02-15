@@ -46,7 +46,7 @@ class GitVariantsLoader(commits: Set[AdeptCommit], cacheManager: CacheManager) e
               cachedValues.getValue().asInstanceOf[Set[Variant]]
             } else {
               //              cache.synchronized { //multiple put's are ok although they are unnecessary, but it is important to not interfere
-              val allVariants: Set[Variant] = repo.listContent(commit.value).variantsMetadata.flatMap(_.toVariants(repo.name)).map(_._1)
+              val allVariants: Set[Variant] = repo.listContent(commit.value).variantsMetadata.flatMap(_.toVariants(repo.name))
               val element = new Element(id.value, allVariants)
               cache.put(element)
               allVariants

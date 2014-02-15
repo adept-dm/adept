@@ -16,8 +16,7 @@ object ConfiguredVariantsMetadataTestData {
     artifacts = Set(ArtifactRef(Hash("12345"), Set(Attribute("configuration", Set("master"))), Some("filename.jar"))),
     attributes = Set(Attribute("attr1", Set("foo"))),
     requirements = Set(ConfiguredRequirement(Id("mooboo"), Set(ConfigurationId("compile"), ConfigurationId("master")),
-      constraints = Set(Constraint("version", Set("1.0.0"))),
-      commit = RepositoryMetadata("loco.com", commit = Commit("mooboo456commit")))))
+      constraints = Set(Constraint("version", Set("1.0.0"))))))
 
   val runtimeConf = Configuration(
     id = ConfigurationId("runtime"),
@@ -34,8 +33,7 @@ object ConfiguredVariantsMetadataTestData {
     artifacts = Set(ArtifactRef(Hash("4335151"), Set(Attribute("configuration", Set("master"))), Some("filename-test.jar"))),
     attributes = Set(Attribute("attr3", Set("foo"))),
     requirements = Set(ConfiguredRequirement(Id("loo"), Set(ConfigurationId("compile"), ConfigurationId("master")),
-      constraints = Set(Constraint("binary-version", Set("2.1"))),
-      commit = RepositoryMetadata("zoo.com", commit = Commit("loo123commit")))))
+      constraints = Set(Constraint("binary-version", Set("2.1"))))))
 
   val metadata = ConfiguredVariantsMetadata(
     id = Id("bar"),
@@ -62,7 +60,7 @@ class ConfiguredVariantsMetadataTest extends FunSuite with MustMatchers {
   test("Transformation of Variants") {
 
     val variantsMetadata = metadata.toVariants("foo")
-    variantsMetadata.map { case (variant, _) => variant.id.value } must be === Set("foo/bar", "foo/bar/config/runtime", "foo/bar/config/compile", "foo/bar/config/test")
+    variantsMetadata.map { variant => variant.id.value } must be === Set("foo/bar", "foo/bar/config/runtime", "foo/bar/config/compile", "foo/bar/config/test")
 
     //FIXME: add test that tests:
     //(foo/bar/config/test [organization=(foo),version=(1.1.2),binary-version=(1.0,1.1),attr3=(foo)],Set(RepositoryMetadata(zoo.com,Set(git@git://github.com/zoo/loo.git),loo123commit,version = 2.1.1)))

@@ -227,6 +227,10 @@ class AdeptGitRepository(val baseDir: File, val name: String) extends Logging {
     new File(getArtifactMetadataDir(), hash.value + "." + JsonFileEnding)
   }
 
+  def getRepositoryMetadataFile(hash: Hash): File = {
+    new File(getArtifactMetadataDir(), hash.value + "." + JsonFileEnding)
+  }
+
   private def gitPath(file: File): String = {
     if (file.getAbsolutePath().startsWith(dir.getAbsolutePath)) {
       file.getAbsolutePath.replace(dir.getAbsolutePath + File.separator, "")

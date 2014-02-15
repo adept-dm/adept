@@ -85,19 +85,20 @@ object IvyHelper extends Logging {
     def hasSameAttribute(attributeName: String, attributes1: Set[Attribute], attributes2: Set[Attribute]): Boolean = {
       attributes1.find(_.name == attributeName) == attributes2.find(_.name == attributeName)
     }
-
     val repoId = result.mrid.getOrganisation()
     val adeptGitRepo = new AdeptGitRepository(baseDir, repoId)
+    val variantsMetadata = result.variantsMetadata
+
 
     result.localFiles.foreach { case (artifact, file) => ArtifactCache.cache(baseDir, file, artifact.hash) }
 
     adeptGitRepo.updateMetadata({ content =>
       val removeVariants = content.variantsMetadata
         .filter { old =>
-          old.id == result.variantsMetadata.id &&
-            hasSameAttribute(AttributeDefaults.NameAttribute, old.attributes, result.variantsMetadata.attributes) &&
-            hasSameAttribute(AttributeDefaults.OrgAttribute, old.attributes, result.variantsMetadata.attributes) &&
-            (hasSameAttribute(AttributeDefaults.BinaryVersionAttribute, old.attributes, result.variantsMetadata.attributes) || //only remove the ones with the same binary attribute
+          old.id == variantsMetadata.id &&
+            hasSameAttribute(AttributeDefaults.NameAttribute, old.attributes, variantsMetadata.attributes) &&
+            hasSameAttribute(AttributeDefaults.OrgAttribute, old.attributes, variantsMetadata.attributes) &&
+            (hasSameAttribute(AttributeDefaults.BinaryVersionAttribute, old.attributes, variantsMetadata.attributes) || //only remove the ones with the same binary attribute
               SemanticVersion.getSemanticVersion(old.attributes).find { case (major, minor, point) => major.toInt == 0 }.isDefined) //remove if old is a semantic version with a prerelease 
         }
 
@@ -107,7 +108,7 @@ object IvyHelper extends Logging {
         removeVariants.map(_.file(adeptGitRepo)).toSeq
     }, { content =>
       result.artifacts.toSeq.map(ArtifactMetadata.fromArtifact(_).write(adeptGitRepo)) ++
-        Seq(result.variantsMetadata.write(adeptGitRepo))
+        Seq(variantsMetadata.write(adeptGitRepo))
     }, "Ivy import of: " + result.mrid)
 
   }
@@ -260,7 +261,7 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[St
           ivyConfigurations.map(c => ConfigurationId(c.getName))
         }
 
-        ConfiguredRequirement(requirementId, configurations, commit = RepositoryMetadata(ivyNode.getId.getOrganisation, Commit("HEAD")), constraints = constraints) //FIXME: fix commit!
+        ConfiguredRequirement(requirementId, configurations, constraints = constraints) //FIXME: fix commit!
       }
 
       val artifactInfos = ivy.resolve(mrid, resolveOptions(ivyConfiguration.getName), changing).getArtifactsReports(mrid).flatMap { artifactReport =>

@@ -46,7 +46,7 @@ case class ConfiguredVariantsMetadata(id: Id, metadata: Set[MetadataInfo], attri
     Hash(md.digest().map(b => "%02x" format b).mkString)
   }
 
-  def toVariants(repositoryName: String): Set[(Variant, Set[RepositoryMetadata])] = {
+  def toVariants(repositoryName: String): Set[Variant] = {
     val id = Id(repositoryName + Id.Sep + this.id.value)
 
     //This Variant is needed to make sure there never different variants in different configurations with the same 'base' Id that is correctly resolved
@@ -56,15 +56,13 @@ case class ConfiguredVariantsMetadata(id: Id, metadata: Set[MetadataInfo], attri
       val variantId = ConfigurationId.join(id, configuration.id)
       val variantAttributes = attributes ++ configuration.attributes
       val variantArtifacts = configuration.artifacts
-      var repositories = Set.empty[RepositoryMetadata] //easier to read than a fold
 
       val variantRequirements = configuration.requirements.flatMap { configuredRequirement =>
-        repositories += configuredRequirement.commit //MUTATE!
-        configuredRequirement.asRequirements
+        configuredRequirement.asRequirements(repositoryName)
       } + Requirement(id, Set(Constraint(Configuration.ConfigurationHashAttributeName, Set(hash.value))))
 
-      Variant(variantId, variantAttributes, variantArtifacts, variantRequirements) -> repositories
-    } + (baseVariant -> Set.empty)
+      Variant(variantId, variantAttributes, variantArtifacts, variantRequirements)
+    } + baseVariant
   }
 
   def toJson(writer: Writer) = {

@@ -127,8 +127,10 @@ object Faked { //REMOVE THIS when finished testing (used for hard coding)
 }
 
 class AdeptManager(baseDir: File, lockFile: File) {
+  val DefaultConfigurations = Set(ConfigurationId("compile"), ConfigurationId("master"))
 
   def set(repo: String, conf: String, id: String, constraints: Set[(String, Seq[String])]) = {
+
     Faked.fakeRequirements = Faked.fakeRequirements.filter(_.id != Id(id))
     val firstTime = System.currentTimeMillis
 
@@ -137,9 +139,8 @@ class AdeptManager(baseDir: File, lockFile: File) {
 
     //val (configuredRequirements, commits) = LockFile.read(lockFile).getResolveInfo
 
-    val newReq = ConfiguredRequirement(id = Id(id), configurations = Set(ConfigurationId("compile"), ConfigurationId("master")), commit = RepositoryMetadata(repo, gitRepo.getMostRecentCommit.commit),
-      constraints = parsedConstraints)
-
+    val newReq = ConfiguredRequirement(id = Id(id), configurations = DefaultConfigurations, constraints = parsedConstraints)
+    
     //TODO: lookup first variant, load all of it's transitive repos from /repos/akka-actor/14122132.json
     Faked.fakeRequirements = Faked.fakeRequirements + newReq
     val oldCommits = Faked.fakeCommits

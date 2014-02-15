@@ -16,17 +16,14 @@ object SemanticVersion {
           case _ => None
         }
       }
+      case None => throw new Exception("Expected to find a " + AttributeDefaults.VersionAttribute +  " in " + attributes + " but it did not match the pattern.")
     }
   }
 
 }
 
-class SemanticVersion(idRepos: Set[(Id, String)]) extends Conversion {
+class SemanticVersion(variantIds: Set[Id]) extends Conversion {
   import SemanticVersion._
-
-  val variantIds = idRepos.map(_._1)
-  val repoNames = idRepos.map(_._2)
-  val idReposMap = idRepos.toMap
 
   def convert(configuredVariant: ConfiguredVariantsMetadata, others: Set[ConfiguredVariantsMetadata]): Option[ConfiguredVariantsMetadata] = {
     if (variantIds(configuredVariant.id)) {
@@ -39,8 +36,8 @@ class SemanticVersion(idRepos: Set[(Id, String)]) extends Conversion {
 
       val configurations = configuredVariant.configurations.map { configuration =>
         val requirements = configuration.requirements.flatMap { requirement =>
-          if (variantIds(requirement.id) && repoNames(requirement.commit.name)) {
-            
+          if (variantIds(requirement.id)) { //TODO check repo names?
+
             val binaryConstraint = others.filter(_.id == requirement.id).flatMap(_.attributes).find(_.name == AttributeDefaults.VersionAttribute) match {
               case Some(Attribute(AttributeDefaults.VersionAttribute, values)) if values.size == 1 => values.headOption.flatMap { version =>
                 version match {
@@ -61,11 +58,10 @@ class SemanticVersion(idRepos: Set[(Id, String)]) extends Conversion {
                 constraints
               }
             }
-            if (requirement.id.value.contains("akka-actor")) println(">>>" + requirement.id + "  " + others.map(_.id) + "  "  + binaryConstraint + others.filter(_.id == requirement.id))
             Some(requirement.copy(constraints = requirement.constraints ++ binaryConstraint))
           } else Some(requirement)
         }.toSet
-        
+
         configuration.copy(requirements = requirements)
       }
       Some(configuredVariant.copy(attributes = attributes, configurations = configurations))
