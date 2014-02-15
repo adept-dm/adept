@@ -155,7 +155,7 @@ class AdeptManager(baseDir: File, lockFile: File) {
       //Here we load all repositories from all configurations for ALL variants matching the constraints
       //It means we might resolve more repositories than strictly needed, but we avoid round-trips while resolving
       //We can optimize this a bit more, but it is still a good approximation
-      requiredCommits ++ newMatchingVariants.par.flatMap { variant => //TODO: this code is WEIRRRRRD!
+      requiredCommits ++ newMatchingVariants.flatMap { variant => //TODO: this code is WEIRRRRRD!
         variant.configurations.flatMap { configuration =>
           configuration.requirements.map { r =>
             AdeptCommit(new AdeptGitRepository(baseDir, r.commit.name), r.commit.commit)
@@ -164,8 +164,7 @@ class AdeptManager(baseDir: File, lockFile: File) {
       }
     }
     Faked.fakeCommits ++= newCommits
-    println("looking in " + Faked.fakeRequirements.mkString("   "))
-
+    
     val gitVariantsLoader = new GitVariantsLoader(Faked.fakeCommits, cacheManager = Faked.cacheManager)
     val gitResolver = new Resolver(gitVariantsLoader)
 
@@ -283,7 +282,7 @@ object AdeptPlugin extends Plugin {
         }
 
       }
-      val adept = (Space ~> (set | ivyImport | graph))
+      val adept = (Space ~> (set | graph))
 
       Command("adept")(_ => adept) { (state, adeptCommand) =>
         adeptCommand.execute()

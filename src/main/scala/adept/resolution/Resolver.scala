@@ -161,7 +161,7 @@ class Resolver(loader: VariantsLoader) {
       Left(state)
     } else if (state.isUnderconstrained && !SkipImplicitResolve) {
       //under-constrained; perhaps there is a unique combination of variants where we still can resolve:
-
+      
       val nonImplicitRequirements = requirements.filter { requirement =>
         !state.implicitVariants.isDefinedAt(requirement.id)
       }
