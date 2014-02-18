@@ -40,13 +40,13 @@ object ResolverUtils extends MustMatchers {
     (overconstrained ++ underconstrained) must equal(ids)
   }
 
-  def checkVariants(result: ResolveResult, id: Id, attr: Attribute) = {
+  def checkVariants(result: ResolveResult, id: Id, attrs: Attribute*) = {
     import org.scalatest.OptionValues._
     assert(result.state.isResolved, "Could not find resolved state:\n" + result)
     val state = result.state
     val variant = (state.resolvedVariants ++ state.implicitVariants).get(id).value
     variant.id must equal(id)
-    (id -> variant.attributes) must equal(id -> Set(attr))
+    (id -> variant.attributes) must equal(id -> attrs.toSet)
   }
 
   def getResolver(variants: Set[Variant]): Resolver = {
