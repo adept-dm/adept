@@ -1,5 +1,5 @@
 <component name="libraryTable">
-  <library name="SBT: com.jcraft:jsch:0.1.46">
+  <library name="SBT: SBT: com.jcraft:jsch:0.1.46">
     <CLASSES>
       <root url="jar://$USER_HOME$/.ivy2/cache/com.jcraft/jsch/jars/jsch-0.1.46.jar!/" />
     </CLASSES>
