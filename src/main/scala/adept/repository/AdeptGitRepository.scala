@@ -35,6 +35,7 @@ object AdeptGitRepository {
   val RewritesDirName = "rewrites"
   val ModificiationsFileName = "modifications"
   val ReposDirName = "repos"
+  val RepositoryMetdataDirName = "meta-repos"
 
   val JsonFileEnding = "json"
 
@@ -48,6 +49,7 @@ object AdeptGitRepository {
   def getReposDir(baseDir: File) = new File(baseDir, ReposDirName)
   def getRepoDir(baseDir: File, name: String) = new File(getReposDir(baseDir), name)
   def getArtifactDescriptorsDir(baseDir: File, name: String) = new File(getRepoDir(baseDir, name), ArtifactDescriptorDirName)
+  def getRepositoryDescriptorsDir(baseDir: File, name: String) = new File(getRepoDir(baseDir, name), RepositoryMetdataDirName)
   def getVariantsDir(baseDir: File, name: String) = new File(getRepoDir(baseDir, name), VariantsDirName)
   def getModificationsFile(baseDir: File, name: String) = {
     val rewritesDir = new File(getRepoDir(baseDir, name), RewritesDirName)
@@ -227,8 +229,13 @@ class AdeptGitRepository(val baseDir: File, val name: String) extends Logging {
     new File(getArtifactMetadataDir(), hash.value + "." + JsonFileEnding)
   }
 
+  def getRepositoryMetadataDir(): File = {
+    val dir = getRepositoryDescriptorsDir(baseDir, name)
+    if (!(dir.isDirectory() || dir.mkdirs())) throw InitException(this, "Could not create repository metadata dir: " + dir.getAbsolutePath)
+    dir
+  }
   def getRepositoryMetadataFile(hash: Hash): File = {
-    new File(getArtifactMetadataDir(), hash.value + "." + JsonFileEnding)
+    new File(getRepositoryMetadataDir(), hash.value + "." + JsonFileEnding)
   }
 
   private def gitPath(file: File): String = {

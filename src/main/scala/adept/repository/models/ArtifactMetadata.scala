@@ -19,12 +19,10 @@ object ArtifactMetadata {
   def file(repository: AdeptGitRepository, hash: Hash): File = {
     repository.getArtifactMetadataFile(hash)
   }
-
 }
 
 //TODO: should we remove this class? It is exactlyt the same as Artifact, but the idea was that artifact representation might change from what is stored.
 case class ArtifactMetadata(hash: Hash, size: Long, locations: Set[String]) {
-
   def toArtifact = Artifact(hash, size, locations)
 
   def toJson(writer: Writer) = {

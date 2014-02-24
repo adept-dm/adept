@@ -81,14 +81,13 @@ object IvyHelper extends Logging {
     org
   }
 
-  def updateRepository(baseDir: File, result: IvyImportResult, commits: Set[AdeptCommit]) = {
+  def updateRepository(baseDir: File, result: IvyImportResult, commits: Set[  AdeptCommit]) = {
     def hasSameAttribute(attributeName: String, attributes1: Set[Attribute], attributes2: Set[Attribute]): Boolean = {
       attributes1.find(_.name == attributeName) == attributes2.find(_.name == attributeName)
     }
     val repoId = result.mrid.getOrganisation()
     val adeptGitRepo = new AdeptGitRepository(baseDir, repoId)
     val variantsMetadata = result.variantsMetadata
-
 
     result.localFiles.foreach { case (artifact, file) => ArtifactCache.cache(baseDir, file, artifact.hash) }
 
@@ -104,11 +103,14 @@ object IvyHelper extends Logging {
 
       val removeArtifactRefs = removeVariants.flatMap(_.configurations.flatMap(_.artifacts))
 
-      removeArtifactRefs.map(a => ArtifactMetadata.file(adeptGitRepo, a.hash)).toSeq ++
-        removeVariants.map(_.file(adeptGitRepo)).toSeq
+      val artifactFiles = removeArtifactRefs.map(a => ArtifactMetadata.file(adeptGitRepo, a.hash)).toSeq
+      val variantFiles = removeVariants.map(_.file(adeptGitRepo)).toSeq
+      //val repositoryFiles = removeVariants.map(RepositoryMetadata(_.hash, commit))
+      artifactFiles ++ variantFiles
     }, { content =>
-      result.artifacts.toSeq.map(ArtifactMetadata.fromArtifact(_).write(adeptGitRepo)) ++
-        Seq(variantsMetadata.write(adeptGitRepo))
+      val artifactFiles = result.artifacts.toSeq.map(ArtifactMetadata.fromArtifact(_).write(adeptGitRepo))
+      val variantFiles = Seq(variantsMetadata.write(adeptGitRepo))
+      artifactFiles ++ variantFiles
     }, "Ivy import of: " + result.mrid)
 
   }
@@ -261,7 +263,7 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[St
           ivyConfigurations.map(c => ConfigurationId(c.getName))
         }
 
-        ConfiguredRequirement(requirementId, configurations, constraints = constraints) //FIXME: fix commit!
+        ConfiguredRequirement(requirementId, configurations, constraints = constraints)
       }
 
       val artifactInfos = ivy.resolve(mrid, resolveOptions(ivyConfiguration.getName), changing).getArtifactsReports(mrid).flatMap { artifactReport =>
