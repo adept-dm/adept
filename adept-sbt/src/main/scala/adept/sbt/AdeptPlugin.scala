@@ -1,6 +1,6 @@
 package adept.sbt
 
-import sbt._
+import sbt.{ Id => _, _ }
 import sbt.Keys._
 import sbt.complete.DefaultParsers._
 import sbt.complete._
@@ -22,7 +22,6 @@ import adept.resolution.models.ResolvedResult
 import adept.resolution.models.OverconstrainedResult
 import adept.resolution.models.ResolveResult
 import adept.artifacts.ArtifactCache
-
 
 object AdeptRepository {
   import sbt.complete.DefaultParsers._
@@ -108,11 +107,17 @@ object LockFile {
   }
 }
 
+//TODO: evaluate if Metadata and other files should all have Seq or Set. The argument for Seq is to make things more deterministic.
+case class LockFileRequirement(id: Id, configuration: ConfigurationId, constraints: Seq[Constraint], repositoryName: String, repositoryCommit: Commit) {
+  def asRequirement: Requirement = {
+    Requirement(ConfigurationId.join(id, configuration), constraints.toSet)
+  }
+}
+
 object Faked { //REMOVE THIS when finished testing (used for hard coding)
   val baseDir = Path.userHome / ".adept"
 
-  var fakeRequirements = Set.empty[ConfiguredRequirement]
-  var fakeCommits = Set.empty[AdeptCommit]
+  var fakeRequirements = Set.empty[LockFileRequirement]
 
   val cacheManager = CacheManager.create
   var result: Option[ResolveResult] = None
@@ -131,94 +136,71 @@ class AdeptManager(baseDir: File, lockFile: File) {
   val DefaultConfigurations = Set(ConfigurationId("compile"), ConfigurationId("master"))
 
   def set(repo: String, conf: String, id: String, constraints: Set[(String, Seq[String])]) = {
-
     Faked.fakeRequirements = Faked.fakeRequirements.filter(_.id != Id(id))
-    val firstTime = System.currentTimeMillis
+    val initTime = System.currentTimeMillis
 
+    val thisGitRepo = new AdeptGitRepository(baseDir, repo)
+
+    val currentConfigurations = DefaultConfigurations //TODO: replace with setting
     val parsedConstraints = constraints.map { case (name, values) => Constraint(name, values.toSet) }
-    val gitRepo = new AdeptGitRepository(baseDir, repo)
 
-    //val (configuredRequirements, commits) = LockFile.read(lockFile).getResolveInfo
-
-    val newReq = ConfiguredRequirement(id = Id(id), configurations = DefaultConfigurations, constraints = parsedConstraints)
-    
-    //TODO: lookup first variant, load all of it's transitive repos from /repos/akka-actor/14122132.json
-    Faked.fakeRequirements = Faked.fakeRequirements + newReq
-    val oldCommits = Faked.fakeCommits
-    val newCommits = {
-
-//      val requiredCommits = Faked.fakeRequirements.map { r =>
-//        AdeptCommit(new AdeptGitRepository(baseDir, r.commit.name), r.commit.commit)
-//      }
-//      val gitVariantsLoader = new GitVariantsLoader(requiredCommits, cacheManager = Faked.cacheManager)
-
-//      val newMatchingVariants = gitVariantsLoader.read(Id(id), parsedConstraints)
-      //We need the repositories associated with 
-      //Here we load all repositories from all configurations for ALL variants matching the constraints
-      //It means we might resolve more repositories than strictly needed, but we avoid round-trips while resolving
-      //We can optimize this a bit more, but it is still a good approximation
-//      requiredCommits ++ newMatchingVariants.par.flatMap { variant => //TODO: this code is WEIRRRRRD!
-//        variant.configurations.flatMap { configuration =>
-//          configuration.requirements.map { r =>
-//            AdeptCommit(new AdeptGitRepository(baseDir, r.commit.name), r.commit.commit)
-//          }
-//        }
-//      }
+    val newReqs = currentConfigurations.map { configuration =>
+      LockFileRequirement(Id(id), configuration, parsedConstraints.toSeq, thisGitRepo.name, thisGitRepo.getMostRecentCommit.commit)
     }
-//    Faked.fakeCommits ++= newCommits
-    println("looking in " + Faked.fakeRequirements.mkString("   "))
+    Faked.fakeRequirements ++= newReqs //TODO: I do not like mutating here...
 
-    val gitVariantsLoader = new GitVariantsLoader(Faked.fakeCommits, cacheManager = Faked.cacheManager)
+    val initCommits = Faked.fakeRequirements.map { req =>
+      req -> AdeptCommit(new AdeptGitRepository(baseDir, req.repositoryName), req.repositoryCommit)
+    }
+    val commits: Set[AdeptCommit] = initCommits.flatMap {
+      case (req, c) =>
+        c.repo.listContent(c.commit.value).repositoryMetadata.flatMap(_.load(baseDir, req.id, req.configuration)) //grab all repository metadata for this repository
+    } ++ initCommits.map(_._2)
+    val gitVariantsLoader = new GitVariantsLoader(commits, cacheManager = Faked.cacheManager)
     val gitResolver = new Resolver(gitVariantsLoader)
 
-//    val requirements = Faked.fakeRequirements.flatMap(_.asRequirements)
-//    val result = gitResolver.resolve(requirements)
-//
-//    Faked.result = Some(result)
-//
-//    val resultString =
-//      result match {
-//        case _: ResolvedResult =>
-//          "Resolved (" + (System.currentTimeMillis - firstTime) + "ms)"
-//        case _: OverconstrainedResult =>
-//          val requiredIds = newReq.asRequirements.map(_.id)
-//          val currentOverconstrained = result.state.overconstrained.filter(requiredIds)
-//          val displayErrorIds = if (currentOverconstrained.isEmpty) result.state.overconstrained else currentOverconstrained
-//          val help = displayErrorIds.map { id =>
-//            if (gitVariantsLoader.loadVariants(id, result.state.constraints(id)).isEmpty) {
-//              if (gitVariantsLoader.loadVariants(id, Set.empty).isEmpty) {
-//                id + " cannot be found in repositories: " + Faked.fakeCommits.map(_.repo.name).mkString(" or ")
-//              } else {
-//                id + result.state.constraints(id).map(c => c.name + "=" + c.values.mkString("(", ",", ")")).mkString(" with ", " and ", " does not exist")
-//              }
-//            } else {
-//              id + " conflicts " + result.state.constraints(id).map(c => c.name + "=" + c.values.mkString("(", ",", ")")).mkString(",")
-//            }
-//          }.mkString("\n")
-//          "Over-constrained (" + (System.currentTimeMillis - firstTime) + "ms):\n" + help
-//        case underConstrainedResult: UnderconstrainedResult =>
-//          val help = "Choose between:\n" + (if (underConstrainedResult.optimalStates.nonEmpty) {
-//            underConstrainedResult.optimalStates.map(s => (s.implicitVariants ++ s.resolvedVariants).flatMap {
-//              case (foundId, foundVariant) =>
-//                if (result.state.underconstrained(foundId)) Some(foundVariant)
-//                else None
-//            }.toSet): Set[Set[Variant]]
-//          } else {
-//            result.state.underconstrained.map(id => gitVariantsLoader.loadVariants(id, parsedConstraints)): Set[Set[Variant]]
-//          }).map(_.map(_.attributes.map(a => a.name + "=" + a.values.mkString("(", ",", ")")).mkString("<", ",", ">")).mkString(" OR ")).mkString("\n")
-//          //println(underConstrainedResult)
-//          "Under-constrained (" + (System.currentTimeMillis - firstTime) + "ms): " + result.state.underconstrained.mkString(",") + ":\n" + help
-//      }
-//    println(resultString)
-//
-//    if (!result.isResolved) { //TODO: I am not sure whether it is right to only store result if resolvd (if we are under-constrained it would be nice to increase precision..)
-//      Faked.fakeRequirements -= newReq
-//      Faked.fakeCommits = oldCommits
-//    }
+    val requirements = Faked.fakeRequirements.map(_.asRequirement)
+    val result = gitResolver.resolve(requirements)
 
-    //read lockfile and use all commits, (id, constraints)s and resolve
-    //if resolves then create a new lockfile
-    //else fail
+    val resultString =
+      result match {
+        case _: ResolvedResult =>
+          "Resolved (" + (System.currentTimeMillis - initTime) + "ms)"
+        case _: OverconstrainedResult =>
+          val requiredIds = newReqs.map(_.id)
+          val currentOverconstrained = result.state.overconstrained.filter(requiredIds)
+          val displayErrorIds = if (currentOverconstrained.isEmpty) result.state.overconstrained else currentOverconstrained
+          val help = displayErrorIds.map { id =>
+            if (gitVariantsLoader.loadVariants(id, result.state.constraints(id)).isEmpty) {
+              if (gitVariantsLoader.loadVariants(id, Set.empty).isEmpty) {
+                id + " cannot be found in repositories: " + commits.map(_.repo.name).mkString(" or ")
+              } else {
+                id + result.state.constraints(id).map(c => c.name + "=" + c.values.mkString("(", ",", ")")).mkString(" with ", " and ", " does not exist")
+              }
+            } else {
+              id + " conflicts " + result.state.constraints(id).map(c => c.name + "=" + c.values.mkString("(", ",", ")")).mkString(",")
+            }
+          }.mkString("\n")
+          "Over-constrained (" + (System.currentTimeMillis - initTime) + "ms):\n" + help
+        case underConstrainedResult: UnderconstrainedResult =>
+          val help = "Choose between:\n" + (if (underConstrainedResult.optimalStates.nonEmpty) {
+            underConstrainedResult.optimalStates.map(s => (s.implicitVariants ++ s.resolvedVariants).flatMap {
+              case (foundId, foundVariant) =>
+                if (result.state.underconstrained(foundId)) Some(foundVariant)
+                else None
+            }.toSet): Set[Set[Variant]]
+          } else {
+            result.state.underconstrained.map(id => gitVariantsLoader.loadVariants(id, parsedConstraints)): Set[Set[Variant]]
+          }).map(_.map(_.attributes.map(a => a.name + "=" + a.values.mkString("(", ",", ")")).mkString("<", ",", ">")).mkString(" OR ")).mkString("\n")
+          "Under-constrained (" + (System.currentTimeMillis - initTime) + "ms): " + result.state.underconstrained.mkString(",") + ":\n" + help
+      }
+    println(resultString)
+
+    if (!result.isResolved) { //TODO: I am not sure whether it is right to only store result if resolvd (if we are under-constrained it would be nice to increase precision..)
+      Faked.fakeRequirements --= newReqs
+    }
+    Faked.result = Some(result)
+
   }
 }
 

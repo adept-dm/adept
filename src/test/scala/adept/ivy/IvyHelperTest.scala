@@ -123,13 +123,13 @@ class IvyHelperTest extends FunSuite with MustMatchers {
 
       //      IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe", "config", "0.3.1")), baseDir)
       //      IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe", "config", "1.0.0")), baseDir)
-      IvyHelper.insert(akka205WithAdjustedScalaLib, baseDir)
-//      IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe.akka", "akka-actor_2.10", "2.1.0")), baseDir)
-            IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe.akka", "akka-actor_2.10", "2.2.0")), baseDir)
-            IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe.akka", "akka-actor_2.10", "2.2.1")), baseDir)
+//      IvyHelper.insert(akka205WithAdjustedScalaLib, baseDir)
+      //      IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe.akka", "akka-actor_2.10", "2.1.0")), baseDir)
+//      IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe.akka", "akka-actor_2.10", "2.2.0")), baseDir)
+      IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe.akka", "akka-actor_2.10", "2.2.1")), baseDir)
       //      IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe.akka", "akka-actor_2.10", "2.2.2")), baseDir)
-            IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe.play", "play_2.10", "2.2.0")), baseDir)
-            IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe.play", "play_2.10", "2.2.1")), baseDir)
+//      IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe.play", "play_2.10", "2.2.0")), baseDir)
+//      IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe.play", "play_2.10", "2.2.1")), baseDir)
 
     }
 

@@ -8,7 +8,7 @@ import adept.ext.conversions.Conversion
 import org.apache.ivy.core.resolve.IvyNode
 import adept.models.Id
 
-case class IvyImportResult(mrid: ModuleRevisionId, dependencies: Set[IvyNode], variantsMetadata: ConfiguredVariantsMetadata, artifacts: Set[Artifact], localFiles: Map[Artifact, File]) {
+case class IvyImportResult(mrid: ModuleRevisionId, dependencies: Map[String, Set[IvyNode]], variantsMetadata: ConfiguredVariantsMetadata, artifacts: Set[Artifact], localFiles: Map[Artifact, File]) {
  def convertWith(conversion: Conversion, others: Set[ConfiguredVariantsMetadata]) = {
    conversion.convert(variantsMetadata, others).map { oldMetadata =>
      this.copy( variantsMetadata = oldMetadata )

@@ -12,6 +12,8 @@ import java.io.File
 import java.io.FileWriter
 import play.api.libs.json.Json
 
+case class MetadataContent(variantsMetadata: Set[ConfiguredVariantsMetadata], artifactsMetadata: Set[ArtifactMetadata], repositoryMetadata: Set[RepositoryMetadata])
+
 private[adept] object MetadataContent {
   def readString(reader: Reader) = {
     val bufferedReader = new BufferedReader(reader)
@@ -61,5 +63,3 @@ private[adept] object MetadataContent {
     }
   }
 }
-
-case class MetadataContent(variantsMetadata: Set[ConfiguredVariantsMetadata], artifactsMetadata: Set[Artifact])
