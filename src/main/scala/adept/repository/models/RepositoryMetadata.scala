@@ -6,6 +6,8 @@ import adept.repository.AdeptGitRepository
 import java.io.File
 import adept.models.Artifact
 import java.io.Writer
+import adept.models.Id
+import adept.repository.models.configuration.ConfigurationId
 
 object RepositoryMetadata {
 
@@ -14,20 +16,18 @@ object RepositoryMetadata {
     MetadataContent.fromJson(reader)(jsValue => jsValue.validate[ArtifactMetadata])
   }
 
-  def fromArtifact(artifact: Artifact) = ArtifactMetadata(artifact.hash, artifact.size, artifact.locations)
-
-  def file(repository: AdeptGitRepository, hash: Hash): File = {
-    repository.getArtifactMetadataFile(hash)
+  def file(repository: AdeptGitRepository, variant: Hash): File = {
+    repository.getRepositoryMetadataFile(variant)
   }
 
 }
 
+case class RepositoryConfiguration(configuration: ConfigurationId, repositoryName: String, commit: Commit)
+
 /**
- * Information that is needed load.
- * 
- * `info` can be used to make it easier to know which version this commit is pointing to.
+ * Information that is needed load repositories.
  */
-case class RepositoryMetadata(name: String, commit: Commit) {
+case class RepositoryMetadata(id: Id, variant: Hash, configurations: Seq[RepositoryConfiguration]) {
   def toJson(writer: Writer) = {
     import play.api.libs.json.Json
     import adept.repository.models.serialization.AdeptFormats._
@@ -36,7 +36,6 @@ case class RepositoryMetadata(name: String, commit: Commit) {
   }
 
   def write(repository: AdeptGitRepository): File = {
-  //  MetadataContent.usingFileWriter(ArtifactMetadata.file(repository, hash))(toJson)
-    ???
+    MetadataContent.usingFileWriter(RepositoryMetadata.file(repository, variant))(toJson)
   }
 }
