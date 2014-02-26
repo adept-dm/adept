@@ -19,17 +19,6 @@ class GitVariantsLoader(commits: Set[AdeptCommit], cacheManager: CacheManager) e
     commit -> cacheManager.getEhcache(cacheName)
   }
 
-  //TODO: please rename this? or remove???
-  private[adept] def read(id: Id, constraints: Set[Constraint]): Set[ConfiguredVariantsMetadata] = {
-    caches.flatMap {
-      case (adeptCommit, cache) =>
-        val repo = adeptCommit.repo
-        val commit = adeptCommit.commit //FIXME: AdeptCommit is perhaps not a good name, because it makes this awkward
-
-        repo.listContent(commit.value).variantsMetadata.filter(v => v.id == id && AttributeConstraintFilter.matches(v.attributes, constraints)) //NOTE: we are matching on the configured variants attributes, not the individual variants attributes. I am not sure this is right 
-    }.toSet
-  }
-
   def loadVariants(id: Id, constraints: Set[Constraint]): Set[Variant] = {
     var variants = Set.empty[Variant]
     caches.foreach {
