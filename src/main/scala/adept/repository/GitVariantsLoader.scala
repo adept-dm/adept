@@ -51,7 +51,6 @@ class GitVariantsLoader(commits: Set[AdeptCommit], cacheManager: CacheManager) e
           }
         }
         variants ++= AttributeConstraintFilter.filter(id, allVariants, constraints)
-
     }
     variants
   }
