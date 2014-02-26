@@ -29,7 +29,7 @@ class UnexpectedResolutionStateException(msg: String) extends Exception(msg)
  *
  * }}}
  */
-class Resolver(loader: VariantsLoader) {
+class Resolver(loader: VariantsLoader, skipImplicitResolve: Boolean = true) {
 
   /**
    * Calculate all possible combinations of variants that should be implicit
@@ -152,14 +152,12 @@ class Resolver(loader: VariantsLoader) {
     }
   }
 
-  val SkipImplicitResolve = false
-
   private def implicitResolve(requirements: Set[Requirement], currentState: State, previouslyUnderconstrained: Set[Id], optimalUnderconstrainedStates: collection.mutable.Set[State]): Either[State, State] = {
     val state = resolveRequirements(requirements, Set.empty, currentState)
 
-    if (state.isUnderconstrained && SkipImplicitResolve) {
+    if (state.isUnderconstrained && skipImplicitResolve) {
       Left(state)
-    } else if (state.isUnderconstrained && !SkipImplicitResolve) {
+    } else if (state.isUnderconstrained && !skipImplicitResolve) {
       //under-constrained; perhaps there is a unique combination of variants where we still can resolve:
 
       val nonImplicitRequirements = requirements.filter { requirement =>
