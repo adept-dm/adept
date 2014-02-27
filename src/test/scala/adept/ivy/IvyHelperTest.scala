@@ -60,9 +60,9 @@ class IvyHelperTest extends FunSuite with MustMatchers {
     //      Id("templates") -> "com.typesafe.play")
     val semanticVersionIds = Set(
       Id("akka-actor"), // -> "com.typesafe.akka",
+      Id("akka-actor_2.10"), // -> "com.typesafe.akka",
       Id("scala-library"), // -> "org.scala-lang",
       Id("config"), // -> "com.typesafe",
-      Id("akka-actor_2.10"), // -> "com.typesafe.akka",
       Id("play"), // -> "com.typesafe.play",
       Id("play-exceptions"), // -> "com.typesafe.play",
       Id("play-iteratees"), // -> "com.typesafe.play",
@@ -123,13 +123,13 @@ class IvyHelperTest extends FunSuite with MustMatchers {
 
       //      IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe", "config", "0.3.1")), baseDir)
       //      IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe", "config", "1.0.0")), baseDir)
-//      IvyHelper.insert(akka205WithAdjustedScalaLib, baseDir)
-      //      IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe.akka", "akka-actor_2.10", "2.1.0")), baseDir)
-//      IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe.akka", "akka-actor_2.10", "2.2.0")), baseDir)
-      IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe.akka", "akka-actor_2.10", "2.2.1")), baseDir)
+      IvyHelper.insert(akka205WithAdjustedScalaLib, baseDir)
+      IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe.akka", "akka-actor_2.10", "2.1.0")), baseDir)
+            IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe.akka", "akka-actor_2.10", "2.2.0")), baseDir)
+            IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe.akka", "akka-actor_2.10", "2.2.1")), baseDir)
       //      IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe.akka", "akka-actor_2.10", "2.2.2")), baseDir)
-//      IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe.play", "play_2.10", "2.2.0")), baseDir)
-//      IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe.play", "play_2.10", "2.2.1")), baseDir)
+            IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe.play", "play_2.10", "2.2.0")), baseDir)
+            IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe.play", "play_2.10", "2.2.1")), baseDir)
 
     }
 

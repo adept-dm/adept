@@ -81,7 +81,7 @@ object IvyHelper extends Logging {
     org
   }
 
-  def updateRepository(baseDir: File, result: IvyImportResult, commits: Map[ConfigurationId, Set[AdeptCommit]]) = {
+  def updateRepository(baseDir: File, result: IvyImportResult, commits: Map[ConfigurationId, Set[(Id, AdeptCommit)]]) = {
     def hasSameAttribute(attributeName: String, attributes1: Set[Attribute], attributes2: Set[Attribute]): Boolean = {
       attributes1.find(_.name == attributeName) == attributes2.find(_.name == attributeName)
     }
@@ -113,7 +113,7 @@ object IvyHelper extends Logging {
       val removeArtifactRefs = removeVariants.flatMap(_.configurations.flatMap(_.artifacts))
 
       val artifactFiles = removeArtifactRefs.map(a => ArtifactMetadata.file(adeptGitRepo, a.hash)).toSeq
-      val repositoryFiles = removeVariants.map(v => RepositoryMetadata.file(adeptGitRepo, v.id, v.hash)).toSeq
+      val repositoryFiles = removeVariants.map(v => RepositoryMetadata.file(adeptGitRepo, v.id, v.toVariants.map(Hash.calculate(_)))).toSeq
       val variantFiles = removeVariants.map(_.file(adeptGitRepo)).toSeq
       //val repositoryFiles = removeVariants.map(RepositoryMetadata(_.hash, commit))
       artifactFiles ++ variantFiles ++ repositoryFiles
@@ -122,9 +122,9 @@ object IvyHelper extends Logging {
       assertCorrectConfigurations()
       val repositoryConfigurationMetadata = commits.map {
         case (configuration, currentCommits) =>
-          RepositoryConfiguration(configuration, currentCommits.map(c => RepositoryInfo(c.repo.name, c.commit)).toSeq)
+          RepositoryConfiguration(configuration, currentCommits.map{ case (id, c) => RepositoryInfo(id, c.repo.name, c.commit)}.toSeq)
       }.toSeq
-      val repositoryMetadata = RepositoryMetadata(variantsMetadata.id, variantsMetadata.hash,
+      val repositoryMetadata = RepositoryMetadata(variantsMetadata.id, variantsMetadata.toVariants.map(Hash.calculate(_)),
         configurations = repositoryConfigurationMetadata)
       val repositoryFiles = Seq(repositoryMetadata.write(adeptGitRepo))
       val variantFiles = Seq(variantsMetadata.write(adeptGitRepo))
@@ -180,7 +180,6 @@ object IvyHelper extends Logging {
       unhandledResults.foreach { result =>
         val allTransitiveDependencies = {
           def traverseResult(result: IvyImportResult): Set[ModuleRevisionId] = {
-            println(result.mrid + "  " + result.dependencies)
             val currentMrids = result.dependencies.flatMap { case (confName, nodes) => nodes.map(_.getId) }.toSet
             currentMrids ++ results.filter(r => currentMrids(r.mrid)).flatMap(traverseResult)
           }

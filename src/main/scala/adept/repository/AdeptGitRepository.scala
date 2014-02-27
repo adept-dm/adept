@@ -238,8 +238,8 @@ class AdeptGitRepository(val baseDir: File, val name: String) extends Logging {
     if (!(dir.isDirectory() || dir.mkdirs())) throw InitException(this, "Could not create repository metadata dir: " + dir.getAbsolutePath)
     dir
   }
-  def getRepositoryMetadataFile(id: Id, hash: Hash): File = {
-    new File(getRepositoryMetadataDir(id), hash.value + "." + JsonFileEnding)
+  def getRepositoryMetadataFile(id: Id, hashes: Set[Hash]): File = {
+    new File(getRepositoryMetadataDir(id), Hash.calculate(hashes.mkString) + "." + JsonFileEnding)
   }
 
   private def gitPath(file: File): String = {

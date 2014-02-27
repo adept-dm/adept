@@ -9,8 +9,8 @@ import adept.repository.models.ConfiguredVariantsMetadata
 
 /**
  * Represents unique variants or artifacts
- * 
- * We use a value class to make methods more type-safe 
+ *
+ * We use a value class to make methods more type-safe
  * than using Strings, while avoiding the run-time cost.
  */
 case class Hash(val value: String) extends AnyVal { //TODO: should be an array of 64 chars?
@@ -115,6 +115,17 @@ object Hash {
     }
   }
 
+  def calculate(string: String): Hash = {
+    val currentMd = md.get()
+    try {
+      currentMd.reset()
+      currentMd.update(string.getBytes)
+      Hash(digest(currentMd))
+    } finally {
+      currentMd.reset()
+    }
+  }
+
   def calculate(in: InputStream): Hash = {
     val currentMd = md.get()
     currentMd.reset()
@@ -142,5 +153,5 @@ object Hash {
       fis.close()
     }
   }
-  }
+}
 

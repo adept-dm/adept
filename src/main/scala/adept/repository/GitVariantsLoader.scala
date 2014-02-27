@@ -7,41 +7,32 @@ import net.sf.ehcache.Element
 import adept.repository.models.configuration.ConfiguredRequirement
 import adept.repository.models.ConfiguredVariantsMetadata
 
-class GitVariantsLoader(commits: Set[AdeptCommit], cacheManager: CacheManager) extends VariantsLoader {
+class GitVariantsLoader(commits: Set[(Id, AdeptCommit)], cacheManager: CacheManager) extends VariantsLoader {
 
-  private val caches: Map[AdeptCommit, Ehcache] = commits.map { commit =>
-    createCache(commit)
-  }.toMap
+  private val thisUniqueId = Hash.calculate(commits.map{ case (id, c) => id.value + c.commit.value + c.repo.name }.toSeq.sorted.mkString).value
 
-  private def createCache(commit: AdeptCommit) = {
-    val cacheName = commit.repo.name + "-" + commit.repo.baseDir.getAbsolutePath.hashCode + "-" + this.hashCode + "-" + commit.commit.value
+  //we are using 1 cache here, so each time a commit is changed or something like that we invalidate this cache
+  private val cache: Ehcache = {
+    val cacheName = thisUniqueId
     cacheManager.addCacheIfAbsent(cacheName) //TODO: if cache.exists then use
-    commit -> cacheManager.getEhcache(cacheName)
+    cacheManager.getEhcache(cacheName)
   }
 
   def loadVariants(id: Id, constraints: Set[Constraint]): Set[Variant] = {
-    var variants = Set.empty[Variant]
-    caches.foreach {
-      case (adeptCommit, cache) =>
-        val repo = adeptCommit.repo
-        val commit = adeptCommit.commit //FIXME: AdeptCommit is perhaps not a good name, because it makes this awkward
-
-        val allVariants = {
-          val cachedValues = cache.get(id.value)
-          if (cache.isKeyInCache(id.value) && cachedValues != null) {
-            cachedValues.getValue().asInstanceOf[Set[Variant]]
-          } else {
-            //              cache.synchronized { //multiple put's are ok although they are unnecessary, but it is important to not interfere
-            val allVariants: Set[Variant] = repo.listContent(commit.value).variantsMetadata.flatMap(_.toVariants)
-            val element = new Element(id.value, allVariants)
-            cache.put(element)
-            allVariants
-            //              }
-          }
+    val cachedValues = cache.get(id.value)
+    if (cache.isKeyInCache(id.value) && cachedValues != null) {
+      cachedValues.getValue().asInstanceOf[Set[Variant]]
+    } else {
+      val allVariants: Set[Variant] = Set() ++ {
+        commits.filter{ case (commitId, _) => commitId == id }.flatMap { case (_, c) =>
+          c.repo.listContent(c.commit.value).variantsMetadata.flatMap(_.toVariants)
         }
-        variants ++= AttributeConstraintFilter.filter(id, allVariants, constraints)
+      }
+      val filteredVariants = AttributeConstraintFilter.filter(id, allVariants, constraints)
+      val element = new Element(id.value, filteredVariants)
+      cache.put(element)
+      filteredVariants
     }
-    variants
   }
 
 }

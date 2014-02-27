@@ -22,6 +22,7 @@ import adept.resolution.models.ResolvedResult
 import adept.resolution.models.OverconstrainedResult
 import adept.resolution.models.ResolveResult
 import adept.artifacts.ArtifactCache
+import adept.models.Hash
 
 object AdeptRepository {
   import sbt.complete.DefaultParsers._
@@ -135,8 +136,9 @@ object Faked { //REMOVE THIS when finished testing (used for hard coding)
 class AdeptManager(baseDir: File, lockFile: File) {
   val DefaultConfigurations = Set(ConfigurationId("compile"), ConfigurationId("master"))
 
-  def set(repo: String, conf: String, id: String, constraints: Set[(String, Seq[String])]) = {
-    Faked.fakeRequirements = Faked.fakeRequirements.filter(_.id != Id(id))
+  def set(repo: String, conf: String, idString: String, constraints: Set[(String, Seq[String])]) = {
+    val id = Id(idString)
+
     val initTime = System.currentTimeMillis
 
     val thisGitRepo = new AdeptGitRepository(baseDir, repo)
@@ -145,22 +147,35 @@ class AdeptManager(baseDir: File, lockFile: File) {
     val parsedConstraints = constraints.map { case (name, values) => Constraint(name, values.toSet) }
 
     val newReqs = currentConfigurations.map { configuration =>
-      LockFileRequirement(Id(id), configuration, parsedConstraints.toSeq, thisGitRepo.name, thisGitRepo.getMostRecentCommit.commit)
+      LockFileRequirement(id, configuration, parsedConstraints.toSeq, thisGitRepo.name, thisGitRepo.getMostRecentCommit.commit) //TODO: we should not use most recent commit but the first one that matches the constraints
     }
-    Faked.fakeRequirements ++= newReqs //TODO: I do not like mutating here...
 
-    val initCommits = Faked.fakeRequirements.map { req =>
-      req -> AdeptCommit(new AdeptGitRepository(baseDir, req.repositoryName), req.repositoryCommit)
+    val requirements = Faked.fakeRequirements.filter(_.id != id) ++ newReqs
+
+    val initCommits = requirements.map { req =>
+      req -> (id, AdeptCommit(new AdeptGitRepository(baseDir, req.repositoryName), req.repositoryCommit))
     }
-    val commits: Set[AdeptCommit] = initCommits.flatMap {
-      case (req, c) =>
-        c.repo.listContent(c.commit.value).repositoryMetadata.flatMap(_.load(baseDir, req.id, req.configuration)) //grab all repository metadata for this repository
-    } ++ initCommits.map(_._2)
+
+    val commits: Set[(Id, AdeptCommit)] = {
+      //TODO: adjust this ugly piece of code!
+      val gitVariantsLoader = new GitVariantsLoader(initCommits.map(_._2), cacheManager = Faked.cacheManager)
+
+      val rootVariantHashes = gitVariantsLoader.loadVariants(id, parsedConstraints).map(Hash.calculate)
+      initCommits.flatMap {
+        case (req, (commitId, c)) =>
+          val repositoryMetadata = c.repo.listContent(c.commit.value).repositoryMetadata.filter { repositoryMetadata =>
+            id == commitId && repositoryMetadata.variants.exists(h => rootVariantHashes.contains(h)) //i.e. there is repository variant represents one or more of the rootVariants
+          }
+          repositoryMetadata
+            .flatMap(r => r.load(baseDir, req.id, req.configuration)) //grab all repository metadata for this repository
+            .map( commitId -> _ )
+      } ++ initCommits.map(_._2)
+    }
+
     val gitVariantsLoader = new GitVariantsLoader(commits, cacheManager = Faked.cacheManager)
     val gitResolver = new Resolver(gitVariantsLoader)
 
-    val requirements = Faked.fakeRequirements.map(_.asRequirement)
-    val result = gitResolver.resolve(requirements)
+    val result = gitResolver.resolve(requirements.map(_.asRequirement))
 
     val resultString =
       result match {
@@ -196,8 +211,8 @@ class AdeptManager(baseDir: File, lockFile: File) {
       }
     println(resultString)
 
-    if (!result.isResolved) { //TODO: I am not sure whether it is right to only store result if resolvd (if we are under-constrained it would be nice to increase precision..)
-      Faked.fakeRequirements --= newReqs
+    if (result.isResolved) { //TODO: I am not sure whether it is right to only store result if resolvd (if we are under-constrained it would be nice to increase precision..)
+      Faked.fakeRequirements = requirements
     }
     Faked.result = Some(result)
 
