@@ -75,6 +75,8 @@ object AdeptGitRepository {
  * though the history has been rewritten since.
  */
 class AdeptGitRepository(val baseDir: File, val name: String) extends Logging {
+  override def toString = dir.getAbsolutePath + ":" + name + "#" + branchName
+  
   import AdeptGitRepository._
 
   //FIXME: Allow branch as a class parameter/field?
@@ -292,8 +294,8 @@ class AdeptGitRepository(val baseDir: File, val name: String) extends Logging {
         if (treeWalk.isSubtree()) {
           treeWalk.enterSubtree()
         } else if ((currentPath.startsWith(VariantsDirName) && currentPath.endsWith(JsonFileEnding)) ||
-            (currentPath.startsWith(RepositoryMetdataDirName) && currentPath.endsWith(JsonFileEnding)) ||
-            currentPath.startsWith(ArtifactDescriptorDirName)) { //TODO: more verifications?
+          (currentPath.startsWith(RepositoryMetdataDirName) && currentPath.endsWith(JsonFileEnding)) ||
+          currentPath.startsWith(ArtifactDescriptorDirName)) { //TODO: more verifications?
           readBlob(treeWalk, gitRepo) { is =>
             val reader = new InputStreamReader(is)
             try {

@@ -24,10 +24,14 @@ class GitVariantsLoader(commits: Set[(Id, AdeptCommit)], cacheManager: CacheMana
       cachedValues.getValue().asInstanceOf[Set[Variant]]
     } else {
       val allVariants: Set[Variant] = Set() ++ {
-        commits.filter{ case (commitId, _) => commitId == id }.flatMap { case (_, c) =>
+        val onlyCommits = commits.filter{ case (commitId, _) => commitId == id }.map(_._2).toSeq
+        //handle commit conflicts
+        val lastCommitForId = onlyCommits.toSeq.sorted.lastOption.toSet 
+        lastCommitForId.flatMap { c =>
           c.repo.listContent(c.commit.value).variantsMetadata.flatMap(_.toVariants)
         }
       }
+//      if (id.value == "scala-library/config/compile") println("scala variants:" + commits)
       val filteredVariants = AttributeConstraintFilter.filter(id, allVariants, constraints)
       val element = new Element(id.value, filteredVariants)
       cache.put(element)

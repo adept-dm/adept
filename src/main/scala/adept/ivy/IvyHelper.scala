@@ -122,7 +122,7 @@ object IvyHelper extends Logging {
       assertCorrectConfigurations()
       val repositoryConfigurationMetadata = commits.map {
         case (configuration, currentCommits) =>
-          RepositoryConfiguration(configuration, currentCommits.map{ case (id, c) => RepositoryInfo(id, c.repo.name, c.commit)}.toSeq)
+          RepositoryConfiguration(configuration, currentCommits.map { case (id, c) => RepositoryInfo(id, c.repo.name, c.commit) }.toSeq)
       }.toSeq
       val repositoryMetadata = RepositoryMetadata(variantsMetadata.id, variantsMetadata.toVariants.map(Hash.calculate(_)),
         configurations = repositoryConfigurationMetadata)
@@ -140,26 +140,31 @@ object IvyHelper extends Logging {
     val id = name2IdConversions(name)
     val version = mrid.getRevision()
 
+    def checkVariant(variantsMetadata: ConfiguredVariantsMetadata): Boolean = {
+      val foundVersion = variantsMetadata.attributes.find { a =>
+        a.name == AttributeDefaults.VersionAttribute && a.values == Set(version)
+      }
+      val foundName = variantsMetadata.attributes.find { a =>
+        a.name == AttributeDefaults.NameAttribute && a.values == Set(name)
+      }
+      val foundOrg = variantsMetadata.attributes.find { a =>
+        a.name == AttributeDefaults.OrgAttribute && a.values == Set(org)
+      }
+      val foundPreviousVersioned = foundVersion.isDefined && foundName.isDefined && foundOrg.isDefined
+      foundPreviousVersioned
+    }
+
     val gitRepo = new AdeptGitRepository(baseDir, repo)
     val maybeMetadataHit = gitRepo.scanFirst { metadata =>
-      metadata.variantsMetadata.exists { variantsMetadata =>
-        val foundVersion = variantsMetadata.attributes.find { a =>
-          a.name == AttributeDefaults.VersionAttribute && a.values == Set(version)
-        }
-        val foundName = variantsMetadata.attributes.find { a =>
-          a.name == AttributeDefaults.NameAttribute && a.values == Set(name)
-        }
-        val foundOrg = variantsMetadata.attributes.find { a =>
-          a.name == AttributeDefaults.OrgAttribute && a.values == Set(org)
-        }
-        val foundPreviousVersioned = foundVersion.isDefined && foundName.isDefined && foundOrg.isDefined
-        foundPreviousVersioned
-      }
+      metadata.variantsMetadata.exists(checkVariant)
     }
 
     maybeMetadataHit match {
-      case Some((adeptCommit, _)) => Some(adeptCommit)
-      case _ => None
+      case Some((adeptCommit, metadata)) =>
+       metadata.variantsMetadata.filter(checkVariant).map(_.toVariants.map{ v =>
+         v.id -> adeptCommit
+       })
+      case _ => Set.empty[Set[(Id, AdeptCommit)]]
     }
   }
 
@@ -170,7 +175,7 @@ object IvyHelper extends Logging {
       getCommit(result.mrid, baseDir).isEmpty
     }
 
-    var handledResults: Map[IvyImportResult, Set[AdeptCommit]] = Map.empty //TODO: load all results that have been handled allready
+    var handledResults: Map[IvyImportResult, Set[(Id, AdeptCommit)]] = Map.empty //TODO: load all results that have been handled allready
     var unhandledResults = initialResults
 
     var lastSize = -1
@@ -191,7 +196,7 @@ object IvyHelper extends Logging {
         }
         if (allTransitiveDependencies.size == foundCommits.size) {
           //TODO: rewrite this ugly piece of code! what we are doing is essentially finding each commit for each individual configuration
-          val configuredCommits: Map[ConfigurationId, Set[AdeptCommit]] = result.variantsMetadata.configurations.map { configuration =>
+          val configuredCommits: Map[ConfigurationId, Set[(Id, AdeptCommit)]] = result.variantsMetadata.configurations.map { configuration =>
             def traverseResult(dependencies: Set[ModuleRevisionId]): Set[ModuleRevisionId] = {
               dependencies ++ results.filter(r => dependencies(r.mrid)).flatMap(r =>
                 traverseResult(r.dependencies.flatMap { case (_, nodes) => nodes.map(_.getId) }.toSet))
@@ -199,11 +204,12 @@ object IvyHelper extends Logging {
             configuration.id -> traverseResult(result.dependencies.flatMap {
               case (depConf, _) => result.dependencies.getOrElse(depConf, Set.empty[IvyNode]).map(_.getId)
             }.toSet)
-          }.map{ case (conf, ids) =>
-            conf -> ids.flatMap(getCommit(_, baseDir))
+          }.map {
+            case (conf, ids) =>
+              conf -> ids.flatMap(getCommit(_, baseDir)).flatten
           }.toMap
 
-          handledResults += result -> foundCommits
+          handledResults += result -> foundCommits.flatten //TODO: UGLY
           unhandledResults -= result
           updateRepository(baseDir, result, configuredCommits)
         } else None
@@ -278,7 +284,7 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[St
       }
       val requirements = loaded.map { ivyNode => //evicted nodes are not loaded, we are importing one by one so it is fine
         if (!ivyNode.isEvicted(confName)) {
-          val nodes =  dependencies.getOrElse(confName, Set.empty) + ivyNode
+          val nodes = dependencies.getOrElse(confName, Set.empty) + ivyNode
           dependencies += confName -> nodes //MUTATE
         }
 

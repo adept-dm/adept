@@ -23,6 +23,7 @@ import adept.resolution.models.OverconstrainedResult
 import adept.resolution.models.ResolveResult
 import adept.artifacts.ArtifactCache
 import adept.models.Hash
+import adept.repository.models.configuration.ConfigurationId
 
 object AdeptRepository {
   import sbt.complete.DefaultParsers._
@@ -153,7 +154,9 @@ class AdeptManager(baseDir: File, lockFile: File) {
     val requirements = Faked.fakeRequirements.filter(_.id != id) ++ newReqs
 
     val initCommits = requirements.map { req =>
-      req -> (id, AdeptCommit(new AdeptGitRepository(baseDir, req.repositoryName), req.repositoryCommit))
+      req -> (ConfigurationId.join(req.id, req.configuration), AdeptCommit(new AdeptGitRepository(baseDir, req.repositoryName), req.repositoryCommit))
+    } ++ requirements.map{ req =>
+      req -> (req.id, AdeptCommit(new AdeptGitRepository(baseDir, req.repositoryName), req.repositoryCommit))
     }
 
     val commits: Set[(Id, AdeptCommit)] = {
@@ -164,11 +167,10 @@ class AdeptManager(baseDir: File, lockFile: File) {
       initCommits.flatMap {
         case (req, (commitId, c)) =>
           val repositoryMetadata = c.repo.listContent(c.commit.value).repositoryMetadata.filter { repositoryMetadata =>
-            id == commitId && repositoryMetadata.variants.exists(h => rootVariantHashes.contains(h)) //i.e. there is repository variant represents one or more of the rootVariants
+             repositoryMetadata.variants.exists(h => rootVariantHashes.contains(h)) //i.e. there is repository variant represents one or more of the rootVariants
           }
           repositoryMetadata
             .flatMap(r => r.load(baseDir, req.id, req.configuration)) //grab all repository metadata for this repository
-            .map( commitId -> _ )
       } ++ initCommits.map(_._2)
     }
 
@@ -188,7 +190,7 @@ class AdeptManager(baseDir: File, lockFile: File) {
           val help = displayErrorIds.map { id =>
             if (gitVariantsLoader.loadVariants(id, result.state.constraints(id)).isEmpty) {
               if (gitVariantsLoader.loadVariants(id, Set.empty).isEmpty) {
-                id + " cannot be found in repositories: " + commits.map(_.repo.name).mkString(" or ")
+                id + " cannot be found in repositories: " + commits.map{ case (id, c) => c.repo.name }.mkString(" or ")
               } else {
                 id + result.state.constraints(id).map(c => c.name + "=" + c.values.mkString("(", ",", ")")).mkString(" with ", " and ", " does not exist")
               }
