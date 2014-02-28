@@ -137,6 +137,7 @@ object Faked { //REMOVE THIS when finished testing (used for hard coding)
 object Helpers { //TODO: move this to an approriate class in adept-core
   def loadCommits(baseDir: File, requirements: Set[LockFileRequirement]) = {
 
+    
     //TODO: make .par suited for IO
     val initCommits = requirements.map { req =>
       req -> (ConfigurationId.join(req.id, req.configuration), AdeptCommit(new AdeptGitRepository(baseDir, req.repositoryName), req.repositoryCommit))
@@ -160,6 +161,7 @@ object Helpers { //TODO: move this to an approriate class in adept-core
       initCommits.par.foreach {
         case (req, current @ (commitId, c)) =>
           commits += current
+          //TODO: cache this:
           c.repo.listContent(c.commit.value).repositoryMetadata.foreach { repositoryMetadata =>
             if (repositoryMetadata.variants.exists(h => rootVariantHashes.contains(h))) { //i.e. there is repository variant represents one or more of the rootVariants
               commits ++= repositoryMetadata.load(baseDir, req.id, req.configuration)
