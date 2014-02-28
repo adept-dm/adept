@@ -134,6 +134,45 @@ object Faked { //REMOVE THIS when finished testing (used for hard coding)
   }
 }
 
+object Helpers { //TODO: move this to an approriate class in adept-core
+  def loadCommits(baseDir: File, requirements: Set[LockFileRequirement]) = {
+
+    //TODO: make .par suited for IO
+    val initCommits = requirements.map { req =>
+      req -> (ConfigurationId.join(req.id, req.configuration), AdeptCommit(new AdeptGitRepository(baseDir, req.repositoryName), req.repositoryCommit))
+    } ++ requirements.map { req =>
+      req -> (req.id, AdeptCommit(new AdeptGitRepository(baseDir, req.repositoryName), req.repositoryCommit))
+    }
+
+    val commits: Set[(Id, AdeptCommit)] = {
+      import collection.mutable._
+      //TODO: adjust this ugly piece of code!
+      val gitVariantsLoader = new GitVariantsLoader(initCommits.map(_._2), cacheManager = Faked.cacheManager)
+      val rootVariantHashes = new HashSet[Hash] with SynchronizedSet[Hash]
+
+      requirements.par.foreach { req =>
+        rootVariantHashes ++= gitVariantsLoader.loadVariants(req.id, req.constraints.toSet).map(Hash.calculate)
+      }
+      //defined as vars to make them easy to spot
+      var commits: Set[(Id, AdeptCommit)] = new HashSet[(Id, AdeptCommit)] with SynchronizedSet[(Id, AdeptCommit)] //perf boost  par
+      var repositoryMetadata: Set[(LockFileRequirement, RepositoryMetadata)] = new HashSet[(LockFileRequirement, RepositoryMetadata)] with SynchronizedSet[(LockFileRequirement, RepositoryMetadata)]
+
+      initCommits.par.foreach {
+        case (req, current @ (commitId, c)) =>
+          commits += current
+          c.repo.listContent(c.commit.value).repositoryMetadata.foreach { repositoryMetadata =>
+            if (repositoryMetadata.variants.exists(h => rootVariantHashes.contains(h))) { //i.e. there is repository variant represents one or more of the rootVariants
+              commits ++= repositoryMetadata.load(baseDir, req.id, req.configuration)
+            }
+          }
+      }
+      commits.toSet
+    }
+    commits
+  }
+
+}
+
 class AdeptManager(baseDir: File, lockFile: File) {
   val DefaultConfigurations = Set(ConfigurationId("compile"), ConfigurationId("master"))
 
@@ -152,33 +191,7 @@ class AdeptManager(baseDir: File, lockFile: File) {
 
     val requirements = Faked.fakeRequirements.filter(_.id != id) ++ newReqs
 
-    val initCommits = requirements.map { req =>
-      req -> (ConfigurationId.join(req.id, req.configuration), AdeptCommit(new AdeptGitRepository(baseDir, req.repositoryName), req.repositoryCommit))
-    } ++ requirements.map { req =>
-      req -> (req.id, AdeptCommit(new AdeptGitRepository(baseDir, req.repositoryName), req.repositoryCommit))
-    }
-
-    val commits: Set[(Id, AdeptCommit)] = {
-      //TODO: adjust this ugly piece of code!
-      val gitVariantsLoader = new GitVariantsLoader(initCommits.map(_._2), cacheManager = Faked.cacheManager)
-
-      val rootVariantHashes = gitVariantsLoader.loadVariants(id, parsedConstraints).map(Hash.calculate)
-      import collection.mutable._
-      //defined as vars to make them easy to spot
-      var commits: Set[(Id, AdeptCommit)] = new HashSet[(Id, AdeptCommit)] with SynchronizedSet[(Id, AdeptCommit)] //perf boost  par
-      var repositoryMetadata: Set[(LockFileRequirement, RepositoryMetadata)] = new HashSet[(LockFileRequirement, RepositoryMetadata)] with SynchronizedSet[(LockFileRequirement, RepositoryMetadata)] 
-     
-      initCommits.par.foreach {
-        case (req, current @ (commitId, c)) =>
-          commits += current
-           c.repo.listContent(c.commit.value).repositoryMetadata.foreach { repositoryMetadata =>
-             if (repositoryMetadata.variants.exists(h => rootVariantHashes.contains(h))){ //i.e. there is repository variant represents one or more of the rootVariants
-               commits ++= repositoryMetadata.load(baseDir, req.id, req.configuration)
-             }
-          }
-      }
-      commits.toSet
-    }
+    val commits = Helpers.loadCommits(baseDir, requirements)
     val loadedTime = System.currentTimeMillis
     val resolvingMsg = "Loaded (" + (loadedTime - initTime) + "ms). Resolving..."
     print(resolvingMsg)
@@ -187,12 +200,12 @@ class AdeptManager(baseDir: File, lockFile: File) {
     val gitResolver = new Resolver(gitVariantsLoader)
 
     val result = gitResolver.resolve(requirements.map(_.asRequirement))
-    
-    val timeString = "resolved in: " + (System.currentTimeMillis - loadedTime) + "ms, loaded in: "+(loadedTime - initTime)+"ms"
+
+    val timeString = "resolved in: " + (System.currentTimeMillis - loadedTime) + "ms, loaded in: " + (loadedTime - initTime) + "ms"
     val resultString =
       result match {
         case _: ResolvedResult =>
-          "Completed ("+timeString+")"
+          "Completed (" + timeString + ")"
         case _: OverconstrainedResult =>
           val requiredIds = newReqs.map(_.id)
           val currentOverconstrained = result.state.overconstrained.filter(requiredIds)
