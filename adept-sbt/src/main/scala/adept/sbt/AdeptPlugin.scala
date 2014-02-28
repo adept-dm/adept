@@ -27,17 +27,26 @@ import adept.models.Hash
 import adept.repository.models.configuration.ConfigurationId
 import adept.repository.models.LockFileRequirement
 import adept.repository.models.LockFile
-import adept.repository.models.LockFile
 import adept.ext.AttributeDefaults
+import org.eclipse.jgit.api.{ Git => JGit }
 
 class AdeptRepository(baseDir: File) {
   import sbt.complete.DefaultParsers._
 
-  def repositories = (baseDir / "repos").listFiles().filter(_.isDirectory).map(_.getName)
-
-  def modules(repoName: String) = {
-    (baseDir / "repos" / repoName / "variants").listFiles().filter(_.isDirectory).map(_.getName)
+  def reposDir = {
+    val reposDir = (baseDir / "repos")
+    if (reposDir.exists() && reposDir.isDirectory()) {
+      Some(reposDir)
+    } else None
   }
+
+  def repositories = reposDir.map {
+    _.listFiles().filter(_.isDirectory).map(_.getName)
+  }.getOrElse(Array.empty)
+
+  def modules(repoName: String) = reposDir.map { d =>
+    (d / repoName / "variants").listFiles().filter(_.isDirectory).map(_.getName)
+  }.getOrElse(Array.empty)
 
   def repositoryParser: Parser[String] = {
     val candidates = repositories.toList.sorted
@@ -85,6 +94,14 @@ class SetAdeptCommand(repo: String, conf: String, id: String, constraints: Set[(
   }
 }
 
+class GetAdeptCommand(uri: String)(adeptManager: AdeptManager) extends AdeptCommand {
+  import sbt.complete.DefaultParsers._
+
+  def execute(): Unit = {
+    adeptManager.get(uri)
+  }
+}
+
 object ResultStore { //TODO: it would be best if we could avoid this of course
   def updateResult(project: ProjectRef, resolveResult: ResolveResult) = synchronized { //TODO: can be moved to per project lock not on all?
     results += project -> resolveResult
@@ -98,9 +115,46 @@ object ResultStore { //TODO: it would be best if we could avoid this of course
 
 }
 
+object Helper { //TODO: remove this and put it in adpet-core 
+  val FAKE_PATH = "https://github.com/adept-test-repo1/"
+
+  def cloneNonExistingRepos(baseDir: File, commits: Set[AdeptCommit]) = {
+    commits.foreach { c =>
+      val repoDir = c.repo.dir
+      if (!repoDir.isDirectory()) {
+        println("Cloning: " + c.repo.name)
+        JGit
+          .cloneRepository()
+          .setURI(FAKE_PATH + c.repo.name + ".git")
+          .setDirectory(repoDir)
+          .call()
+        println("Done!")
+      } else {
+        if (!c.repo.getMostRecentCommit.canCompare(c)) {
+          throw new Exception("Cannot compare " + c + " and  " + c.repo.getMostRecentCommit + " so failing. Normally this will try to pull, but it is not implemented yet...")
+        }
+      }
+    }
+  }
+}
+
 class AdeptManager(project: ProjectRef, baseDir: File, lockFile: File) {
   val cacheManager = new CacheManager()
   val DefaultConfigurations = Set(ConfigurationId("compile"), ConfigurationId("master"))
+
+  val UriRegEx = """.*/(.*)\.git""".r
+
+  def get(uri: String) = {
+    uri match {
+      case UriRegEx(name) =>
+        JGit
+          .cloneRepository()
+          .setURI(uri)
+          .setDirectory(AdeptGitRepository.getRepoDir(baseDir, name))
+          .call()
+      case _ => throw new Exception("Cannot parse uri: " + uri + " with " + UriRegEx.pattern)
+    }
+  }
 
   def set(repo: String, conf: String, idString: String, constraints: Set[(String, Seq[String])]) = {
     val id = Id(idString)
@@ -125,12 +179,13 @@ class AdeptManager(project: ProjectRef, baseDir: File, lockFile: File) {
       case None => Set.empty
     }
     val requirements = newReqs ++ oldRequirements
-    
+
     val currentHash = Hash.calculate(requirements)
     if (Some(currentHash) == currentLockFile.map(_.hash)) {
       println("Using lockfile: " + lockFile)
     } else {
       val commits = GitLoader.loadCommits(baseDir, requirements, cacheManager)
+      Helper.cloneNonExistingRepos(baseDir, commits.map(_._2))
       val loadedTime = System.currentTimeMillis
       val resolvingMsg = "Loaded (" + (loadedTime - initTime) + "ms). Resolving..."
       print(resolvingMsg)
@@ -201,6 +256,7 @@ object AdeptPlugin extends Plugin {
     },
     sbt.Keys.commands += {
       val SetCommand = token("set")
+      val GetCommand = token("get")
       val GraphCommand = token("graph")
       val IvyImport = token("ivy-import")
 
@@ -209,7 +265,7 @@ object AdeptPlugin extends Plugin {
       val adeptRepository = new AdeptRepository(adeptDirectory.value)
       val repositoires = token(Space ~> adeptRepository.repositoryParser) flatMap { repo =>
         token(RepositorySep ~> adeptRepository.idParser(repo)).flatMap { id =>
-          token((Space ~> charClass(_ => true, "").*) | charClass(_ => true, "").*).map { binaryVersionsChars =>
+          token((Space ~> charClass(_ => true, "1").*) | charClass(_ => true, "2").*).map { binaryVersionsChars =>
             val binaryVersionsString = binaryVersionsChars.mkString
             val binaryVersion = binaryVersionsString.trim().split(" ").map(_.trim()).filter(_.nonEmpty)
             val constraints =
@@ -224,6 +280,11 @@ object AdeptPlugin extends Plugin {
       }
 
       val set = SetCommand ~> repositoires
+
+      val get = GetCommand ~> (Space ~> charClass(_ => true, "uri").+).map { uriChars =>
+        val uri = uriChars.mkString
+        new GetAdeptCommand(uri)(adeptManager)
+      }
 
       val ivyImport = (IvyImport ~> (Space ~> charClass(_ => true, "ivy-organization").+.flatMap { orgChars =>
         val org = orgChars.mkString
@@ -247,7 +308,7 @@ object AdeptPlugin extends Plugin {
         }
 
       }
-      val adept = (Space ~> (set | ivyImport | graph))
+      val adept = (Space ~> (set | get | ivyImport | graph))
 
       Command("adept")(_ => adept) { (state, adeptCommand) =>
         adeptCommand.execute()
