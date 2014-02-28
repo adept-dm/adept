@@ -1,5 +1,7 @@
 package adept.models
 
+import adept.repository.models.LockFileRequirement
+
 object Ordering {
 
   private def stringSetCompare(x: Set[String], y: Set[String]) = {
@@ -54,6 +56,31 @@ object Ordering {
               else res
           }
         } else x.constraints.size - y.constraints.size
+      }
+    }
+  }
+
+  implicit val lockFileRequirementOrdering: Ordering[LockFileRequirement] = new Ordering[LockFileRequirement] {
+    def compare(x: LockFileRequirement, y: LockFileRequirement): Int = {
+      if (x.id.value < y.id.value)
+        -1
+      else if (x.id.value > y.id.value)
+        1
+      else {
+        assert(x.id.value == y.id.value)
+        if (x.configuration.value == y.configuration.value) {
+          if (x.repositoryCommit.value == y.repositoryCommit.value) {
+            if (x.repositoryName == y.repositoryName) {
+              if (x.constraints.size == y.constraints.size) {
+                x.constraints.toSeq.sorted.zip(y.constraints.toSeq.sorted).foldLeft(0) {
+                  case (res, (cx, cy)) =>
+                    if (res == 0) constraintOrdering.compare(cx, cy)
+                    else res
+                }
+              } else x.constraints.size - y.constraints.size
+            } else x.repositoryName.compare(y.repositoryName)
+          } else x.repositoryCommit.value.compare(y.repositoryCommit.value)
+        } else x.configuration.value.compare(y.configuration.value)
       }
     }
   }

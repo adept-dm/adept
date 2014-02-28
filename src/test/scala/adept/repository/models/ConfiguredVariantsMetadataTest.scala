@@ -59,8 +59,8 @@ class ConfiguredVariantsMetadataTest extends FunSuite with MustMatchers {
 
   test("Transformation of Variants") {
 
-    val variantsMetadata = metadata.toVariants("foo")
-    variantsMetadata.map { variant => variant.id.value } must be === Set("foo/bar", "foo/bar/config/runtime", "foo/bar/config/compile", "foo/bar/config/test")
+    val variantsMetadata = metadata.toVariants
+    variantsMetadata.map { variant => variant.id.value } must be === Set("bar", "bar/config/runtime", "bar/config/compile", "bar/config/test")
 
     //FIXME: add test that tests:
     //(foo/bar/config/test [organization=(foo),version=(1.1.2),binary-version=(1.0,1.1),attr3=(foo)],Set(RepositoryMetadata(zoo.com,Set(git@git://github.com/zoo/loo.git),loo123commit,version = 2.1.1)))

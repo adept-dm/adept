@@ -22,7 +22,9 @@ object ArtifactCache {
   def getArtifactCacheFile(baseDir: File, hash: Hash) = {
     val dir = new File(baseDir, ArtifactCacheDirName)
     if (dir.isDirectory || dir.mkdirs()) {
-      new File(dir, hash.value)
+      val cacheFile = new File(dir, hash.value)
+      if (!cacheFile.isFile) throw new Exception("Could not locate cache file: " + cacheFile.getAbsolutePath + " for hash: " + hash)
+      else cacheFile
     } else throw new Exception("Could not create artifact directory: " + dir + " and hash: " + hash)
   }
 

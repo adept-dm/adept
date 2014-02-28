@@ -11,8 +11,10 @@ case class CommitCompareException(commit1: AdeptCommit, commit2: AdeptCommit) ex
  * Represents a comparable commit for a given `AdeptGitRepository`.
  */
 case class AdeptCommit private[adept] (repo: AdeptGitRepository, val commit: Commit) extends Ordered[AdeptCommit] {
+  override def toString = repo + "@" + commit.value 
+  
   def canCompare(that: AdeptCommit): Boolean = {
-    this.repo.dir == that.repo.dir && this.repo.branchName == that.repo.branchName
+    this.repo.dir.getAbsolutePath == that.repo.dir.getAbsolutePath && this.repo.branchName == that.repo.branchName
   }
 
   private def equalCommits(commitValue1: String, commitValue2: String): Boolean = {
@@ -48,6 +50,9 @@ case class AdeptCommit private[adept] (repo: AdeptGitRepository, val commit: Com
           val current = it.next()
           if (first.isEmpty) {
             first = checkMatch(current, thisAdeptCommit.commit, thatAdeptCommit.commit)
+            if (first.nonEmpty && thisAdeptCommit.commit == thatAdeptCommit.commit) {
+              second = first
+            }
           } else if (first.nonEmpty && second.isEmpty) {
             second = checkMatch(current, thisAdeptCommit.commit, thatAdeptCommit.commit)
           }

@@ -35,6 +35,7 @@ object AdeptGitRepository {
   val RewritesDirName = "rewrites"
   val ModificiationsFileName = "modifications"
   val ReposDirName = "repos"
+  val RepositoryMetdataDirName = "meta-repos"
 
   val JsonFileEnding = "json"
 
@@ -48,6 +49,7 @@ object AdeptGitRepository {
   def getReposDir(baseDir: File) = new File(baseDir, ReposDirName)
   def getRepoDir(baseDir: File, name: String) = new File(getReposDir(baseDir), name)
   def getArtifactDescriptorsDir(baseDir: File, name: String) = new File(getRepoDir(baseDir, name), ArtifactDescriptorDirName)
+  def getRepositoryDescriptorsDir(baseDir: File, name: String) = new File(getRepoDir(baseDir, name), RepositoryMetdataDirName)
   def getVariantsDir(baseDir: File, name: String) = new File(getRepoDir(baseDir, name), VariantsDirName)
   def getModificationsFile(baseDir: File, name: String) = {
     val rewritesDir = new File(getRepoDir(baseDir, name), RewritesDirName)
@@ -72,7 +74,9 @@ object AdeptGitRepository {
  * to _always_ be able to compare commits in the same repository, even
  * though the history has been rewritten since.
  */
-class AdeptGitRepository(val baseDir: File, val name: String) extends Logging {
+case class AdeptGitRepository(val baseDir: File, val name: String) extends Logging { //TODO: is not really a case class or? need equals so ... 
+  override def toString = dir.getAbsolutePath + ":" + name + "#" + branchName
+  
   import AdeptGitRepository._
 
   //FIXME: Allow branch as a class parameter/field?
@@ -85,7 +89,7 @@ class AdeptGitRepository(val baseDir: File, val name: String) extends Logging {
     git.tag().setName(InitTag).call()
   }
 
-  private[repository] val git = usingWriteLock {
+  private[repository] lazy val git = {
     if (dir.isDirectory()) {
       val git = Git.open(dir)
       val repo = git.getRepository()
@@ -140,7 +144,7 @@ class AdeptGitRepository(val baseDir: File, val name: String) extends Logging {
 
   @volatile private var locked = false
 
-  private def usingWriteLock[A](func: => A): A = {
+  private def usingWriteLock[A](func: => A): A = { //TODO: remove because we are not writing yet
     if (!locked) {
       synchronized {
         var lock: FileLock = null
@@ -205,10 +209,14 @@ class AdeptGitRepository(val baseDir: File, val name: String) extends Logging {
 
   }
 
-  def getVariantsMetadataDir(id: Id): File = {
-    val dir = id.value.split(IdDirSep).foldLeft(getVariantsDir(baseDir, name)) { (currentPath, dir) =>
+  def getIdFile(rootDir: File, id: Id): File = {
+    id.value.split(IdDirSep).foldLeft(rootDir) { (currentPath, dir) =>
       new File(currentPath, dir)
     }
+  }
+
+  def getVariantsMetadataDir(id: Id): File = {
+    val dir = getIdFile(getVariantsDir(baseDir, name), id)
     if (!(dir.isDirectory() || dir.mkdirs())) throw InitException(this, "Could not create variants metadata dir: " + dir.getAbsolutePath)
     dir
   }
@@ -227,8 +235,13 @@ class AdeptGitRepository(val baseDir: File, val name: String) extends Logging {
     new File(getArtifactMetadataDir(), hash.value + "." + JsonFileEnding)
   }
 
-  def getRepositoryMetadataFile(hash: Hash): File = {
-    new File(getArtifactMetadataDir(), hash.value + "." + JsonFileEnding)
+  def getRepositoryMetadataDir(id: Id): File = {
+    val dir = getIdFile(getRepositoryDescriptorsDir(baseDir, name), id)
+    if (!(dir.isDirectory() || dir.mkdirs())) throw InitException(this, "Could not create repository metadata dir: " + dir.getAbsolutePath)
+    dir
+  }
+  def getRepositoryMetadataFile(id: Id, hashes: Set[Hash]): File = {
+    new File(getRepositoryMetadataDir(id), Hash.calculate(hashes.mkString) + "." + JsonFileEnding)
   }
 
   private def gitPath(file: File): String = {
@@ -262,6 +275,7 @@ class AdeptGitRepository(val baseDir: File, val name: String) extends Logging {
   private[adept] def listContent(commitString: String, gitRepo: JGitRepository, revWalk: RevWalk, treeWalk: TreeWalk) = {
     var configuredVariantsMetadata = Set.empty[ConfiguredVariantsMetadata]
     var artifactsMetadata = Set.empty[ArtifactMetadata]
+    var repositoryMetadata = Set.empty[RepositoryMetadata]
     val revCommit = lookup(gitRepo, revWalk, commitString)
     try {
       revWalk.markStart(revCommit)
@@ -279,13 +293,15 @@ class AdeptGitRepository(val baseDir: File, val name: String) extends Logging {
         val currentPath = treeWalk.getPathString
         if (treeWalk.isSubtree()) {
           treeWalk.enterSubtree()
-        } else if ((currentPath.startsWith(VariantsDirName) &&
-          currentPath.endsWith(JsonFileEnding) || currentPath.startsWith(ArtifactDescriptorDirName))) { //TODO: more verifications?
+        } else if ((currentPath.startsWith(VariantsDirName) && currentPath.endsWith(JsonFileEnding)) ||
+          (currentPath.startsWith(RepositoryMetdataDirName) && currentPath.endsWith(JsonFileEnding)) ||
+          currentPath.startsWith(ArtifactDescriptorDirName)) { //TODO: more verifications?
           readBlob(treeWalk, gitRepo) { is =>
             val reader = new InputStreamReader(is)
             try {
               if (currentPath.startsWith(VariantsDirName)) configuredVariantsMetadata += ConfiguredVariantsMetadata.fromJson(reader)
-              if (currentPath.startsWith(ArtifactDescriptorDirName)) artifactsMetadata += ArtifactMetadata.fromJson(reader)
+              else if (currentPath.startsWith(ArtifactDescriptorDirName)) artifactsMetadata += ArtifactMetadata.fromJson(reader)
+              else if (currentPath.startsWith(RepositoryMetdataDirName)) repositoryMetadata += RepositoryMetadata.fromJson(reader)
             } finally {
               reader.close()
             }
@@ -295,7 +311,7 @@ class AdeptGitRepository(val baseDir: File, val name: String) extends Logging {
     } else {
       logger.debug("Skipped empty commit: " + commitString + " in " + dir)
     }
-    MetadataContent(configuredVariantsMetadata, Set.empty)
+    MetadataContent(configuredVariantsMetadata, artifactsMetadata, repositoryMetadata)
   }
 
   private[adept] def listContent(commitString: String): MetadataContent = {

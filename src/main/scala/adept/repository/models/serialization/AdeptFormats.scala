@@ -5,7 +5,7 @@ import adept.repository.models._
 import adept.repository.models.configuration._
 
 private[models] object AdeptFormats {
-  
+
   import play.api.libs.json._
 
   implicit val formatMetdataInfo = Json.format[MetadataInfo]
@@ -14,11 +14,18 @@ private[models] object AdeptFormats {
   implicit val formatHash = Json.format[Hash]
   implicit val formatArtifactRef = Json.format[ArtifactRef]
   implicit val formatCommit = Json.format[Commit]
-  implicit val formatRepositoryMetadata = Json.format[RepositoryMetadata]
   implicit val formatConstraint = Json.format[Constraint]
   implicit val formatId = Json.format[Id]
   implicit val formatConfiguredRequirement = Json.format[ConfiguredRequirement]
   implicit val formatConfiguration = Json.format[Configuration]
   implicit val formatConfiguredVariantsMetadata = Json.format[ConfiguredVariantsMetadata]
   implicit val formatArtifactMetadata = Json.format[ArtifactMetadata]
+  implicit val formatRepositoryInfo = Json.format[RepositoryInfo]
+  implicit val formatRepositoryConfiguration = Json.format[RepositoryConfiguration]
+  implicit val formatRepositoryMetadata = Json.format[RepositoryMetadata]
+
+  //lockfile:
+  implicit val requirementEntryFormat = Json.format[LockFileRequirement]
+  implicit val artifactFormat = Json.format[Artifact]
+  implicit val lockFileFormat = Json.format[LockFile]
 } 
