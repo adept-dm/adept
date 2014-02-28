@@ -89,7 +89,7 @@ class AdeptGitRepository(val baseDir: File, val name: String) extends Logging {
     git.tag().setName(InitTag).call()
   }
 
-  private[repository] val git = usingWriteLock {
+  private[repository] lazy val git = {
     if (dir.isDirectory()) {
       val git = Git.open(dir)
       val repo = git.getRepository()
@@ -144,7 +144,7 @@ class AdeptGitRepository(val baseDir: File, val name: String) extends Logging {
 
   @volatile private var locked = false
 
-  private def usingWriteLock[A](func: => A): A = {
+  private def usingWriteLock[A](func: => A): A = { //TODO: remove because we are not writing yet
     if (!locked) {
       synchronized {
         var lock: FileLock = null

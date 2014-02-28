@@ -139,7 +139,6 @@ class AdeptManager(baseDir: File, lockFile: File) {
 
   def set(repo: String, conf: String, idString: String, constraints: Set[(String, Seq[String])]) = {
     val id = Id(idString)
-
     val initTime = System.currentTimeMillis
 
     val thisGitRepo = new AdeptGitRepository(baseDir, repo)
@@ -155,7 +154,7 @@ class AdeptManager(baseDir: File, lockFile: File) {
 
     val initCommits = requirements.map { req =>
       req -> (ConfigurationId.join(req.id, req.configuration), AdeptCommit(new AdeptGitRepository(baseDir, req.repositoryName), req.repositoryCommit))
-    } ++ requirements.map{ req =>
+    } ++ requirements.map { req =>
       req -> (req.id, AdeptCommit(new AdeptGitRepository(baseDir, req.repositoryName), req.repositoryCommit))
     }
 
@@ -164,25 +163,36 @@ class AdeptManager(baseDir: File, lockFile: File) {
       val gitVariantsLoader = new GitVariantsLoader(initCommits.map(_._2), cacheManager = Faked.cacheManager)
 
       val rootVariantHashes = gitVariantsLoader.loadVariants(id, parsedConstraints).map(Hash.calculate)
-      initCommits.flatMap {
-        case (req, (commitId, c)) =>
-          val repositoryMetadata = c.repo.listContent(c.commit.value).repositoryMetadata.filter { repositoryMetadata =>
-             repositoryMetadata.variants.exists(h => rootVariantHashes.contains(h)) //i.e. there is repository variant represents one or more of the rootVariants
+      import collection.mutable._
+      //defined as vars to make them easy to spot
+      var commits: Set[(Id, AdeptCommit)] = new HashSet[(Id, AdeptCommit)] with SynchronizedSet[(Id, AdeptCommit)] //perf boost  par
+      var repositoryMetadata: Set[(LockFileRequirement, RepositoryMetadata)] = new HashSet[(LockFileRequirement, RepositoryMetadata)] with SynchronizedSet[(LockFileRequirement, RepositoryMetadata)] 
+     
+      initCommits.par.foreach {
+        case (req, current @ (commitId, c)) =>
+          commits += current
+           c.repo.listContent(c.commit.value).repositoryMetadata.foreach { repositoryMetadata =>
+             if (repositoryMetadata.variants.exists(h => rootVariantHashes.contains(h))){ //i.e. there is repository variant represents one or more of the rootVariants
+               commits ++= repositoryMetadata.load(baseDir, req.id, req.configuration)
+             }
           }
-          repositoryMetadata
-            .flatMap(r => r.load(baseDir, req.id, req.configuration)) //grab all repository metadata for this repository
-      } ++ initCommits.map(_._2)
+      }
+      commits.toSet
     }
+    val loadedTime = System.currentTimeMillis
+    val resolvingMsg = "Loaded (" + (loadedTime - initTime) + "ms). Resolving..."
+    print(resolvingMsg)
 
     val gitVariantsLoader = new GitVariantsLoader(commits, cacheManager = Faked.cacheManager)
     val gitResolver = new Resolver(gitVariantsLoader)
 
     val result = gitResolver.resolve(requirements.map(_.asRequirement))
-
+    
+    val timeString = "resolved in: " + (System.currentTimeMillis - loadedTime) + "ms, loaded in: "+(loadedTime - initTime)+"ms"
     val resultString =
       result match {
         case _: ResolvedResult =>
-          "Resolved (" + (System.currentTimeMillis - initTime) + "ms)"
+          "Completed ("+timeString+")"
         case _: OverconstrainedResult =>
           val requiredIds = newReqs.map(_.id)
           val currentOverconstrained = result.state.overconstrained.filter(requiredIds)
@@ -190,7 +200,7 @@ class AdeptManager(baseDir: File, lockFile: File) {
           val help = displayErrorIds.map { id =>
             if (gitVariantsLoader.loadVariants(id, result.state.constraints(id)).isEmpty) {
               if (gitVariantsLoader.loadVariants(id, Set.empty).isEmpty) {
-                id + " cannot be found in repositories: " + commits.map{ case (id, c) => c.repo.name }.mkString(" or ")
+                id + " cannot be found in repositories: " + commits.map { case (id, c) => c.repo.name }.mkString(" or ")
               } else {
                 id + result.state.constraints(id).map(c => c.name + "=" + c.values.mkString("(", ",", ")")).mkString(" with ", " and ", " does not exist")
               }
@@ -198,7 +208,7 @@ class AdeptManager(baseDir: File, lockFile: File) {
               id + " conflicts " + result.state.constraints(id).map(c => c.name + "=" + c.values.mkString("(", ",", ")")).mkString(",")
             }
           }.mkString("\n")
-          "Over-constrained (" + (System.currentTimeMillis - initTime) + "ms):\n" + help
+          "Over-constrained (" + timeString + "):\n" + help
         case underConstrainedResult: UnderconstrainedResult =>
           val help = "Choose between:\n" + (if (underConstrainedResult.optimalStates.nonEmpty) {
             underConstrainedResult.optimalStates.map(s => (s.implicitVariants ++ s.resolvedVariants).flatMap {
@@ -209,9 +219,9 @@ class AdeptManager(baseDir: File, lockFile: File) {
           } else {
             result.state.underconstrained.map(id => gitVariantsLoader.loadVariants(id, parsedConstraints)): Set[Set[Variant]]
           }).map(_.map(_.attributes.map(a => a.name + "=" + a.values.mkString("(", ",", ")")).mkString("<", ",", ">")).mkString(" OR ")).mkString("\n")
-          "Under-constrained (" + (System.currentTimeMillis - initTime) + "ms): " + result.state.underconstrained.mkString(",") + ":\n" + help
+          "Under-constrained (" + timeString + "): " + result.state.underconstrained.mkString(",") + ":\n" + help
       }
-    println(resultString)
+    println(("\b" * resolvingMsg.size) + resultString)
 
     if (result.isResolved) { //TODO: I am not sure whether it is right to only store result if resolvd (if we are under-constrained it would be nice to increase precision..)
       Faked.fakeRequirements = requirements
