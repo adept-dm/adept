@@ -10,7 +10,7 @@ import adept.models._
 import adept.repository.models.configuration.ConfiguredRequirement
 import adept.repository.AdeptCommit
 import adept.resolution.Resolver
-import adept.repository.GitVariantsLoader
+import adept.repository.GitLoader
 import adept.repository.models.Commit
 import adept.repository.models.configuration.ConfiguredRequirement
 import adept.repository.models.configuration.ConfigurationId
@@ -130,12 +130,12 @@ class AdeptManager(project: ProjectRef, baseDir: File, lockFile: File) {
     if (Some(currentHash) == currentLockFile.map(_.hash)) {
       println("Using lockfile: " + lockFile)
     } else {
-      val commits = GitVariantsLoader.loadCommits(baseDir, requirements, cacheManager)
+      val commits = GitLoader.loadCommits(baseDir, requirements, cacheManager)
       val loadedTime = System.currentTimeMillis
       val resolvingMsg = "Loaded (" + (loadedTime - initTime) + "ms). Resolving..."
       print(resolvingMsg)
 
-      val gitLoader = new GitVariantsLoader(commits, cacheManager = cacheManager)
+      val gitLoader = new GitLoader(commits, cacheManager = cacheManager)
       val gitResolver = new Resolver(gitLoader)
       val result = gitResolver.resolve(requirements.map(_.asRequirement).toSet)
       val timeString = "resolved in: " + (System.currentTimeMillis - loadedTime) + "ms, loaded in: " + (loadedTime - initTime) + "ms"

@@ -12,7 +12,7 @@ import adept.repository.models.configuration.ConfigurationId
 import adept.repository.models.RepositoryMetadata
 import adept.repository.models.ArtifactMetadata
 
-object GitVariantsLoader {
+object GitLoader {
   def loadCommits(baseDir: File, requirements: Set[LockFileRequirement], cacheManager: CacheManager) = {
     //TODO: make .par suited for IO
     val initCommits = requirements.map { req =>
@@ -24,7 +24,7 @@ object GitVariantsLoader {
     val commits: Set[(Id, AdeptCommit)] = {
       import collection.mutable._
       //TODO: adjust this ugly piece of code!
-      val gitVariantsLoader = new GitVariantsLoader(initCommits.map(_._2), cacheManager = cacheManager)
+      val gitVariantsLoader = new GitLoader(initCommits.map(_._2), cacheManager = cacheManager)
       val rootVariantHashes = new HashSet[Hash] with SynchronizedSet[Hash]
 
       requirements.par.foreach { req =>
@@ -50,8 +50,7 @@ object GitVariantsLoader {
   }
 }
 
-//TODO: change name to GitLoader since we are loading Artifacts too
-class GitVariantsLoader(commits: Set[(Id, AdeptCommit)], cacheManager: CacheManager) extends VariantsLoader {
+class GitLoader(commits: Set[(Id, AdeptCommit)], cacheManager: CacheManager) extends VariantsLoader {
   lazy val onlyCommits = commits.map(_._2)
 
   def getArtifacts(hashes: Set[Hash]) = {

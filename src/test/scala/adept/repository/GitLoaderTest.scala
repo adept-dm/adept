@@ -8,7 +8,7 @@ import adept.repository.models.MetadataContent
 import java.io.File
 import adept.models.Attribute
 
-class GitVariantLoaderTest extends FunSuite with MustMatchers {
+class GitLoaderTest extends FunSuite with MustMatchers {
   import adept.test.FileUtils.usingTmpDir
 
 
