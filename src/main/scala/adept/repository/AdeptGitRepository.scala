@@ -74,7 +74,7 @@ object AdeptGitRepository {
  * to _always_ be able to compare commits in the same repository, even
  * though the history has been rewritten since.
  */
-class AdeptGitRepository(val baseDir: File, val name: String) extends Logging {
+case class AdeptGitRepository(val baseDir: File, val name: String) extends Logging { //TODO: is not really a case class or? need equals so ... 
   override def toString = dir.getAbsolutePath + ":" + name + "#" + branchName
   
   import AdeptGitRepository._

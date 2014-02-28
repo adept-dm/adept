@@ -53,7 +53,7 @@ private[adept] object MetadataContent {
     }
   }
 
-  private[models] def usingFileWriter[A](file: File)(func: FileWriter => Unit): File = {
+  private[adept] def usingFileWriter[A](file: File)(func: FileWriter => Unit): File = {
     val fileWriter = new FileWriter(file)
     try {
       func(fileWriter)

@@ -6,6 +6,7 @@ import java.io.File
 import java.io.FileInputStream
 import java.security.MessageDigest
 import adept.repository.models.ConfiguredVariantsMetadata
+import adept.repository.models.LockFileRequirement
 
 /**
  * Represents unique variants or artifacts
@@ -56,6 +57,13 @@ object Hash {
     updateWithIdConstraints(requirement.id, requirement.constraints, currentMd)
   }
 
+  private def updateWithLockFileRequirement(requirement: LockFileRequirement, currentMd: MessageDigest) = {
+    currentMd.update(requirement.configuration.value.getBytes)
+    currentMd.update(requirement.repositoryCommit.value.getBytes)
+    currentMd.update(requirement.repositoryName.getBytes)
+    updateWithIdConstraints(requirement.id, requirement.constraints.toSet, currentMd)
+  }
+
   private def updateWithVariant(variant: Variant, currentMd: MessageDigest): Unit = {
     currentMd.update(variant.id.value.getBytes)
     variant.requirements.toSeq.sorted.foreach(updateWithRequirement(_, currentMd))
@@ -70,18 +78,6 @@ object Hash {
     currentMd.reset()
     try {
       updateWithIdConstraints(id, constraints, currentMd)
-
-      Hash(digest(currentMd))
-    } finally {
-      currentMd.reset()
-    }
-  }
-
-  def calculate(requirements: Set[Requirement]): Hash = {
-    val currentMd = md.get()
-    currentMd.reset()
-    try {
-      requirements.toSeq.sorted.foreach(updateWithRequirement(_, currentMd))
 
       Hash(digest(currentMd))
     } finally {
@@ -151,6 +147,17 @@ object Hash {
       calculate(fis)
     } finally {
       fis.close()
+    }
+  }
+
+  def calculate(requirements: Set[LockFileRequirement]): Hash = {
+    val currentMd = md.get()
+    currentMd.reset()
+    try {
+      requirements.toSeq.sorted.foreach(updateWithLockFileRequirement(_, currentMd))
+      Hash(digest(currentMd))
+    } finally {
+      currentMd.reset()
     }
   }
 }
