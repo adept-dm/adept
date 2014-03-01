@@ -37,6 +37,7 @@ import org.eclipse.jgit.transport.URIish
 import org.eclipse.jgit.transport.CredentialsProviderUserInfo
 import org.eclipse.jgit.transport.SshSessionFactory
 import adept.repository.GitHelpers
+import adept.artifacts.Downloader
 
 class AdeptRepository(baseDir: File) {
   import sbt.complete.DefaultParsers._
@@ -241,11 +242,18 @@ object AdeptPlugin extends Plugin {
     adeptLockFile := new File(baseDirectory.value, "adept.lock"),
     adeptSshPassphrase := None,
     adeptClasspath := {
-      LockFile.read(adeptLockFile.value).artifacts.map { artifact =>
+      import scala.concurrent.ExecutionContext.Implicits._
+      import scala.concurrent._
+      val futures = LockFile.read(adeptLockFile.value).artifacts.map { artifact =>
         //val artifactFiles = variants.flatMap { case (_, variant) => variant.artifacts.map(a =>  -> a.filename) }.toSeq
         //        val artifactFiles = variants.flatMap { case (_, variant) => variant.artifacts.map(a =>  -> a.filename) }.toSeq
-        ArtifactCache.getArtifactCacheFile(adeptDirectory.value, artifact.hash)
+        
+        val cacheFile = ArtifactCache.getCacheFile(adeptDirectory.value, artifact.hash)
+        if (cacheFile.exists()) Future(cacheFile)
+        else Downloader.download(artifact.locations, artifact.hash, cacheFile, new File(System.getProperty("java.io.tmpdir"))).map( r => ArtifactCache.cache(adeptDirectory.value, r._1, r._2)) //TODO: factor
       }
+      import scala.concurrent.duration._
+      Await.result(Future.sequence(futures), 60.minutes) //TIMEOUT
     },
     sbt.Keys.commands += {
       val CurrentSetCommand = token("set")

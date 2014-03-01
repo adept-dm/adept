@@ -14,23 +14,25 @@ object ArtifactCache {
     new FileOutputStream(dest).getChannel.transferFrom(
       new FileInputStream(src).getChannel, 0, Long.MaxValue)
   }
-  
-  def copyFromCache(baseDir: File, hash: Hash, file: File) = {
-    copy(getArtifactCacheFile(baseDir, hash), file)
-  } 
 
-  def getArtifactCacheFile(baseDir: File, hash: Hash) = {
+  def copyFromCache(baseDir: File, hash: Hash, file: File) = {
     val dir = new File(baseDir, ArtifactCacheDirName)
     if (dir.isDirectory || dir.mkdirs()) {
-      val cacheFile = new File(dir, hash.value)
+      val cacheFile = getCacheFile(baseDir, hash)
       if (!cacheFile.isFile) throw new Exception("Could not locate cache file: " + cacheFile.getAbsolutePath + " for hash: " + hash)
-      else cacheFile
+      else copy(cacheFile, file)
     } else throw new Exception("Could not create artifact directory: " + dir + " and hash: " + hash)
+  }
+
+  def getCacheFile(baseDir: File, hash: Hash) = {
+    val dir = new File(baseDir, ArtifactCacheDirName)
+    val cacheFile = new File(dir, hash.value)
+    cacheFile
   }
 
   def cache(baseDir: File, file: File, expectedHash: Hash): File = {
     val dir = new File(baseDir, ArtifactCacheDirName)
-    val newFile = getArtifactCacheFile(baseDir, expectedHash)
+    val newFile = getCacheFile(baseDir, expectedHash)
     if (newFile.isFile) {
       //TODO: verify hash?
       newFile
