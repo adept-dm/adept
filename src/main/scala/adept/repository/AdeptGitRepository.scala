@@ -76,13 +76,15 @@ object AdeptGitRepository {
  */
 case class AdeptGitRepository(val baseDir: File, val name: String) extends Logging { //TODO: is not really a case class or? need equals so ... 
   override def toString = dir.getAbsolutePath + ":" + name + "#" + branchName
-  
+
   import AdeptGitRepository._
 
   //FIXME: Allow branch as a class parameter/field?
   final val branchName: String = AdeptGitRepository.MasterBranchName
 
   val dir = getRepoDir(baseDir, name)
+
+  def exists = dir.exists && dir.isDirectory
 
   private def init(git: Git) = {
     git.commit().setMessage("Initialized " + name).call()

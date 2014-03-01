@@ -11,16 +11,34 @@ import java.io.File
 import adept.repository.models.configuration.ConfigurationId
 import adept.repository.models.RepositoryMetadata
 import adept.repository.models.ArtifactMetadata
+import org.eclipse.jgit.api.{ Git => JGit }
 
 object GitLoader {
-  def loadCommits(baseDir: File, requirements: Set[LockFileRequirement], cacheManager: CacheManager) = {
+  def loadCommits(baseDir: File, requirements: Set[LockFileRequirement], cacheManager: CacheManager, baseUri: String, passphrase: Option[String] = None) = {
+    def cloneAll(commits: Set[(Id, AdeptCommit)]) = {
+      commits
+        .filter { case (_, c) => !c.repo.exists }
+        .map { case (_, c) => c.repo.name -> c.repo.dir } //flattens equal dirs
+        .par.foreach {
+          case (name, dir) =>
+            println("cloning " + name)
+            GitHelpers.withGitSshCredentials(passphrase) {
+              JGit
+                .cloneRepository()
+                .setURI(baseUri + name + ".git")
+                .setDirectory(dir)
+                .call()
+            }
+            println(name + " cloned!")
+        }
+    }
+
     //TODO: make .par suited for IO
     val initCommits = requirements.map { req =>
       (req, (ConfigurationId.join(req.id, req.configuration), AdeptCommit(new AdeptGitRepository(baseDir, req.repositoryName), req.repositoryCommit)))
     } ++ requirements.map { req =>
       (req, (req.id, AdeptCommit(new AdeptGitRepository(baseDir, req.repositoryName), req.repositoryCommit)))
     }
-
     val commits: Set[(Id, AdeptCommit)] = {
       import collection.mutable._
       //TODO: adjust this ugly piece of code!
@@ -34,18 +52,23 @@ object GitLoader {
       var commits: Set[(Id, AdeptCommit)] = new HashSet[(Id, AdeptCommit)] with SynchronizedSet[(Id, AdeptCommit)] //perf boost  par
       var repositoryMetadata: Set[(LockFileRequirement, RepositoryMetadata)] = new HashSet[(LockFileRequirement, RepositoryMetadata)] with SynchronizedSet[(LockFileRequirement, RepositoryMetadata)]
 
+      cloneAll(initCommits.map(_._2))
+
       initCommits.par.foreach {
         case (req, current @ (commitId, c)) =>
           commits += current
+
           //TODO: cache this:
           c.repo.listContent(c.commit.value).repositoryMetadata.foreach { repositoryMetadata =>
             if (repositoryMetadata.variants.exists(h => rootVariantHashes.contains(h))) { //i.e. there is repository variant represents one or more of the rootVariants
+
               commits ++= repositoryMetadata.load(baseDir, req.id, req.configuration)
             }
           }
       }
       commits.toSet
     }
+    cloneAll(commits)
     commits
   }
 }
@@ -86,7 +109,7 @@ class GitLoader(commits: Set[(Id, AdeptCommit)], cacheManager: CacheManager) ext
   def getCommitsForId(id: Id) = {
     var onlyCommits = Vector.empty[AdeptCommit] //perf boost (avoid multiple traversals)
     commits.foreach { c =>
-      if (c._1 == id) onlyCommits +:= c._2
+      if (c._1 == id && c._2.repo.exists) onlyCommits +:= c._2
     }
     onlyCommits
   }
