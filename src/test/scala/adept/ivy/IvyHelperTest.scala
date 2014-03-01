@@ -13,7 +13,7 @@ import adept.models.Attribute
 import adept.ext.AttributeDefaults
 import adept.resolution.Resolver
 import org.eclipse.jgit.api.Git
-import adept.repository.GitVariantsLoader
+import adept.repository.GitLoader
 
 class IvyHelperTest extends FunSuite with MustMatchers {
 
