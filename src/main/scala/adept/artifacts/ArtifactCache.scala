@@ -32,14 +32,16 @@ object ArtifactCache {
 
   def cache(baseDir: File, file: File, expectedHash: Hash): File = {
     val dir = new File(baseDir, ArtifactCacheDirName)
-    val newFile = getCacheFile(baseDir, expectedHash)
-    if (newFile.isFile) {
-      //TODO: verify hash?
-      newFile
-    } else {
-      copy(file, newFile)
-      newFile
-    }
+    if (dir.isDirectory || dir.mkdirs()) {
+      val newFile = getCacheFile(baseDir, expectedHash)
+      if (newFile.isFile) {
+        //TODO: verify hash?
+        newFile
+      } else {
+        copy(file, newFile)
+        newFile
+      }
+    } else throw new Exception("Could not create artifact directory: " + dir + " file: " + file + " hash: " + expectedHash)
   }
 
 }

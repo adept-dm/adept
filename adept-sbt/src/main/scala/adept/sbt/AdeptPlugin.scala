@@ -178,7 +178,7 @@ class AdeptManager(project: ProjectRef, baseDir: File, lockFile: File, passphras
       println("Using lockfile: " + lockFile)
     } else {
       val commits = GitLoader.loadCommits(baseDir, requirements, cacheManager, Helper.FAKE_PATH, passphrase)
-      
+
       val loadedTime = System.currentTimeMillis
       val resolvingMsg = "Loaded (" + (loadedTime - initTime) + "ms). Resolving..."
       print(resolvingMsg)
@@ -244,19 +244,22 @@ object AdeptPlugin extends Plugin {
     adeptClasspath := {
       import scala.concurrent.ExecutionContext.Implicits._
       import scala.concurrent._
-      val futures = LockFile.read(adeptLockFile.value).artifacts.map { artifact =>
-        //val artifactFiles = variants.flatMap { case (_, variant) => variant.artifacts.map(a =>  -> a.filename) }.toSeq
-        //        val artifactFiles = variants.flatMap { case (_, variant) => variant.artifacts.map(a =>  -> a.filename) }.toSeq
-        
-        val cacheFile = ArtifactCache.getCacheFile(adeptDirectory.value, artifact.hash)
-        if (cacheFile.exists()) Future(cacheFile)
-        else Downloader.download(artifact.locations, artifact.hash, cacheFile, new File(System.getProperty("java.io.tmpdir"))).map( r => ArtifactCache.cache(adeptDirectory.value, r._1, r._2)) //TODO: factor
-      }
-      import scala.concurrent.duration._
-      Await.result(Future.sequence(futures), 60.minutes) //TIMEOUT
+      val lockFile = adeptLockFile.value
+      if (lockFile.exists) {
+        val futures = LockFile.read(lockFile).artifacts.map { artifact =>
+          //val artifactFiles = variants.flatMap { case (_, variant) => variant.artifacts.map(a =>  -> a.filename) }.toSeq
+          //        val artifactFiles = variants.flatMap { case (_, variant) => variant.artifacts.map(a =>  -> a.filename) }.toSeq
+
+          val cacheFile = ArtifactCache.getCacheFile(adeptDirectory.value, artifact.hash)
+          if (cacheFile.exists()) Future(cacheFile)
+          else Downloader.download(artifact.locations, artifact.hash, cacheFile, new File(System.getProperty("java.io.tmpdir"))).map(r => ArtifactCache.cache(adeptDirectory.value, r._1, r._2)) //TODO: factor
+        }
+        import scala.concurrent.duration._
+        Await.result(Future.sequence(futures), 60.minutes) //TIMEOUT
+      } else Seq.empty
     },
     sbt.Keys.commands += {
-      val CurrentSetCommand = token("set")
+      val CurrentSetCommand = token("adfdas")
       val GetCommand = token("get")
       val GraphCommand = token("graph")
       val IvyImport = token("ivy-import")
