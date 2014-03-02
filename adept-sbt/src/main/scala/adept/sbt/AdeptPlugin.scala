@@ -130,7 +130,7 @@ object Helper { //TODO: remove this and put it in adpet-core
 }
 
 class AdeptManager(project: ProjectRef, baseDir: File, lockFile: File, passphrase: Option[String]) {
-  val cacheManager = new CacheManager()
+  val cacheManager = CacheManager.create()
   val DefaultConfigurations = Set(ConfigurationId("compile"), ConfigurationId("master"))
 
   val UriRegEx = """.*/(.*)\.git""".r
@@ -255,11 +255,24 @@ object AdeptPlugin extends Plugin {
           else Downloader.download(artifact.locations, artifact.hash, cacheFile, new File(System.getProperty("java.io.tmpdir"))).map(r => ArtifactCache.cache(adeptDirectory.value, r._1, r._2)) //TODO: factor
         }
         import scala.concurrent.duration._
-        Await.result(Future.sequence(futures), 60.minutes) //TIMEOUT
+        val cacheFiles = Await.result(Future.sequence(futures), 60.minutes) //TODO: configurable timeout
+        val libDir = baseDirectory.value / "lib"
+        libDir.mkdirs()
+        val files = cacheFiles.map { src => //TODO: change 
+          import java.io.{ File, FileInputStream, FileOutputStream }
+          val dest = libDir / (src.getName + ".jar")
+          if (!dest.isFile) {
+            new FileOutputStream(dest).getChannel.transferFrom(
+              new FileInputStream(src).getChannel, 0, Long.MaxValue)
+          }
+          dest
+        }
+
+        files.map(Attributed.blank(_))
       } else Seq.empty
     },
     sbt.Keys.commands += {
-      val CurrentSetCommand = token("adfdas")
+      val SetCommand = token("set")
       val GetCommand = token("get")
       val GraphCommand = token("graph")
       val IvyImport = token("ivy-import")
@@ -283,7 +296,7 @@ object AdeptPlugin extends Plugin {
         }
       }
 
-      val currentSet = CurrentSetCommand ~> repositoires
+      val set = SetCommand ~> repositoires
 
       val get = GetCommand ~> (Space ~> charClass(_ => true, "uri").+).map { uriChars =>
         val uri = uriChars.mkString
@@ -312,7 +325,7 @@ object AdeptPlugin extends Plugin {
         }
 
       }
-      val adept = (Space ~> (currentSet | get | ivyImport | graph))
+      val adept = (Space ~> (set | get | ivyImport | graph))
 
       Command("adept")(_ => adept) { (state, adeptCommand) =>
         adeptCommand.execute()
