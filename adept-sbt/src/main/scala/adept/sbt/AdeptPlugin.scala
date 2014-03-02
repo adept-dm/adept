@@ -116,19 +116,6 @@ class GetAdeptCommand(uri: String)(adeptManager: AdeptManager) extends AdeptComm
   }
 }
 
-object ResultStore { //TODO: it would be best if we could avoid this of course
-  def updateResult(project: ProjectRef, resolveResult: ResolveResult) = synchronized { //TODO: can be moved to per project lock not on all?
-    results += project -> resolveResult
-  }
-
-  def getResult(project: ProjectRef) = synchronized { //TODO: can be moved to per project lock not on all?
-    results.get(project)
-  }
-
-  private var results: Map[ProjectRef, ResolveResult] = Map.empty
-
-}
-
 object Helper { //TODO: remove this and put it in adpet-core 
   val FAKE_PATH = "https://github.com/adept-test-repo1/"
 
@@ -234,8 +221,6 @@ class AdeptManager(project: ProjectRef, baseDir: File, lockFile: File, passphras
         val artifacts = gitLoader.getArtifacts(hashes)
         LockFile(currentHash, requirements.toSeq.sortBy(_.repositoryName).sortBy(_.id.value), artifacts.toSeq).write(lockFile)
       }
-
-      ResultStore.updateResult(project, result)
     }
   }
 }
@@ -247,6 +232,12 @@ object AdeptPlugin extends Plugin {
   def adeptSettings = Seq(
     adeptDirectory := Path.userHome / ".adept",
     adeptLockFile := new File(baseDirectory.value, "adept.lock"),
+    adeptRequirements := {
+      val lockFile = adeptLockFile.value
+      if (lockFile.exists) {
+        LockFile.read(lockFile).requirements
+      } else Seq.empty
+    },
     adeptSshPassphrase := None,
     adeptClasspath := {
       import scala.concurrent.ExecutionContext.Implicits._
@@ -324,10 +315,29 @@ object AdeptPlugin extends Plugin {
       def graph = GraphCommand.map { _ =>
         new AdeptCommand {
           def execute() = {
-            println(ResultStore.getResult(thisProjectRef.value) match {
-              case Some(result) => result.graphAsString
-              case None => ""
-            })
+            val graphString = {
+              val lockFile = adeptLockFile.value
+              val requirements =
+                if (lockFile.exists) {
+                  LockFile.read(lockFile).requirements
+                } else Seq.empty
+              if (requirements.nonEmpty) { //TODO: factor this out!
+                val initTime = System.currentTimeMillis
+                val loadingMsg = "Loading..."
+                print(loadingMsg)
+                val commits = GitLoader.loadCommits(adeptDirectory.value, requirements.toSet, adeptManager.cacheManager, Helper.FAKE_PATH, adeptSshPassphrase.value)
+
+                val loadedTime = System.currentTimeMillis
+                val resolvingMsg = "Loaded (" + (loadedTime - initTime) + "ms). Resolving..."
+                print(("\b" * loadingMsg.size) + resolvingMsg)
+                val gitLoader = new GitLoader(commits, cacheManager = adeptManager.cacheManager)
+                val gitResolver = new Resolver(gitLoader)
+                val result = gitResolver.resolve(requirements.map(_.asRequirement).toSet)
+                println("Finished (" + (System.currentTimeMillis - initTime) + "ms)")
+                result.graphAsString
+              } else ""
+            }
+            println(graphString)
           }
         }
 
