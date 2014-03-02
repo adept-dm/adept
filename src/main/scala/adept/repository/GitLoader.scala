@@ -21,7 +21,7 @@ object GitLoader {
         .map { case (_, c) => c.repo.name -> c.repo.dir } //flattens equal dirs
         .par.foreach {
           case (name, dir) =>
-            println("cloning " + name)
+            println("cloning " + name) //TODO: replace with progress
             GitHelpers.withGitSshCredentials(passphrase) {
               JGit
                 .cloneRepository()
@@ -82,12 +82,12 @@ class GitLoader(commits: Set[(Id, AdeptCommit)], cacheManager: CacheManager) ext
       new HashSet[Artifact] with SynchronizedSet[Artifact] //perf boost  par
     }
     onlyCommits.foreach { c =>
-      val cacheKey = "ca" + c.commit.value + c.repo.name + c.repo.dir.getAbsolutePath
+      val cacheKey = "ca" + c.repo.name + c.repo.dir.getAbsolutePath
       val cachedValues = cache.get(cacheKey)
       val artifactMetadata = if (cache.isKeyInCache(cacheKey) && cachedValues != null) {
         cachedValues.getValue().asInstanceOf[Set[ArtifactMetadata]]
       } else {
-        c.repo.listContent(c.commit.value).artifactsMetadata
+        c.repo.getArtifacts(hashes)
       }
       artifactMetadata.foreach { am =>
         if (hashes(am.hash))

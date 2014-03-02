@@ -99,7 +99,7 @@ object IvyHelper extends Logging {
     val variantsMetadata = result.variantsMetadata
 
     result.localFiles.foreach { case (artifact, file) => ArtifactCache.cache(baseDir, file, artifact.hash) }
-    adeptGitRepo.updateMetadata(branch = "adept-uri",
+    adeptGitRepo.updateMetadata(branch = AdeptGitRepository.AdeptUriBranchName,
       removals = { content =>
         Seq.empty
       }, additions = { content =>

@@ -30,18 +30,15 @@ class AdeptGitRepositoryTest extends FunSuite with MustMatchers {
       val adeptGitRepo = new AdeptGitRepository(tmpDir, "adept-git-repo-basic")
 
       val commit1 = adeptGitRepo.updateMetadata({ content =>
-        content.artifactsMetadata must be('empty)
         content.variantsMetadata must be('empty)
         Seq.empty
       }, { content =>
-        content.artifactsMetadata must be('empty)
         content.variantsMetadata must be('empty)
         Seq(metadata.write(adeptGitRepo))
       }, "adding some new stuff")
 
       val commit2 = adeptGitRepo.updateMetadata({ content =>
         content.variantsMetadata must have size (1)
-        content.artifactsMetadata must be('empty)
         content.variantsMetadata.toSeq.map {
           _.file(adeptGitRepo)
         }

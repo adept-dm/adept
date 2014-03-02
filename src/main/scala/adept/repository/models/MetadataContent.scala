@@ -12,7 +12,7 @@ import java.io.File
 import java.io.FileWriter
 import play.api.libs.json.Json
 
-case class MetadataContent(variantsMetadata: Set[ConfiguredVariantsMetadata], artifactsMetadata: Set[ArtifactMetadata], repositoryMetadata: Set[RepositoryMetadata])
+case class MetadataContent(variantsMetadata: Set[ConfiguredVariantsMetadata], repositoryMetadata: Set[RepositoryMetadata])
 
 private[adept] object MetadataContent {
   def readString(reader: Reader) = {

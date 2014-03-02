@@ -42,6 +42,7 @@ object AdeptGitRepository {
   val InitTag = "init"
   val MasterBranchName = "master"
   val Head = Constants.HEAD
+  val AdeptUriBranchName = "uris"
 
   val GitPathSep = "/" //the character that separates paths in Git
   val IdDirSep = "/" //the character in an ID that indicates a different directory
@@ -276,7 +277,6 @@ case class AdeptGitRepository(val baseDir: File, val name: String) extends Loggi
   //TODO: rename to readContentn
   private[adept] def listContent(commitString: String, gitRepo: JGitRepository, revWalk: RevWalk, treeWalk: TreeWalk) = {
     var configuredVariantsMetadata = Set.empty[ConfiguredVariantsMetadata]
-    var artifactsMetadata = Set.empty[ArtifactMetadata]
     var repositoryMetadata = Set.empty[RepositoryMetadata]
     val revCommit = lookup(gitRepo, revWalk, commitString)
     try {
@@ -296,13 +296,11 @@ case class AdeptGitRepository(val baseDir: File, val name: String) extends Loggi
         if (treeWalk.isSubtree()) {
           treeWalk.enterSubtree()
         } else if ((currentPath.startsWith(VariantsDirName) && currentPath.endsWith(JsonFileEnding)) ||
-          (currentPath.startsWith(RepositoryMetdataDirName) && currentPath.endsWith(JsonFileEnding)) ||
-          currentPath.startsWith(ArtifactDescriptorDirName)) { //TODO: more verifications?
+          (currentPath.startsWith(RepositoryMetdataDirName) && currentPath.endsWith(JsonFileEnding))) { //TODO: more verifications?
           readBlob(treeWalk, gitRepo) { is =>
             val reader = new InputStreamReader(is)
             try {
               if (currentPath.startsWith(VariantsDirName)) configuredVariantsMetadata += ConfiguredVariantsMetadata.fromJson(reader)
-              else if (currentPath.startsWith(ArtifactDescriptorDirName)) artifactsMetadata += ArtifactMetadata.fromJson(reader)
               else if (currentPath.startsWith(RepositoryMetdataDirName)) repositoryMetadata += RepositoryMetadata.fromJson(reader)
             } finally {
               reader.close()
@@ -313,12 +311,48 @@ case class AdeptGitRepository(val baseDir: File, val name: String) extends Loggi
     } else {
       logger.debug("Skipped empty commit: " + commitString + " in " + dir)
     }
-    MetadataContent(configuredVariantsMetadata, artifactsMetadata, repositoryMetadata)
+    MetadataContent(configuredVariantsMetadata, repositoryMetadata)
   }
 
   private[adept] def listContent(commitString: String): MetadataContent = {
     usingTreeWalk { (gitRepo, revWalk, treeWalk) =>
       listContent(commitString, gitRepo, revWalk, treeWalk)
+    }
+  }
+
+  private[adept] def getArtifacts(hashes: Set[Hash]): Set[ArtifactMetadata] = {
+    usingTreeWalk { (gitRepo, revWalk, treeWalk) =>
+      var artifactMetadata = Set.empty[ArtifactMetadata]
+      val revCommit = lookup(gitRepo, revWalk, AdeptUriBranchName)
+      try {
+        revWalk.markStart(revCommit)
+      } catch {
+        case e: org.eclipse.jgit.errors.MissingObjectException =>
+          throw new Exception("Cannot find uri branch: " + AdeptUriBranchName + " in " + dir, e)
+      }
+      val currentTree = revCommit.getTree()
+      if (currentTree != null) { //if null means we on an empty commit (no tree)
+        treeWalk.addTree(currentTree)
+        treeWalk.setRecursive(true)
+        while (treeWalk.next()) {
+          val currentPath = treeWalk.getPathString
+          if (treeWalk.isSubtree()) {
+            treeWalk.enterSubtree()
+          } else if (currentPath.startsWith(ArtifactDescriptorDirName)) { //TODO: more verifications?
+            readBlob(treeWalk, gitRepo) { is =>
+              val reader = new InputStreamReader(is)
+              try {
+                if (currentPath.startsWith(ArtifactDescriptorDirName)) artifactMetadata += ArtifactMetadata.fromJson(reader)
+              } finally {
+                reader.close()
+              }
+            }
+          }
+        }
+        artifactMetadata
+      } else {
+        Set.empty
+      }
     }
   }
 
@@ -335,8 +369,8 @@ case class AdeptGitRepository(val baseDir: File, val name: String) extends Loggi
       try {
         {
           import collection.JavaConverters._
-          println(git.branchList().call().asScala)
-          if (git.branchList().call().asScala.find(_.getName == Constants.R_HEADS + branch).isEmpty) git.branchCreate().setName(branch).call()
+          if (git.branchList().call().asScala.find(_.getName == Constants.R_HEADS + branch).isEmpty)
+            git.branchCreate().setName(branch).call()
         }
         git.checkout().setName(branch).call()
 
