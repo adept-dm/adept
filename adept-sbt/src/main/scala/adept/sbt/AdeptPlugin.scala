@@ -49,13 +49,18 @@ class AdeptRepository(baseDir: File) {
     } else None
   }
 
-  def repositories = reposDir.map {
-    _.listFiles().filter(_.isDirectory).map(_.getName)
-  }.getOrElse(Array.empty)
+  def repositories = reposDir.map { root =>
+    if (root.isDirectory)
+      root.listFiles().filter(_.isDirectory).map(_.getName)
+    else Array.empty[String]
+  }.getOrElse(Array.empty[String])
 
   def modules(repoName: String) = reposDir.map { d =>
-    (d / repoName / "variants").listFiles().filter(_.isDirectory).map(_.getName)
-  }.getOrElse(Array.empty)
+    val variantsDir = (d / repoName / "variants")
+    if (variantsDir.isDirectory)
+      variantsDir.listFiles().filter(_.isDirectory).map(_.getName)
+    else Array.empty[String]
+  }.getOrElse(Array.empty[String])
 
   def repositoryParser: Parser[String] = {
     val candidates = repositories.toList.sorted
@@ -66,7 +71,7 @@ class AdeptRepository(baseDir: File) {
         (candidate ^^^ candidate | currentParser)
       }
     } else {
-      Parser.failure("No repositories found")
+      "--" ^^^ "--"
     }
   }
 
@@ -280,7 +285,7 @@ object AdeptPlugin extends Plugin {
       val RepositorySep = token("/")
       val adeptManager = new AdeptManager(thisProjectRef.value, adeptDirectory.value, adeptLockFile.value, adeptSshPassphrase.value) //TODO: settings!
       val adeptRepository = new AdeptRepository(adeptDirectory.value)
-      val repositoires = token(Space ~> adeptRepository.repositoryParser) flatMap { repo =>
+      def repositoires = token(Space ~> adeptRepository.repositoryParser) flatMap { repo =>
         token(RepositorySep ~> adeptRepository.idParser(repo)).flatMap { id =>
           token((Space ~> charClass(_ => true, "1").*) | charClass(_ => true, "2").*).map { binaryVersionsChars =>
             val binaryVersionsString = binaryVersionsChars.mkString
@@ -296,7 +301,7 @@ object AdeptPlugin extends Plugin {
         }
       }
 
-      val set = SetCommand ~> repositoires
+      def set = SetCommand ~> repositoires
 
       val get = GetCommand ~> (Space ~> charClass(_ => true, "uri").+).map { uriChars =>
         val uri = uriChars.mkString
@@ -314,7 +319,7 @@ object AdeptPlugin extends Plugin {
         }
       }))
 
-      val graph = GraphCommand.map { _ =>
+      def graph = GraphCommand.map { _ =>
         new AdeptCommand {
           def execute() = {
             println(ResultStore.getResult(thisProjectRef.value) match {
@@ -325,9 +330,10 @@ object AdeptPlugin extends Plugin {
         }
 
       }
-      val adept = (Space ~> (set | get | ivyImport | graph))
+      
+      def adept = (Space ~> (set | get | ivyImport | graph))
 
-      Command("adept")(_ => adept) { (state, adeptCommand) =>
+      Command("adept")(_ => adept){ (state, adeptCommand) =>
         adeptCommand.execute()
         state
       }

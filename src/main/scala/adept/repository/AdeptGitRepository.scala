@@ -75,12 +75,12 @@ object AdeptGitRepository {
  * though the history has been rewritten since.
  */
 case class AdeptGitRepository(val baseDir: File, val name: String) extends Logging { //TODO: is not really a case class or? need equals so ... 
-  override def toString = dir.getAbsolutePath + ":" + name + "#" + branchName
+  override def toString = dir.getAbsolutePath + ":" + name + "#" + workingBranchName
 
   import AdeptGitRepository._
 
   //FIXME: Allow branch as a class parameter/field?
-  final val branchName: String = AdeptGitRepository.MasterBranchName
+  final val workingBranchName: String = AdeptGitRepository.MasterBranchName
 
   val dir = getRepoDir(baseDir, name)
 
@@ -328,33 +328,43 @@ case class AdeptGitRepository(val baseDir: File, val name: String) extends Loggi
    *  `removals` is a function that is based on the content of the current commit, returns some (old) files to be removed.
    *  `additions` does the inverse (i.e. adds new files)
    */
-  def updateMetadata(removals: MetadataContent => Seq[File], additions: MetadataContent => Seq[File], commitMsg: String, commit: Commit = Commit(Head)): AdeptCommit = usingWriteLock {
+  def updateMetadata(removals: MetadataContent => Seq[File], additions: MetadataContent => Seq[File], commitMsg: String, branch: String = workingBranchName, commit: Commit = Commit(Head)): AdeptCommit = usingWriteLock {
     val mostRecentCommit = getMostRecentCommit
     if (!isClean) throw UpdateMetadataException(this, "Directory is not clean")
     else if (commit == mostRecentCommit.commit || commit.value == Head) {
-
-      removals(listContent(commit.value)).foreach { file =>
-        git.rm().addFilepattern(gitPath(file)).call()
-      }
-
-      additions(listContent(commit.value)).foreach { file =>
-        git.add().addFilepattern(gitPath(file)).call()
-      }
-
-      val status = git.status.call()
-      val changed = {
-        import collection.JavaConversions._
-        val conflicting = status.getConflicting()
-        if (conflicting.nonEmpty) throw new UpdateMetadataException(this, "Found conflicting files: " + conflicting.toList)
-        else {
-          status.getAdded() ++ status.getChanged() ++ status.getRemoved()
+      try {
+        {
+          import collection.JavaConverters._
+          println(git.branchList().call().asScala)
+          if (git.branchList().call().asScala.find(_.getName == Constants.R_HEADS + branch).isEmpty) git.branchCreate().setName(branch).call()
         }
-      }
+        git.checkout().setName(branch).call()
 
-      if (changed.nonEmpty) {
-        new AdeptCommit(this, git.commit().setMessage(commitMsg).call())
-      } else {
-        mostRecentCommit
+        removals(listContent(commit.value)).foreach { file =>
+          git.rm().addFilepattern(gitPath(file)).call()
+        }
+
+        additions(listContent(commit.value)).foreach { file =>
+          git.add().addFilepattern(gitPath(file)).call()
+        }
+
+        val status = git.status.call()
+        val changed = {
+          import collection.JavaConversions._
+          val conflicting = status.getConflicting()
+          if (conflicting.nonEmpty) throw new UpdateMetadataException(this, "Found conflicting files: " + conflicting.toList)
+          else {
+            status.getAdded() ++ status.getChanged() ++ status.getRemoved()
+          }
+        }
+
+        if (changed.nonEmpty) {
+          new AdeptCommit(this, git.commit().setMessage(commitMsg).call())
+        } else {
+          mostRecentCommit
+        }
+      } finally {
+        git.checkout().setName(workingBranchName).call()
       }
     } else {
       ???

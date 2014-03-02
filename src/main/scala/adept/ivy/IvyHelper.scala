@@ -99,8 +99,15 @@ object IvyHelper extends Logging {
     val variantsMetadata = result.variantsMetadata
 
     result.localFiles.foreach { case (artifact, file) => ArtifactCache.cache(baseDir, file, artifact.hash) }
+    adeptGitRepo.updateMetadata(branch = "adept-uri",
+      removals = { content =>
+        Seq.empty
+      }, additions = { content =>
+        val artifactFiles = result.artifacts.toSeq.map(ArtifactMetadata.fromArtifact(_).write(adeptGitRepo))
+        artifactFiles
+      }, commitMsg = "Ivy import of: " + result.mrid)
 
-    adeptGitRepo.updateMetadata({ content =>
+    adeptGitRepo.updateMetadata(removals = { content =>
       val removeVariants = content.variantsMetadata
         .filter { old =>
           old.id == variantsMetadata.id &&
@@ -110,15 +117,16 @@ object IvyHelper extends Logging {
               SemanticVersion.getSemanticVersion(old.attributes).find { case (major, minor, point) => major.toInt == 0 }.isDefined) //remove if old is a semantic version with a prerelease 
         }
 
-      val removeArtifactRefs = removeVariants.flatMap(_.configurations.flatMap(_.artifacts))
-
-      val artifactFiles = removeArtifactRefs.map(a => ArtifactMetadata.file(adeptGitRepo, a.hash)).toSeq
+      //      val removeArtifactRefs = removeVariants.flatMap(_.configurations.flatMap(_.artifacts))
+      //
+      //      val artifactFiles = removeArtifactRefs.map(a => ArtifactMetadata.file(adeptGitRepo, a.hash)).toSeq
       val repositoryFiles = removeVariants.map(v => RepositoryMetadata.file(adeptGitRepo, v.id, v.toVariants.map(Hash.calculate(_)))).toSeq
       val variantFiles = removeVariants.map(_.file(adeptGitRepo)).toSeq
       //val repositoryFiles = removeVariants.map(RepositoryMetadata(_.hash, commit))
-      artifactFiles ++ variantFiles ++ repositoryFiles
-    }, { content =>
-      val artifactFiles = result.artifacts.toSeq.map(ArtifactMetadata.fromArtifact(_).write(adeptGitRepo))
+      //      artifactFiles ++ variantFiles ++ repositoryFiles
+      variantFiles ++ repositoryFiles
+    }, additions = { content =>
+      //      val artifactFiles = result.artifacts.toSeq.map(ArtifactMetadata.fromArtifact(_).write(adeptGitRepo))
       assertCorrectConfigurations()
       val repositoryConfigurationMetadata = commits.map {
         case (configuration, currentCommits) =>
@@ -128,8 +136,9 @@ object IvyHelper extends Logging {
         configurations = repositoryConfigurationMetadata)
       val repositoryFiles = Seq(repositoryMetadata.write(adeptGitRepo))
       val variantFiles = Seq(variantsMetadata.write(adeptGitRepo))
-      artifactFiles ++ variantFiles ++ repositoryFiles
-    }, "Ivy import of: " + result.mrid)
+      //      artifactFiles ++ variantFiles ++ repositoryFiles
+      variantFiles ++ repositoryFiles
+    }, commitMsg = "Ivy import of: " + result.mrid)
 
   }
 
@@ -161,9 +170,9 @@ object IvyHelper extends Logging {
 
     maybeMetadataHit match {
       case Some((adeptCommit, metadata)) =>
-       metadata.variantsMetadata.filter(checkVariant).map(_.toVariants.map{ v =>
-         v.id -> adeptCommit
-       })
+        metadata.variantsMetadata.filter(checkVariant).map(_.toVariants.map { v =>
+          v.id -> adeptCommit
+        })
       case _ => Set.empty[Set[(Id, AdeptCommit)]]
     }
   }

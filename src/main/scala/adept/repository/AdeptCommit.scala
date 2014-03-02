@@ -14,7 +14,7 @@ case class AdeptCommit private[adept] (repo: AdeptGitRepository, val commit: Com
   override def toString = repo + "@" + commit.value 
   
   def canCompare(that: AdeptCommit): Boolean = {
-    this.repo.dir.getAbsolutePath == that.repo.dir.getAbsolutePath && this.repo.branchName == that.repo.branchName
+    this.repo.dir.getAbsolutePath == that.repo.dir.getAbsolutePath && this.repo.workingBranchName == that.repo.workingBranchName
   }
 
   private def equalCommits(commitValue1: String, commitValue2: String): Boolean = {
@@ -39,7 +39,7 @@ case class AdeptCommit private[adept] (repo: AdeptGitRepository, val commit: Com
     thisAdeptCommit.repo.usingGitRepo { gitRepo => //git repos are comparable, so we can use either one.
       val revWalk = new RevWalk(gitRepo)
       try {
-        revWalk.markStart(revWalk.lookupCommit(gitRepo.resolve(thisAdeptCommit.repo.branchName)))
+        revWalk.markStart(revWalk.lookupCommit(gitRepo.resolve(thisAdeptCommit.repo.workingBranchName)))
         revWalk.setRevFilter(RevFilter.NO_MERGES)
         val it = revWalk.iterator()
 
