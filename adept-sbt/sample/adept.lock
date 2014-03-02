@@ -1,0 +1,313 @@
+{
+  "hash" : {
+    "value" : "cb0bd68f00f6e3b68e0ce913235c0f41a618cb579d7c8e02e294e2261e169005"
+  },
+  "requirements" : [ {
+    "id" : {
+      "value" : "akka-actor"
+    },
+    "configuration" : {
+      "value" : "compile"
+    },
+    "constraints" : [ {
+      "name" : "binary-version",
+      "values" : [ "2.2" ]
+    } ],
+    "repositoryName" : "com.typesafe.akka",
+    "repositoryCommit" : {
+      "value" : "6821a119508cf2693fcca7ca42b07da3017a4f5f"
+    }
+  }, {
+    "id" : {
+      "value" : "akka-actor"
+    },
+    "configuration" : {
+      "value" : "master"
+    },
+    "constraints" : [ {
+      "name" : "binary-version",
+      "values" : [ "2.2" ]
+    } ],
+    "repositoryName" : "com.typesafe.akka",
+    "repositoryCommit" : {
+      "value" : "6821a119508cf2693fcca7ca42b07da3017a4f5f"
+    }
+  }, {
+    "id" : {
+      "value" : "play"
+    },
+    "configuration" : {
+      "value" : "compile"
+    },
+    "constraints" : [ {
+      "name" : "binary-version",
+      "values" : [ "2.2" ]
+    } ],
+    "repositoryName" : "com.typesafe.play",
+    "repositoryCommit" : {
+      "value" : "2bacd3d6153a62c682e0801424b5579cc83c307b"
+    }
+  }, {
+    "id" : {
+      "value" : "play"
+    },
+    "configuration" : {
+      "value" : "master"
+    },
+    "constraints" : [ {
+      "name" : "binary-version",
+      "values" : [ "2.2" ]
+    } ],
+    "repositoryName" : "com.typesafe.play",
+    "repositoryCommit" : {
+      "value" : "2bacd3d6153a62c682e0801424b5579cc83c307b"
+    }
+  } ],
+  "artifacts" : [ {
+    "hash" : {
+      "value" : "0967164db18018f73ffe3dc11c71ae45992d17e6c40eafd17c58d227c62dd1c6"
+    },
+    "size" : 2668990,
+    "locations" : [ "http://repo1.maven.org/maven2/com/typesafe/akka/akka-actor_2.10/2.2.2/akka-actor_2.10-2.2.2.jar" ]
+  }, {
+    "hash" : {
+      "value" : "779aa03cba0398d3a3fc97cb665c15aafbfb532f104c1e52711a25afc4d88dc8"
+    },
+    "size" : 650514,
+    "locations" : [ "http://repo1.maven.org/maven2/org/scala-stm/scala-stm_2.10/0.7/scala-stm_2.10-0.7.jar" ]
+  }, {
+    "hash" : {
+      "value" : "638c58a97e04db5cd84de838d36a2caa09f8b36cdc23f57fdff159a00e8fbabc"
+    },
+    "size" : 627243,
+    "locations" : [ "http://repo.typesafe.com/typesafe/releases/com/typesafe/play/play-json_2.10/2.2.1/play-json_2.10-2.2.1.jar" ]
+  }, {
+    "hash" : {
+      "value" : "8cefa7a3fbaccaa7d29335a3a07a3612761369e97b928de1d1315b4f6d691818"
+    },
+    "size" : 7012,
+    "locations" : [ "http://repo.typesafe.com/typesafe/releases/com/typesafe/netty/netty-http-pipelining/1.1.2/netty-http-pipelining-1.1.2.jar" ]
+  }, {
+    "hash" : {
+      "value" : "cbe7ff36c9ec5b1769bed7339d1f3736496f6a699453f594dc71af47494af6e2"
+    },
+    "size" : 8759,
+    "locations" : [ "http://repo.typesafe.com/typesafe/releases/com/typesafe/play/sbt-link/2.2.1/sbt-link-2.2.1.jar" ]
+  }, {
+    "hash" : {
+      "value" : "f9d2033d9d3809f307440227adf8900dbb89234282c77eacabd75d0f538a7cd9"
+    },
+    "size" : 866104,
+    "locations" : [ "http://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.2.2/jackson-databind-2.2.2.jar" ]
+  }, {
+    "hash" : {
+      "value" : "c2b062ad6ae1714042f0bac4bbba8b8060def63298e5d2e640df97a06f716e1f"
+    },
+    "size" : 3774943,
+    "locations" : [ "http://repo.typesafe.com/typesafe/releases/com/typesafe/play/play_2.10/2.2.1/play_2.10-2.2.1.jar" ]
+  }, {
+    "hash" : {
+      "value" : "ecd8f24f9b2941284e98f154ff3343e720cb31c8f47b67554b145745f596f3b8"
+    },
+    "size" : 418870,
+    "locations" : [ "http://repo1.maven.org/maven2/ch/qos/logback/logback-core/1.0.13/logback-core-1.0.13.jar" ]
+  }, {
+    "hash" : {
+      "value" : "a840968176645684bb01aed376e067ab39614885f9eee44abe35a5f20ebe7fad"
+    },
+    "size" : 220536,
+    "locations" : [ "http://repo1.maven.org/maven2/xml-apis/xml-apis/1.4.01/xml-apis-1.4.01.jar" ]
+  }, {
+    "hash" : {
+      "value" : "fbab12e7f0a15de5e60ca732b0cbeaecef262d8448ef85471dd8c7084aefc5b3"
+    },
+    "size" : 39142,
+    "locations" : [ "http://repo.typesafe.com/typesafe/releases/com/typesafe/play/templates_2.10/2.2.1/templates_2.10-2.2.1.jar" ]
+  }, {
+    "hash" : {
+      "value" : "62035399bb0eb6486c843134ff9bcbb86b916aea2ef811916150c3a3950b7cf5"
+    },
+    "size" : 366840,
+    "locations" : [ "http://repo.typesafe.com/typesafe/releases/com/typesafe/play/play-functional_2.10/2.2.1/play-functional_2.10-2.2.1.jar" ]
+  }, {
+    "hash" : {
+      "value" : "757b0368584e11fd8412e55166b0eed30a68724757cf2b5a1c45e8de15baf018"
+    },
+    "size" : 14477,
+    "locations" : [ "http://repo1.maven.org/maven2/com/typesafe/akka/akka-slf4j_2.10/2.2.0/akka-slf4j_2.10-2.2.0.jar" ]
+  }, {
+    "hash" : {
+      "value" : "b8ec163b4a47bad16f9a0b7d03c3210c6b0a29216d768031073ac20817c0ba50"
+    },
+    "size" : 15071,
+    "locations" : [ "http://repo1.maven.org/maven2/javax/transaction/jta/1.1/jta-1.1.jar" ]
+  }, {
+    "hash" : {
+      "value" : "3411bf74d22bcd7e50086085ecea64be419aef9431a3fb871f43b4e57adbb0e5"
+    },
+    "size" : 713930,
+    "locations" : [ "http://repo1.maven.org/maven2/org/javassist/javassist/3.18.0-GA/javassist-3.18.0-GA.jar" ]
+  }, {
+    "hash" : {
+      "value" : "cac1c89ca24766564333cd165b6a3a285c703df467f01b1d426a5cd9473d6703"
+    },
+    "size" : 16517,
+    "locations" : [ "http://repo1.maven.org/maven2/org/slf4j/jcl-over-slf4j/1.7.5/jcl-over-slf4j-1.7.5.jar" ]
+  }, {
+    "hash" : {
+      "value" : "12c1930ca91653422ac49fea33fce8be1b1fcd2d2220cea383c4794976c7418f"
+    },
+    "size" : 264600,
+    "locations" : [ "http://repo1.maven.org/maven2/ch/qos/logback/logback-classic/1.0.13/logback-classic-1.0.13.jar" ]
+  }, {
+    "hash" : {
+      "value" : "be786d03626a64acdae156917ef370b6e8ceb5e1f7e65b8a66780805c0fa3621"
+    },
+    "size" : 5198,
+    "locations" : [ "http://repo.typesafe.com/typesafe/releases/com/typesafe/play/play-datacommons_2.10/2.2.1/play-datacommons_2.10-2.2.1.jar" ]
+  }, {
+    "hash" : {
+      "value" : "4ed3ef1417f39abe83f6c202d71131d6c41011462747a958fd99ab4ec7c4b3d6"
+    },
+    "size" : 500511,
+    "locations" : [ "http://repo1.maven.org/maven2/com/ning/async-http-client/1.7.18/async-http-client-1.7.18.jar" ]
+  }, {
+    "hash" : {
+      "value" : "a1d69c5346ebf086b0f63c382b4500ceb29304d8fe95157b060aa4cd3861f230"
+    },
+    "size" : 45277,
+    "locations" : [ "http://repo1.maven.org/maven2/oauth/signpost/signpost-core/1.2.1.2/signpost-core-1.2.1.2.jar" ]
+  }, {
+    "hash" : {
+      "value" : "175bbbd9def7a22a30e05f9c8db629c88fa5bdfc57d5658791901b54222abe1c"
+    },
+    "size" : 1367760,
+    "locations" : [ "http://repo1.maven.org/maven2/xerces/xercesImpl/2.11.0/xercesImpl-2.11.0.jar" ]
+  }, {
+    "hash" : {
+      "value" : "ce6f913cad1f0db3aad70186d65c5bc7ffcc9a99e3fe8e0b137312819f7c362f"
+    },
+    "size" : 60686,
+    "locations" : [ "http://repo.typesafe.com/typesafe/releases/commons-logging/commons-logging/1.1.1/commons-logging-1.1.1.jar" ]
+  }, {
+    "hash" : {
+      "value" : "9079d44aed426254019a2d9fd3e3e63870e831363f82c38984a17e01c3dd650f"
+    },
+    "size" : 187497,
+    "locations" : [ "http://repo1.maven.org/maven2/com/typesafe/config/1.0.2/config-1.0.2.jar" ]
+  }, {
+    "hash" : {
+      "value" : "3b6bf92affa85d4169a91547ce3c7093ed993b41ad2df80469fc768ad01e6b6b"
+    },
+    "size" : 172888,
+    "locations" : [ "http://repo.typesafe.com/typesafe/releases/org/apache/httpcomponents/httpcore/4.0.1/httpcore-4.0.1.jar" ]
+  }, {
+    "hash" : {
+      "value" : "e5183ca131f7195bde5b27e4cd18deeb6d14f8bc5c483b1431421132927240af"
+    },
+    "size" : 573912,
+    "locations" : [ "http://repo1.maven.org/maven2/joda-time/joda-time/2.2/joda-time-2.2.jar" ]
+  }, {
+    "hash" : {
+      "value" : "3c502bb2b0a2cb478d2ae12f61b8d6559eaf997e6e689e304785c9e26aeb0c61"
+    },
+    "size" : 1295513,
+    "locations" : [ "http://repo1.maven.org/maven2/com/github/scala-incubator/io/scala-io-core_2.10/0.4.2/scala-io-core_2.10-0.4.2.jar" ]
+  }, {
+    "hash" : {
+      "value" : "1ec254be61bd73b44b9adf26923d04e18965aa48cb3d3e1537096056e139e3c7"
+    },
+    "size" : 191738,
+    "locations" : [ "http://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-core/2.2.2/jackson-core-2.2.2.jar" ]
+  }, {
+    "hash" : {
+      "value" : "c21e020d437681b2dc4935a2d1dde697d8e095cb3c801f69936609eae4f3e8d0"
+    },
+    "size" : 716463,
+    "locations" : [ "http://repo.typesafe.com/typesafe/releases/com/typesafe/play/play-iteratees_2.10/2.2.1/play-iteratees_2.10-2.2.1.jar" ]
+  }, {
+    "hash" : {
+      "value" : "e26198c1bb8e3cde5f6e85305d0c4ef7730c53406c0d2a1f36ce30661df9fc22"
+    },
+    "size" : 6512,
+    "locations" : [ "http://repo1.maven.org/maven2/oauth/signpost/signpost-commonshttp4/1.2.1.2/signpost-commonshttp4-1.2.1.2.jar" ]
+  }, {
+    "hash" : {
+      "value" : "ccc4a5a10e7a30ce61f11496a460b28fbfb48695e0f11d4ffcb76cc715bd7116"
+    },
+    "size" : 33491,
+    "locations" : [ "http://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-annotations/2.2.2/jackson-annotations-2.2.2.jar" ]
+  }, {
+    "hash" : {
+      "value" : "82caa94bc4dee0b3485084ae15858fef41687bf0dfa82c52cb8870a00fbffd23"
+    },
+    "size" : 3171168,
+    "locations" : [ "http://repo1.maven.org/maven2/org/scala-lang/scala-reflect/2.10.2/scala-reflect-2.10.2.jar" ]
+  }, {
+    "hash" : {
+      "value" : "131f0519a8e4602e47cf024bfd7e0834bcf5592a7207f9a2fdb711d4f5afc166"
+    },
+    "size" : 315805,
+    "locations" : [ "http://repo1.maven.org/maven2/org/apache/commons/commons-lang3/3.1/commons-lang3-3.1.jar" ]
+  }, {
+    "hash" : {
+      "value" : "ac889867fa80b7b8a4ea73bed6370c5ddef3a6449449d14992bb9dcf0ba0b6e8"
+    },
+    "size" : 1202373,
+    "locations" : [ "http://repo1.maven.org/maven2/io/netty/netty/3.6.3.Final/netty-3.6.3.Final.jar" ]
+  }, {
+    "hash" : {
+      "value" : "4704a1f979531c7bf1b7400f1b5b2e4757b1d37c9d02da6bc8327aec7c6f885d"
+    },
+    "size" : 4960,
+    "locations" : [ "http://repo1.maven.org/maven2/org/slf4j/jul-to-slf4j/1.7.5/jul-to-slf4j-1.7.5.jar" ]
+  }, {
+    "hash" : {
+      "value" : "19f7007ae4d61e1e47585ea742eb407bef36cd348b127bd4bf5c862f0a2f72b8"
+    },
+    "size" : 40544,
+    "locations" : [ "http://repo1.maven.org/maven2/org/joda/joda-convert/1.3.1/joda-convert-1.3.1.jar" ]
+  }, {
+    "hash" : {
+      "value" : "1bafd2ece2e88db4cdf835a7f8f0de65fab5b1147977a5dcc59b7c1b8c6f5080"
+    },
+    "size" : 46725,
+    "locations" : [ "http://repo1.maven.org/maven2/commons-codec/commons-codec/1.3/commons-codec-1.3.jar" ]
+  }, {
+    "hash" : {
+      "value" : "fe30825245d2336c859dc38d60c0fc5f3668dbf29cd586828d2b5667ec355b91"
+    },
+    "size" : 26084,
+    "locations" : [ "http://repo1.maven.org/maven2/org/slf4j/slf4j-api/1.7.5/slf4j-api-1.7.5.jar" ]
+  }, {
+    "hash" : {
+      "value" : "d033ed8dacd69425c0128dc6d65eeb4ff6ee405e8d9bff0cd26faa13adb080f6"
+    },
+    "size" : 4571,
+    "locations" : [ "http://repo.typesafe.com/typesafe/releases/com/typesafe/play/play-exceptions/2.2.1/play-exceptions-2.2.1.jar" ]
+  }, {
+    "hash" : {
+      "value" : "9b49ec36ccdea13fbca8d1e1e2a74a8cc94e4fa0a9aced1fc74f8df32c1b1b99"
+    },
+    "size" : 7121818,
+    "locations" : [ "http://repo1.maven.org/maven2/org/scala-lang/scala-library/2.10.2/scala-library-2.10.2.jar" ]
+  }, {
+    "hash" : {
+      "value" : "7f6f1e6e59c3c7c36d30b0fed3c0d2f515f694c40da9ac6c7572569c23674149"
+    },
+    "size" : 437576,
+    "locations" : [ "http://repo1.maven.org/maven2/com/github/scala-incubator/io/scala-io-file_2.10/0.4.2/scala-io-file_2.10-0.4.2.jar" ]
+  }, {
+    "hash" : {
+      "value" : "56b692e5b95757fd7023e1076e204e7962c52d20399da0e37eb1e05fafe6b09f"
+    },
+    "size" : 75459,
+    "locations" : [ "http://repo1.maven.org/maven2/com/jsuereth/scala-arm_2.10/1.3/scala-arm_2.10-1.3.jar" ]
+  }, {
+    "hash" : {
+      "value" : "752596ebdc7c9ae5d9a655de3bb06d078734679a9de23321dbf284ee44563c03"
+    },
+    "size" : 291037,
+    "locations" : [ "http://repo.typesafe.com/typesafe/releases/org/apache/httpcomponents/httpclient/4.0.1/httpclient-4.0.1.jar" ]
+  } ]
+}
