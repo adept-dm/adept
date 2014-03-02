@@ -323,7 +323,7 @@ case class AdeptGitRepository(val baseDir: File, val name: String) extends Loggi
   private[adept] def getArtifacts(hashes: Set[Hash]): Set[ArtifactMetadata] = {
     usingTreeWalk { (gitRepo, revWalk, treeWalk) =>
       var artifactMetadata = Set.empty[ArtifactMetadata]
-      val revCommit = lookup(gitRepo, revWalk, "remotes/origin/"+AdeptUriBranchName) //TODO: remotes/origin/ is because it is not originally checkout out and it doesn have to be either. Not sure if this is saf ethough
+      val revCommit = lookup(gitRepo, revWalk, "remotes/origin/"+AdeptUriBranchName) //TODO: remotes/origin/ is because it is not originally checkout out and it doesn have to be either. Not sure if this is saf ethough At least replace with Constants.R_REMOTES?
       try {
         revWalk.markStart(revCommit)
       } catch {
