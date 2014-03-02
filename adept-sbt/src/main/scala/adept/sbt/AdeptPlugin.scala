@@ -144,8 +144,10 @@ class AdeptManager(project: ProjectRef, baseDir: File, lockFile: File, passphras
     uri match {
       case UriRegEx(name) => //TODO: factor out into GitHelpers
         GitHelpers.withGitSshCredentials(passphrase) {
+          import collection.JavaConverters._
           JGit
             .cloneRepository()
+            .setCloneAllBranches(true)
             .setURI(uri)
             .setDirectory(AdeptGitRepository.getRepoDir(baseDir, name))
             .call()
@@ -330,10 +332,10 @@ object AdeptPlugin extends Plugin {
         }
 
       }
-      
+
       def adept = (Space ~> (set | get | ivyImport | graph))
 
-      Command("adept")(_ => adept){ (state, adeptCommand) =>
+      Command("adept")(_ => adept) { (state, adeptCommand) =>
         adeptCommand.execute()
         state
       }

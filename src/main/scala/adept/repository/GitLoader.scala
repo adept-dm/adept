@@ -27,6 +27,7 @@ object GitLoader {
                 .cloneRepository()
                 .setURI(baseUri + name + ".git")
                 .setDirectory(dir)
+                .setCloneAllBranches(true)
                 .call()
             }
             println(name + " cloned!")
