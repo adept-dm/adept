@@ -26,6 +26,6 @@ private[models] object AdeptFormats {
 
   //lockfile:
   implicit val requirementEntryFormat = Json.format[LockFileRequirement]
-  implicit val artifactFormat = Json.format[Artifact]
+  implicit val artifactEntryFormat = Json.format[LockFileArtifact]
   implicit val lockFileFormat = Json.format[LockFile]
 } 

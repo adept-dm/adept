@@ -38,6 +38,7 @@ import org.eclipse.jgit.transport.CredentialsProviderUserInfo
 import org.eclipse.jgit.transport.SshSessionFactory
 import adept.repository.GitHelpers
 import adept.artifacts.Downloader
+import adept.repository.models.LockFileArtifact
 
 class AdeptRepository(baseDir: File) {
   import sbt.complete.DefaultParsers._
@@ -217,8 +218,10 @@ class AdeptManager(project: ProjectRef, baseDir: File, lockFile: File, passphras
 
       if (result.isResolved) { //TODO: I am not sure whether it is right to only store result if resolvd (if we are under-constrained it would be nice to increase precision..)
         val variants = result.state.implicitVariants ++ result.state.resolvedVariants
-        val hashes = variants.flatMap { case (_, variant) => variant.artifacts.map(_.hash) }.toSet
-        val artifacts = gitLoader.getArtifacts(hashes)
+        val artifactRefs = variants.flatMap { case (_, variant) => variant.artifacts }.toSet
+        val artifacts = gitLoader.getArtifacts(artifactRefs).map{ case (a, ar) =>
+          LockFileArtifact(a.hash, a.size, a.locations, ar.filename)
+        }
         LockFile(currentHash, requirements.toSeq.sortBy(_.repositoryName).sortBy(_.id.value), artifacts.toSeq).write(lockFile)
       }
     }
@@ -247,26 +250,16 @@ object AdeptPlugin extends Plugin {
         val futures = LockFile.read(lockFile).artifacts.map { artifact =>
           //val artifactFiles = variants.flatMap { case (_, variant) => variant.artifacts.map(a =>  -> a.filename) }.toSeq
           //        val artifactFiles = variants.flatMap { case (_, variant) => variant.artifacts.map(a =>  -> a.filename) }.toSeq
-
-          val cacheFile = ArtifactCache.getCacheFile(adeptDirectory.value, artifact.hash)
-          if (cacheFile.exists()) Future(cacheFile)
-          else Downloader.download(artifact.locations, artifact.hash, cacheFile, new File(System.getProperty("java.io.tmpdir"))).map(r => ArtifactCache.cache(adeptDirectory.value, r._1, r._2)) //TODO: factor
+          val filename = artifact.filename.getOrElse(throw new Exception("Currently not implemented artifact that does not specify filename")) //TODO: use artifact.hash for default?
+          ArtifactCache.getOrCreateExistingCacheFile(adeptDirectory.value, artifact.hash, filename) match {
+            case Some(cacheFile) => Future(cacheFile)
+            case None =>
+              Downloader.download(artifact.locations, artifact.hash, ArtifactCache.cacheFile(adeptDirectory.value, artifact.hash, filename), new File(System.getProperty("java.io.tmpdir"))).map(r => ArtifactCache.cache(adeptDirectory.value, r._1, r._2, filename)) //TODO: factor
+          }
         }
         import scala.concurrent.duration._
         val cacheFiles = Await.result(Future.sequence(futures), 60.minutes) //TODO: configurable timeout
-        val libDir = baseDirectory.value / "lib"
-        libDir.mkdirs()
-        val files = cacheFiles.map { src => //TODO: change 
-          import java.io.{ File, FileInputStream, FileOutputStream }
-          val dest = libDir / (src.getName + ".jar")
-          if (!dest.isFile) {
-            new FileOutputStream(dest).getChannel.transferFrom(
-              new FileInputStream(src).getChannel, 0, Long.MaxValue)
-          }
-          dest
-        }
-
-        files.map(Attributed.blank(_))
+        cacheFiles.map(Attributed.blank(_))
       } else Seq.empty
     },
     sbt.Keys.commands += {

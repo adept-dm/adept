@@ -15,33 +15,45 @@ object ArtifactCache {
       new FileInputStream(src).getChannel, 0, Long.MaxValue)
   }
 
-  def copyFromCache(baseDir: File, hash: Hash, file: File) = {
-    val dir = new File(baseDir, ArtifactCacheDirName)
+  def createParentDir(file: File) = {
+    val dir = file.getParentFile()
     if (dir.isDirectory || dir.mkdirs()) {
-      val cacheFile = getCacheFile(baseDir, hash)
-      if (!cacheFile.isFile) throw new Exception("Could not locate cache file: " + cacheFile.getAbsolutePath + " for hash: " + hash)
-      else copy(cacheFile, file)
-    } else throw new Exception("Could not create artifact directory: " + dir + " and hash: " + hash)
+      dir
+    } else throw new Exception("Could not create parent directory: " + dir)
   }
 
-  def getCacheFile(baseDir: File, hash: Hash) = {
-    val dir = new File(baseDir, ArtifactCacheDirName)
-    val cacheFile = new File(dir, hash.value)
-    cacheFile
+  def cacheFile(baseDir: File, hash: Hash, filename: String): File = {
+    val artifactDir = new File(baseDir, ArtifactCacheDirName)
+    assert(hash.value.size > 8) //we are slicing later and need at least 8 chars
+    val level1 = new File(artifactDir, hash.value.slice(0, 4))
+    val level2 = new File(level1, hash.value.slice(4, 8))
+    val level3 = new File(level2, hash.value)
+    new File(level3, filename)
   }
 
-  def cache(baseDir: File, file: File, expectedHash: Hash): File = {
-    val dir = new File(baseDir, ArtifactCacheDirName)
-    if (dir.isDirectory || dir.mkdirs()) {
-      val newFile = getCacheFile(baseDir, expectedHash)
-      if (newFile.isFile) {
-        //TODO: verify hash?
-        newFile
-      } else {
-        copy(file, newFile)
-        newFile
+  /** Get current cache file if exists. Creates a new one if there are other cached files with the same hash, but different file names */
+  def getOrCreateExistingCacheFile(baseDir: File, hash: Hash, filename: String): Option[File] = {
+    val currentCacheFile = cacheFile(baseDir, hash, filename)
+
+    if (currentCacheFile.isFile) Some(currentCacheFile)
+    else {
+      val parentDir = createParentDir(currentCacheFile)
+      val foundFile = parentDir.listFiles().find { f =>
+        Hash.calculate(f) == hash
       }
-    } else throw new Exception("Could not create artifact directory: " + dir + " file: " + file + " hash: " + expectedHash)
+      foundFile.map { f =>
+        copy(f, currentCacheFile)
+        currentCacheFile
+      }
+    }
+  }
+
+  def cache(baseDir: File, file: File, expectedHash: Hash, filename: String): File = {
+    getOrCreateExistingCacheFile(baseDir, expectedHash, filename).getOrElse {
+      val newCacheFile = cacheFile(baseDir, expectedHash, filename)
+      copy(file, newCacheFile)
+      newCacheFile
+    }
   }
 
 }

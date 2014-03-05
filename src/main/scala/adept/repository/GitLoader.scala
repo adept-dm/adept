@@ -77,11 +77,13 @@ object GitLoader {
 class GitLoader(commits: Set[(Id, AdeptCommit)], cacheManager: CacheManager) extends VariantsLoader {
   lazy val onlyCommits = commits.map(_._2)
 
-  def getArtifacts(hashes: Set[Hash]) = {
+  def getArtifacts(artifactRefs: Set[ArtifactRef]) = {
     var artifacts = {
       import collection.mutable._
-      new HashSet[Artifact] with SynchronizedSet[Artifact] //perf boost  par
+      new HashSet[(Artifact, ArtifactRef)] with SynchronizedSet[(Artifact, ArtifactRef)] //perf boost  par
     }
+    val hashMap = artifactRefs.groupBy(_.hash)
+    val hashes = hashMap.keys.toSet
     onlyCommits.foreach { c =>
       val cacheKey = "ca" + c.repo.name + c.repo.dir.getAbsolutePath
       val cachedValues = cache.get(cacheKey)
@@ -91,9 +93,14 @@ class GitLoader(commits: Set[(Id, AdeptCommit)], cacheManager: CacheManager) ext
         c.repo.getArtifacts(hashes)
       }
       artifactMetadata.foreach { am =>
-        if (hashes(am.hash))
-          artifacts += am.toArtifact
+        hashMap.get(am.hash) match {
+          case Some(artifactRefs) =>
+            assert(artifactRefs.size == 1, "Did NOT find EXACTLY one artifact ref matching: " + am.hash + ": " + artifactRefs)
+            artifacts += am.toArtifact -> artifactRefs.head
+          case None => //pass
+        }
       }
+
     }
     artifacts.toSet
   }

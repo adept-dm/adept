@@ -14,7 +14,9 @@ case class LockFileRequirement(id: Id, configuration: ConfigurationId, constrain
   }
 }
 
-case class LockFile(hash: Hash, requirements: Seq[LockFileRequirement], artifacts: Seq[Artifact]) {
+case class LockFileArtifact(hash: Hash, size: Long, locations: Set[String], filename: Option[String])
+
+case class LockFile(hash: Hash, requirements: Seq[LockFileRequirement], artifacts: Seq[LockFileArtifact]) {
   def write(file: File) = {
     import adept.repository.models.serialization.AdeptFormats._
     val content = Json.prettyPrint(Json.toJson(this))

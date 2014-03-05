@@ -270,7 +270,13 @@ case class AdeptGitRepository(val baseDir: File, val name: String) extends Loggi
     val resolvedRef = gitRepo.resolve(commitString)
     if (resolvedRef != null)
       revWalk.lookupCommit(resolvedRef)
-    else throw new GitLookupException(this, commitString, "Could not resolve: " + commitString + " in " + dir)
+    else {
+      val remoteCommitString = "remotes/origin/"+ commitString
+      val resolvedRemoteRef = gitRepo.resolve(remoteCommitString) //TODO: remotes/origin/ should be replaced with Constants.R_REMOTES or something like that?
+      if (resolvedRemoteRef != null)
+        revWalk.lookupCommit(resolvedRemoteRef)
+      throw new GitLookupException(this, commitString, "Could not resolve: " + commitString + " (or " + remoteCommitString + ")  in " + dir)
+    }
   }
 
   //TODO: optimize to only look in certain paths?
@@ -323,7 +329,7 @@ case class AdeptGitRepository(val baseDir: File, val name: String) extends Loggi
   private[adept] def getArtifacts(hashes: Set[Hash]): Set[ArtifactMetadata] = {
     usingTreeWalk { (gitRepo, revWalk, treeWalk) =>
       var artifactMetadata = Set.empty[ArtifactMetadata]
-      val revCommit = lookup(gitRepo, revWalk, "remotes/origin/"+AdeptUriBranchName) //TODO: remotes/origin/ is because it is not originally checkout out and it doesn have to be either. Not sure if this is saf ethough At least replace with Constants.R_REMOTES?
+      val revCommit = lookup(gitRepo, revWalk, AdeptUriBranchName)
       try {
         revWalk.markStart(revCommit)
       } catch {

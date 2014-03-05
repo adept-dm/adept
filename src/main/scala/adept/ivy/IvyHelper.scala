@@ -98,7 +98,7 @@ object IvyHelper extends Logging {
     val adeptGitRepo = new AdeptGitRepository(baseDir, repoId)
     val variantsMetadata = result.variantsMetadata
 
-    result.localFiles.foreach { case (artifact, file) => ArtifactCache.cache(baseDir, file, artifact.hash) }
+    result.localFiles.foreach { case (artifact, file, filename) => ArtifactCache.cache(baseDir, file, artifact.hash, filename) }
     adeptGitRepo.updateMetadata(branch = AdeptGitRepository.AdeptUriBranchName,
       removals = { content =>
         Seq.empty
@@ -265,7 +265,7 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[St
 
     //TODO: replace vars with vals? folding becomes too messy IMO, but it would be more idiomatic?
     var allArtifacts: Set[Artifact] = Set.empty
-    var allArtifactFiles: Map[Artifact, File] = Map.empty
+    var allArtifactFiles: Set[(Artifact, File, String)] = Set.empty
     var configurations = Set.empty[Configuration]
     val dependencyReport = ivy.resolve(mrid, resolveOptions(), changing)
     val moduleDescriptor = dependencyReport.getModuleDescriptor()
@@ -316,7 +316,7 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[St
       val artifactInfos = ivy.resolve(mrid, resolveOptions(ivyConfiguration.getName), changing).getArtifactsReports(mrid).flatMap { artifactReport =>
         val file = artifactReport.getLocalFile
         if (file != null) {
-          Some((artifactReport.getArtifactOrigin().getLocation(), artifactReport.getArtifact().getConfigurations(), file, Hash.calculate(file)))
+          Some((artifactReport.getArtifactOrigin().getLocation(), artifactReport.getArtifact().getConfigurations(), file, Hash.calculate(file), file.getName))
         } else if (file == null && skippableConf.isDefined && skippableConf.get(ivyConfiguration.getName())) {
           None
         } else {
@@ -326,8 +326,8 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[St
 
       //TODO: skipping empty configurations? if (artifactInfos.nonEmpty || dependencies.nonEmpty)... 
       val currentArtifactFiles = artifactInfos.map {
-        case (location, _, file, hash) =>
-          Artifact(hash, file.length, Set(location)) -> file
+        case (location, _, file, hash, filename) =>
+          (Artifact(hash, file.length, Set(location)), file, filename)
       }
 
       allArtifactFiles ++= currentArtifactFiles //MUTATE!
@@ -336,8 +336,8 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[St
       allArtifacts ++= currentArtifacts //MUTATE!
 
       val artifactRefs = artifactInfos.map {
-        case (_, ivyConfs, file, hash) =>
-          ArtifactRef(hash, Set(Attribute(ArtifactConfAttribute, ivyConfs.toSet)), Some(file.getName))
+        case (_, ivyConfs, file, hash, filename) =>
+          ArtifactRef(hash, Set(Attribute(ArtifactConfAttribute, ivyConfs.toSet)), Some(filename))
       }
 
       configurations += Configuration(
