@@ -101,11 +101,11 @@ class IvyImportCommand(org: String, name: String, revision: String) extends Adep
   }
 }
 
-class SetAdeptCommand(repo: String, conf: String, id: String, constraints: Set[(String, Seq[String])])(adeptManager: AdeptManager) extends AdeptCommand {
+class SetAdeptCommand(repo: String, conf: String, id: String, constraints: Set[(String, Seq[String])], location: String, configurations: Set[ConfigurationId])(adeptManager: AdeptManager) extends AdeptCommand {
   import sbt.complete.DefaultParsers._
 
   def execute(): Unit = {
-    adeptManager.set(repo, conf, id, constraints)
+    adeptManager.set(repo, conf, id, constraints, location, configurations)
   }
 }
 
@@ -117,14 +117,8 @@ class GetAdeptCommand(uri: String)(adeptManager: AdeptManager) extends AdeptComm
   }
 }
 
-object Helper { //TODO: remove this and put it in adpet-core 
-  val FAKE_PATH = "https://github.com/adept-test-repo1/"
-
-}
-
 class AdeptManager(project: ProjectRef, baseDir: File, lockFile: File, passphrase: Option[String]) {
   val cacheManager = CacheManager.create()
-  val DefaultConfigurations = Set(ConfigurationId("compile"), ConfigurationId("master"))
 
   val UriRegEx = """.*/(.*)\.git""".r
 
@@ -153,16 +147,15 @@ class AdeptManager(project: ProjectRef, baseDir: File, lockFile: File, passphras
     }
   }
 
-  def set(repo: String, conf: String, idString: String, constraints: Set[(String, Seq[String])]) = {
+  def set(repo: String, conf: String, idString: String, constraints: Set[(String, Seq[String])], location: String, configurations: Set[ConfigurationId]) = {
     val id = Id(idString)
     val initTime = System.currentTimeMillis
 
     val thisGitRepo = new AdeptGitRepository(baseDir, repo)
 
-    val currentConfigurations = DefaultConfigurations //TODO: replace with setting
     val parsedConstraints = constraints.map { case (name, values) => Constraint(name, values.toSet) }
 
-    val newReqs = currentConfigurations.map { configuration =>
+    val newReqs = configurations.map { configuration =>
       LockFileRequirement(id, configuration, parsedConstraints.toSeq, thisGitRepo.name, thisGitRepo.getMostRecentCommit.commit) //TODO: we should not use most recent commit but the first one that matches the constraints
     }
 
@@ -181,7 +174,7 @@ class AdeptManager(project: ProjectRef, baseDir: File, lockFile: File, passphras
     if (Some(currentHash) == currentLockFile.map(_.hash)) {
       println("Using lockfile: " + lockFile)
     } else {
-      val commits = GitLoader.loadCommits(baseDir, requirements, cacheManager, Helper.FAKE_PATH, passphrase)
+      val commits = GitLoader.loadCommits(baseDir, requirements, cacheManager, location, passphrase)
 
       val loadedTime = System.currentTimeMillis
       val resolvingMsg = "Loaded (" + (loadedTime - initTime) + "ms). Resolving..."
@@ -280,10 +273,19 @@ class Progress {
 
 object AdeptPlugin extends Plugin {
 
+  val MasterConfiguration = "master"
   import AdeptKeys._
 
+  
+  private def getLocation(metadataLocations: Set[String]) = { //TODO: we should be able to support more than one... 
+    if (metadataLocations.size != 1) throw new Exception("Only EXACTLY one metadata location is currently supported. Found: " + metadataLocations)
+    else metadataLocations.head
+  }
+  
   def adeptSettings = Seq(
     adeptDirectory := Path.userHome / ".adept",
+    adeptConfigurations := Set("compile", "master"),
+    //adeptConfigurations in Test := Set("test", "compile", "master"),
     adeptLockFile := new File(baseDirectory.value, "adept.lock"),
     adeptRequirements := {
       val lockFile = adeptLockFile.value
@@ -330,6 +332,7 @@ object AdeptPlugin extends Plugin {
       val RepositorySep = token("/")
       val adeptManager = new AdeptManager(thisProjectRef.value, adeptDirectory.value, adeptLockFile.value, adeptSshPassphrase.value) //TODO: settings!
       val adeptRepository = new AdeptRepository(adeptDirectory.value)
+      val configurations = adeptConfigurations.value.map(ConfigurationId(_))
       def repositoires = token(Space ~> adeptRepository.repositoryParser) flatMap { repo =>
         token(RepositorySep ~> adeptRepository.idParser(repo)).flatMap { id =>
           token((Space ~> charClass(_ => true, "1").*) | charClass(_ => true, "2").*).map { binaryVersionsChars =>
@@ -341,7 +344,7 @@ object AdeptPlugin extends Plugin {
               else
                 Set(AttributeDefaults.BinaryVersionAttribute -> binaryVersion.toSeq)
 
-            new SetAdeptCommand(repo, "compile", id, constraints)(adeptManager)
+            new SetAdeptCommand(repo, "compile", id, constraints, getLocation(adeptMetadataLocations.value), configurations)(adeptManager)
           }
         }
       }
@@ -377,7 +380,8 @@ object AdeptPlugin extends Plugin {
                 val initTime = System.currentTimeMillis
                 val loadingMsg = "Loading..."
                 print(loadingMsg)
-                val commits = GitLoader.loadCommits(adeptDirectory.value, requirements.toSet, adeptManager.cacheManager, Helper.FAKE_PATH, adeptSshPassphrase.value)
+                
+                val commits = GitLoader.loadCommits(adeptDirectory.value, requirements.toSet, adeptManager.cacheManager, getLocation(adeptMetadataLocations.value), adeptSshPassphrase.value)
 
                 val loadedTime = System.currentTimeMillis
                 val resolvingMsg = "Loaded (" + (loadedTime - initTime) + "ms). Resolving..."

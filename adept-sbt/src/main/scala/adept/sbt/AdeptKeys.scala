@@ -9,4 +9,6 @@ object AdeptKeys {
   val adeptLockFile = settingKey[File]("Adept's lock file name. Defaults to: adept.lock")
   val adeptSshPassphrase = settingKey[Option[String]]("Passphrase to .ssh credentials used by Git")
   val adeptRequirements = taskKey[Seq[LockFileRequirement]]("Adept's requirements read from lockfile")
+  val adeptConfigurations = settingKey[Set[String]]("Adept's configurations")
+  val adeptMetadataLocations = settingKey[Set[String]]("Adept's metadata locations (for remote Git repositories)")
 }
