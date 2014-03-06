@@ -282,7 +282,7 @@ case class AdeptGitRepository(val baseDir: File, val name: String) extends Loggi
   //TODO: optimize to only look in certain paths?
   //TODO: rename to readContentn
   private[adept] def listContent(commitString: String, gitRepo: JGitRepository, revWalk: RevWalk, treeWalk: TreeWalk) = {
-    var configuredVariantsMetadata = Set.empty[VariantMetadata]
+    var variantMetadata = Set.empty[VariantMetadata]
     var repositoryMetadata = Set.empty[RepositoryMetadata]
     val revCommit = lookup(gitRepo, revWalk, commitString)
     try {
@@ -306,7 +306,7 @@ case class AdeptGitRepository(val baseDir: File, val name: String) extends Loggi
           readBlob(treeWalk, gitRepo) { is =>
             val reader = new InputStreamReader(is)
             try {
-              if (currentPath.startsWith(VariantsDirName)) configuredVariantsMetadata += VariantMetadata.fromJson(reader)
+              if (currentPath.startsWith(VariantsDirName)) variantMetadata += VariantMetadata.fromJson(reader)
               else if (currentPath.startsWith(RepositoryMetdataDirName)) repositoryMetadata += RepositoryMetadata.fromJson(reader)
             } finally {
               reader.close()
@@ -317,7 +317,7 @@ case class AdeptGitRepository(val baseDir: File, val name: String) extends Loggi
     } else {
       logger.debug("Skipped empty commit: " + commitString + " in " + dir)
     }
-    MetadataContent(configuredVariantsMetadata, repositoryMetadata)
+    MetadataContent(variantMetadata, repositoryMetadata)
   }
 
   private[adept] def listContent(commitString: String): MetadataContent = {

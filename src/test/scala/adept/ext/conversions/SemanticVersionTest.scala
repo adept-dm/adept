@@ -26,7 +26,7 @@ class SemanticVersionTest extends FunSuite with MustMatchers {
 //        ConfiguredRequirement(noBinaryVersionReqId, Set(ConfigurationId("compile"), ConfigurationId("master")),
 //          constraints = Set(Constraint("version", Set("2.1.0"))))))
 //
-//    val configuredVariant = ConfiguredVariantsMetadata(
+//    val configuredVariant = VariantMetadata(
 //      id = masterId,
 //      metadata = Set.empty[MetadataInfo],
 //      attributes = Set(Attribute("version", Set("1.1.2"))),

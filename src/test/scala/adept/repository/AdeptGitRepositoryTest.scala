@@ -62,7 +62,7 @@ class AdeptGitRepositoryTest extends FunSuite with MustMatchers {
 //    import OptionValues._
 //    usingTmpDir { tmpDir =>
 //
-//      import adept.repository.models.ConfiguredVariantsMetadataTestData.metadata
+//      import adept.repository.models.VariantMetadataTestData.metadata
 //
 //      val adeptGitRepo = new AdeptGitRepository(tmpDir, "adept-git-repo-basic")
 //

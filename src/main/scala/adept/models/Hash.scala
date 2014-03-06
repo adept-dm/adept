@@ -5,7 +5,7 @@ import java.io.InputStream
 import java.io.File
 import java.io.FileInputStream
 import java.security.MessageDigest
-import adept.repository.models.ConfiguredVariantsMetadata
+import adept.repository.models.VariantMetadata
 import adept.repository.models.LockFileRequirement
 
 /**

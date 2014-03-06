@@ -14,7 +14,7 @@ class GitLoaderTest extends FunSuite with MustMatchers {
 
   test("Basic reading from git repositories") {
 //    usingTmpDir { tmpDir =>
-//      import adept.repository.models.ConfiguredVariantsMetadataTestData.metadata
+//      import adept.repository.models.VariantMetadataTestData.metadata
 //
 //      val adeptGitRepo = new AdeptGitRepository(tmpDir, "adept-git-repo-basic")
 //

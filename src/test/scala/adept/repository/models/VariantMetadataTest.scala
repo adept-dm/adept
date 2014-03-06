@@ -48,7 +48,7 @@ object VariantMetadataTestData {
 class VariantMetadataTestData extends FunSuite with MustMatchers {
   import VariantMetadataTestData._
 
-  test("Serialization of ConfiguredVariantsMetadata") {
+  test("Serialization of VariantMetadata") {
     val writer = new StringWriter()
     metadata.toJson(writer)
     val jsonString = writer.getBuffer().toString()
