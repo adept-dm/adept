@@ -26,7 +26,6 @@ class SemanticVersion(variantIds: Set[Id]) extends Conversion {
   import SemanticVersion._
 
   def convert(variantMetadata: VariantMetadata, others: Set[VariantMetadata]): Option[VariantMetadata] = {
-    println("checking " + variantMetadata.id + " VS " + variantIds)
     if (variantIds(variantMetadata.id)) {
       val semanticVersion = getSemanticVersion(variantMetadata.attributes).filter { case (major, minor, point) => major.toInt > 0 } //we might fail if the version attributes looks different than what we are expected to. perhaps better?
 
