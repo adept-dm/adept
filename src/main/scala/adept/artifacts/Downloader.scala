@@ -10,12 +10,10 @@ import java.io.FileOutputStream
 import adept.models.Hash
 
 object Downloader {
-
   def download(locations: Set[String], hash: Hash, file: File, tmpDir: File)(implicit executionCtxt: ExecutionContext) = future {
     blocking {
       if (locations.size != 1) throw new Exception("Locations larger than 1 is not currently implemented") //TODO: implement!
       val url = new URL(locations.head)
-      println("Downloading: " + url)
       val conn = url.openConnection()
       
       //TODO: this is not right, but some parts of maven repo actually requires another user-agent so I picked this random one...
@@ -25,7 +23,6 @@ object Downloader {
       val tmpFile = File.createTempFile("adept-", "-file", tmpDir)
       val fos = new FileOutputStream(tmpFile)
       fos.getChannel().transferFrom(rbc, 0, Long.MaxValue)
-      println("Finished download from: " + url)
       tmpFile -> hash
     }
   }

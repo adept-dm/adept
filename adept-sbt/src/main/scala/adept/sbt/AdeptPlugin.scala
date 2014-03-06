@@ -147,7 +147,7 @@ class AdeptManager(project: ProjectRef, baseDir: File, lockFile: File, passphras
             import scala.reflect.io.Directory
             Directory(dir).deleteRecursively
             throw new Exception(e)
-            
+
         }
       case _ => throw new Exception("Cannot parse uri: " + uri + " with " + UriRegEx.pattern)
     }
@@ -238,6 +238,46 @@ class AdeptManager(project: ProjectRef, baseDir: File, lockFile: File, passphras
   }
 }
 
+class Progress {
+
+  def clearMessage() = {
+    print("\r" * message.size)
+    print(" " * message.size)
+    print("\r" * message.size)
+  }
+  
+  var totalChunks = 0L
+  var currentProgress = 0L
+  var message = ""
+  var totalFiles = 0
+  var files = Set.empty[String]
+  var filesCompleted = 0
+  
+  def registerFile(chunks: Long, filename: String) = synchronized {
+    totalChunks += chunks
+    totalFiles += 1
+    files += filename
+  }
+  
+  def fileFinished(chunks: Long, filename: String) = synchronized { //TODO: :( bad shit...
+    clearMessage()
+    currentProgress += chunks
+    filesCompleted += 1
+    files -= filename
+    
+    message = 
+      f"${(100 * currentProgress.toDouble) / totalChunks.toDouble}%1.0f%% (${currentProgress/(1024*1024)}/${totalChunks/(1024*1024)}mb, $filesCompleted/$totalFiles) - " + (if (files.size == 1) s"waiting for ${files.head}" else s"$filename completed")
+    if (message.size > 80) {
+      message = message.slice(0, 77) + "..."
+    }
+    print(message)
+    if (currentProgress >= totalChunks) {
+      clearMessage()
+      println(f"${totalChunks.toDouble / (1024*1024)}%1.1fmb and $filesCompleted files downloaded!")
+    }
+  }
+}
+
 object AdeptPlugin extends Plugin {
 
   import AdeptKeys._
@@ -257,14 +297,23 @@ object AdeptPlugin extends Plugin {
       import scala.concurrent._
       val lockFile = adeptLockFile.value
       if (lockFile.exists) {
-        val futures = LockFile.read(lockFile).artifacts.map { artifact =>
+        val lockFileData = LockFile.read(lockFile)
+        val progress = new Progress
+
+        val futures = lockFileData.artifacts.map { artifact =>
           //val artifactFiles = variants.flatMap { case (_, variant) => variant.artifacts.map(a =>  -> a.filename) }.toSeq
           //        val artifactFiles = variants.flatMap { case (_, variant) => variant.artifacts.map(a =>  -> a.filename) }.toSeq
           val filename = artifact.filename.getOrElse(throw new Exception("Currently not implemented artifact that does not specify filename")) //TODO: use artifact.hash for default?
           ArtifactCache.getOrCreateExistingCacheFile(adeptDirectory.value, artifact.hash, filename) match {
             case Some(cacheFile) => Future(cacheFile)
             case None =>
-              Downloader.download(artifact.locations, artifact.hash, ArtifactCache.cacheFile(adeptDirectory.value, artifact.hash, filename), new File(System.getProperty("java.io.tmpdir"))).map(r => ArtifactCache.cache(adeptDirectory.value, r._1, r._2, filename)) //TODO: factor
+              progress.registerFile(artifact.size, filename)
+              val f = Downloader.download(artifact.locations, artifact.hash, ArtifactCache.cacheFile(adeptDirectory.value, artifact.hash, filename), new File(System.getProperty("java.io.tmpdir"))).map(r => ArtifactCache.cache(adeptDirectory.value, r._1, r._2, filename)) //TODO: factor
+              f.onSuccess {
+                case _ =>
+                  progress.fileFinished(artifact.size, filename)
+              }
+              f
           }
         }
         import scala.concurrent.duration._
