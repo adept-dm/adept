@@ -25,7 +25,7 @@ object Downloader {
       val tmpFile = File.createTempFile("adept-", "-file", tmpDir)
       val fos = new FileOutputStream(tmpFile)
       fos.getChannel().transferFrom(rbc, 0, Long.MaxValue)
-      println("Finshed download from: " + url)
+      println("Finished download from: " + url)
       tmpFile -> hash
     }
   }
