@@ -25,7 +25,7 @@ object RepositoryMetadata {
 
 
 case class RepositoryInfo(id: Id, repository: String, commit: Commit)
-case class RepositoryConfiguration(id: ConfigurationId, info: Seq[RepositoryInfo])
+case class RepositoryConfiguration(id: ConfigurationId, repositories: Seq[RepositoryInfo])
 
 /**
  * Information that is needed load repositories.
@@ -33,7 +33,7 @@ case class RepositoryConfiguration(id: ConfigurationId, info: Seq[RepositoryInfo
 case class RepositoryMetadata(id: Id, variants: Set[Hash], configurations: Seq[RepositoryConfiguration]) {
   def load(baseDir: File, id: Id, configuration: ConfigurationId): Set[(Id, AdeptCommit)] = { //TODO: this will be replaced with something smarter that actually loads repositories. it should probably not be in this file either btw
     configurations.filter(_.id == configuration).flatMap{ repoConf =>
-      repoConf.info.map{ repoInfo =>
+      repoConf.repositories.map{ repoInfo =>
         repoInfo.id -> AdeptCommit(new AdeptGitRepository(baseDir, repoInfo.repository), repoInfo.commit)
       }
     }.toSet

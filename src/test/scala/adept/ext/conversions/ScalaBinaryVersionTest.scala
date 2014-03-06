@@ -18,7 +18,7 @@ class ScalaBinaryVersionTest extends FunSuite with MustMatchers {
     val compileConf = Configuration(
       id = ConfigurationId("compile"),
       extendsConfigurations = Set.empty,
-      metadata = Set.empty[MetadataInfo],
+      metadataInfo = Set.empty[MetadataInfo],
       artifacts = Set.empty,
       attributes = Set.empty,
       requirements = Set[ConfiguredRequirement](
@@ -27,7 +27,7 @@ class ScalaBinaryVersionTest extends FunSuite with MustMatchers {
 
     val configuredVariant = VariantMetadata(
       id = Id(akkaName + "_" + scalaVersion),
-      metadata = Set.empty[MetadataInfo],
+      metadataInfo = Set.empty[MetadataInfo],
       attributes = Set(Attribute("version", Set("2.2.1"))),
       configurations = Set(
         compileConf))

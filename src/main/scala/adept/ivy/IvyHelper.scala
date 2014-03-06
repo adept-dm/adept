@@ -343,7 +343,7 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[St
       configurations += Configuration(
         id = ConfigurationId(confName),
         extendsConfigurations = ivyConfiguration.getExtends().map(ConfigurationId(_)).toSet, //FIXME: does not seem to work?
-        metadata = Set.empty, //TODO: configuration description?
+        metadataInfo = Set.empty, //TODO: configuration description?
         artifacts = artifactRefs,
         attributes = attributes,
         requirements = requirements)
@@ -351,7 +351,7 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[St
     //    case class VariantMetadata(id: Id, metadata: Set[MetadataInfo], attributes: Set[Attribute], configurations: Set[Configuration]) {
 
     val metadata = VariantMetadata(id,
-      metadata = Set.empty,
+      metadataInfo = Set.empty,
       attributes = attributes,
       configurations = configurations)
 

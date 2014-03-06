@@ -8,4 +8,4 @@ object Configuration {
   val ConfigurationDescriptionAttributeName = "configuration-description"
 }
 
-case class Configuration(id: ConfigurationId, extendsConfigurations: Set[ConfigurationId], metadata: Set[MetadataInfo], artifacts: Set[ArtifactRef], attributes: Set[Attribute], requirements: Set[ConfiguredRequirement])
+case class Configuration(id: ConfigurationId, extendsConfigurations: Set[ConfigurationId], metadataInfo: Set[MetadataInfo], artifacts: Set[ArtifactRef], attributes: Set[Attribute], requirements: Set[ConfiguredRequirement])

@@ -24,7 +24,7 @@ object VariantMetadata {
 
 }
 
-case class VariantMetadata(id: Id, metadata: Set[MetadataInfo], attributes: Set[Attribute], configurations: Set[Configuration]) {
+case class VariantMetadata(id: Id, metadataInfo: Set[MetadataInfo], attributes: Set[Attribute], configurations: Set[Configuration]) {
   override lazy val toString = {
     id + " " + attributes.map(a => a.name + "=" + a.values.mkString("(", ",", ")")).mkString("[", ",", "]")
   }
