@@ -131,14 +131,23 @@ class AdeptManager(project: ProjectRef, baseDir: File, lockFile: File, passphras
   def get(uri: String) = {
     uri match {
       case UriRegEx(name) => //TODO: factor out into GitHelpers
-        GitHelpers.withGitSshCredentials(passphrase) {
-          import collection.JavaConverters._
-          JGit
-            .cloneRepository()
-            .setCloneAllBranches(true)
-            .setURI(uri)
-            .setDirectory(AdeptGitRepository.getRepoDir(baseDir, name))
-            .call()
+        val dir = AdeptGitRepository.getRepoDir(baseDir, name)
+        try {
+          GitHelpers.withGitSshCredentials(passphrase) {
+            import collection.JavaConverters._
+            JGit
+              .cloneRepository()
+              .setCloneAllBranches(true)
+              .setURI(uri)
+              .setDirectory(dir)
+              .call()
+          }
+        } catch {
+          case e: Exception =>
+            import scala.reflect.io.Directory
+            Directory(dir).deleteRecursively
+            throw new Exception(e)
+            
         }
       case _ => throw new Exception("Cannot parse uri: " + uri + " with " + UriRegEx.pattern)
     }
@@ -219,8 +228,9 @@ class AdeptManager(project: ProjectRef, baseDir: File, lockFile: File, passphras
       if (result.isResolved) { //TODO: I am not sure whether it is right to only store result if resolvd (if we are under-constrained it would be nice to increase precision..)
         val variants = result.state.implicitVariants ++ result.state.resolvedVariants
         val artifactRefs = variants.flatMap { case (_, variant) => variant.artifacts }.toSet
-        val artifacts = gitLoader.getArtifacts(artifactRefs).map{ case (a, ar) =>
-          LockFileArtifact(a.hash, a.size, a.locations, ar.filename)
+        val artifacts = gitLoader.getArtifacts(artifactRefs).map {
+          case (a, ar) =>
+            LockFileArtifact(a.hash, a.size, a.locations, ar.filename)
         }
         LockFile(currentHash, requirements.toSeq.sortBy(_.repositoryName).sortBy(_.id.value), artifacts.toSeq).write(lockFile)
       }
