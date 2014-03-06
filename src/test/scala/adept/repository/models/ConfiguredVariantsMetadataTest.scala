@@ -7,7 +7,7 @@ import adept.repository.models.configuration._
 import java.io.StringWriter
 import java.io.StringReader
 
-object ConfiguredVariantsMetadataTestData {
+object VariantMetadataTestData {
 
   val compileConf = Configuration(
     id = ConfigurationId("compile"),
@@ -35,7 +35,7 @@ object ConfiguredVariantsMetadataTestData {
     requirements = Set(ConfiguredRequirement(Id("loo"), Set(ConfigurationId("compile"), ConfigurationId("master")),
       constraints = Set(Constraint("binary-version", Set("2.1"))))))
 
-  val metadata = ConfiguredVariantsMetadata(
+  val metadata = VariantMetadata(
     id = Id("bar"),
     metadata = Set(MetadataInfo("authors", Set("fredrik", "arve")), MetadataInfo("license", Set.empty), MetadataInfo("homepage", Set("http://foo.com/bar"))),
     attributes = Set(Attribute("organization", Set("foo")), Attribute("version", Set("1.1.2")), Attribute("binary-version", Set("1.0", "1.1"))), //backwards compatible: because 1.1 and 1.0
@@ -45,15 +45,15 @@ object ConfiguredVariantsMetadataTestData {
       runtimeConf))
 }
 
-class ConfiguredVariantsMetadataTest extends FunSuite with MustMatchers {
-  import ConfiguredVariantsMetadataTestData._
+class VariantMetadataTestData extends FunSuite with MustMatchers {
+  import VariantMetadataTestData._
 
   test("Serialization of ConfiguredVariantsMetadata") {
     val writer = new StringWriter()
     metadata.toJson(writer)
     val jsonString = writer.getBuffer().toString()
     val reader = new StringReader(jsonString)
-    val deserializedMetdata = ConfiguredVariantsMetadata.fromJson(reader)
+    val deserializedMetdata = VariantMetadata.fromJson(reader)
     deserializedMetdata must be === metadata
   }
 

@@ -5,7 +5,6 @@ import net.sf.ehcache.CacheManager
 import net.sf.ehcache.Ehcache
 import net.sf.ehcache.Element
 import adept.repository.models.configuration.ConfiguredRequirement
-import adept.repository.models.ConfiguredVariantsMetadata
 import adept.repository.models.LockFileRequirement
 import java.io.File
 import adept.repository.models.configuration.ConfigurationId
@@ -126,7 +125,7 @@ class GitLoader(commits: Set[(Id, AdeptCommit)], cacheManager: CacheManager) ext
     import collection.mutable._
     var variants: Set[Variant] = new HashSet[Variant] with SynchronizedSet[Variant] //perf boost  par 
     lastCommitForId.foreach { c =>
-      c.repo.listContent(c.commit.value).variantsMetadata.par.foreach { vm =>
+      c.repo.listContent(c.commit.value).variantMetadata.par.foreach { vm =>
         variants ++= vm.toVariants
       }
     }

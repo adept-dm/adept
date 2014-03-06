@@ -87,7 +87,7 @@ object IvyHelper extends Logging {
     }
 
     def assertCorrectConfigurations() = {
-      val variantConfiguration = result.variantsMetadata.configurations.map(_.id).toSet
+      val variantConfiguration = result.variantMetadata.configurations.map(_.id).toSet
       commits.foreach {
         case (configuration, _) =>
           if (!variantConfiguration(configuration)) throw new Exception("Found configuration in commit information that does not match variants (" + configuration + "). Commits:\n" + commits.mkString("\n") + "Variant: " + variantConfiguration)
@@ -96,7 +96,7 @@ object IvyHelper extends Logging {
 
     val repoId = result.mrid.getOrganisation()
     val adeptGitRepo = new AdeptGitRepository(baseDir, repoId)
-    val variantsMetadata = result.variantsMetadata
+    val variantMetadata = result.variantMetadata
 
     result.localFiles.foreach { case (artifact, file, filename) => ArtifactCache.cache(baseDir, file, artifact.hash, filename) }
     adeptGitRepo.updateMetadata(branch = AdeptGitRepository.AdeptUriBranchName,
@@ -108,12 +108,12 @@ object IvyHelper extends Logging {
       }, commitMsg = "Ivy import of: " + result.mrid)
 
     adeptGitRepo.updateMetadata(removals = { content =>
-      val removeVariants = content.variantsMetadata
+      val removeVariants = content.variantMetadata
         .filter { old =>
-          old.id == variantsMetadata.id &&
-            hasSameAttribute(AttributeDefaults.NameAttribute, old.attributes, variantsMetadata.attributes) &&
-            hasSameAttribute(AttributeDefaults.OrgAttribute, old.attributes, variantsMetadata.attributes) &&
-            (hasSameAttribute(AttributeDefaults.BinaryVersionAttribute, old.attributes, variantsMetadata.attributes) || //only remove the ones with the same binary attribute
+          old.id == variantMetadata.id &&
+            hasSameAttribute(AttributeDefaults.NameAttribute, old.attributes, variantMetadata.attributes) &&
+            hasSameAttribute(AttributeDefaults.OrgAttribute, old.attributes, variantMetadata.attributes) &&
+            (hasSameAttribute(AttributeDefaults.BinaryVersionAttribute, old.attributes, variantMetadata.attributes) || //only remove the ones with the same binary attribute
               SemanticVersion.getSemanticVersion(old.attributes).find { case (major, minor, point) => major.toInt == 0 }.isDefined) //remove if old is a semantic version with a prerelease 
         }
 
@@ -132,10 +132,10 @@ object IvyHelper extends Logging {
         case (configuration, currentCommits) =>
           RepositoryConfiguration(configuration, currentCommits.map { case (id, c) => RepositoryInfo(id, c.repo.name, c.commit) }.toSeq)
       }.toSeq
-      val repositoryMetadata = RepositoryMetadata(variantsMetadata.id, variantsMetadata.toVariants.map(Hash.calculate(_)),
+      val repositoryMetadata = RepositoryMetadata(variantMetadata.id, variantMetadata.toVariants.map(Hash.calculate(_)),
         configurations = repositoryConfigurationMetadata)
       val repositoryFiles = Seq(repositoryMetadata.write(adeptGitRepo))
-      val variantFiles = Seq(variantsMetadata.write(adeptGitRepo))
+      val variantFiles = Seq(variantMetadata.write(adeptGitRepo))
       //      artifactFiles ++ variantFiles ++ repositoryFiles
       variantFiles ++ repositoryFiles
     }, commitMsg = "Ivy import of: " + result.mrid)
@@ -149,14 +149,14 @@ object IvyHelper extends Logging {
     val id = name2IdConversions(name)
     val version = mrid.getRevision()
 
-    def checkVariant(variantsMetadata: ConfiguredVariantsMetadata): Boolean = {
-      val foundVersion = variantsMetadata.attributes.find { a =>
+    def checkVariant(variantMetadata: VariantMetadata): Boolean = {
+      val foundVersion = variantMetadata.attributes.find { a =>
         a.name == AttributeDefaults.VersionAttribute && a.values == Set(version)
       }
-      val foundName = variantsMetadata.attributes.find { a =>
+      val foundName = variantMetadata.attributes.find { a =>
         a.name == AttributeDefaults.NameAttribute && a.values == Set(name)
       }
-      val foundOrg = variantsMetadata.attributes.find { a =>
+      val foundOrg = variantMetadata.attributes.find { a =>
         a.name == AttributeDefaults.OrgAttribute && a.values == Set(org)
       }
       val foundPreviousVersioned = foundVersion.isDefined && foundName.isDefined && foundOrg.isDefined
@@ -165,12 +165,12 @@ object IvyHelper extends Logging {
 
     val gitRepo = new AdeptGitRepository(baseDir, repo)
     val maybeMetadataHit = gitRepo.scanFirst { metadata =>
-      metadata.variantsMetadata.exists(checkVariant)
+      metadata.variantMetadata.exists(checkVariant)
     }
 
     maybeMetadataHit match {
       case Some((adeptCommit, metadata)) =>
-        metadata.variantsMetadata.filter(checkVariant).map(_.toVariants.map { v =>
+        metadata.variantMetadata.filter(checkVariant).map(_.toVariants.map { v =>
           v.id -> adeptCommit
         })
       case _ => Set.empty[Set[(Id, AdeptCommit)]]
@@ -205,7 +205,7 @@ object IvyHelper extends Logging {
         }
         if (allTransitiveDependencies.size == foundCommits.size) {
           //TODO: rewrite this ugly piece of code! what we are doing is essentially finding each commit for each individual configuration
-          val configuredCommits: Map[ConfigurationId, Set[(Id, AdeptCommit)]] = result.variantsMetadata.configurations.map { configuration =>
+          val configuredCommits: Map[ConfigurationId, Set[(Id, AdeptCommit)]] = result.variantMetadata.configurations.map { configuration =>
             def traverseResult(dependencies: Set[ModuleRevisionId]): Set[ModuleRevisionId] = {
               dependencies ++ results.filter(r => dependencies(r.mrid)).flatMap(r =>
                 traverseResult(r.dependencies.flatMap { case (_, nodes) => nodes.map(_.getId) }.toSet))
@@ -348,9 +348,9 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[St
         attributes = attributes,
         requirements = requirements)
     }
-    //    case class ConfiguredVariantsMetadata(id: Id, metadata: Set[MetadataInfo], attributes: Set[Attribute], configurations: Set[Configuration]) {
+    //    case class VariantMetadata(id: Id, metadata: Set[MetadataInfo], attributes: Set[Attribute], configurations: Set[Configuration]) {
 
-    val metadata = ConfiguredVariantsMetadata(id,
+    val metadata = VariantMetadata(id,
       metadata = Set.empty,
       attributes = attributes,
       configurations = configurations)

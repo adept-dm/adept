@@ -1,7 +1,7 @@
 package adept.ext.conversions
 
-import adept.repository.models.ConfiguredVariantsMetadata
+import adept.repository.models.VariantMetadata
 
 trait Conversion {
-  def convert(configuredVariant: ConfiguredVariantsMetadata, others: Set[ConfiguredVariantsMetadata]): Option[ConfiguredVariantsMetadata]
+  def convert(configuredVariant: VariantMetadata, others: Set[VariantMetadata]): Option[VariantMetadata]
 }

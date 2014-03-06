@@ -2,8 +2,8 @@ package adept.repository
 
 import org.scalatest.FunSuite
 import org.scalatest.matchers.MustMatchers
-import adept.repository.models.ConfiguredVariantsMetadata
-import adept.repository.models.ConfiguredVariantsMetadataTestData
+import adept.repository.models.VariantMetadata
+import adept.repository.models.VariantMetadataTestData
 import adept.repository.models.MetadataContent
 import java.io.File
 import adept.models.Attribute

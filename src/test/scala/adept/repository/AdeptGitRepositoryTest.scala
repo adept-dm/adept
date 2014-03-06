@@ -2,8 +2,8 @@ package adept.repository
 
 import org.scalatest._
 import org.scalatest.matchers.MustMatchers
-import adept.repository.models.ConfiguredVariantsMetadata
-import adept.repository.models.ConfiguredVariantsMetadataTestData
+import adept.repository.models.VariantMetadata
+import adept.repository.models.VariantMetadataTestData
 import adept.repository.models.MetadataContent
 import java.io.File
 import adept.models._
@@ -25,21 +25,21 @@ class AdeptGitRepositoryTest extends FunSuite with MustMatchers {
 
   test("Basic git repository checks: add, update and compare") {
     usingTmpDir { tmpDir =>
-      import adept.repository.models.ConfiguredVariantsMetadataTestData.metadata
+      import adept.repository.models.VariantMetadataTestData.metadata
 
       val adeptGitRepo = new AdeptGitRepository(tmpDir, "adept-git-repo-basic")
 
       val commit1 = adeptGitRepo.updateMetadata({ content =>
-        content.variantsMetadata must be('empty)
+        content.variantMetadata must be('empty)
         Seq.empty
       }, { content =>
-        content.variantsMetadata must be('empty)
+        content.variantMetadata must be('empty)
         Seq(metadata.write(adeptGitRepo))
       }, "adding some new stuff")
 
       val commit2 = adeptGitRepo.updateMetadata({ content =>
-        content.variantsMetadata must have size (1)
-        content.variantsMetadata.toSeq.map {
+        content.variantMetadata must have size (1)
+        content.variantMetadata.toSeq.map {
           _.file(adeptGitRepo)
         }
       }, { content =>

@@ -12,20 +12,19 @@ import java.io.File
 import java.io.FileWriter
 import play.api.libs.json.Json
 
-object ConfiguredVariantsMetadata {
+object VariantMetadata {
   import play.api.libs.json._
   import play.api.libs.json.Json
 
   def fromJson[A](reader: Reader) = {
     import adept.repository.models.serialization.AdeptFormats._
 
-    MetadataContent.fromJson(reader)(jsValue => jsValue.validate[ConfiguredVariantsMetadata])
+    MetadataContent.fromJson(reader)(jsValue => jsValue.validate[VariantMetadata])
   }
 
 }
 
-//TODO: nicer name?
-case class ConfiguredVariantsMetadata(id: Id, metadata: Set[MetadataInfo], attributes: Set[Attribute], configurations: Set[Configuration]) {
+case class VariantMetadata(id: Id, metadata: Set[MetadataInfo], attributes: Set[Attribute], configurations: Set[Configuration]) {
   override lazy val toString = {
     id + " " + attributes.map(a => a.name + "=" + a.values.mkString("(", ",", ")")).mkString("[", ",", "]")
   }

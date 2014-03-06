@@ -80,59 +80,59 @@ class IvyHelperTest extends FunSuite with MustMatchers {
     import OptionValues._
     import EitherValues._
     val projectedResuluts = ivyResults.right.value
-    val all = projectedResuluts.map(_.variantsMetadata)
+    val all = projectedResuluts.map(_.variantMetadata)
     val scalaConverted = projectedResuluts.map(_.convertWith(ScalaBinaryVersion, all).value)
-    scalaConverted.map(_.convertWith(semanticVersion, scalaConverted.map(_.variantsMetadata)).value)
+    scalaConverted.map(_.convertWith(semanticVersion, scalaConverted.map(_.variantMetadata)).value)
   }
 
   test("End to end basic test") {
-//    usingTmpDir { tmpDir =>
-//      val baseDir = tmpDir
-//      val ivy = IvyHelper.load(ivyLogger = IvyHelper.warnIvyLogger)
-//
-//      ivy.configure(new File("src/test/resources/typesafe-ivy-settings.xml"))
-//      val ivyHelper = new IvyHelper(ivy)
-//
-//      //hack to adjust scala library, should be possible to do in a different way
-//      val akka205WithAdjustedScalaLib = {
-//        import AttributeDefaults._
-//        val scalaLibBinaryVersion = Set("2.9.2")
-//
-//        convert(ivyHelper.ivyImport("com.typesafe.akka", "akka-actor", "2.0.5")).map { r =>
-//          val configurations = r.variantsMetadata.configurations.map { c =>
-//            val requirements = c.requirements.map { r =>
-//              if (r.id == ScalaBinaryVersion.ScalaLibId) {
-//                r.copy(constraints = r.constraints.filter(_.name != BinaryVersionAttribute) + Constraint(BinaryVersionAttribute, scalaLibBinaryVersion))
-//              } else r
-//            }
-//            c.copy(requirements = requirements)
-//          }
-//          r.copy(variantsMetadata = r.variantsMetadata.copy(configurations = configurations))
-//        }.map { r =>
-//          val variantsMetadata = {
-//            if (r.variantsMetadata.id == ScalaBinaryVersion.ScalaLibId) {
-//              val attributes = r.variantsMetadata.attributes.filter(_.name != BinaryVersionAttribute) + Attribute(BinaryVersionAttribute, scalaLibBinaryVersion)
-//              r.variantsMetadata.copy(attributes = attributes)
-//            } else {
-//              r.variantsMetadata
-//            }
-//          }
-//
-//          r.copy(variantsMetadata = variantsMetadata)
-//        }
-//      }
-//
-//      //      IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe", "config", "0.3.1")), baseDir)
-//      //      IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe", "config", "1.0.0")), baseDir)
-//      IvyHelper.insert(akka205WithAdjustedScalaLib, baseDir)
-////      IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe.akka", "akka-actor_2.10", "2.1.0")), baseDir)
-//            IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe.akka", "akka-actor_2.10", "2.2.0")), baseDir)
-//            IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe.akka", "akka-actor_2.10", "2.2.1")), baseDir)
-//      //      IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe.akka", "akka-actor_2.10", "2.2.2")), baseDir)
-//            IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe.play", "play_2.10", "2.2.0")), baseDir)
-//            IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe.play", "play_2.10", "2.2.1")), baseDir)
-//
-//    }
+    usingTmpDir { tmpDir =>
+      val baseDir = tmpDir
+      val ivy = IvyHelper.load(ivyLogger = IvyHelper.warnIvyLogger)
+
+      ivy.configure(new File("src/test/resources/typesafe-ivy-settings.xml"))
+      val ivyHelper = new IvyHelper(ivy)
+
+      //hack to adjust scala library, should be possible to do in a different way
+      val akka205WithAdjustedScalaLib = {
+        import AttributeDefaults._
+        val scalaLibBinaryVersion = Set("2.9.2")
+
+        convert(ivyHelper.ivyImport("com.typesafe.akka", "akka-actor", "2.0.5")).map { r =>
+          val configurations = r.variantMetadata.configurations.map { c =>
+            val requirements = c.requirements.map { r =>
+              if (r.id == ScalaBinaryVersion.ScalaLibId) {
+                r.copy(constraints = r.constraints.filter(_.name != BinaryVersionAttribute) + Constraint(BinaryVersionAttribute, scalaLibBinaryVersion))
+              } else r
+            }
+            c.copy(requirements = requirements)
+          }
+          r.copy(variantMetadata = r.variantMetadata.copy(configurations = configurations))
+        }.map { r =>
+          val variantMetadata = {
+            if (r.variantMetadata.id == ScalaBinaryVersion.ScalaLibId) {
+              val attributes = r.variantMetadata.attributes.filter(_.name != BinaryVersionAttribute) + Attribute(BinaryVersionAttribute, scalaLibBinaryVersion)
+              r.variantMetadata.copy(attributes = attributes)
+            } else {
+              r.variantMetadata
+            }
+          }
+
+          r.copy(variantMetadata = variantMetadata)
+        }
+      }
+
+      //      IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe", "config", "0.3.1")), baseDir)
+      //      IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe", "config", "1.0.0")), baseDir)
+      IvyHelper.insert(akka205WithAdjustedScalaLib, baseDir)
+//      IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe.akka", "akka-actor_2.10", "2.1.0")), baseDir)
+            IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe.akka", "akka-actor_2.10", "2.2.0")), baseDir)
+            IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe.akka", "akka-actor_2.10", "2.2.1")), baseDir)
+      //      IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe.akka", "akka-actor_2.10", "2.2.2")), baseDir)
+            IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe.play", "play_2.10", "2.2.0")), baseDir)
+            IvyHelper.insert(convert(ivyHelper.ivyImport("com.typesafe.play", "play_2.10", "2.2.1")), baseDir)
+
+    }
     pending //TODO: create a integration test plan for Ivy tests  and uncomment + fix test
   }
 }
