@@ -271,6 +271,8 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[St
     val moduleDescriptor = dependencyReport.getModuleDescriptor()
     val unloadedChildrenMrid = unloadedChildren.map(_.getId())
 
+    val parentNode = dependencyReport.getDependencies().asScala.map { case i: IvyNode => i }.head
+    
     var dependencies = Map.empty[String, Set[IvyNode]]
 
     moduleDescriptor.getConfigurations().foreach { ivyConfiguration =>
@@ -339,10 +341,9 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[St
         case (_, ivyConfs, file, hash, filename) =>
           ArtifactRef(hash, Set(Attribute(ArtifactConfAttribute, ivyConfs.toSet)), Some(filename))
       }
-
       configurations += Configuration(
         id = ConfigurationId(confName),
-        extendsConfigurations = ivyConfiguration.getExtends().map(ConfigurationId(_)).toSet, //FIXME: does not seem to work?
+        extendsConfigurations = parentNode.getConfiguration(confName).getExtends().map(ConfigurationId(_)).toSet,
         metadataInfo = Set.empty, //TODO: configuration description?
         artifacts = artifactRefs,
         attributes = attributes,
