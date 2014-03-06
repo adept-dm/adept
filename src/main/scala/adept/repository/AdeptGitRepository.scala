@@ -271,11 +271,10 @@ case class AdeptGitRepository(val baseDir: File, val name: String) extends Loggi
     if (resolvedRef != null)
       revWalk.lookupCommit(resolvedRef)
     else {
-      val remoteCommitString = "remotes/origin/"+ commitString
+      val remoteCommitString = "remotes/origin/" + commitString
       val resolvedRemoteRef = gitRepo.resolve(remoteCommitString) //TODO: remotes/origin/ should be replaced with Constants.R_REMOTES or something like that?
-      if (resolvedRemoteRef != null)
-        revWalk.lookupCommit(resolvedRemoteRef)
-      throw new GitLookupException(this, commitString, "Could not resolve: " + commitString + " (or " + remoteCommitString + ")  in " + dir)
+      if (resolvedRemoteRef != null) revWalk.lookupCommit(resolvedRemoteRef)
+      else throw new GitLookupException(this, commitString, "Could not resolve: " + commitString + " (or " + remoteCommitString + ")  in " + dir)
     }
   }
 
