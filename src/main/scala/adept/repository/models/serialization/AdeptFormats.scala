@@ -111,14 +111,16 @@ private[models] object AdeptFormats {
     (
       (__ \ "id").format[String] and
       (__ \ "repository").format[String] and
-      (__ \ "commit").format[String])({
-        case (idString, repository, commit) =>
-          RepositoryInfo(Id(idString), repository, Commit(commit))
+      (__ \ "commit").format[String] and 
+      (__ \ "universe").format[String])({
+        case (idString, repository, commit, universe) =>
+          RepositoryInfo(Id(idString), repository, Commit(commit), UniverseId(universe))
       }, unlift({ r: RepositoryInfo =>
-        val RepositoryInfo(id, repository, commit) = r
+        val RepositoryInfo(id, repository, commit, universe) = r
         Some((id.value,
           repository,
-          commit.value))
+          commit.value,
+          universe.value))
       }))
   }
 

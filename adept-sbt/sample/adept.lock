@@ -1,5 +1,5 @@
 {
-  "hash" : "077daaa2fdd1babcd494d8e22d523fa68c4d540debdd6fe86bb54e589d570439",
+  "hash" : "14dacd36ab902a9f60474733e80c7d49c2d1957d2ed9b1471239e07eb231dbd4",
   "requirements" : [ {
     "id" : "akka-actor",
     "configuration" : "compile",
@@ -7,7 +7,7 @@
       "binary-version" : [ "2.2" ]
     },
     "repository" : "com.typesafe.akka",
-    "commit" : "fef80bf53311fcb000fb858001c8a959b649aa9f"
+    "commit" : "351e8419bec9f8eaea64093b1ff0b455a28319ba"
   }, {
     "id" : "akka-actor",
     "configuration" : "master",
@@ -15,7 +15,7 @@
       "binary-version" : [ "2.2" ]
     },
     "repository" : "com.typesafe.akka",
-    "commit" : "fef80bf53311fcb000fb858001c8a959b649aa9f"
+    "commit" : "351e8419bec9f8eaea64093b1ff0b455a28319ba"
   }, {
     "id" : "play",
     "configuration" : "compile",
@@ -23,7 +23,7 @@
       "binary-version" : [ "2.2" ]
     },
     "repository" : "com.typesafe.play",
-    "commit" : "2e58470c355715a35fb863307a5ac22c92a2e8d2"
+    "commit" : "8b333e89a425484d707b22d8bb21616791693c5d"
   }, {
     "id" : "play",
     "configuration" : "master",
@@ -31,7 +31,7 @@
       "binary-version" : [ "2.2" ]
     },
     "repository" : "com.typesafe.play",
-    "commit" : "2e58470c355715a35fb863307a5ac22c92a2e8d2"
+    "commit" : "8b333e89a425484d707b22d8bb21616791693c5d"
   } ],
   "artifacts" : [ {
     "hash" : "e26198c1bb8e3cde5f6e85305d0c4ef7730c53406c0d2a1f36ce30661df9fc22",
@@ -89,6 +89,11 @@
     "locations" : [ "http://repo.typesafe.com/typesafe/releases/com/typesafe/netty/netty-http-pipelining/1.1.2/netty-http-pipelining-1.1.2.jar" ],
     "filename" : "netty-http-pipelining-1.1.2.jar"
   }, {
+    "hash" : "ac889867fa80b7b8a4ea73bed6370c5ddef3a6449449d14992bb9dcf0ba0b6e8",
+    "size" : 1202373,
+    "locations" : [ "http://repo1.maven.org/maven2/io/netty/netty/3.6.3.Final/netty-3.6.3.Final.jar" ],
+    "filename" : "netty-3.6.3.Final.jar"
+  }, {
     "hash" : "ecd8f24f9b2941284e98f154ff3343e720cb31c8f47b67554b145745f596f3b8",
     "size" : 418870,
     "locations" : [ "http://repo1.maven.org/maven2/ch/qos/logback/logback-core/1.0.13/logback-core-1.0.13.jar" ],
@@ -108,11 +113,6 @@
     "size" : 60686,
     "locations" : [ "http://repo.typesafe.com/typesafe/releases/commons-logging/commons-logging/1.1.1/commons-logging-1.1.1.jar" ],
     "filename" : "commons-logging-1.1.1.jar"
-  }, {
-    "hash" : "3bae789b401333b2a1d1603b7fa573e19908628191707203f6eb708cdee2c052",
-    "size" : 26083,
-    "locations" : [ "http://repo.typesafe.com/typesafe/releases/org/slf4j/slf4j-api/1.7.2/slf4j-api-1.7.2.jar" ],
-    "filename" : "slf4j-api-1.7.2.jar"
   }, {
     "hash" : "19f7007ae4d61e1e47585ea742eb407bef36cd348b127bd4bf5c862f0a2f72b8",
     "size" : 40544,
@@ -224,6 +224,11 @@
     "locations" : [ "http://repo1.maven.org/maven2/org/javassist/javassist/3.18.0-GA/javassist-3.18.0-GA.jar" ],
     "filename" : "javassist-3.18.0-GA.jar"
   }, {
+    "hash" : "fe30825245d2336c859dc38d60c0fc5f3668dbf29cd586828d2b5667ec355b91",
+    "size" : 26084,
+    "locations" : [ "http://repo1.maven.org/maven2/org/slf4j/slf4j-api/1.7.5/slf4j-api-1.7.5.jar" ],
+    "filename" : "slf4j-api-1.7.5.jar"
+  }, {
     "hash" : "fbab12e7f0a15de5e60ca732b0cbeaecef262d8448ef85471dd8c7084aefc5b3",
     "size" : 39142,
     "locations" : [ "http://repo.typesafe.com/typesafe/releases/com/typesafe/play/templates_2.10/2.2.1/templates_2.10-2.2.1.jar" ],
@@ -233,10 +238,5 @@
     "size" : 4960,
     "locations" : [ "http://repo1.maven.org/maven2/org/slf4j/jul-to-slf4j/1.7.5/jul-to-slf4j-1.7.5.jar" ],
     "filename" : "jul-to-slf4j-1.7.5.jar"
-  }, {
-    "hash" : "8d9373e00c4e485cc9613c89fd7c05066c8be65adde8526474916a1bb1cc1797",
-    "size" : 1206119,
-    "locations" : [ "http://repo1.maven.org/maven2/io/netty/netty/3.6.6.Final/netty-3.6.6.Final.jar" ],
-    "filename" : "netty-3.6.6.Final.jar"
   } ]
 }

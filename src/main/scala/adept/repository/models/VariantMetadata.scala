@@ -7,7 +7,7 @@ import java.io.Writer
 import java.io.BufferedReader
 import java.io.BufferedWriter
 import adept.repository.models.serialization.DeserializationException
-import adept.repository.AdeptGitRepository
+import adept.repository.Repository
 import java.io.File
 import java.io.FileWriter
 import play.api.libs.json.Json
@@ -31,21 +31,53 @@ case class VariantMetadata(id: Id, metadataInfo: Set[MetadataInfo], attributes: 
 
   lazy val hash = {
     //FIXME: move to Hash? Is this safe?
-    var strings = Set.empty[String]
+    var strings = Seq.empty[String]
+    strings +:= id.value
+    metadataInfo.foreach { info =>
+      strings +:= info.name
+      strings ++:= info.values
+    }
+    attributes.foreach { a =>
+      strings +:= a.name
+      strings ++:= a.values
+    }
     configurations.foreach { configuration =>
-      strings ++= configuration.attributes.map(_.toString)
-      strings += configuration.id.value
-      strings ++= configuration.requirements.map(_.toString)
+      configuration.attributes.foreach { a =>
+        strings +:= a.name
+        strings ++:= a.values
+      }
+      configuration.metadataInfo.foreach { info =>
+        strings +:= info.name
+        strings ++:= info.values
+      }
+      strings ++:= configuration.extendsConfigurations.map(_.value)
+      configuration.artifacts.foreach { a =>
+        a.attributes.foreach { a =>
+          strings +:= a.name
+          strings ++:= a.values
+        }
+        strings +:= a.hash.value
+        strings +:= a.filename.getOrElse("")
+      }
+      strings +:= configuration.id.value
+      configuration.requirements.foreach { req =>
+        strings +:= req.id.value
+        strings ++:= req.configurations.map(_.value)
+        req.constraints.foreach { c =>
+          strings +:= c.name
+          strings ++:= c.values
+        }
+      }
     }
     val md = Hash.md.get
 
-    strings.toSeq.sorted.foreach { string =>
+    strings.sorted.foreach { string =>
       md.update(string.getBytes)
     }
     Hash(md.digest().map(b => "%02x" format b).mkString)
   }
 
-  def toVariants: Set[Variant] = {  //TODO: here I rmeoved the repositoryname it feels a bit dangerous because you might have name clashes then again maybe that is solved somewhere else?
+  def toVariants: Set[Variant] = { //TODO: here I rmeoved the repositoryname it feels a bit dangerous because you might have name clashes then again maybe that is solved somewhere else?
     //This Variant is needed to make sure there never different variants in different configurations with the same 'base' Id that is correctly resolved
     val baseVariant = Variant(id, attributes = attributes + Attribute(Configuration.ConfigurationHashAttributeName, Set(hash.value)))
 
@@ -55,7 +87,7 @@ case class VariantMetadata(id: Id, metadataInfo: Set[MetadataInfo], attributes: 
       val variantArtifacts = configuration.artifacts
 
       val variantRequirements = configuration.requirements.flatMap { configuredRequirement =>
-      configuredRequirement.asRequirements
+        configuredRequirement.asRequirements
       } + Requirement(id, Set(Constraint(Configuration.ConfigurationHashAttributeName, Set(hash.value))))
 
       Variant(variantId, variantAttributes, variantArtifacts, variantRequirements)
@@ -69,11 +101,11 @@ case class VariantMetadata(id: Id, metadataInfo: Set[MetadataInfo], attributes: 
     MetadataContent.writeString(writer, content)
   }
 
-  def file(repository: AdeptGitRepository): File = {
+  def file(repository: Repository): File = {
     repository.getVariantsMetadataFile(id, hash)
   }
 
-  def write(repository: AdeptGitRepository): File = {
+  def write(repository: Repository): File = {
     MetadataContent.usingFileWriter(file(repository))(toJson)
   }
 }

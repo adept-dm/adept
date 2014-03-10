@@ -2,10 +2,11 @@ package adept.repository.models
 
 import adept.models.Hash
 import java.io.Reader
-import adept.repository.AdeptGitRepository
+import adept.repository.Repository
 import java.io.File
 import adept.models.Artifact
 import java.io.Writer
+import adept.repository.Repository
 
 object ArtifactMetadata {
 
@@ -16,7 +17,7 @@ object ArtifactMetadata {
 
   def fromArtifact(artifact: Artifact) = ArtifactMetadata(artifact.hash, artifact.size, artifact.locations)
 
-  def file(repository: AdeptGitRepository, hash: Hash): File = {
+  def file(repository: Repository, hash: Hash): File = {
     repository.getArtifactMetadataFile(hash)
   }
 }
@@ -32,7 +33,7 @@ case class ArtifactMetadata(hash: Hash, size: Long, locations: Set[String]) {
     MetadataContent.writeString(writer, content)
   }
 
-  def write(repository: AdeptGitRepository): File = {
+  def write(repository: Repository): File = {
     MetadataContent.usingFileWriter(ArtifactMetadata.file(repository, hash))(toJson)
   }
 }

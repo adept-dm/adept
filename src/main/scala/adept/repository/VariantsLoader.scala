@@ -4,7 +4,7 @@ package adept.repository
 import adept.models._
 
 /**
- * Can load (or conjure if you will) variants from anywhere such as memory or one or more Git repository.
+ * Can load (or conjure if you will) variants from anywhere such as memory or one or more Git repositories.
  */
 trait VariantsLoader {
   /** Load the variants matching id and constraints from where-ever they are stored  */
