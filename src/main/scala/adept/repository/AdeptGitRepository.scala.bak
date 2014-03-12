@@ -20,7 +20,7 @@ import org.eclipse.jgit.revwalk.filter.RevFilter
 import java.nio.channels.FileChannel
 
 case class WriteLockException(repo: AdeptGitRepository, reason: String) extends Exception("Could not lock '" + repo.dir.getAbsolutePath + "': " + reason)
-case class InitException(repo: AdeptGitRepository, reason: String) extends Exception("Could not initialize '" + repo.dir.getAbsolutePath + "': " + reason)
+//case class InitException(repo: AdeptGitRepository, reason: String) extends Exception("Could not initialize '" + repo.dir.getAbsolutePath + "': " + reason)
 case class UpdateMetadataException(repo: AdeptGitRepository, reason: String) extends Exception("Could not update metadata in '" + repo.dir.getAbsolutePath + "': " + reason)
 case class FileNotFoundException(repo: AdeptGitRepository, file: File) extends Exception("File '" + file.getAbsolutePath() + "' is not git directory: '" + repo.dir.getAbsolutePath + "'.")
 case class GitLookupException(repo: AdeptGitRepository, commitString: String, msg: String) extends Exception(msg)
@@ -98,7 +98,7 @@ case class AdeptGitRepository(val baseDir: File, val name: String) extends Loggi
       val repo = git.getRepository()
       try {
         if (!repoIsInitialized(repo)) {
-          throw InitException(this, "Directory exists but repository is not initialized.")
+          throw new Exception("Directory exists but repository is not initialized.")
         }
       } finally {
         repo.close()
@@ -109,7 +109,7 @@ case class AdeptGitRepository(val baseDir: File, val name: String) extends Loggi
       init(git)
       git
     } else {
-      throw InitException(this, "Could not make directories while initializing.")
+      throw new Exception("Could not make directories while initializing.")
     }
   }
 
@@ -220,7 +220,7 @@ case class AdeptGitRepository(val baseDir: File, val name: String) extends Loggi
 
   def getVariantsMetadataDir(id: Id): File = {
     val dir = getIdFile(getVariantsDir(baseDir, name), id)
-    if (!(dir.isDirectory() || dir.mkdirs())) throw InitException(this, "Could not create variants metadata dir: " + dir.getAbsolutePath)
+    if (!(dir.isDirectory() || dir.mkdirs())) throw new Exception("Could not create variants metadata dir: " + dir.getAbsolutePath)
     dir
   }
 
@@ -230,7 +230,7 @@ case class AdeptGitRepository(val baseDir: File, val name: String) extends Loggi
 
   def getArtifactMetadataDir(): File = {
     val dir = getArtifactDescriptorsDir(baseDir, name)
-    if (!(dir.isDirectory() || dir.mkdirs())) throw InitException(this, "Could not create artifacts metadata dir: " + dir.getAbsolutePath)
+    if (!(dir.isDirectory() || dir.mkdirs())) throw new Exception("Could not create artifacts metadata dir: " + dir.getAbsolutePath)
     dir
   }
 
@@ -240,7 +240,7 @@ case class AdeptGitRepository(val baseDir: File, val name: String) extends Loggi
 
   def getRepositoryMetadataDir(id: Id): File = {
     val dir = getIdFile(getRepositoryDescriptorsDir(baseDir, name), id)
-    if (!(dir.isDirectory() || dir.mkdirs())) throw InitException(this, "Could not create repository metadata dir: " + dir.getAbsolutePath)
+    if (!(dir.isDirectory() || dir.mkdirs())) throw new Exception("Could not create repository metadata dir: " + dir.getAbsolutePath)
     dir
   }
   def getRepositoryMetadataFile(id: Id, hashes: Set[Hash]): File = {

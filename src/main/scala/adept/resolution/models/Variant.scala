@@ -1,4 +1,6 @@
-package adept.models
+package adept.resolution.models
+
+import adept.artifact.models.ArtifactRef
 
 /**
  * A variant is the "atom" of Adept, in the sense that it
@@ -11,7 +13,7 @@ package adept.models
  * but with different requirements). Therefore, 'version' would be a poor choice 
  * for a name while variant fits the bill perfectly.
  */
-case class Variant private[adept] (id: Id, attributes: Set[Attribute] = Set.empty, artifacts: Set[ArtifactRef] = Set.empty, requirements: Set[Requirement] = Set.empty) {
+case class Variant(id: Id, attributes: Set[Attribute] = Set.empty, artifacts: Set[ArtifactRef] = Set.empty, requirements: Set[Requirement] = Set.empty) {
   
   def attribute(name: String) = {
     val values = attributes.collect {

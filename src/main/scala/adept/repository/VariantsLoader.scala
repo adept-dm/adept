@@ -1,7 +1,6 @@
 package adept.repository
 
-
-import adept.models._
+import adept.resolution.models._
 
 /**
  * Can load (or conjure if you will) variants from anywhere such as memory or one or more Git repository.

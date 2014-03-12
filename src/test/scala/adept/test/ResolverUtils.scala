@@ -1,12 +1,15 @@
 package adept.test
 
-import adept.models._
 import adept.resolution._
 import adept.resolution.models._
+import adept.resolution.resolver.models._
 import adept.repository._
 import org.scalatest.matchers.MustMatchers
 
 object ResolverUtils extends MustMatchers {
+
+  val version = "version"
+  val binaryVersion = "binary-version"
 
   implicit def stringToId(id: String): Id = {
     Id(id)
@@ -49,13 +52,12 @@ object ResolverUtils extends MustMatchers {
     (id -> variant.attributes) must equal(id -> attrs.toSet)
   }
 
-  def getResolver(variants: Set[Variant]): Resolver = {
-    val memVariantsLoader = new MemoryVariantsLoader(variants)
-    new Resolver(memVariantsLoader)
+  def getMemoryLoader(variants: Set[Variant]) = {
+    new MemoryLoader(variants)
   }
 
-  def resolve(requirements: Set[Requirement], variants: Set[Variant]): ResolveResult = {
-    val result = getResolver(variants)
-    result.resolve(requirements)
+  def resolve(requirements: Set[Requirement], loader: VariantsLoader): ResolveResult = {
+    val resolver = new Resolver(loader)
+    resolver.resolve(requirements)
   }
 }

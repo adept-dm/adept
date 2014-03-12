@@ -1,8 +1,8 @@
-package adept.resolution.models
+package adept.resolution.resolver.models
 
-import adept.models.Constraint
-import adept.models.Id
-import adept.models.Variant
+import adept.resolution.models.Constraint
+import adept.resolution.models.Id
+import adept.resolution.models.Variant
 
 /**
  * Contains the computed state after resolution.

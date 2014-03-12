@@ -1,6 +1,6 @@
 package adept.repository
 
-import adept.models._
+import adept.resolution.models._
 
 /**
  * Utility object to filter attributes matching a given set of constraints and id

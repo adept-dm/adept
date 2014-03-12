@@ -1,6 +1,6 @@
 package adept.models
 
-import adept.repository.models.LockFileRequirement
+import adept.lockfile.LockFileRequirement
 
 object Ordering {
 

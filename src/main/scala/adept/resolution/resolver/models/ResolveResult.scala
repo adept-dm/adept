@@ -1,6 +1,6 @@
-package adept.resolution.models
+package adept.resolution.resolver.models
 
-import adept.models.Id
+import adept.resolution.models.Id
 
 /**
  * ADT to represent the Resolved results.

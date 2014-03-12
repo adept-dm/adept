@@ -7,9 +7,18 @@ import org.eclipse.jgit.transport.CredentialItem
 import org.eclipse.jgit.transport.URIish
 import org.eclipse.jgit.transport.CredentialsProviderUserInfo
 import org.eclipse.jgit.transport.SshSessionFactory
+import adept.repository.models.Commit
 
-object GitHelpers {
-    def withGitSshCredentials[A](passphrase: Option[String])(f: => A): A = { //side effecting! 
+private[adept] object GitHelpers {
+  def lastestCommit(repository: GitRepository, commits: Set[Commit]): Commit = {
+    ???
+  }
+  
+  /** 
+   *  Use ssh git credentials
+   *  
+   *  Not thread-safe, therefore synchronized */
+  def withGitSshCredentials[A](passphrase: Option[String])(f: => A): A = synchronized {
     val sessionFactory = new JschConfigSessionFactory {
       def configure(hc: OpenSshConfig.Host, session: com.jcraft.jsch.Session): Unit = {
         val provider = new CredentialsProvider() {

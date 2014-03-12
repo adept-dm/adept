@@ -1,4 +1,5 @@
-package adept.models
+package adept.resolution.models
+
 
 /**
  * The unique Id representing a variant.

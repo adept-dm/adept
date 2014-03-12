@@ -2,15 +2,11 @@ package adept.resolution
 
 import org.scalatest._
 import org.scalatest.matchers.MustMatchers
-import adept.models._
 import adept.resolution.models._
 import adept.repository._
 
 class ResolverTest extends FunSuite with MustMatchers {
   import adept.test.ResolverUtils._
-
-  val version = "version"
-  val binaryVersion = "binary-version"
 
   test("Very simple resolution works correctly") {
     val variants: Set[Variant] = Set(
@@ -24,7 +20,7 @@ class ResolverTest extends FunSuite with MustMatchers {
     val requirements: Set[Requirement] = Set(
       "A" -> Set(Constraint(version, Set("V"))))
 
-    val result = resolve(requirements, variants)
+    val result = resolve(requirements, getMemoryLoader(variants))
     checkResolved(result, Set("A", "B"))
     checkVariants(result, "A", version -> Set("V"))
     checkVariants(result, "B", version -> Set("X"))
@@ -77,7 +73,7 @@ class ResolverTest extends FunSuite with MustMatchers {
     val requirements: Set[Requirement] = Set(
       "A" -> Set(Constraint(version, Set("V"))))
 
-    val result = resolve(requirements, variants)
+    val result = resolve(requirements, getMemoryLoader(variants))
     checkResolved(result, Set("A", "B", "C", "D"))
     checkVariants(result, "D", version -> Set("Z"))
   }
@@ -94,7 +90,7 @@ class ResolverTest extends FunSuite with MustMatchers {
     val requirements: Set[Requirement] = Set(
       "A" -> Set(Constraint(binaryVersion, Set("1.0"))))
 
-    val result = resolve(requirements, variants)
+    val result = resolve(requirements, getMemoryLoader(variants))
     checkResolved(result, Set("A"))
     checkUnresolved(result, Set("B"))
   }
@@ -111,7 +107,7 @@ class ResolverTest extends FunSuite with MustMatchers {
     val requirements: Set[Requirement] = Set(
       "A" -> Set(Constraint(binaryVersion, Set("1.0"))))
 
-    val result = resolve(requirements, variants)
+    val result = resolve(requirements, getMemoryLoader(variants))
     checkResolved(result, Set("A"))
     checkUnresolved(result, Set("B"))
   }
@@ -131,7 +127,7 @@ class ResolverTest extends FunSuite with MustMatchers {
     val requirements: Set[Requirement] = Set(
       "A" -> Set(Constraint(binaryVersion, Set("1.0"))))
 
-    val result = resolve(requirements, variants)
+    val result = resolve(requirements, getMemoryLoader(variants))
     checkResolved(result, Set("A", "B", "C", "D"))
     checkUnresolved(result, Set())
   }
@@ -149,7 +145,7 @@ class ResolverTest extends FunSuite with MustMatchers {
       "A" -> Set(Constraint(version, Set("V"))),
       "B" -> Set(Constraint(version, Set("X"))))
 
-    val result = resolve(requirements, variants)
+    val result = resolve(requirements, getMemoryLoader(variants))
     checkResolved(result, Set("A", "B"))
     checkUnresolved(result, Set())
   }
@@ -170,7 +166,7 @@ class ResolverTest extends FunSuite with MustMatchers {
       "A" -> Set(Constraint(version, Set("V"))),
       "B" -> Set(Constraint(version, Set("Y"))))
 
-    val result = resolve(requirements, variants)
+    val result = resolve(requirements, getMemoryLoader(variants))
     checkResolved(result, Set("A", "B"))
     checkUnresolved(result, Set())
   }
@@ -209,7 +205,7 @@ class ResolverTest extends FunSuite with MustMatchers {
     val requirements: Set[Requirement] = Set(
       "A" -> Set(Constraint(binaryVersion, Set("1.0"))))
 
-    val result = resolve(requirements, variants)
+    val result = resolve(requirements, getMemoryLoader(variants))
     checkResolved(result, Set("A", "B", "C", "D", "E"))
     checkUnresolved(result, Set())
   }
@@ -257,7 +253,7 @@ class ResolverTest extends FunSuite with MustMatchers {
     val requirements: Set[Requirement] = Set(
       "A" -> Set(Constraint(binaryVersion, Set("1.0"))))
 
-    val result = resolve(requirements, variants)
+    val result = resolve(requirements, getMemoryLoader(variants))
     checkResolved(result, Set("A", "B", "C", "D", "E", "F"))
     checkUnresolved(result, Set())
   }
@@ -285,7 +281,7 @@ class ResolverTest extends FunSuite with MustMatchers {
     val requirements: Set[Requirement] = Set(
       "A" -> Set(Constraint(binaryVersion, Set("1.0"))))
 
-    val result = resolve(requirements, variants)
+    val result = resolve(requirements, getMemoryLoader(variants))
     checkResolved(result, Set("A", "B", "C"))
     checkUnresolved(result, Set())
     checkVariants(result, "A", version -> Set("1.0.0"), binaryVersion -> Set("1.0"))
@@ -326,7 +322,7 @@ class ResolverTest extends FunSuite with MustMatchers {
     val requirements: Set[Requirement] = Set(
       "A" -> Set(Constraint(binaryVersion, Set("1.0"))))
 
-    val result = resolve(requirements, variants)
+    val result = resolve(requirements, getMemoryLoader(variants))
     checkResolved(result, Set("A", "B", "C", "D", "E"))
     checkUnresolved(result, Set())
     checkVariants(result, "A", version -> Set("1.0.0"), binaryVersion -> Set("1.0"))

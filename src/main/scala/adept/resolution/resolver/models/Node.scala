@@ -1,6 +1,6 @@
-package adept.resolution.models
+package adept.resolution.resolver.models
 
-import adept.models.Id
+import adept.resolution.models.Id
 
 case class Node(val id: Id, val children: Set[Node]) {
   override def toString = {

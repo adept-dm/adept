@@ -1,7 +1,7 @@
 package adept.resolution
 
-import adept.models._
 import adept.resolution.models._
+import adept.resolution.resolver.models._
 import adept.repository.VariantsLoader
 
 class UnexpectedResolutionStateException(msg: String) extends Exception(msg)
