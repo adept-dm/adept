@@ -28,7 +28,7 @@ class VariantMetadataTest extends FunSuite with MustMatchers {
       repository.add(variantMetadata.write(id, repository))
       repository.commit("Added variant")
       import org.scalatest.OptionValues._
-      VariantMetadata.read(id, variantMetadata.hash, repository, repository.getHead) must be === variantMetadata.toVariant(id)
+      VariantMetadata.read(id, variantMetadata.hash, repository, repository.getHead).value must be === variantMetadata.toVariant(id)
     }
   }
 }
