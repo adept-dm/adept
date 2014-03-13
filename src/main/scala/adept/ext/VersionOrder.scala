@@ -153,67 +153,62 @@ object VersionOrder extends Logging {
     touchedFiles ++ orderFiles
   }
 
-  def useBinaryVersionOf(id: Id, repository: GitRepository, commit: Commit, inRepositories: Set[GitRepository]): Set[GitRepository] = {
-    val activeVariants = Order.activeVariants(id, repository, commit)
+  private def replaceVariant(currentVariant: Variant, newVariant: Variant, repository: GitRepository, commit: Commit) = {
+    val newMetadata = VariantMetadata.fromVariant(newVariant)
+    val oldHash = VariantMetadata.fromVariant(currentVariant).hash
+    val changedFiles = repository.listActiveOrderIds(currentVariant.id, commit).flatMap { orderId =>
+      Order.replace(currentVariant.id, orderId, repository, commit) { currentHash =>
+        if (currentHash == oldHash) {
+          Some(Seq(newMetadata.hash, oldHash)) //place new metadata before old
+        } else None
+      }
+    } + newMetadata.write(newVariant.id, repository)
+    changedFiles
+  }
 
-    val changedRepositories = inRepositories.flatMap { otherRepo =>
+  def useBinaryVersionOf(id: Id, repository: GitRepository, commit: Commit, inRepositories: Set[GitRepository]): Set[(GitRepository, File)] = {
+    def getBinaryVersionRequirements(variant: Variant, metadata: RepositoryMetadata) = {
+      val (targetRequirements, untouchedRequirements) = variant.requirements
+        .partition { r =>
+          r.id == id &&
+            !r.constraints.exists(_.name == AttributeDefaults.BinaryVersionAttribute) //skip the constraints that already have binary versions
+        }
+
+      val currentRepositoryInfos = metadata.repositories.filter(r => r.id == id && r.repository == repository.name)
+      if (currentRepositoryInfos.size > 1) throw new Exception("Aborting binary version update because we found more than 1 targer repositories for: " + id + " in " + metadata + ": " + currentRepositoryInfos)
+
+      val maybeBinaryVersion = currentRepositoryInfos.headOption.flatMap { matchingRepositoryInfo =>
+        val maybeFoundVariant = VariantMetadata.read(matchingRepositoryInfo.id, matchingRepositoryInfo.variant,
+          repository, matchingRepositoryInfo.commit)
+        val foundVariant = maybeFoundVariant.getOrElse(throw new Exception("Aborting binary version update because we could not update required variant for: " + matchingRepositoryInfo + " in " + repository.dir))
+        getVersion(foundVariant).map(_.asBinaryVersion)
+      }
+
+      val fixedRequirements = for {
+        requirement <- targetRequirements
+        binaryVersion <- maybeBinaryVersion
+      } yield {
+        requirement.copy(constraints = requirement.constraints + Constraint(AttributeDefaults.BinaryVersionAttribute, Set(binaryVersion)))
+      }
+      fixedRequirements -> untouchedRequirements
+    }
+
+    val changedFiles = inRepositories.par.flatMap { otherRepo =>
       val otherCommit = otherRepo.getHead
       otherRepo.listIds(otherCommit).flatMap { otherId =>
         val variants = Order.activeVariants(otherId, otherRepo, otherCommit)
         variants.flatMap { otherHash =>
-          VariantMetadata.read(otherId, otherHash, otherRepo, otherCommit) match {
-            case None => throw new Exception("Could not update binary version for: " + id + " in " + otherId + " because we could not find a variant for hash: " + otherHash + " in " + otherRepo + " and commit " + commit)
-            case Some(otherVariant) =>
-              val (targetRequirements, untouchedRequirements) = otherVariant.requirements
-                .partition { r =>
-                  r.id == id &&
-                    !r.constraints.exists(_.name == AttributeDefaults.BinaryVersionAttribute) //skip the constraints that have 
-                }
-              val maybeBinaryVersion = RepositoryMetadata.read(otherId, otherHash, otherRepo, otherCommit) match {
-                case Some(metadata) =>
-                  val currentRepositoryInfos = metadata.repositories.filter(r => r.id == id && r.repository == repository.name)
-                  if (currentRepositoryInfos.size > 1) throw new Exception("Aborting binary version update because we found more than 1 targer repositories for: " + id + " in " + metadata + ": " + currentRepositoryInfos)
+          val otherVariant = VariantMetadata.read(otherId, otherHash, otherRepo, otherCommit).getOrElse(throw new Exception("Could not update binary version for: " + id + " in " + otherId + " because we could not find a variant for hash: " + otherHash + " in " + otherRepo + " and commit " + commit))
+          val metadata = RepositoryMetadata.read(otherId, otherHash, otherRepo, otherCommit).getOrElse(throw new Exception("Could not update binary version for: " + id + " in " + otherId + " because we could not find a repository info for: " + otherHash + " in repo " + otherRepo.dir.getAbsolutePath + " commit " + otherCommit))
+          val (fixedRequirements, untouchedRequirements) = getBinaryVersionRequirements(otherVariant, metadata)
 
-                  val foundBinaryVersion = currentRepositoryInfos.headOption.flatMap { matchingRepositoryInfo =>
-                    val maybeFoundVariant = VariantMetadata.read(matchingRepositoryInfo.id, matchingRepositoryInfo.variant,
-                      repository, matchingRepositoryInfo.commit)
-                    maybeFoundVariant match {
-                      case Some(foundVariant) => getVersion(foundVariant).map(_.asBinaryVersion)
-                      case None => throw new Exception("Aborting binary version update because we could not update required variant for: " + matchingRepositoryInfo + " in " + repository.dir)
-                    }
-                  }
-                  foundBinaryVersion
-                case None => throw new Exception("Could not update binary version for: " + id + " in " + otherId + " because we could not find a repository info for: " + otherHash + " in repo " + otherRepo.dir.getAbsolutePath + " commit " + otherCommit)
-              }
-
-              val fixedRequirements = for {
-                requirement <- targetRequirements
-                binaryVersion <- maybeBinaryVersion
-              } yield {
-                requirement.copy(constraints = requirement.constraints + Constraint(AttributeDefaults.BinaryVersionAttribute, Set(binaryVersion)))
-              }
-
-              if (fixedRequirements.nonEmpty) {
-                val newMetadata = VariantMetadata
-                  .fromVariant(otherVariant.copy(requirements = untouchedRequirements ++ fixedRequirements))
-                otherRepo.add(newMetadata
-                  .write(otherId, otherRepo))
-                val oldHash = VariantMetadata.fromVariant(otherVariant).hash
-                otherRepo.listActiveOrderIds(otherId, otherCommit).foreach { orderId =>
-                  Order.replace(otherId, orderId, otherRepo, otherCommit) { currentHash =>
-                    if (currentHash == oldHash) {
-                      Some(Seq(newMetadata.hash, oldHash)) //place new metadata before old
-                    } else None
-                  }.foreach(otherRepo.add(_))
-                }
-                Some(otherRepo)
-              } else {
-                None
-              }
-          }
+          if (fixedRequirements.nonEmpty) {
+            val newVariant = otherVariant.copy(requirements = untouchedRequirements ++ fixedRequirements)
+            replaceVariant(otherVariant, newVariant, otherRepo, otherCommit).map(otherRepo -> _)
+          } else Set.empty[(GitRepository, File)]
         }
       }
     }
-    Set() ++ changedRepositories
+    Set() ++ changedFiles
   }
 }

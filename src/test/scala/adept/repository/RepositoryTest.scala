@@ -13,6 +13,7 @@ import adept.ext.Version
 import org.scalatest.OptionValues._
 import adept.ext.VersionOrder
 import adept.repository.serialization.RepositoryMetadata
+import adept.ext.AttributeDefaults
 
 class RepositoryTest extends FunSuite with MustMatchers {
   import adept.test.FileUtils._
@@ -59,19 +60,40 @@ class RepositoryTest extends FunSuite with MustMatchers {
       repoC.init()
 
       val idA = Id("A")
+      val idB = Id("B")
+      val idC = Id("C")
 
       val variantA = Variant(idA, Set(version -> Set("1.0.0"), binaryVersion -> Set("1.0")))
       val commitA = addThenCommit(variantA, repoA, Set())
       val hashA = VariantMetadata.fromVariant(variantA).hash
       val repoInfoA = RepositoryInfo(idA, repoA.name, commitA, hashA)
-      addThenCommit(Variant(Id("B"), Set(version -> Set("1.0.0"), binaryVersion -> Set("1.0")),
+      addThenCommit(Variant(idB, Set(version -> Set("1.0.0"), binaryVersion -> Set("1.0")),
         requirements = Set(Requirement(idA, Set.empty))), repoB,
         Set(repoInfoA))
-      addThenCommit(Variant(Id("C"), Set(version -> Set("1.0.0"), binaryVersion -> Set("1.0")),
+      addThenCommit(Variant(idC, Set(version -> Set("1.0.0"), binaryVersion -> Set("1.0")),
         requirements = Set(Requirement(idA, Set.empty))), repoC,
         Set(repoInfoA))
 
-      VersionOrder.useBinaryVersionOf(idA, repoA, commitA, inRepositories = Set(repoB, repoC))
+      VersionOrder.useBinaryVersionOf(idA, repoA, commitA, inRepositories = Set(repoB, repoC)).foreach {
+        case (repo, file) =>
+          repo.add(file)
+          repo.commit("Using binary version for: " + idA.value)
+      }
+      val activeBs = Order.activeVariants(idB, repoB, repoB.getHead)
+      activeBs must have size (1)
+      activeBs.map { hash =>
+        val newVariant = VariantMetadata.read(idB, hash, repoB, repoB.getHead).value
+        val requirements = newVariant.requirements.find(_.id == idA).value
+        requirements.constraint(AttributeDefaults.BinaryVersionAttribute).values must be === Set("1.0")
+      }
+      val activeCs = Order.activeVariants(idC, repoC, repoC.getHead)
+      activeCs must have size (1)
+      activeCs.map { hash =>
+        val newVariant = VariantMetadata.read(idC, hash, repoC, repoC.getHead).value
+        val requirements = newVariant.requirements.find(_.id == idA).value
+        requirements.constraint(AttributeDefaults.BinaryVersionAttribute).values must be === Set("1.0")
+      }
+
     }
   }
 
