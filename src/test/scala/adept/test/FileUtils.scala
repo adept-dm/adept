@@ -5,14 +5,14 @@ import adept.logging.Logging
 
 object FileUtils extends Logging {
 
-  def usingTmpDir[A](f: File => A) = {
+  def usingTmpDir[A](f: File => A) = synchronized { //<-- NOTICE
     val rootDir = new File("tmp")
 
-//    if (rootDir.isDirectory) {
-//      logger.debug("Deleting root tmp dir: " + rootDir.getAbsolutePath)
-//      import scala.reflect.io.Directory
-//      (new Directory(rootDir)).deleteRecursively()
-//    }
+    if (rootDir.isDirectory) {
+      logger.debug("Deleting root tmp dir: " + rootDir.getAbsolutePath)
+      import scala.reflect.io.Directory
+      (new Directory(rootDir)).deleteRecursively()
+    }
 
     val testDir = new File(rootDir, "test-dir-" + System.currentTimeMillis)
     if (testDir.mkdirs()) {
