@@ -12,14 +12,17 @@ import org.eclipse.jgit.treewalk.TreeWalk
 import org.eclipse.jgit.treewalk.filter.PathFilter
 import org.eclipse.jgit.lib.ProgressMonitor
 import org.eclipse.jgit.lib.NullProgressMonitor
+import java.io.FilenameFilter
+import adept.logging.Logging
 
 /**
  *  Defines Git operations and defines streams methods used for READ operations.
  *
  *  See [[adept.repository.Repository]] for WRITE operations and layout
  */
-class GitRepository(override val baseDir: File, override val name: RepositoryName, progress: ProgressMonitor = NullProgressMonitor.INSTANCE, val passphrase: Option[String] = None) extends Repository(baseDir, name) {
+class GitRepository(override val baseDir: File, override val name: RepositoryName, progress: ProgressMonitor = NullProgressMonitor.INSTANCE, val passphrase: Option[String] = None) extends Repository(baseDir, name) with Logging {
   import GitRepository._
+  import Repository._
 
   def hasCommit(commit: Commit): Boolean = {
     usingRevWalk { (gitRepo, revWalk) =>
@@ -76,14 +79,20 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
     Commit(revWalk.lookupCommit(resolvedRef).name)
   }
 
-  def add(files: File*) = {
+  def add(files: Set[File]): Unit = {
+    add(files.toSeq: _*)
+  }
+
+  def add(files: File*): Unit = {
     files.foreach { file =>
       git.add().addFilepattern(asGitPath(file)).call()
     }
   }
 
   def init() = {
-    Git.init().setDirectory(dir).call()
+    val git = Git.init().setDirectory(dir).call()
+    commit("Initialized " + name.value)
+    Commit(git.tag().setName(InitTag).call().getName())
   }
 
   def commit(msg: String): Commit = {
@@ -167,8 +176,102 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
     usingInputStream(commit, asGitPath(getArtifactFile(hash)))(block)
   }
 
-  def usingOrderInputStream[A](id: Id, commit: Commit)(block: Either[String, Option[InputStream]] => A): A = {
-    usingInputStream(commit, asGitPath(getOrderFile(id)))(block)
+  def usingOrderLookupInputStream[A](id: Id, commit: Commit)(block: Either[String, Option[InputStream]] => A): A = {
+    usingInputStream(commit, asGitPath(getOrderLookupFile(id)))(block)
+  }
+
+  def usingOrderInputStream[A](id: Id, orderId: OrderId, commit: Commit)(block: Either[String, Option[InputStream]] => A): A = {
+    usingInputStream(commit, asGitPath(getOrderFile(id, orderId)))(block)
+  }
+
+  private def useVariantsPath[A](commit: Commit)(accumulate: String => Option[A]): Set[A] = {
+    usingTreeWalk { (gitRepo, revWalk, treeWalk) =>
+      var accumulator = Set.empty[A]
+      val revCommit = lookup(gitRepo, revWalk, commit.value).getOrElse {
+        throw new Exception("Could not find: " + commit + " in " + dir.getAbsolutePath)
+      }
+      try {
+        revWalk.markStart(revCommit)
+      } catch {
+        case e: org.eclipse.jgit.errors.MissingObjectException =>
+          throw new Exception("Could not mark commit: " + revCommit + " in " + dir.getAbsolutePath, e)
+      }
+      val currentTree = revCommit.getTree()
+      if (currentTree != null) {
+        treeWalk.addTree(currentTree)
+        treeWalk.setFilter(PathFilter.create(VariantsMetadataDirName))
+        treeWalk.setRecursive(true) //without recursive Git will return the directory, not the file
+        while (treeWalk.next()) {
+          if (!treeWalk.isSubtree()) {
+            accumulator ++= accumulate(treeWalk.getPathString())
+          }
+        }
+      }
+      accumulator
+    }
+  }
+
+  def listVariants(id: Id, commit: Commit): Set[VariantHash] = {
+    val HashExtractionExpression = s"""$VariantsMetadataDirName$GitPathSep${id.value}$GitPathSep(.*?)$GitPathSep(.*?)$GitPathSep(.*?)$GitPathSep$VariantMetadataFileName""".r
+    useVariantsPath[VariantHash](commit) { path =>
+      path match {
+        case HashExtractionExpression(level1, level2, level3) =>
+          Some(VariantHash(level1 + level2 + level3))
+        case _ => None
+      }
+    }
+  }
+
+  private lazy val OrderFileFilter = new FilenameFilter {
+    override def accept(dir: File, name: String): Boolean = {
+      name.startsWith(OrderFileNamePrefix)
+    }
+  }
+
+  private lazy val OrderFileIdRegEx = s"""$OrderFileNamePrefix(\\d+)""".r
+
+  def getNextOrderId(id: Id, commit: Commit): OrderId = {
+    logger.warn("Next order Id might fail, because it is not reading git") //TODO: use commit!
+    if (commit != getHead || (commit != getHead && commit.value.toUpperCase != "HEAD")) {
+      logger.error("Cannot get next order on: " + commit + " - it is not implemented yet")
+      ???
+    }
+    val orderDir = getIdFile(variantsMetadataDir, id)
+    val orderFiles = listFiles(orderDir, OrderFileFilter).map(_.getName)
+    val nextId = orderFiles.sorted.lastOption match {
+      case Some(OrderFileIdRegEx(id)) => id.toInt + 1 //toInt is 'safe' because of regex 
+      case _ => 1
+    }
+    OrderId(nextId)
+  }
+
+  private def listFiles(dir: File, filter: FilenameFilter): Seq[File] = { //TODO: remove this shouuld not be used!
+    val files = dir.listFiles(OrderFileFilter)
+    if (files != null) {
+      files.toSeq
+    } else Seq.empty
+  }
+
+  def listIds(commit: Commit): Set[Id] = {
+    val IdExtractionExpression = s"""$VariantsMetadataDirName$GitPathSep(.*)$GitPathSep(.*?)$GitPathSep(.*?)$GitPathSep(.*?)$GitPathSep$VariantMetadataFileName""".r
+    useVariantsPath[Id](commit) { path =>
+      path match {
+        case IdExtractionExpression(id, level1, level2, level3) =>
+          Some(Id(id))
+        case _ => None
+      }
+    }
+  }
+
+ def listActiveOrderIds(id: Id, commit: Commit): Set[OrderId] = {
+    usingOrderLookupInputStream(id, commit) {
+      case Right(Some(is)) =>
+        io.Source.fromInputStream(is).getLines.map { line =>
+          OrderId(line.trim().toInt)
+        }.toSet
+      case Right(None) => Set.empty
+      case Left(error) => throw new Exception("Could not read order file for: " + id + " in " + dir.getAbsolutePath + " for: " + commit )
+    }
   }
 }
 

@@ -6,7 +6,7 @@ import play.api.libs.json._
 import play.api.libs.functional.syntax._
 import adept.utils.OrderingHelpers
 
-case class RepositoryInfo(id: Id, repository: RepositoryName, commit: Commit, variants: VariantSet)
+case class RepositoryInfo(id: Id, repository: RepositoryName, commit: Commit, variant: VariantHash)
 
 //object RepositoryInfo {
 //  implicit val ordering: Ordering[RepositoryInfo] = new Ordering[RepositoryInfo] {

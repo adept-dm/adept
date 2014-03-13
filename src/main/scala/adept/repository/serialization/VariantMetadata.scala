@@ -28,6 +28,7 @@ case class VariantMetadata(attributes: Seq[Attribute], artifacts: Seq[ArtifactRe
   lazy val jsonString = Json.prettyPrint(Json.toJson(this))
 
   def write(id: Id, repository: Repository): File = {
+    require(hash.value.length == Repository.HashLength, "Hash for: " + id + " (" + this + ") had length:" + hash.value.length + " but should have " + Repository.HashLength)
     val file = repository.getVariantFile(id, hash)
     MetadataContent.write(jsonString, file)
   }

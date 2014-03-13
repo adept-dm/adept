@@ -8,11 +8,10 @@ import net.sf.ehcache.CacheManager
 import adept.utils.Hasher
 import net.sf.ehcache.Ehcache
 import adept.repository.serialization.Order
-import adept.repository.serialization.FilePosition
 import org.eclipse.jgit.lib.ProgressMonitor
 
 class GitLoader(baseDir: File, repositories: Set[(RepositoryInfo, RepositoryLocations)], progress: ProgressMonitor, cacheManager: CacheManager) extends VariantsLoader {
-  private val thisUniqueId = Hasher.hash(repositories.map { case (ri, loc) => ri.id + "-" + ri.repository + "-" + ri.commit + "-" + ri.variants.asLine + "-" + loc.uris.toSeq.sorted.mkString(";") }.toSeq.sorted.mkString("#").getBytes)
+  private val thisUniqueId = Hasher.hash(repositories.map { case (ri, loc) => ri.id + "-" + ri.repository + "-" + ri.commit + "-" + ri.variant.value + "-" + loc.uris.toSeq.sorted.mkString(";") }.toSeq.sorted.mkString("#").getBytes)
 
   private val cache: Ehcache = {
     val cacheName = thisUniqueId
@@ -28,29 +27,30 @@ class GitLoader(baseDir: File, repositories: Set[(RepositoryInfo, RepositoryLoca
 
   private val branch = "master" //TODO: manage branches in repository info
   
-  private lazy val byId = repositories.groupBy { case (r, _) => r.id }.map {
-    case (id, repositoryInfos) => id -> repositoryInfos.flatMap {
-      case (repositoryInfo, location) =>
-        val repository = new GitRepository(baseDir, repositoryInfo.repository, progress)
-        val commit = repositoryInfo.commit
-        if (!repository.hasCommit(commit)) {
-          location.uris.foreach { uri =>
-            repository.fetchRemote(uri)
-            repository.checkout(branch)
-          }
-        }
-        val matches: Set[(VariantHash, GitRepository, Commit)] = Order.firstMatch(id, repositoryInfo.variants.hashes, repository, repositoryInfo.commit) match {
-          case Some(FilePosition(variantSet, _)) => variantSet.hashes.map { variantHash =>
-            (variantHash, repository, commit)
-          }
-          case None => Set.empty
-        }
-        matches
-    }
-  }
+//  private lazy val byId = repositories.groupBy { case (r, _) => r.id }.map {
+//    case (id, repositoryInfos) => id -> repositoryInfos.flatMap {
+//      case (repositoryInfo, location) =>
+//        val repository = new GitRepository(baseDir, repositoryInfo.repository, progress)
+//        val commit = repositoryInfo.commit
+//        if (!repository.hasCommit(commit)) {
+//          location.uris.foreach { uri =>
+//            repository.fetchRemote(uri)
+//            repository.checkout(branch)
+//          }
+//        }
+//        val matches: Set[(VariantHash, GitRepository, Commit)] = Order.firstMatch(id, repositoryInfo.variants.hashes, repository, repositoryInfo.commit) match {
+//          case Some(FilePosition(variantSet, _)) => variantSet.hashes.map { variantHash =>
+//            (variantHash, repository, commit)
+//          }
+//          case None => Set.empty
+//        }
+//        matches
+//    }
+//  }
 
   private def locateAllIdentifiers(id: Id): Set[(VariantHash, GitRepository, Commit)] = {
-    byId(id)
+//    byId(id)
+    ???
   }
 
   def loadVariants(id: Id, constraints: Set[Constraint]): Set[Variant] = {

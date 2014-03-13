@@ -63,4 +63,7 @@ case class Version(val value: String) extends Ordered[Version] {
   def compare(that: Version) = {
     Version.stringVersionCompare(this.value, that.value)
   }
+  def asBinaryVersion = { //TODO: use SemVer instead!
+    value.split("\\.").slice(0,2).mkString(".")
+  }
 }

@@ -27,21 +27,21 @@ object RepositoryMetadata {
       (__ \ "id").format[String] and
       (__ \ "repository").format[String] and
       (__ \ "commit").format[String] and
-      (__ \ "variants").format[Set[String]])({
-        case (id, repository, commit, variants) =>
+      (__ \ "variant").format[String])({
+        case (id, repository, commit, variant) =>
           RepositoryInfo(
             Id(id),
             RepositoryName(repository),
             Commit(commit),
-            VariantSet(variants.map(VariantHash(_))))
+            VariantHash(variant))
       },
         unlift({ r: RepositoryInfo =>
-          val RepositoryInfo(id, repository, commit, variants) = r
+          val RepositoryInfo(id, repository, commit, variant) = r
           Some((
             id.value,
             repository.value,
             commit.value,
-            variants.hashes.map(_.value)))
+            variant.value))
         }))
   }
 

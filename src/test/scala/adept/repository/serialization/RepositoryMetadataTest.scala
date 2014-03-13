@@ -23,7 +23,7 @@ class RepositoryMetadataTest extends FunSuite with MustMatchers {
           id = id,
           repository = RepositoryName("test"),
           commit = Commit("131321321"),
-          variants = VariantSet(Set(VariantHash(Hasher.hash("foo".getBytes)), VariantHash(Hasher.hash("foo".getBytes))))
+          variant = VariantHash(Hasher.hash("foo".getBytes))
       )))
       
       val hash = VariantHash(Hasher.hash("blah".getBytes))
