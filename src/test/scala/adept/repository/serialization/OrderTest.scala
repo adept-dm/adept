@@ -14,7 +14,7 @@ class OrderTest extends FunSuite with MustMatchers {
   import adept.test.FileUtils.usingTmpDir
   import adept.test.HashUtils._
 
-  test("Variant hash pruning") { //TODO: maybe this is better represented as a BDD style test?
+  test("Variant hash pruning") {
     usingTmpDir { rootDir =>
       val repository = new GitRepository(rootDir, RepositoryName("test-repo1"))
       repository.init()
@@ -28,41 +28,42 @@ class OrderTest extends FunSuite with MustMatchers {
 
       repository.add(Order.insertNewFile(id, hash1, repository, repository.getHead))
       repository.commit("New order (1)")
-      //check if one simple hash can be read:
-      Order.chosenVariants(id, Set(hash1), repository, repository.getHead) must be === Set(hash1)
-
-      //verify that hashes that are not known, are not pruned:
-      Order.chosenVariants(id, Set(hash1, hash21), repository, repository.getHead) must be === Set(hash1, hash21)
-
+      withClue("check if one simple hash can be read") {
+        Order.chosenVariants(id, Set(hash1), repository, repository.getHead) must be === Set(hash1)
+      }
+      withClue("should verify that hashes that are not known, are not pruned") {
+        Order.chosenVariants(id, Set(hash1, hash21), repository, repository.getHead) must be === Set(hash1, hash21)
+      }
       repository.add(Order.insertNewFile(id, hash21, repository, repository.getHead))
       repository.commit("New order (2)")
-      //verify that 2 existing hashes behaves correctly (both are found):
-      Order.chosenVariants(id, Set(hash1, hash21), repository, repository.getHead) must be === Set(hash1, hash21)
-
+      withClue("should verify that 2 existing hashes behaves correctly (both are found)") {
+        Order.chosenVariants(id, Set(hash1, hash21), repository, repository.getHead) must be === Set(hash1, hash21)
+      }
       val orderId2 = Order.findOrderId(id, repository, repository.getHead) { hash =>
         hash21 == hash
       }.value
       repository.add(Order.add(id, orderId2, hash22, repository, repository.getHead))
       repository.commit("Updated order (2)")
-      //verify that the old hashes are pruned away:
-      Order.chosenVariants(id, Set(hash1, hash22, hash21), repository, repository.getHead) must be === Set(hash1, hash22)
-
+      withClue("should verify that the old hashes are pruned away") {
+        Order.chosenVariants(id, Set(hash1, hash22, hash21), repository, repository.getHead) must be === Set(hash1, hash22)
+      }
       repository.add(Order.insertNewFile(id, hash31, repository, repository.getHead))
       repository.commit("New order (3)")
-      //verify that the latest ordering in a new file is included:
-      Order.chosenVariants(id, Set(hash1, hash22, hash21), repository, repository.getHead) must be === Set(hash1, hash22, hash31)
-
+      withClue("verify that the latest ordering in a new file is included") {
+        Order.chosenVariants(id, Set(hash1, hash22, hash21), repository, repository.getHead) must be === Set(hash1, hash22, hash31)
+      }
       val orderId3 = Order.findOrderId(id, repository, repository.getHead) { hash =>
         hash31 == hash
       }.value
       repository.add(Order.add(id, orderId3, hash32, repository, repository.getHead))
       repository.commit("Updated order (3)")
 
-      //verify that the latest order always is the one which is defined (even if there is a newer one):
-      Order.chosenVariants(id, Set(hash1, hash22, hash21, hash31), repository, repository.getHead) must be === Set(hash1, hash22, hash31)
-
-      //verify that active variants work as expected
-      Order.activeVariants(id, repository, repository.getHead) must be === Set(hash1, hash22, hash32)
+      withClue("should verify that the latest order always is the one which is defined (even if there is a newer one)") {
+        Order.chosenVariants(id, Set(hash1, hash22, hash21, hash31), repository, repository.getHead) must be === Set(hash1, hash22, hash31)
+      }
+      withClue("verify that active variants work as expected") {
+        Order.activeVariants(id, repository, repository.getHead) must be === Set(hash1, hash22, hash32)
+      }
     }
   }
 

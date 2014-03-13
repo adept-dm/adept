@@ -30,7 +30,7 @@ class RepositoryMetadataTest extends FunSuite with MustMatchers {
       repository.add(repositoryMetadata.write(id, hash, repository))
       repository.commit("Added repository")
       import org.scalatest.OptionValues._
-      RepositoryMetadata.read(id, hash, repository, repository.getHead) must be === repositoryMetadata
+      RepositoryMetadata.read(id, hash, repository, repository.getHead).value must be === repositoryMetadata
     }
   }
 }

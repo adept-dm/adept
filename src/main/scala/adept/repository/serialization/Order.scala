@@ -96,9 +96,10 @@ object Order {
     assertNewOrder(id, orderId, repository, commit)
     val newOrderFile = repository.getOrderFile(id, orderId)
     val ordersFile = repository.getOrderLookupFile(id)
+    val append = true
     try {
-      addLine(hash.value, new FileOutputStream(newOrderFile))
-      addLine(orderId.value.toString, new FileOutputStream(ordersFile))
+      addLine(hash.value, new FileOutputStream(newOrderFile, append))
+      addLine(orderId.value.toString, new FileOutputStream(ordersFile, append))
       Set(newOrderFile, ordersFile)
     } catch {
       case e: Exception =>
