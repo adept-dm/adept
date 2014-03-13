@@ -9,6 +9,7 @@ import adept.logging.Logging
 import adept.repository.serialization.Order
 import java.io.FileWriter
 import adept.repository.serialization.RepositoryMetadata
+import scala.util.matching.Regex
 
 //import adept.logging.Logging
 //import adept.repository.GitRepository
@@ -153,13 +154,47 @@ object VersionOrder extends Logging {
     touchedFiles ++ orderFiles
   }
 
+  def useSemanticVersions(id: Id, hash: VariantHash, repository: GitRepository, commit: Commit, excludes: Set[Regex] = Set.empty, useVersionAsBinary: Set[Regex] = Set.empty): Set[File] = {
+    val variant = VariantMetadata.read(id, hash, repository, commit)
+      .getOrElse(throw new Exception("Could not find variant: " + id + " hash: " + hash + " in " + repository.dir.getAbsolutePath + " for " + commit))
+    val versions = variant.attribute(AttributeDefaults.VersionAttribute).values
+    val existingBinaryVersions = variant.attribute(AttributeDefaults.BinaryVersionAttribute).values
+    if (versions.size == 1 && existingBinaryVersions.isEmpty) {
+      val version = versions.head
+      val exclude = excludes.exists { pattern =>
+        pattern.findFirstIn(version).isDefined
+      }
+      if (exclude) {
+        Set.empty
+      } else {
+        val useVersionAsBinaryHere = useVersionAsBinary.exists { pattern =>
+          pattern.findFirstIn(version).isDefined
+        }
+        val binaryVersion = if (useVersionAsBinaryHere) {
+          version
+        } else {
+          Version(version).asBinaryVersion
+        }
+        val attributes = variant.attributes + Attribute(AttributeDefaults.BinaryVersionAttribute, Set(binaryVersion))
+        val changedFiles = replaceVariant(variant, variant.copy(attributes = attributes), repository, commit)
+        changedFiles
+      }
+    } else {
+      if (versions.size != 1)
+        logger.debug("Skipping semantic version on " + id + " hash: " + hash + " in " + repository.dir.getAbsolutePath + " for " + commit + " because more than 1 version exists: " + versions)
+      else if (existingBinaryVersions.nonEmpty)
+        logger.debug("Skipping semantic version on " + id + " hash: " + hash + " in " + repository.dir.getAbsolutePath + " for " + commit + " because it already has a binary version: " + existingBinaryVersions)
+      Set.empty
+    }
+  }
+
   private def replaceVariant(currentVariant: Variant, newVariant: Variant, repository: GitRepository, commit: Commit) = {
     val newMetadata = VariantMetadata.fromVariant(newVariant)
     val oldHash = VariantMetadata.fromVariant(currentVariant).hash
     val changedFiles = repository.listActiveOrderIds(currentVariant.id, commit).flatMap { orderId =>
       Order.replace(currentVariant.id, orderId, repository, commit) { currentHash =>
         if (currentHash == oldHash) {
-          Some(Seq(newMetadata.hash, oldHash)) //place new metadata before old
+          Some(Seq(newMetadata.hash, oldHash)) //place new hash before old
         } else None
       }
     } + newMetadata.write(newVariant.id, repository)

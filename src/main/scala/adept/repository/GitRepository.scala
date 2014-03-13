@@ -223,34 +223,9 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
     }
   }
 
-  private lazy val OrderFileFilter = new FilenameFilter {
-    override def accept(dir: File, name: String): Boolean = {
-      name.startsWith(OrderFileNamePrefix)
-    }
-  }
-
-  private lazy val OrderFileIdRegEx = s"""$OrderFileNamePrefix(\\d+)""".r
-
   def getNextOrderId(id: Id, commit: Commit): OrderId = {
-    logger.warn("Next order Id might fail, because it is not reading git") //TODO: use commit!
-    if (commit != getHead || (commit != getHead && commit.value.toUpperCase != "HEAD")) {
-      logger.error("Cannot get next order on: " + commit + " - it is not implemented yet")
-      ???
-    }
-    val orderDir = getIdFile(variantsMetadataDir, id)
-    val orderFiles = listFiles(orderDir, OrderFileFilter).map(_.getName)
-    val nextId = orderFiles.sorted.lastOption match {
-      case Some(OrderFileIdRegEx(id)) => id.toInt + 1 //toInt is 'safe' because of regex 
-      case _ => 1
-    }
-    OrderId(nextId)
-  }
-
-  private def listFiles(dir: File, filter: FilenameFilter): Seq[File] = { //TODO: remove this shouuld not be used!
-    val files = dir.listFiles(OrderFileFilter)
-    if (files != null) {
-      files.toSeq
-    } else Seq.empty
+    val lastId = listActiveOrderIds(id, commit).map(_.value.toInt).toSeq.sorted.lastOption.getOrElse(0)
+    OrderId(lastId + 1)
   }
 
   def listIds(commit: Commit): Set[Id] = {

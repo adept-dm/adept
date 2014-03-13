@@ -90,7 +90,7 @@ object Order {
     else None
   }
 
-  def insertNewFile(id: Id, hash: VariantHash, repository: GitRepository, commit: Commit): File = {
+  def insertNewFile(id: Id, hash: VariantHash, repository: GitRepository, commit: Commit): Set[File] = {
     assertNewHash(id, hash, repository, commit)
     val orderId = repository.getNextOrderId(id, commit)
     assertNewOrder(id, orderId, repository, commit)
@@ -99,7 +99,7 @@ object Order {
     try {
       addLine(hash.value, new FileOutputStream(newOrderFile))
       addLine(orderId.value.toString, new FileOutputStream(ordersFile))
-      newOrderFile
+      Set(newOrderFile, ordersFile)
     } catch {
       case e: Exception =>
         newOrderFile.delete()
