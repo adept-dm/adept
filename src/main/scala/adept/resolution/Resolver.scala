@@ -29,7 +29,7 @@ class UnexpectedResolutionStateException(msg: String) extends Exception(msg)
  *
  * }}}
  */
-class Resolver(loader: VariantsLoader, skipImplicitResolve: Boolean = true) {
+class Resolver(loader: VariantsLoader, skipImplicitResolve: Boolean = false) {
 
   /**
    * Calculate all possible combinations of variants that should be implicit
