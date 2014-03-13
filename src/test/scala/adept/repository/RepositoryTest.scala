@@ -38,7 +38,13 @@ class RepositoryTest extends FunSuite with MustMatchers {
     (progress, info, requirements, CacheManager.create)
   }
   test("MOVE THIS TO VERSION ORDER 3") {
-    //    VariantOrder.addBinaryVersions()
+    usingTmpDir { tmpDir =>
+      val repoA = new GitRepository(tmpDir, RepositoryName("com.a"))
+      repoA.init()
+      val idA = Id("A")
+      val variantA = Variant(idA, Set(version -> Set("1.0.0"), binaryVersion -> Set("1.0")))
+      
+    }
   }
 
   def addThenCommit(variant: Variant, repo: GitRepository, repoMetadata: Set[RepositoryInfo]): Commit = {

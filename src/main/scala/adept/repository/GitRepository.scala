@@ -91,8 +91,9 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
 
   def init() = {
     val git = Git.init().setDirectory(dir).call()
-    commit("Initialized " + name.value)
-    Commit(git.tag().setName(InitTag).call().getName())
+    val initCommit = commit("Initialized " + name.value)
+    git.tag().setName(InitTag).call()
+    initCommit
   }
 
   def commit(msg: String): Commit = {
@@ -263,14 +264,14 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
     }
   }
 
- def listActiveOrderIds(id: Id, commit: Commit): Set[OrderId] = {
+  def listActiveOrderIds(id: Id, commit: Commit): Set[OrderId] = {
     usingOrderLookupInputStream(id, commit) {
       case Right(Some(is)) =>
         io.Source.fromInputStream(is).getLines.map { line =>
           OrderId(line.trim().toInt)
         }.toSet
       case Right(None) => Set.empty
-      case Left(error) => throw new Exception("Could not read order file for: " + id + " in " + dir.getAbsolutePath + " for: " + commit )
+      case Left(error) => throw new Exception("Could not read order file for: " + id + " in " + dir.getAbsolutePath + " for: " + commit)
     }
   }
 }
