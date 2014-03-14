@@ -1,7 +1,7 @@
 package adept.repository.serialization
 
 import org.scalatest.FunSuite
-import org.scalatest.matchers.MustMatchers
+import org.scalatest.Matchers
 import adept.resolution.models.Id
 import adept.utils.Hasher
 import adept.repository.GitRepository
@@ -9,7 +9,7 @@ import adept.repository.models._
 import adept.resolution.models._
 import adept.artifact.models._
 
-class VariantMetadataTest extends FunSuite with MustMatchers {
+class VariantMetadataTest extends FunSuite with Matchers {
   import adept.test.FileUtils.usingTmpDir
 
   test("Create and read variant metadata") {
@@ -28,7 +28,7 @@ class VariantMetadataTest extends FunSuite with MustMatchers {
       repository.add(variantMetadata.write(id, repository))
       repository.commit("Added variant")
       import org.scalatest.OptionValues._
-      VariantMetadata.read(id, variantMetadata.hash, repository, repository.getHead).value must be === variantMetadata.toVariant(id)
+      VariantMetadata.read(id, variantMetadata.hash, repository, repository.getHead).value shouldEqual variantMetadata.toVariant(id)
     }
   }
 }

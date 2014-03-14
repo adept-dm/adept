@@ -1,7 +1,7 @@
 package adept.repository
 
 import org.scalatest.FunSuite
-import org.scalatest.matchers.MustMatchers
+import org.scalatest.Matchers
 import org.eclipse.jgit.lib.TextProgressMonitor
 import adept.repository.models._
 import adept.resolution.models._
@@ -13,7 +13,7 @@ import org.scalatest.OptionValues._
 import adept.ext.VersionOrder
 import adept.ext.AttributeDefaults
 
-class RepositoryTest extends FunSuite with MustMatchers {
+class RepositoryTest extends FunSuite with Matchers {
   import adept.test.FileUtils._
   import adept.test.ResolverUtils._
 

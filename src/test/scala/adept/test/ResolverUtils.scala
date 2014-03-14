@@ -4,9 +4,10 @@ import adept.resolution._
 import adept.resolution.models._
 import adept.resolution.resolver.models._
 import adept.repository._
-import org.scalatest.matchers.MustMatchers
+import org.scalatest.Matchers
 
-object ResolverUtils extends MustMatchers {
+object ResolverUtils extends Matchers {
+  import scala.language.implicitConversions //this is test code
 
   val version = "version"
   val binaryVersion = "binary-version"
@@ -32,7 +33,7 @@ object ResolverUtils extends MustMatchers {
 
   def checkResolved(result: ResolveResult, ids: Set[Id]) = {
     val state = result.state
-    (state.resolved ++ state.implicitVariants.keys) must equal(ids)
+    (state.resolved ++ state.implicitVariants.keys) shouldEqual(ids)
 
   }
 
@@ -40,7 +41,7 @@ object ResolverUtils extends MustMatchers {
     val state = result.state
     val underconstrained = state.underconstrained
     val overconstrained = state.overconstrained
-    (overconstrained ++ underconstrained) must equal(ids)
+    (overconstrained ++ underconstrained) shouldEqual(ids)
   }
 
   def checkVariants(result: ResolveResult, id: Id, attrs: Attribute*) = {
@@ -48,8 +49,8 @@ object ResolverUtils extends MustMatchers {
     assert(result.state.isResolved, "Could not find resolved state:\n" + result)
     val state = result.state
     val variant = (state.resolvedVariants ++ state.implicitVariants).get(id).value
-    variant.id must equal(id)
-    (id -> variant.attributes) must equal(id -> attrs.toSet)
+    variant.id shouldEqual(id)
+    (id -> variant.attributes) shouldEqual(id -> attrs.toSet)
   }
 
   def getMemoryLoader(variants: Set[Variant]) = {

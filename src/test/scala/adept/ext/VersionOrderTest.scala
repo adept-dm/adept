@@ -1,7 +1,7 @@
 package adept.ext
 
 import org.scalatest.FunSpec
-import org.scalatest.matchers.MustMatchers
+import org.scalatest.Matchers
 import adept.repository.models._
 import adept.repository.serialization._
 import adept.repository._
@@ -11,7 +11,7 @@ import adept.repository.serialization.Order
 import java.io.File
 import org.scalatest.OptionValues._
 
-class VersionOrderTest extends FunSpec with MustMatchers {
+class VersionOrderTest extends FunSpec with Matchers {
   import adept.test.FileUtils._
   import adept.test.ResolverUtils._
 
@@ -35,23 +35,23 @@ class VersionOrderTest extends FunSpec with MustMatchers {
           excludes = Set("2\\.8.*?".r)))
         repoA.commit("SemVer")
         val activeAs = Order.activeVariants(idA, repoA, repoA.getHead)
-        activeAs must have size (1)
+        activeAs should have size (1)
         val hash = activeAs.headOption.value
         VariantMetadata.read(idA, hash, repoA, repoA.getHead).value.attribute(AttributeDefaults.BinaryVersionAttribute).values
       }
     }
 
     it("should work for regular version strings") {
-      binaryVersion(Variant(idA, Set(version -> Set("2.10.1")))) must be === Set("2.10")
+      binaryVersion(Variant(idA, Set(version -> Set("2.10.1")))) shouldEqual Set("2.10")
     }
     it("should work for more 'exotic' version strings") {
-      binaryVersion(Variant(idA, Set(version -> Set("2.11.1-SNAPSHOT")))) must be === Set("2.11")
+      binaryVersion(Variant(idA, Set(version -> Set("2.11.1-SNAPSHOT")))) shouldEqual Set("2.11")
     }
     it("should use versions as binaries for matching versions") {
-      binaryVersion(Variant(idA, Set(version -> Set("2.9.3")))) must be === Set("2.9.3")
+      binaryVersion(Variant(idA, Set(version -> Set("2.9.3")))) shouldEqual Set("2.9.3")
     }
     it("should skip versions that matches excludes") {
-      binaryVersion(Variant(idA, Set(version -> Set("2.8.1")))) must be === Set()
+      binaryVersion(Variant(idA, Set(version -> Set("2.8.1")))) shouldEqual Set()
     }
   }
 
@@ -97,18 +97,18 @@ class VersionOrderTest extends FunSpec with MustMatchers {
         }
 
         val activeBs = Order.activeVariants(idB, repoB, repoB.getHead)
-        activeBs must have size (1)
+        activeBs should have size (1)
         activeBs.map { hash =>
           val newVariant = VariantMetadata.read(idB, hash, repoB, repoB.getHead).value
           val requirements = newVariant.requirements.find(_.id == idA).value
-          requirements.constraint(AttributeDefaults.BinaryVersionAttribute).values must be === Set("1.0")
+          requirements.constraint(AttributeDefaults.BinaryVersionAttribute).values shouldEqual Set("1.0")
         }
         val activeCs = Order.activeVariants(idC, repoC, repoC.getHead)
-        activeCs must have size (1)
+        activeCs should have size (1)
         activeCs.map { hash =>
           val newVariant = VariantMetadata.read(idC, hash, repoC, repoC.getHead).value
           val requirements = newVariant.requirements.find(_.id == idA).value
-          requirements.constraint(AttributeDefaults.BinaryVersionAttribute).values must be === Set("1.0")
+          requirements.constraint(AttributeDefaults.BinaryVersionAttribute).values shouldEqual Set("1.0")
         }
       }
     }
@@ -134,7 +134,7 @@ class VersionOrderTest extends FunSpec with MustMatchers {
         val commit1 = repository.commit("Adding some data")
         repository.add(VersionOrder.orderBinaryVersions(id, repository, commit1))
         val commit2 = repository.commit("Order! Oooorder in the repo!")
-        Order.chosenVariants(id, Set.empty, repository, commit2) must be === Set(VariantMetadata.fromVariant(variant101).hash, VariantMetadata.fromVariant(variant110).hash)
+        Order.chosenVariants(id, Set.empty, repository, commit2) shouldEqual Set(VariantMetadata.fromVariant(variant101).hash, VariantMetadata.fromVariant(variant110).hash)
 
         repository.add(VariantMetadata.fromVariant(variant102).write(id, repository))
         repository.add(VariantMetadata.fromVariant(variant111).write(id, repository))
@@ -144,7 +144,7 @@ class VersionOrderTest extends FunSpec with MustMatchers {
         repository.add(VersionOrder.orderBinaryVersions(id, repository, commit3))
         val commit4 = repository.commit("Adept: Now with more order!")
 
-        Order.chosenVariants(id, Set.empty, repository, commit4) must be === Set(VariantMetadata.fromVariant(variant112).hash, VariantMetadata.fromVariant(variant102).hash)
+        Order.chosenVariants(id, Set.empty, repository, commit4) shouldEqual Set(VariantMetadata.fromVariant(variant112).hash, VariantMetadata.fromVariant(variant102).hash)
       }
     }
   }

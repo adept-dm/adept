@@ -1,11 +1,11 @@
 package adept.resolution
 
-import org.scalatest._
-import org.scalatest.matchers.MustMatchers
+import org.scalatest.FunSuite
+import org.scalatest.Matchers
 import adept.resolution.models._
 import adept.repository._
 
-class ResolverTest extends FunSuite with MustMatchers {
+class ResolverTest extends FunSuite with Matchers {
   import adept.test.ResolverUtils._
 
   test("Very simple resolution works correctly") {

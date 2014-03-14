@@ -1,7 +1,7 @@
 package adept.repository.serialization
 
 import org.scalatest.FunSuite
-import org.scalatest.matchers.MustMatchers
+import org.scalatest.Matchers
 import adept.resolution.models.Id
 import adept.utils.Hasher
 import adept.repository.GitRepository
@@ -9,7 +9,7 @@ import adept.repository.models._
 import adept.resolution.models._
 import adept.artifact.models._
 
-class RepositoryMetadataTest extends FunSuite with MustMatchers {
+class RepositoryMetadataTest extends FunSuite with Matchers {
   import adept.test.FileUtils.usingTmpDir
 
   test("Create and read repository metadata") {
@@ -29,7 +29,7 @@ class RepositoryMetadataTest extends FunSuite with MustMatchers {
       repository.add(repositoryMetadata.write(id, hash, repository))
       repository.commit("Added repository")
       import org.scalatest.OptionValues._
-      ResolutionResultsMetadata.read(id, hash, repository, repository.getHead).value must be === repositoryMetadata
+      ResolutionResultsMetadata.read(id, hash, repository, repository.getHead).value shouldEqual repositoryMetadata
     }
   }
 }
