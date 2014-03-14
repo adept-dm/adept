@@ -239,7 +239,7 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
   /** get N order ids from start (could be size of active order ids)  */
   def getXOrderId(id: Id, start: Int = 0, N: Int = 1): Set[OrderId] = {
     if (N < 1) throw new IllegalArgumentException("Cannot get " + N + " new order ids (n is smaller than 1)")
-    if (N < (start + 1)) throw new IllegalArgumentException("Cannot an empty order set " + N + " new order ids (n is smaller than start:" + start + ")")
+    if (N < (start + 1)) throw new IllegalArgumentException("Cannot get an empty order set " + N + " new order ids (n is smaller than start:" + start + ")")
     if (start < 0) throw new IllegalArgumentException("Cannot start at " + start + " new order ids (start is smaller than 0)")
 
     var seed = id.value + {
