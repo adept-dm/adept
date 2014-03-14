@@ -59,12 +59,12 @@ class VersionOrderTest extends FunSpec with MustMatchers {
   describe("Using binary versions in OTHER variants") {
     it("should replace the latest variant with one that uses the binary version") {
 
-      def addThenCommit(variant: Variant, repo: GitRepository, repoMetadata: Set[RepositoryInfo]): Commit = {
+      def addThenCommit(variant: Variant, repo: GitRepository, resovlveResults: Set[ResolveResult]): Commit = {
         val variantMetadata = VariantMetadata.fromVariant(variant)
         repo.add(variantMetadata.write(variant.id, repo))
         repo.commit("Added: " + variant.id)
         repo.add(VersionOrder.orderBinaryVersions(variant.id, repo, repo.getHead))
-        repo.add(RepositoryMetadata(repoMetadata.toSeq).write(variant.id, variantMetadata.hash, repo))
+        repo.add(RepositoryMetadata(resovlveResults.toSeq).write(variant.id, variantMetadata.hash, repo))
         repo.commit("Order & repository metadata: " + variant.id)
       }
 
@@ -83,13 +83,13 @@ class VersionOrderTest extends FunSpec with MustMatchers {
         val variantA = Variant(idA, Set(version -> Set("1.0.0"), binaryVersion -> Set("1.0")))
         val commitA = addThenCommit(variantA, repoA, Set())
         val hashA = VariantMetadata.fromVariant(variantA).hash
-        val repoInfoA = RepositoryInfo(idA, repoA.name, commitA, hashA)
+        val resolveResultA = ResolveResult(idA, repoA.name, commitA, hashA)
         addThenCommit(Variant(idB, Set(version -> Set("1.0.0"), binaryVersion -> Set("1.0")),
           requirements = Set(Requirement(idA, Set.empty))), repoB,
-          Set(repoInfoA))
+          Set(resolveResultA))
         addThenCommit(Variant(idC, Set(version -> Set("1.0.0"), binaryVersion -> Set("1.0")),
           requirements = Set(Requirement(idA, Set.empty))), repoC,
-          Set(repoInfoA))
+          Set(resolveResultA))
 
         VersionOrder.useBinaryVersionOf(idA, repoA, commitA, inRepositories = Set(repoB, repoC)).foreach {
           case (repo, file) =>

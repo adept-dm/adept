@@ -8,7 +8,6 @@ import adept.repository.GitRepository
 import adept.repository.models._
 import adept.resolution.models._
 import adept.artifact.models._
-import adept.repository.models.RepositoryInfo
 
 class RepositoryMetadataTest extends FunSuite with MustMatchers {
   import adept.test.FileUtils.usingTmpDir
@@ -19,7 +18,7 @@ class RepositoryMetadataTest extends FunSuite with MustMatchers {
       repository.init()
       val id = Id("test/foo")
 
-      val repositoryMetadata = RepositoryMetadata(Seq(RepositoryInfo(
+      val repositoryMetadata = RepositoryMetadata(Seq(ResolveResult(
           id = id,
           repository = RepositoryName("test"),
           commit = Commit("131321321"),

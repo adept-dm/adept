@@ -10,9 +10,9 @@ import java.io.FileWriter
 import adept.repository.GitRepository
 import java.io.File
 
-case class RepositoryMetadata(repositories: Seq[RepositoryInfo]) {
+case class RepositoryMetadata(results: Seq[ResolveResult]) {
   import RepositoryMetadata._
-  lazy val jsonString = Json.prettyPrint(Json.toJson(repositories))
+  lazy val jsonString = Json.prettyPrint(Json.toJson(results))
 
   def write(id: Id, hash: VariantHash, repository: Repository): File = {
     val file = repository.getRepositoryFile(id, hash)
@@ -22,21 +22,21 @@ case class RepositoryMetadata(repositories: Seq[RepositoryInfo]) {
 
 object RepositoryMetadata {
 
-  private[adept] implicit def format: Format[RepositoryInfo] = {
+  private[adept] implicit def format: Format[ResolveResult] = {
     (
       (__ \ "id").format[String] and
       (__ \ "repository").format[String] and
       (__ \ "commit").format[String] and
       (__ \ "variant").format[String])({
         case (id, repository, commit, variant) =>
-          RepositoryInfo(
+          ResolveResult(
             Id(id),
             RepositoryName(repository),
             Commit(commit),
             VariantHash(variant))
       },
-        unlift({ r: RepositoryInfo =>
-          val RepositoryInfo(id, repository, commit, variant) = r
+        unlift({ r: ResolveResult =>
+          val ResolveResult(id, repository, commit, variant) = r
           Some((
             id.value,
             repository.value,
@@ -49,7 +49,7 @@ object RepositoryMetadata {
     repository.usingRepositoryInputStream(id, hash, commit) {
       case Right(Some(is)) =>
         val json = Json.parse(io.Source.fromInputStream(is).getLines.mkString("\n"))
-        Json.fromJson[Seq[RepositoryInfo]](json) match {
+        Json.fromJson[Seq[ResolveResult]](json) match {
           case JsSuccess(values, _) => Some(RepositoryMetadata(values))
           case JsError(errors) => throw new Exception("Could parse json: " + id + "#" + hash + " for commit: " + commit + " in dir:  " + repository.dir + " (" + repository.getRepositoryFile(id, hash).getAbsolutePath + "). Got errors: " + errors)
         }

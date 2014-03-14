@@ -209,10 +209,10 @@ object VersionOrder extends Logging {
             !r.constraints.exists(_.name == AttributeDefaults.BinaryVersionAttribute) //skip the constraints that already have binary versions
         }
 
-      val currentRepositoryInfos = metadata.repositories.filter(r => r.id == id && r.repository == repository.name)
-      if (currentRepositoryInfos.size > 1) throw new Exception("Aborting binary version update because we found more than 1 targer repositories for: " + id + " in " + metadata + ": " + currentRepositoryInfos)
+      val currentResults = metadata.results.filter(r => r.id == id && r.repository == repository.name)
+      if (currentResults.size > 1) throw new Exception("Aborting binary version update because we found more than 1 target repositories for: " + id + " in " + metadata + ": " + currentResults)
 
-      val maybeBinaryVersion = currentRepositoryInfos.headOption.flatMap { matchingRepositoryInfo =>
+      val maybeBinaryVersion = currentResults.headOption.flatMap { matchingRepositoryInfo =>
         val maybeFoundVariant = VariantMetadata.read(matchingRepositoryInfo.id, matchingRepositoryInfo.variant,
           repository, matchingRepositoryInfo.commit)
         val foundVariant = maybeFoundVariant.getOrElse(throw new Exception("Aborting binary version update because we could not update required variant for: " + matchingRepositoryInfo + " in " + repository.dir))
