@@ -18,7 +18,7 @@ class RepositoryMetadataTest extends FunSuite with MustMatchers {
       repository.init()
       val id = Id("test/foo")
 
-      val repositoryMetadata = RepositoryMetadata(Seq(ResolveResult(
+      val repositoryMetadata = ResolutionResultsMetadata(Seq(ResolutionResult(
           id = id,
           repository = RepositoryName("test"),
           commit = Commit("131321321"),
@@ -29,7 +29,7 @@ class RepositoryMetadataTest extends FunSuite with MustMatchers {
       repository.add(repositoryMetadata.write(id, hash, repository))
       repository.commit("Added repository")
       import org.scalatest.OptionValues._
-      RepositoryMetadata.read(id, hash, repository, repository.getHead).value must be === repositoryMetadata
+      ResolutionResultsMetadata.read(id, hash, repository, repository.getHead).value must be === repositoryMetadata
     }
   }
 }

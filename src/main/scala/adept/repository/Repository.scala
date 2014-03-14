@@ -21,7 +21,7 @@ object Repository {
   val ReposDirName = "repos"
 
   val JsonFileEnding = "json"
-  val RepositoryMetadataFileName = "repositories." + JsonFileEnding
+  val ResolutionResultsFileName = "resolution-results." + JsonFileEnding
   val InfoMetadataFileName = "info." + JsonFileEnding
   val VariantMetadataFileName = "variant." + JsonFileEnding
   val OrderMetadataFileName = "order-lookup"
@@ -61,7 +61,7 @@ object Repository {
  *         - "order-<order number>": contains the order of variants. there is one ordering per list of _compatible_ variants
  *         - <hash>: is the variant hash of the item (SHA-256 of the contents of variant.json) and is split into 2 sub directories (first 4 chars (level 1), next 4 chars (level 2), then the rest (level 3))
  *           - "variant.json": the variant metadata: attributes, requirements and artifacts references
- *           - "repositories.json": the exact repository information this variant requires to resolve (commit, name, variant, ..)
+ *           - "resolution-results.json": the exact repository information this variant requires to resolve (commit, name, variant, ..)
  *           - "info.json": extra information (home page, description, ...) not used for resolution
  *     - "locations"
  *       - "hosts.properties": hosts that are used and can be overridden in locations and uris
@@ -102,8 +102,8 @@ private[adept] class Repository(val baseDir: File, val name: RepositoryName) {
     ensureParentDirs(new File(getVariantHashDir(id, hash), VariantMetadataFileName))
   }
 
-  def getRepositoryFile(id: Id, hash: VariantHash) = {
-    ensureParentDirs(new File(getVariantHashDir(id, hash), RepositoryMetadataFileName))
+  def getResolutionResultsFile(id: Id, hash: VariantHash) = {
+    ensureParentDirs(new File(getVariantHashDir(id, hash), ResolutionResultsFileName))
   }
 
   def getArtifactFile(hash: ArtifactHash) = {

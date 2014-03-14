@@ -2,15 +2,14 @@ package adept.ext
 
 import org.scalatest.FunSpec
 import org.scalatest.matchers.MustMatchers
-import adept.repository.serialization.VariantMetadata
 import adept.repository.models._
+import adept.repository.serialization._
+import adept.repository._
 import adept.resolution.models._
 import net.sf.ehcache.CacheManager
 import adept.repository.serialization.Order
 import java.io.File
 import org.scalatest.OptionValues._
-import adept.repository.serialization.RepositoryMetadata
-import adept.repository._
 
 class VersionOrderTest extends FunSpec with MustMatchers {
   import adept.test.FileUtils._
@@ -59,12 +58,12 @@ class VersionOrderTest extends FunSpec with MustMatchers {
   describe("Using binary versions in OTHER variants") {
     it("should replace the latest variant with one that uses the binary version") {
 
-      def addThenCommit(variant: Variant, repo: GitRepository, resovlveResults: Set[ResolveResult]): Commit = {
+      def addThenCommit(variant: Variant, repo: GitRepository, resolutionResults: Set[ResolutionResult]): Commit = {
         val variantMetadata = VariantMetadata.fromVariant(variant)
         repo.add(variantMetadata.write(variant.id, repo))
         repo.commit("Added: " + variant.id)
         repo.add(VersionOrder.orderBinaryVersions(variant.id, repo, repo.getHead))
-        repo.add(RepositoryMetadata(resovlveResults.toSeq).write(variant.id, variantMetadata.hash, repo))
+        repo.add(ResolutionResultsMetadata(resolutionResults.toSeq).write(variant.id, variantMetadata.hash, repo))
         repo.commit("Order & repository metadata: " + variant.id)
       }
 
@@ -83,7 +82,7 @@ class VersionOrderTest extends FunSpec with MustMatchers {
         val variantA = Variant(idA, Set(version -> Set("1.0.0"), binaryVersion -> Set("1.0")))
         val commitA = addThenCommit(variantA, repoA, Set())
         val hashA = VariantMetadata.fromVariant(variantA).hash
-        val resolveResultA = ResolveResult(idA, repoA.name, commitA, hashA)
+        val resolveResultA = ResolutionResult(idA, repoA.name, commitA, hashA)
         addThenCommit(Variant(idB, Set(version -> Set("1.0.0"), binaryVersion -> Set("1.0")),
           requirements = Set(Requirement(idA, Set.empty))), repoB,
           Set(resolveResultA))

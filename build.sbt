@@ -9,6 +9,10 @@ resolvers += "Jgit Repository" at "https://repo.eclipse.org/content/groups/relea
 
 scalaVersion := "2.10.3"
 
+scalacOptions += "-feature"
+
+scalacOptions += "-deprecation"
+
 libraryDependencies ++= Seq(
 	//replace json4s with once released: "org.scala-lang" %% "scala-pickling" % "0.8.0-SNAPSHOT"
   	// using: resolvers += Resolver.sonatypeRepo("snapshots") // needed by scala-pickling

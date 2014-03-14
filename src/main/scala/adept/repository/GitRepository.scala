@@ -120,7 +120,7 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
     }
   }
 
-  private def asGitPath(file: File): String = {
+  private[adept] def asGitPath(file: File): String = {
     file.getAbsolutePath().replace(dir.getAbsolutePath() + File.separator, "").replace(File.separator, GitRepository.GitPathSep)
   }
 
@@ -165,8 +165,8 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
     }
   }
 
-  def usingRepositoryInputStream[A](id: Id, hash: VariantHash, commit: Commit)(block: Either[String, Option[InputStream]] => A): A = {
-    usingInputStream(commit, asGitPath(getRepositoryFile(id, hash)))(block)
+  def usingResolutionResultsInputStream[A](id: Id, hash: VariantHash, commit: Commit)(block: Either[String, Option[InputStream]] => A): A = {
+    usingInputStream(commit, asGitPath(getResolutionResultsFile(id, hash)))(block)
   }
 
   def usingVariantInputStream[A](id: Id, hash: VariantHash, commit: Commit)(block: Either[String, Option[InputStream]] => A): A = {

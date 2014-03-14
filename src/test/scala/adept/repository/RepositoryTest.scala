@@ -3,7 +3,6 @@ package adept.repository
 import org.scalatest.FunSuite
 import org.scalatest.matchers.MustMatchers
 import org.eclipse.jgit.lib.TextProgressMonitor
-import adept.repository.serialization.VariantMetadata
 import adept.repository.models._
 import adept.resolution.models._
 import net.sf.ehcache.CacheManager
@@ -12,7 +11,6 @@ import java.io.File
 import adept.ext.Version
 import org.scalatest.OptionValues._
 import adept.ext.VersionOrder
-import adept.repository.serialization.RepositoryMetadata
 import adept.ext.AttributeDefaults
 
 class RepositoryTest extends FunSuite with MustMatchers {

@@ -8,7 +8,7 @@ import adept.repository.serialization.VariantMetadata
 import adept.logging.Logging
 import adept.repository.serialization.Order
 import java.io.FileWriter
-import adept.repository.serialization.RepositoryMetadata
+import adept.repository.serialization.ResolutionResultsMetadata
 import scala.util.matching.Regex
 
 //import adept.logging.Logging
@@ -202,15 +202,15 @@ object VersionOrder extends Logging {
   }
 
   def useBinaryVersionOf(id: Id, repository: GitRepository, commit: Commit, inRepositories: Set[GitRepository]): Set[(GitRepository, File)] = {
-    def getBinaryVersionRequirements(variant: Variant, metadata: RepositoryMetadata) = {
+    def getBinaryVersionRequirements(variant: Variant, resolutionResults: ResolutionResultsMetadata) = {
       val (targetRequirements, untouchedRequirements) = variant.requirements
         .partition { r =>
           r.id == id &&
             !r.constraints.exists(_.name == AttributeDefaults.BinaryVersionAttribute) //skip the constraints that already have binary versions
         }
 
-      val currentResults = metadata.results.filter(r => r.id == id && r.repository == repository.name)
-      if (currentResults.size > 1) throw new Exception("Aborting binary version update because we found more than 1 target repositories for: " + id + " in " + metadata + ": " + currentResults)
+      val currentResults = resolutionResults.values.filter(r => r.id == id && r.repository == repository.name)
+      if (currentResults.size > 1) throw new Exception("Aborting binary version update because we found more than 1 target repositories for: " + id + " in " + resolutionResults + ": " + currentResults)
 
       val maybeBinaryVersion = currentResults.headOption.flatMap { matchingRepositoryInfo =>
         val maybeFoundVariant = VariantMetadata.read(matchingRepositoryInfo.id, matchingRepositoryInfo.variant,
@@ -234,8 +234,8 @@ object VersionOrder extends Logging {
         val variants = Order.activeVariants(otherId, otherRepo, otherCommit)
         variants.flatMap { otherHash =>
           val otherVariant = VariantMetadata.read(otherId, otherHash, otherRepo, otherCommit).getOrElse(throw new Exception("Could not update binary version for: " + id + " in " + otherId + " because we could not find a variant for hash: " + otherHash + " in " + otherRepo + " and commit " + commit))
-          val metadata = RepositoryMetadata.read(otherId, otherHash, otherRepo, otherCommit).getOrElse(throw new Exception("Could not update binary version for: " + id + " in " + otherId + " because we could not find a repository info for: " + otherHash + " in repo " + otherRepo.dir.getAbsolutePath + " commit " + otherCommit))
-          val (fixedRequirements, untouchedRequirements) = getBinaryVersionRequirements(otherVariant, metadata)
+          val resolutionResults = ResolutionResultsMetadata.read(otherId, otherHash, otherRepo, otherCommit).getOrElse(throw new Exception("Could not update binary version for: " + id + " in " + otherId + " because we could not find a repository info for: " + otherHash + " in repo " + otherRepo.dir.getAbsolutePath + " commit " + otherCommit))
+          val (fixedRequirements, untouchedRequirements) = getBinaryVersionRequirements(otherVariant, resolutionResults)
 
           if (fixedRequirements.nonEmpty) {
             val newVariant = otherVariant.copy(requirements = untouchedRequirements ++ fixedRequirements)

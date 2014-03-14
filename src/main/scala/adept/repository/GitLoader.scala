@@ -10,7 +10,7 @@ import net.sf.ehcache.Ehcache
 import adept.repository.serialization.Order
 import org.eclipse.jgit.lib.ProgressMonitor
 
-class GitLoader(baseDir: File, repositories: Set[(ResolveResult, RepositoryLocations)], progress: ProgressMonitor, cacheManager: CacheManager) extends VariantsLoader {
+class GitLoader(baseDir: File, repositories: Set[(ResolutionResult, RepositoryLocations)], progress: ProgressMonitor, cacheManager: CacheManager) extends VariantsLoader {
   private val thisUniqueId = Hasher.hash(repositories.map { case (ri, loc) => ri.id + "-" + ri.repository + "-" + ri.commit + "-" + ri.variant.value + "-" + loc.uris.toSeq.sorted.mkString(";") }.toSeq.sorted.mkString("#").getBytes)
 
   private val cache: Ehcache = {
