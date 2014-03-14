@@ -116,7 +116,7 @@ object VersionOrder extends Logging {
   }
 
   def orderBinaryVersions(id: Id, repository: GitRepository, commit: Commit): Set[File] = {
-    val variants = repository.listVariants(id, commit).map { hash =>
+    val variants = VariantMetadata.listVariants(id, repository, commit).map { hash =>
       VariantMetadata.read(id, hash, repository, commit) match {
         case Some(variant) => variant
         case _ => throw new Exception("Unexpectly could not read variant: " + hash + " in  " + repository.dir.getAbsolutePath)
@@ -130,12 +130,12 @@ object VersionOrder extends Logging {
         allBinaryVersions += binaryVersion -> (variant +: parsedVariants)
       }
     }
-    val orders = repository.getXOrderId(id, 0, allBinaryVersions.size) //overwrites former files
+    val orders = Order.getXOrderId(id, repository, 0, allBinaryVersions.size) //overwrites former files
     val newOrderIds = {
       ((0 to orders.size) zip orders).toMap
     }
 
-    val oldOrderIds = repository.listActiveOrderIds(id, commit).diff(orders)
+    val oldOrderIds = Order.listActiveOrderIds(id, repository, commit).diff(orders)
     val oldOrderFiles = oldOrderIds.map { orderId =>
       val orderFile = repository.getOrderFile(id, orderId)
       writeLines(Seq.empty, repository.getOrderFile(id, orderId)) //delete
@@ -193,7 +193,7 @@ object VersionOrder extends Logging {
   private def replaceVariant(currentVariant: Variant, newVariant: Variant, repository: GitRepository, commit: Commit) = {
     val newMetadata = VariantMetadata.fromVariant(newVariant)
     val oldHash = VariantMetadata.fromVariant(currentVariant).hash
-    val changedFiles = repository.listActiveOrderIds(currentVariant.id, commit).flatMap { orderId =>
+    val changedFiles = Order.listActiveOrderIds(currentVariant.id, repository, commit).flatMap { orderId =>
       Order.replace(currentVariant.id, orderId, repository, commit) { currentHash =>
         if (currentHash == oldHash) {
           Some(Seq(newMetadata.hash, oldHash)) //place new hash before old
@@ -232,7 +232,7 @@ object VersionOrder extends Logging {
 
     val changedFiles = inRepositories.par.flatMap { otherRepo =>
       val otherCommit = otherRepo.getHead
-      otherRepo.listIds(otherCommit).flatMap { otherId =>
+      VariantMetadata.listIds(otherRepo, otherCommit).flatMap { otherId =>
         val variants = Order.activeVariants(otherId, otherRepo, otherCommit)
         variants.flatMap { otherHash =>
           val otherVariant = VariantMetadata.read(otherId, otherHash, otherRepo, otherCommit).getOrElse(throw new Exception("Could not update binary version for: " + id + " in " + otherId + " because we could not find a variant for hash: " + otherHash + " in " + otherRepo + " and commit " + commit))

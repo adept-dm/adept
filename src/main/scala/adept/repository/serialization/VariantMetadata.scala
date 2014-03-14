@@ -85,11 +85,37 @@ object VariantMetadata {
         val json = Json.parse(io.Source.fromInputStream(is).getLines.mkString("\n"))
         Json.fromJson[VariantMetadata](json) match {
           case JsSuccess(value, _) => Some(value.toVariant(id))
-          case JsError(errors) => throw new Exception("Could parse json: " + hash + " for commit: " + commit + " in dir:  " + repository.dir + " ("+ repository.getVariantFile(id, hash).getAbsolutePath + "). Got errors: " + errors)
+          case JsError(errors) => throw new Exception("Could parse json: " + hash + " for commit: " + commit + " in dir:  " + repository.dir + " (" + repository.getVariantFile(id, hash).getAbsolutePath + "). Got errors: " + errors)
         }
       case Right(None) => None
       case Left(error) =>
         throw new Exception("Could not read: " + hash + " for commit: " + commit + " in dir:  " + repository.dir + ". Got error: " + error)
     }
   }
+
+  import Repository._
+  import GitRepository._
+  
+  def listVariants(id: Id, repository: GitRepository, commit: Commit): Set[VariantHash] = {
+    val HashExtractionRegex = s"""$VariantsMetadataDirName$GitPathSep${id.value}$GitPathSep(.*?)$GitPathSep(.*?)$GitPathSep(.*?)$GitPathSep$VariantMetadataFileName""".r
+    repository.usePath[VariantHash](Some(VariantsMetadataDirName), commit) { path =>
+      path match {
+        case HashExtractionRegex(level1, level2, level3) =>
+          Some(VariantHash(level1 + level2 + level3))
+        case _ => None
+      }
+    }
+  }
+
+  def listIds(repository: GitRepository, commit: Commit): Set[Id] = {
+    val IdExtractionRegex = s"""$VariantsMetadataDirName$GitPathSep(.*)$GitPathSep(.*?)$GitPathSep(.*?)$GitPathSep(.*?)$GitPathSep$VariantMetadataFileName""".r
+    repository.usePath[Id](Some(VariantsMetadataDirName), commit) { path =>
+      path match {
+        case IdExtractionRegex(id, level1, level2, level3) =>
+          Some(Id(id))
+        case _ => None
+      }
+    }
+  }
+
 }

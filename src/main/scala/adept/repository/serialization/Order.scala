@@ -16,6 +16,7 @@ import java.io.FileReader
 import java.io.BufferedWriter
 import adept.repository.models.OrderId
 import java.io.BufferedInputStream
+import adept.utils.Hasher
 
 case class IllegalOrderStateException(repository: Repository, reason: String) extends Exception("Order file(s) in " + repository.dir.getAbsolutePath + " are not well formed. Details: " + reason)
 
@@ -29,7 +30,7 @@ case class IllegalOrderStateException(repository: Repository, reason: String) ex
  */
 object Order {
   private def assertNewHash(id: Id, hash: VariantHash, repository: GitRepository, commit: Commit) = {
-    repository.listActiveOrderIds(id, commit).par.foreach { orderId => //NOTICE .par TODO: use IO execution context
+    listActiveOrderIds(id, repository, commit).par.foreach { orderId => //NOTICE .par TODO: use IO execution context
       val currentFile = repository.getOrderFile(id, orderId)
       io.Source.fromFile(currentFile).getLines.foreach { line =>
         if (line == hash.value) {
@@ -52,13 +53,13 @@ object Order {
 
   private def assertNewOrder(id: Id, orderId: OrderId, repository: GitRepository, commit: Commit) = {
     if (repository.getOrderFile(id, orderId).isFile) throw IllegalOrderStateException(repository, "New order " + orderId.value + " cannot be created because " + repository.getOrderFile(id, orderId).getAbsolutePath + " is a file already.")
-    if (repository.listActiveOrderIds(id, commit).contains(orderId)) {
+    if (listActiveOrderIds(id, repository, commit).contains(orderId)) {
       throw IllegalOrderStateException(repository, "New order " + orderId.value + " cannot be created because " + repository.asGitPath(repository.getOrderFile(id, orderId)) + " already exists?")
     }
   }
 
   def findOrderId(id: Id, repository: GitRepository, commit: Commit)(predicate: VariantHash => Boolean): Option[OrderId] = {
-    val orderIds = repository.listActiveOrderIds(id, commit)
+    val orderIds = listActiveOrderIds(id, repository, commit)
     var foundOrderId: Option[OrderId] = None
     var invalidated = false
     orderIds.foreach { orderId =>
@@ -86,8 +87,8 @@ object Order {
 
   def insertNewFile(id: Id, hash: VariantHash, repository: GitRepository, commit: Commit): Set[File] = {
     assertNewHash(id, hash, repository, commit)
-    val currentIdsSize = repository.listActiveOrderIds(id, commit).size
-    val orderId = repository.getXOrderId(id, start = currentIdsSize, N = currentIdsSize + 1)
+    val currentIdsSize = listActiveOrderIds(id, repository, commit).size
+    val orderId = getXOrderId(id, repository, start = currentIdsSize, N = currentIdsSize + 1)
       .headOption.getOrElse(throw new Exception("Could not create a new order id for: " + id + " in " + repository.dir.getAbsolutePath + " for " + commit))
     assertNewOrder(id, orderId, repository, commit)
     val newOrderFile = repository.getOrderFile(id, orderId)
@@ -145,7 +146,7 @@ object Order {
 
   def chosenVariants(id: Id, variants: Set[VariantHash], repository: GitRepository, commit: Commit): Set[VariantHash] = {
     var comparableVariants = variants
-    val orderIds = repository.listActiveOrderIds(id, commit)
+    val orderIds = listActiveOrderIds(id, repository, commit)
     orderIds.foreach { orderId =>
       repository.usingOrderInputStream(id, orderId, commit) {
         case Right(Some(is)) =>
@@ -216,5 +217,50 @@ object Order {
       case Left(error) =>
         throw new Exception("Could not read: " + id + " of order id: " + orderId + " for commit: " + commit + " in dir:  " + repository.dir + ". Got error: " + error)
     }
+  }
+
+  import Repository._
+  import GitRepository._
+
+  def listActiveOrderIds(id: Id, repository: GitRepository, commit: Commit): Set[OrderId] = {
+
+    val orderPath = s"""$VariantsMetadataDirName$GitPathSep${id.value}"""
+    val OrderIdExtractionRegEx = s"""$orderPath$GitPathSep$OrderFileNamePrefix(.*?)""".r
+    val orderIds = repository.usePath[OrderId](Some(orderPath), commit) { path =>
+      path match {
+        case OrderIdExtractionRegEx(id) => Some(OrderId(id))
+        case _ => None
+      }
+    }
+    orderIds
+  }
+
+  /** get N order ids from start (could be size of active order ids)  */
+  def getXOrderId(id: Id, repository: GitRepository, start: Int = 0, N: Int = 1): Set[OrderId] = {
+    if (N < 1) throw new IllegalArgumentException("Cannot get " + N + " new order ids (n is smaller than 1)")
+    if (N < (start + 1)) throw new IllegalArgumentException("Cannot get an empty order set " + N + " new order ids (n is smaller than start:" + start + ")")
+    if (start < 0) throw new IllegalArgumentException("Cannot start at " + start + " new order ids (start is smaller than 0)")
+
+    var seed = id.value + {
+      repository.usingRevWalk { (gitRepo, revWalk) =>
+        val revCommit = repository.lookup(gitRepo, revWalk, InitTag)
+          .getOrElse(throw new Exception("Cannot get next order because init tag: " + InitTag + " does not resolve a commit - is the repository " + repository.dir.getAbsolutePath + "not properly initialized?"))
+        revCommit.name
+      }
+    }
+
+    def createHash(lastSeed: String) = {
+      Hasher.hash((lastSeed * 2 + 42).getBytes)
+    }
+
+    for (i <- 0 to start) {
+      val lastSeed = seed
+      seed = createHash(lastSeed)
+    }
+    (for (i <- 0 to (N - start - 1)) yield {
+      val lastSeed = seed
+      seed = createHash(lastSeed)
+      OrderId(seed)
+    }).toSet
   }
 }

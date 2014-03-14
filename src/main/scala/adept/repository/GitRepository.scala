@@ -21,7 +21,7 @@ import adept.utils.Hasher
  *
  *  See [[adept.repository.Repository]] for WRITE operations and layout
  */
-class GitRepository(override val baseDir: File, override val name: RepositoryName, progress: ProgressMonitor = NullProgressMonitor.INSTANCE, val passphrase: Option[String] = None) extends Repository(baseDir, name) with Logging {
+class GitRepository(override val baseDir: File, override val name: RepositoryName) extends Repository(baseDir, name) with Logging {
   import GitRepository._
   import Repository._
 
@@ -31,7 +31,7 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
     }
   }
 
-  def fetchRemote(uri: String) = {
+  def fetchRemote(uri: String, passphrase: Option[String], progress: ProgressMonitor = NullProgressMonitor.INSTANCE) = {
     GitHelpers.withGitSshCredentials(passphrase) {
       git.fetch().setRemote(uri).setProgressMonitor(progress).call()
     }
@@ -53,7 +53,7 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
     }
   }
 
-  private def usingRevWalk[A](func: (JGitRepository, RevWalk) => A) = {
+  private[repository] def usingRevWalk[A](func: (JGitRepository, RevWalk) => A) = {
     usingGitRepo { gitRepo =>
       val revWalk = new RevWalk(gitRepo)
       try {
@@ -64,7 +64,7 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
     }
   }
 
-  private def usingTreeWalk[A](func: (JGitRepository, RevWalk, TreeWalk) => A) = {
+  private[repository] def usingTreeWalk[A](func: (JGitRepository, RevWalk, TreeWalk) => A) = {
     usingRevWalk { (gitRepo, revWalk) =>
       val treeWalk = new TreeWalk(gitRepo)
       try {
@@ -137,7 +137,7 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
     file.getAbsolutePath().replace(dir.getAbsolutePath() + File.separator, "").replace(File.separator, GitRepository.GitPathSep)
   }
 
-  private def lookup(gitRepo: JGitRepository, revWalk: RevWalk, commitString: String) = {
+  private[repository] def lookup(gitRepo: JGitRepository, revWalk: RevWalk, commitString: String) = {
     val resolvedRef = gitRepo.resolve(commitString)
     if (resolvedRef != null) {
       val revCommit = revWalk.lookupCommit(resolvedRef)
@@ -198,7 +198,7 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
     git.status().call().isClean()
   }
 
-  private def usePath[A](path: Option[String], commit: Commit)(accumulate: String => Option[A]): Set[A] = {
+  private[repository] def usePath[A](path: Option[String], commit: Commit)(accumulate: String => Option[A]): Set[A] = {
     usingTreeWalk { (gitRepo, revWalk, treeWalk) =>
       var accumulator = Set.empty[A]
       val revCommit = lookup(gitRepo, revWalk, commit.value).getOrElse {
@@ -225,68 +225,7 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
     }
   }
 
-  def listVariants(id: Id, commit: Commit): Set[VariantHash] = {
-    val HashExtractionRegex = s"""$VariantsMetadataDirName$GitPathSep${id.value}$GitPathSep(.*?)$GitPathSep(.*?)$GitPathSep(.*?)$GitPathSep$VariantMetadataFileName""".r
-    usePath[VariantHash](Some(VariantsMetadataDirName), commit) { path =>
-      path match {
-        case HashExtractionRegex(level1, level2, level3) =>
-          Some(VariantHash(level1 + level2 + level3))
-        case _ => None
-      }
-    }
-  }
 
-  /** get N order ids from start (could be size of active order ids)  */
-  def getXOrderId(id: Id, start: Int = 0, N: Int = 1): Set[OrderId] = {
-    if (N < 1) throw new IllegalArgumentException("Cannot get " + N + " new order ids (n is smaller than 1)")
-    if (N < (start + 1)) throw new IllegalArgumentException("Cannot get an empty order set " + N + " new order ids (n is smaller than start:" + start + ")")
-    if (start < 0) throw new IllegalArgumentException("Cannot start at " + start + " new order ids (start is smaller than 0)")
-
-    var seed = id.value + {
-      usingRevWalk { (gitRepo, revWalk) =>
-        val revCommit = lookup(gitRepo, revWalk, InitTag)
-          .getOrElse(throw new Exception("Cannot get next order because init tag: " + InitTag + " does not resolve a commit - is the repository " + dir.getAbsolutePath + "not properly initialized?"))
-        revCommit.name
-      }
-    }
-
-    def createHash(lastSeed: String) = {
-      Hasher.hash((lastSeed * 2 + 42).getBytes)
-    }
-
-    for (i <- 0 to start) {
-      val lastSeed = seed
-      seed = createHash(lastSeed)
-    }
-    (for (i <- 0 to (N - start - 1)) yield {
-      val lastSeed = seed
-      seed = createHash(lastSeed)
-      OrderId(seed)
-    }).toSet
-  }
-
-  def listIds(commit: Commit): Set[Id] = {
-    val IdExtractionRegex = s"""$VariantsMetadataDirName$GitPathSep(.*)$GitPathSep(.*?)$GitPathSep(.*?)$GitPathSep(.*?)$GitPathSep$VariantMetadataFileName""".r
-    usePath[Id](Some(VariantsMetadataDirName), commit) { path =>
-      path match {
-        case IdExtractionRegex(id, level1, level2, level3) =>
-          Some(Id(id))
-        case _ => None
-      }
-    }
-  }
-
-  def listActiveOrderIds(id: Id, commit: Commit): Set[OrderId] = {
-    val orderPath = s"""$VariantsMetadataDirName$GitPathSep${id.value}"""
-    val OrderIdExtractionRegEx = s"""$orderPath$GitPathSep$OrderFileNamePrefix(.*?)""".r
-    val orderIds = usePath[OrderId](Some(orderPath), commit) { path =>
-      path match {
-        case OrderIdExtractionRegEx(id) => Some(OrderId(id))
-        case _ => None
-      }
-    }
-    orderIds
-  }
 }
 
 object GitRepository {

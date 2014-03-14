@@ -77,7 +77,7 @@ class OrderTest extends FunSuite with Matchers {
       val beforeOldHash: VariantHash = "beforeoldhash"
       repository.add(Order.insertNewFile(id, oldHash, repository, repository.getHead))
       repository.commit("Some order is required")
-      repository.add(repository.listActiveOrderIds(id, repository.getHead).flatMap { orderId =>
+      repository.add(Order.listActiveOrderIds(id, repository, repository.getHead).flatMap { orderId =>
         Order.replace(id, orderId, repository, repository.getHead) { currentHash =>
           if (currentHash == oldHash) {
             Some(Seq(afterOldHash, oldHash, beforeOldHash))
