@@ -9,7 +9,7 @@ import adept.repository.models._
 import adept.resolution.models._
 import adept.artifact.models._
 
-class RepositoryMetadataTest extends FunSuite with Matchers {
+class ResolutionResultsMetadataTest extends FunSuite with Matchers {
   import adept.test.FileUtils.usingTmpDir
 
   test("Create and read repository metadata") {
