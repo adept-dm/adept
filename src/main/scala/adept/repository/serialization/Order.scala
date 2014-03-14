@@ -86,7 +86,8 @@ object Order {
 
   def insertNewFile(id: Id, hash: VariantHash, repository: GitRepository, commit: Commit): Set[File] = {
     assertNewHash(id, hash, repository, commit)
-    val orderId = repository.getXOrderId(id, start = repository.listActiveOrderIds(id, commit).size, N = 1)
+    val currentIdsSize = repository.listActiveOrderIds(id, commit).size
+    val orderId = repository.getXOrderId(id, start = currentIdsSize, N = currentIdsSize + 1)
       .headOption.getOrElse(throw new Exception("Could not create a new order id for: " + id + " in " + repository.dir.getAbsolutePath + " for " + commit))
     assertNewOrder(id, orderId, repository, commit)
     val newOrderFile = repository.getOrderFile(id, orderId)
