@@ -125,26 +125,40 @@ class VersionOrderTest extends FunSpec with Matchers {
         val variant110 = Variant(id, Set(version -> Set("1.1.0"), binaryVersion -> Set("1.1")))
         val variant112 = Variant(id, Set(version -> Set("1.1.2"), binaryVersion -> Set("1.1")))
 
+        val variant200 = Variant(id, Set(version -> Set("2.0.0"), binaryVersion -> Set("2.0")))
+
         val repository = new GitRepository(tmpDir, RepositoryName("com.a"))
         repository.init()
         repository.add(VariantMetadata.fromVariant(variant101).write(id, repository))
         repository.add(VariantMetadata.fromVariant(variant100).write(id, repository))
         repository.add(VariantMetadata.fromVariant(variant110).write(id, repository))
+        repository.add(VariantMetadata.fromVariant(variant200).write(id, repository))
 
         val commit1 = repository.commit("Adding some data")
         repository.add(VersionOrder.orderBinaryVersions(id, repository, commit1))
         val commit2 = repository.commit("Order! Oooorder in the repo!")
-        Order.chosenVariants(id, Set.empty, repository, commit2) shouldEqual Set(VariantMetadata.fromVariant(variant101).hash, VariantMetadata.fromVariant(variant110).hash)
+        Order.chosenVariants(id, Set.empty, repository, commit2) shouldEqual Set(VariantMetadata.fromVariant(variant101).hash, VariantMetadata.fromVariant(variant110).hash, VariantMetadata.fromVariant(variant200).hash)
+
+        repository.rm(repository.getVariantFile(id, VariantMetadata.fromVariant(variant200).hash))
+        val commit3 = repository.commit("Remove some data...")
 
         repository.add(VariantMetadata.fromVariant(variant102).write(id, repository))
         repository.add(VariantMetadata.fromVariant(variant111).write(id, repository))
         repository.add(VariantMetadata.fromVariant(variant112).write(id, repository))
-        val commit3 = repository.commit("More data! Jej!")
+        val commit4 = repository.commit("Add some data...")
 
-        repository.add(VersionOrder.orderBinaryVersions(id, repository, commit3))
-        val commit4 = repository.commit("Adept: Now with more order!")
+        repository.add(VersionOrder.orderBinaryVersions(id, repository, commit4))
+        val commit5 = repository.commit("And some order")
+        Order.chosenVariants(id, Set.empty, repository, commit5) shouldEqual Set(VariantMetadata.fromVariant(variant112).hash, VariantMetadata.fromVariant(variant102).hash)
 
-        Order.chosenVariants(id, Set.empty, repository, commit4) shouldEqual Set(VariantMetadata.fromVariant(variant112).hash, VariantMetadata.fromVariant(variant102).hash)
+        repository.add(VariantMetadata.fromVariant(variant200).write(id, repository))
+        val commit6 = repository.commit("Re-added something we removed")
+        repository.add(VersionOrder.orderBinaryVersions(id, repository, commit6))
+        val commit7 = repository.commit("Adept: Now with more order!")
+        
+        Order.chosenVariants(id, Set.empty, repository, commit7) shouldEqual Set(VariantMetadata.fromVariant(variant112).hash, VariantMetadata.fromVariant(variant102).hash, VariantMetadata.fromVariant(variant200).hash)
+
+
       }
     }
   }

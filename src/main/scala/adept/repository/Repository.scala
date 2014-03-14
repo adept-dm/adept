@@ -24,8 +24,7 @@ object Repository {
   val ResolutionResultsFileName = "resolution-results." + JsonFileEnding
   val InfoMetadataFileName = "info." + JsonFileEnding
   val VariantMetadataFileName = "variant." + JsonFileEnding
-  val OrderMetadataFileName = "order-lookup"
-  val OrderFileNamePrefix = "ordering-"
+  val OrderFileNamePrefix = "order-"
 
   val IdDirSep = "/" //the character in an ID that indicates a different directory
 
@@ -57,8 +56,7 @@ object Repository {
  *   - <repository name>: The actual repository starts here (this is the repository name)
  *     - "variants"
  *       - <id>: is the id and might be more than one sub-directory (foo/bar/zoo has 3 directory levels)
- *         - "order-lookup": the order lookup file, used to lookup active order files
- *         - "order-<order number>": contains the order of variants. there is one ordering per list of _compatible_ variants
+ *         - "order-<order id>": contains the order of variants. Typically there is one order per list of _compatible_ variants
  *         - <hash>: is the variant hash of the item (SHA-256 of the contents of variant.json) and is split into 2 sub directories (first 4 chars (level 1), next 4 chars (level 2), then the rest (level 3))
  *           - "variant.json": the variant metadata: attributes, requirements and artifacts references
  *           - "resolution-results.json": the exact repository information this variant requires to resolve (commit, name, variant, ..)
@@ -114,10 +112,6 @@ private[adept] class Repository(val baseDir: File, val name: RepositoryName) {
       val level2 = new File(level1, hash.value.slice(Level1Length, Level2Length))
       ensureParentDirs(new File(level2, hash.value.slice(Level2Length, Level3Length)))
     }
-  }
-
-  def getOrderLookupFile(id: Id): File = {
-    ensureParentDirs(new File(getIdFile(variantsMetadataDir, id), OrderMetadataFileName))
   }
 
   def getOrderFile(id: Id, orderId: OrderId): File = {

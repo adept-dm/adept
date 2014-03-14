@@ -14,6 +14,7 @@ import org.eclipse.jgit.lib.ProgressMonitor
 import org.eclipse.jgit.lib.NullProgressMonitor
 import java.io.FilenameFilter
 import adept.logging.Logging
+import adept.utils.Hasher
 
 /**
  *  Defines Git operations and defines streams methods used for READ operations.
@@ -79,14 +80,26 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
     Commit(revWalk.lookupCommit(resolvedRef).name)
   }
 
-  def add(files: Set[File]): Unit = {
+  def add(files: Set[File]): Set[File] = {
     add(files.toSeq: _*)
   }
 
-  def add(files: File*): Unit = {
+  def add(files: File*): Set[File] = {
     files.foreach { file =>
       git.add().addFilepattern(asGitPath(file)).call()
     }
+    files.toSet
+  }
+
+  def rm(files: Set[File]): Set[File] = {
+    rm(files.toSeq: _*)
+  }
+
+  def rm(files: File*): Set[File] = {
+    files.foreach { file =>
+      git.rm().addFilepattern(asGitPath(file)).call()
+    }
+    files.toSet
   }
 
   def init() = {
@@ -177,15 +190,15 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
     usingInputStream(commit, asGitPath(getArtifactFile(hash)))(block)
   }
 
-  def usingOrderLookupInputStream[A](id: Id, commit: Commit)(block: Either[String, Option[InputStream]] => A): A = {
-    usingInputStream(commit, asGitPath(getOrderLookupFile(id)))(block)
-  }
-
   def usingOrderInputStream[A](id: Id, orderId: OrderId, commit: Commit)(block: Either[String, Option[InputStream]] => A): A = {
     usingInputStream(commit, asGitPath(getOrderFile(id, orderId)))(block)
   }
 
-  private def useVariantsPath[A](commit: Commit)(accumulate: String => Option[A]): Set[A] = {
+  def isClean: Boolean = {
+    git.status().call().isClean()
+  }
+
+  private def usePath[A](path: Option[String], commit: Commit)(accumulate: String => Option[A]): Set[A] = {
     usingTreeWalk { (gitRepo, revWalk, treeWalk) =>
       var accumulator = Set.empty[A]
       val revCommit = lookup(gitRepo, revWalk, commit.value).getOrElse {
@@ -200,7 +213,7 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
       val currentTree = revCommit.getTree()
       if (currentTree != null) {
         treeWalk.addTree(currentTree)
-        treeWalk.setFilter(PathFilter.create(VariantsMetadataDirName))
+        path.foreach(p => treeWalk.setFilter(PathFilter.create(p)))
         treeWalk.setRecursive(true) //without recursive Git will return the directory, not the file
         while (treeWalk.next()) {
           if (!treeWalk.isSubtree()) {
@@ -213,26 +226,50 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
   }
 
   def listVariants(id: Id, commit: Commit): Set[VariantHash] = {
-    val HashExtractionExpression = s"""$VariantsMetadataDirName$GitPathSep${id.value}$GitPathSep(.*?)$GitPathSep(.*?)$GitPathSep(.*?)$GitPathSep$VariantMetadataFileName""".r
-    useVariantsPath[VariantHash](commit) { path =>
+    val HashExtractionRegex = s"""$VariantsMetadataDirName$GitPathSep${id.value}$GitPathSep(.*?)$GitPathSep(.*?)$GitPathSep(.*?)$GitPathSep$VariantMetadataFileName""".r
+    usePath[VariantHash](Some(VariantsMetadataDirName), commit) { path =>
       path match {
-        case HashExtractionExpression(level1, level2, level3) =>
+        case HashExtractionRegex(level1, level2, level3) =>
           Some(VariantHash(level1 + level2 + level3))
         case _ => None
       }
     }
   }
 
-  def getNextOrderId(id: Id, commit: Commit): OrderId = {
-    val lastId = listActiveOrderIds(id, commit).map(_.value.toInt).toSeq.sorted.lastOption.getOrElse(0)
-    OrderId(lastId + 1)
+  /** get N order ids from start (could be size of active order ids)  */
+  def getXOrderId(id: Id, start: Int = 0, N: Int = 1): Set[OrderId] = {
+    if (N < 1) throw new IllegalArgumentException("Cannot get " + N + " new order ids (n is smaller than 1)")
+    if (N < (start + 1)) throw new IllegalArgumentException("Cannot an empty order set " + N + " new order ids (n is smaller than start:" + start + ")")
+    if (start < 0) throw new IllegalArgumentException("Cannot start at " + start + " new order ids (start is smaller than 0)")
+
+    var seed = id.value + {
+      usingRevWalk { (gitRepo, revWalk) =>
+        val revCommit = lookup(gitRepo, revWalk, InitTag)
+          .getOrElse(throw new Exception("Cannot get next order because init tag: " + InitTag + " does not resolve a commit - is the repository " + dir.getAbsolutePath + "not properly initialized?"))
+        revCommit.name
+      }
+    }
+
+    def createHash(lastSeed: String) = {
+      Hasher.hash((lastSeed * 2 + 42).getBytes)
+    }
+
+    for (i <- 0 to start) {
+      val lastSeed = seed
+      seed = createHash(lastSeed)
+    }
+    (for (i <- 0 to (N - start - 1)) yield {
+      val lastSeed = seed
+      seed = createHash(lastSeed)
+      OrderId(seed)
+    }).toSet
   }
 
   def listIds(commit: Commit): Set[Id] = {
-    val IdExtractionExpression = s"""$VariantsMetadataDirName$GitPathSep(.*)$GitPathSep(.*?)$GitPathSep(.*?)$GitPathSep(.*?)$GitPathSep$VariantMetadataFileName""".r
-    useVariantsPath[Id](commit) { path =>
+    val IdExtractionRegex = s"""$VariantsMetadataDirName$GitPathSep(.*)$GitPathSep(.*?)$GitPathSep(.*?)$GitPathSep(.*?)$GitPathSep$VariantMetadataFileName""".r
+    usePath[Id](Some(VariantsMetadataDirName), commit) { path =>
       path match {
-        case IdExtractionExpression(id, level1, level2, level3) =>
+        case IdExtractionRegex(id, level1, level2, level3) =>
           Some(Id(id))
         case _ => None
       }
@@ -240,14 +277,15 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
   }
 
   def listActiveOrderIds(id: Id, commit: Commit): Set[OrderId] = {
-    usingOrderLookupInputStream(id, commit) {
-      case Right(Some(is)) =>
-        io.Source.fromInputStream(is).getLines.map { line =>
-          OrderId(line.trim().toInt)
-        }.toSet
-      case Right(None) => Set.empty
-      case Left(error) => throw new Exception("Could not read order file for: " + id + " in " + dir.getAbsolutePath + " for: " + commit)
+    val orderPath = s"""$VariantsMetadataDirName$GitPathSep${id.value}"""
+    val OrderIdExtractionRegEx = s"""$orderPath$GitPathSep$OrderFileNamePrefix(.*?)""".r
+    val orderIds = usePath[OrderId](Some(orderPath), commit) { path =>
+      path match {
+        case OrderIdExtractionRegEx(id) => Some(OrderId(id))
+        case _ => None
+      }
     }
+    orderIds
   }
 }
 

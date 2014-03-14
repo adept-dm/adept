@@ -52,14 +52,8 @@ object Order {
 
   private def assertNewOrder(id: Id, orderId: OrderId, repository: GitRepository, commit: Commit) = {
     if (repository.getOrderFile(id, orderId).isFile) throw IllegalOrderStateException(repository, "New order " + orderId.value + " cannot be created because " + repository.getOrderFile(id, orderId).getAbsolutePath + " is a file already.")
-    repository.usingOrderLookupInputStream(id, commit) {
-      case Right(Some(is)) =>
-        io.Source.fromInputStream(is).getLines.foreach { line =>
-          val asInt = line.trim().toInt
-          if (asInt == orderId.value) throw IllegalOrderStateException(repository, "New order " + orderId.value + " cannot be created because " + repository.getOrderLookupFile(id).getAbsolutePath + " contains this order already.")
-        }
-      case Right(None) => //pass
-      case Left(error) => throw IllegalOrderStateException(repository, "Got " + error)
+    if (repository.listActiveOrderIds(id, commit).contains(orderId)) {
+      throw IllegalOrderStateException(repository, "New order " + orderId.value + " cannot be created because " + repository.asGitPath(repository.getOrderFile(id, orderId)) + " already exists?")
     }
   }
 
@@ -92,19 +86,17 @@ object Order {
 
   def insertNewFile(id: Id, hash: VariantHash, repository: GitRepository, commit: Commit): Set[File] = {
     assertNewHash(id, hash, repository, commit)
-    val orderId = repository.getNextOrderId(id, commit)
+    val orderId = repository.getXOrderId(id, start = repository.listActiveOrderIds(id, commit).size, N = 1)
+      .headOption.getOrElse(throw new Exception("Could not create a new order id for: " + id + " in " + repository.dir.getAbsolutePath + " for " + commit))
     assertNewOrder(id, orderId, repository, commit)
     val newOrderFile = repository.getOrderFile(id, orderId)
-    val ordersFile = repository.getOrderLookupFile(id)
-    val append = true
     try {
+      val append = true
       addLine(hash.value, new FileOutputStream(newOrderFile, append))
-      addLine(orderId.value.toString, new FileOutputStream(ordersFile, append))
-      Set(newOrderFile, ordersFile)
+      Set(newOrderFile)
     } catch {
       case e: Exception =>
         newOrderFile.delete()
-        ordersFile.delete()
         throw IllegalOrderStateException(repository, "An exception was thrown: " + e.getCause() + " (files where deleted)")
     }
   }

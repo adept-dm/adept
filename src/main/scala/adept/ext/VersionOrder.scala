@@ -130,28 +130,30 @@ object VersionOrder extends Logging {
         allBinaryVersions += binaryVersion -> (variant +: parsedVariants)
       }
     }
-    var touchedFiles = {
-      repository.listActiveOrderIds(id, commit).map { orderId =>
-        repository.getOrderFile(id, orderId)
-      } + repository.getOrderLookupFile(id)
+    val orders = repository.getXOrderId(id, 0, allBinaryVersions.size) //overwrites former files
+    val newOrderIds = {
+      ((0 to orders.size) zip orders).toMap
     }
 
-    allBinaryVersions.toSeq.sortBy { case (binaryVersion, _) => Version(binaryVersion) }.zipWithIndex.foreach {
+    val oldOrderIds = repository.listActiveOrderIds(id, commit).diff(orders)
+    val oldOrderFiles = oldOrderIds.map { orderId =>
+      val orderFile = repository.getOrderFile(id, orderId)
+      writeLines(Seq.empty, repository.getOrderFile(id, orderId)) //delete
+      orderFile
+    }
+
+    val orderFiles = allBinaryVersions.toSeq.sortBy { case (binaryVersion, _) => Version(binaryVersion) }.zipWithIndex.map {
       case ((binaryVersion, variants), index) =>
         val lines = variants.sortBy(getVersion).reverse.map { variant =>
           VariantMetadata.fromVariant(variant).hash.value
         }
-        writeLines(lines, repository.getOrderFile(id, OrderId(index + 1)))
+        val orderId = newOrderIds(index)
+        val orderFile = repository.getOrderFile(id, orderId)
+        writeLines(lines, orderFile)
+        orderFile
     }
 
-    val lookupLines = (1 to (allBinaryVersions.size)).map(_.toString)
-    writeLines(lookupLines, repository.getOrderLookupFile(id))
-
-    val orderFiles = (1 to (allBinaryVersions.size)).map { orderId =>
-      repository.getOrderFile(id, OrderId(orderId))
-    }
-
-    touchedFiles ++ orderFiles
+    orderFiles.toSet ++ oldOrderFiles.toSet
   }
 
   def useSemanticVersions(id: Id, hash: VariantHash, repository: GitRepository, commit: Commit, excludes: Set[Regex] = Set.empty, useVersionAsBinary: Set[Regex] = Set.empty): Set[File] = {
