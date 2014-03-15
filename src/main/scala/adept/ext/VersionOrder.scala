@@ -131,12 +131,14 @@ object VersionOrder extends Logging {
         allBinaryVersions += binaryVersion -> (variant +: parsedVariants)
       }
     }
-    val orders = Order.getXOrderId(id, repository, 0, allBinaryVersions.size) //overwrites former files
+    val orderSize = allBinaryVersions.size
+    val orders = Order.getXOrderId(repository, 0, orderSize) //overwrites former files
+    assert(orderSize == orders.size)
     val newOrderIds = {
       ((0 to orders.size) zip orders.toSeq.map(_.value).sorted).toMap
     }
-    
-    val oldOrderIds = Order.listActiveOrderIds(id, repository, commit).diff(orders)
+    val formerOrders = Order.listActiveOrderIds(id, repository, commit)
+    val oldOrderIds = formerOrders.diff(orders)
     val oldOrderFiles = oldOrderIds.map { orderId =>
       val orderFile = repository.getOrderFile(id, orderId)
       writeLines(Seq.empty, repository.getOrderFile(id, orderId)) //delete
@@ -153,7 +155,6 @@ object VersionOrder extends Logging {
         writeLines(lines, orderFile)
         orderFile
     }
-
     orderFiles.toSet ++ oldOrderFiles.toSet
   }
 

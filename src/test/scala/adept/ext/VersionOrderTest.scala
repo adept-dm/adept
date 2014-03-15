@@ -114,6 +114,29 @@ class VersionOrderTest extends FunSpec with Matchers {
     }
   }
 
+  describe("Order getXOrderId") {
+    it("must return correct values") {
+      usingTmpDir { tmpDir =>
+        val repository = new GitRepository(tmpDir, RepositoryName("com.a"))
+        repository.init()
+        Order.getXOrderId(repository, 2, 3) should have size (3)
+        Order.getXOrderId(repository, 1, 2) should have size (2)
+        Order.getXOrderId(repository, 0, 4) should have size (4)
+
+        (Order.getXOrderId(repository, 0, 2) ++ Order.getXOrderId(repository, 2, 2)) should have size (4)
+        (Order.getXOrderId(repository, 0, 2) ++ Order.getXOrderId(repository, 2, 2)) shouldEqual Order.getXOrderId(repository, 0, 4)
+      }
+    }
+    it("must be stable") {
+      usingTmpDir { tmpDir =>
+        val repository = new GitRepository(tmpDir, RepositoryName("com.a"))
+        repository.init()
+        for (_ <- 0 to 10)
+          Order.getXOrderId(repository, 0, 4) shouldEqual Order.getXOrderId(repository, 0, 4)
+      }
+    }
+  }
+
   describe("Variants with binary versions") {
     it("should be automatically re-ordered by orderBinaryVersions") {
       usingTmpDir { tmpDir =>
@@ -155,10 +178,8 @@ class VersionOrderTest extends FunSpec with Matchers {
         val commit6 = repository.commit("Re-added something we removed")
         repository.add(VersionOrder.orderBinaryVersions(id, repository, commit6))
         val commit7 = repository.commit("Adept: Now with more order!")
-        
+
         Order.chosenVariants(id, Set.empty, repository, commit7) shouldEqual Set(VariantMetadata.fromVariant(variant112).hash, VariantMetadata.fromVariant(variant102).hash, VariantMetadata.fromVariant(variant200).hash)
-
-
       }
     }
   }
