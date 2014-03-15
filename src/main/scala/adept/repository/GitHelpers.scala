@@ -10,14 +10,26 @@ import org.eclipse.jgit.transport.SshSessionFactory
 import adept.repository.models.Commit
 
 private[adept] object GitHelpers {
-  def lastestCommit(repository: GitRepository, commits: Set[Commit]): Commit = {
-    ???
+  def lastestCommit(repository: GitRepository, commits: Set[Commit]): Option[Commit] = {
+    if (commits.isEmpty) None
+    else {
+      val latest = commits.tail.foldLeft(commits.headOption) { (maybeCurrentLatest, current) =>
+        maybeCurrentLatest.flatMap { currentLatest =>
+          repository.compareCommits(currentLatest, current) match {
+            case (Some(first), Some(second)) => Some(first)
+            case _ => None
+          }
+        }
+      }
+      latest
+    }
   }
-  
-  /** 
+
+  /**
    *  Use ssh git credentials
-   *  
-   *  Not thread-safe, therefore synchronized */
+   *
+   *  Not thread-safe, therefore synchronized
+   */
   def withGitSshCredentials[A](passphrase: Option[String])(f: => A): A = synchronized {
     val sessionFactory = new JschConfigSessionFactory {
       def configure(hc: OpenSshConfig.Host, session: com.jcraft.jsch.Session): Unit = {

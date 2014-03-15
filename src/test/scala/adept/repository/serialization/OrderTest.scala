@@ -28,7 +28,7 @@ class OrderTest extends FunSuite with Matchers {
 
       repository.add(Order.insertNewFile(id, hash1, repository, repository.getHead))
       repository.commit("New order (1)")
-      withClue("check if one simple hash can be read") {
+      withClue("should check if one simple hash can be read") {
         Order.chosenVariants(id, Set(hash1), repository, repository.getHead) shouldEqual Set(hash1)
       }
       withClue("should verify that hashes that are not known, are not pruned") {
@@ -49,7 +49,7 @@ class OrderTest extends FunSuite with Matchers {
       }
       repository.add(Order.insertNewFile(id, hash31, repository, repository.getHead))
       repository.commit("New order (3)")
-      withClue("verify that the latest ordering in a new file is included") {
+      withClue("should verify that the latest ordering in a new file is included") {
         Order.chosenVariants(id, Set(hash1, hash22, hash21), repository, repository.getHead) shouldEqual Set(hash1, hash22, hash31)
       }
       val orderId3 = Order.findOrderId(id, repository, repository.getHead) { hash =>
@@ -61,7 +61,8 @@ class OrderTest extends FunSuite with Matchers {
       withClue("should verify that the latest order always is the one which is defined (even if there is a newer one)") {
         Order.chosenVariants(id, Set(hash1, hash22, hash21, hash31), repository, repository.getHead) shouldEqual Set(hash1, hash22, hash31)
       }
-      withClue("verify that active variants work as expected") {
+
+      withClue("verify that default active variants work as expected") {
         Order.activeVariants(id, repository, repository.getHead) shouldEqual Set(hash1, hash22, hash32)
       }
     }

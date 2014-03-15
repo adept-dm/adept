@@ -15,6 +15,8 @@ import org.eclipse.jgit.lib.NullProgressMonitor
 import java.io.FilenameFilter
 import adept.logging.Logging
 import adept.utils.Hasher
+import org.eclipse.jgit.revwalk.RevCommit
+import org.eclipse.jgit.revwalk.filter.RevFilter
 
 /**
  *  Defines Git operations and defines streams methods used for READ operations.
@@ -28,7 +30,7 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
   def exists: Boolean = {
     new File(dir, ".git").isDirectory
   }
-  
+
   def hasCommit(commit: Commit): Boolean = {
     usingRevWalk { (gitRepo, revWalk) =>
       lookup(gitRepo, revWalk, commit.value).isDefined
@@ -140,7 +142,7 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
   private[adept] def asGitPath(file: File): String = {
     file.getAbsolutePath().replace(dir.getAbsolutePath() + File.separator, "").replace(File.separator, GitRepository.GitPathSep)
   }
-  
+
   private[repository] def lookup(gitRepo: JGitRepository, revWalk: RevWalk, commitString: String) = {
     val resolvedRef = gitRepo.resolve(commitString)
     if (resolvedRef != null) {
@@ -148,6 +150,46 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
       Option(revCommit)
     } else {
       None
+    }
+  }
+
+  /** @returns first commit found (if any) in _1 and second in _2 */
+  private[repository] def compareCommits(thisCommit: Commit, thatCommit: Commit): (Option[Commit], Option[Commit]) = {
+    def equalCommits(commit: Commit, revCommit: RevCommit): Boolean = {
+      commit.value == revCommit.name
+    }
+
+    def checkMatch(current: RevCommit, thisCommit: Commit, thatCommit: Commit): Option[Commit] = {
+      if (equalCommits(thisCommit, current)) {
+        Some(thisCommit)
+      } else if (equalCommits(thatCommit, current)) {
+        Some(thatCommit)
+      } else None
+    }
+
+    usingRevWalk { (gitRepo, revWalk) =>
+      try {
+        val start = lookup(gitRepo, revWalk, Head).getOrElse(throw new Exception("Cannot find " + Head + " in git repo: " + dir.getAbsolutePath))
+        revWalk.markStart(start)
+        revWalk.setRevFilter(RevFilter.NO_MERGES)
+        val it = revWalk.iterator()
+
+        var first: Option[Commit] = None
+        var second: Option[Commit] = None
+
+        while (it.hasNext && (first.isEmpty || second.isEmpty)) {
+          val current = it.next()
+          if (first.isEmpty) {
+            first = checkMatch(current, thisCommit, thatCommit)
+            if (first.nonEmpty && thisCommit == thatCommit) {
+              second = first
+            }
+          } else if (first.nonEmpty && second.isEmpty) {
+            second = checkMatch(current, thisCommit, thatCommit)
+          }
+        }
+        first -> second
+      }
     }
   }
 
@@ -224,11 +266,12 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
             accumulator ++= accumulate(treeWalk.getPathString())
           }
         }
+      } else {
+        logger.warn("Could not find get tree: " + revCommit + " for path: " + path + " in " + commit.value)
       }
       accumulator
     }
   }
-
 
 }
 

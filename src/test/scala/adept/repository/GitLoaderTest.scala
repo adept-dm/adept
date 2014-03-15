@@ -13,50 +13,98 @@ import org.scalatest.OptionValues._
 import adept.ext.VersionOrder
 import adept.ext.AttributeDefaults
 import adept.repository.serialization.VariantMetadata
+import adept.repository.serialization.ResolutionResultsMetadata
 
 class GitLoaderTest extends FunSuite with Matchers {
   import adept.test.FileUtils._
   import adept.test.ResolverUtils._
 
-  def basicSetup(dir: File) = {
-    val progress = new TextProgressMonitor()
-    val repoA = new GitRepository(dir, RepositoryName("com.a"))
-    repoA.init()
-    val repoB = new GitRepository(dir, RepositoryName("com.b"))
-    repoB.init()
-    val info = Set(
-      Variant("A", Set(version -> Set("1.0.0"), binaryVersion -> Set("1.0")),
-        requirements = Set("B" -> Set(Constraint(binaryVersion, Set("2.0"))))) -> repoA,
+  val cacheManager = CacheManager.create //this _should_ be safe (if there is a cache issue this is not the best way to find it though) - we speed up the tests because creating the cache manager takes a while
 
-      Variant("B", Set(version -> Set("2.0.1"), binaryVersion -> Set("2.0")),
-        requirements = Set.empty) -> repoB)
+  def progress = new TextProgressMonitor()
 
-    val requirements: Set[Requirement] = Set(
-      "A" -> Set(Constraint(binaryVersion, Set("1.0"))))
-
-    (progress, info, requirements, CacheManager.create)
-  }
-
-  test("Basic end-to-end test: add, load and resolve") {
+  test("Git Loader basics: add and resolve") {
     usingTmpDir { tmpDir =>
-      val (progress, info, requirements, cacheManager) = basicSetup(tmpDir)
-      val repositoryInfos = info.map {
+      val repoA = new GitRepository(tmpDir, RepositoryName("com.a"))
+      repoA.init()
+      val repoB = new GitRepository(tmpDir, RepositoryName("com.b"))
+      repoB.init()
+      val info = Set(
+        Variant("A", Set(version -> Set("1.0.0"), binaryVersion -> Set("1.0")),
+          requirements = Set("B" -> Set(Constraint(binaryVersion, Set("2.0"))))) -> repoA,
+
+        Variant("B", Set(version -> Set("1.0.0"), binaryVersion -> Set("1.0")),
+          requirements = Set.empty) -> repoB,
+        Variant("B", Set(version -> Set("2.0.1"), binaryVersion -> Set("2.0")),
+          requirements = Set.empty) -> repoB)
+
+      val initialResults = info.map {
         case (v, r) =>
           val metadata = VariantMetadata.fromVariant(v)
           r.add(metadata.write(v.id, r))
-          Order.insertNewFile(v.id, metadata.hash, r, r.getHead)
+          r.add(Order.insertNewFile(v.id, metadata.hash, r, r.getHead))
           val commit = r.commit("Adding: " + v.id)
 
-          ResolutionResult(v.id, r.name, commit, metadata.hash) -> RepositoryLocations(Set.empty)
+          ResolutionResult(v.id, r.name, commit, metadata.hash)
       }
-      val loader = new GitLoader(tmpDir, repositoryInfos)
+      val requirements: Set[Requirement] = Set(
+        "A" -> Set(Constraint(binaryVersion, Set("1.0"))))
+
+      val loader = new GitLoader(tmpDir, initialResults, progress, cacheManager)
       val result = resolve(requirements, loader)
       checkResolved(result, Set("A", "B"))
       checkVariants(result, "A", version -> Set("1.0.0"), binaryVersion -> Set("1.0"))
       checkVariants(result, "B", version -> Set("2.0.1"), binaryVersion -> Set("2.0"))
     }
   }
-  
+
+  def addVariant(variant: Variant, repository: GitRepository) = {
+    val metadata = VariantMetadata.fromVariant(variant)
+    repository.add(metadata.write(variant.id, repository))
+    metadata.hash
+  }
+
+  test("Basic GitLoader tests: get simple resolution results") {
+    usingTmpDir { tmpDir =>
+      val repoA = new GitRepository(tmpDir, RepositoryName("com.a"))
+      repoA.init()
+      val repoB = new GitRepository(tmpDir, RepositoryName("com.b"))
+      repoB.init()
+      val idB = "B"
+      val idA = "A"
+
+      val hashA = addVariant(Variant(idA, Set(version -> Set("1.0.0"), binaryVersion -> Set("1.0")),
+        requirements = Set(idB -> Set(Constraint(binaryVersion, Set("2.0"))))), repoA)
+      val hashB = addVariant(Variant(idB, Set(version -> Set("2.0.1"), binaryVersion -> Set("2.0")), requirements = Set.empty), repoB)
+      val commitB = repoB.commit("Adding B baby!")
+      repoB.add(VersionOrder.orderBinaryVersions(idB, repoB, commitB))
+      repoB.commit("The B(order)")
+
+      //adding one more variant to verify that hashes work across commits:
+      val hashB2 = addVariant(Variant(idB, Set(version -> Set("1.0.1"), binaryVersion -> Set("1.0")), requirements = Set.empty), repoB)
+      val commitB2 = repoB.commit("Adding B baby!")
+      repoB.add(VersionOrder.orderBinaryVersions(idB, repoB, commitB2))
+      val commitB3 = repoB.commit("The B(order) 2")
+
+      //using latest commit for B and old hash (the first variant)
+      val resolutionResultB = ResolutionResult(idB, repoB.name, commitB3, hashB)
+
+      repoA.add(
+        ResolutionResultsMetadata(Seq(resolutionResultB)).write(idA, hashA, repoA))
+      val commitA = repoA.commit("Adding aaaaa A")
+      repoA.add(VersionOrder.orderBinaryVersions(idA, repoA, commitA))
+      repoA.commit("Order in a A")
+      val requirements: Set[(RepositoryName, Requirement, Commit)] = Set(
+        (repoA.name, (idA -> Set(Constraint(binaryVersion, Set("1.0")))), commitA), //should get overridden
+        (repoA.name, (idA -> Set(Constraint(binaryVersion, Set("1.0")))), repoA.getHead))
+
+      val resultAndLocations = GitLoader.getResolutionResults(tmpDir, requirements, progress, cacheManager)
+      val results = resultAndLocations.map { case (result, _) => result }
+      //TODO: verify location as well
+      results shouldEqual Set(resolutionResultB, ResolutionResult(idA, repoA.name, repoA.getHead, hashA))
+    }
+  }
+
   //
   //  test("Basic end-to-end test: verify that using hash is static even when changing commits") {
   //    usingTmpDir { tmpDir =>

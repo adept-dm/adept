@@ -88,7 +88,7 @@ object Order {
   def insertNewFile(id: Id, hash: VariantHash, repository: GitRepository, commit: Commit): Set[File] = {
     assertNewHash(id, hash, repository, commit)
     val currentIdsSize = listActiveOrderIds(id, repository, commit).size
-    val orderId = getXOrderId(id, repository, start = currentIdsSize, N = currentIdsSize + 1)
+    val orderId = getXOrderId(id, repository, start = currentIdsSize, N = 1)
       .headOption.getOrElse(throw new Exception("Could not create a new order id for: " + id + " in " + repository.dir.getAbsolutePath + " for " + commit))
     assertNewOrder(id, orderId, repository, commit)
     val newOrderFile = repository.getOrderFile(id, orderId)
@@ -223,7 +223,6 @@ object Order {
   import GitRepository._
 
   def listActiveOrderIds(id: Id, repository: GitRepository, commit: Commit): Set[OrderId] = {
-
     val orderPath = s"""$VariantsMetadataDirName$GitPathSep${id.value}"""
     val OrderIdExtractionRegEx = s"""$orderPath$GitPathSep$OrderFileNamePrefix(.*?)""".r
     val orderIds = repository.usePath[OrderId](Some(orderPath), commit) { path =>
@@ -238,7 +237,6 @@ object Order {
   /** get N order ids from start (could be size of active order ids)  */
   def getXOrderId(id: Id, repository: GitRepository, start: Int = 0, N: Int = 1): Set[OrderId] = {
     if (N < 1) throw new IllegalArgumentException("Cannot get " + N + " new order ids (n is smaller than 1)")
-    if (N < (start + 1)) throw new IllegalArgumentException("Cannot get an empty order set " + N + " new order ids (n is smaller than start:" + start + ")")
     if (start < 0) throw new IllegalArgumentException("Cannot start at " + start + " new order ids (start is smaller than 0)")
 
     var seed = id.value + {
@@ -257,7 +255,7 @@ object Order {
       val lastSeed = seed
       seed = createHash(lastSeed)
     }
-    (for (i <- 0 to (N - start - 1)) yield {
+    (for (i <- 0 to N) yield {
       val lastSeed = seed
       seed = createHash(lastSeed)
       OrderId(seed)

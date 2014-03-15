@@ -116,6 +116,7 @@ object VersionOrder extends Logging {
   }
 
   def orderBinaryVersions(id: Id, repository: GitRepository, commit: Commit): Set[File] = {
+    //TODO: there is something strange with listVariants or listActiveOrderIds because sometimes files are skipped?
     val variants = VariantMetadata.listVariants(id, repository, commit).map { hash =>
       VariantMetadata.read(id, hash, repository, commit) match {
         case Some(variant) => variant
@@ -132,9 +133,9 @@ object VersionOrder extends Logging {
     }
     val orders = Order.getXOrderId(id, repository, 0, allBinaryVersions.size) //overwrites former files
     val newOrderIds = {
-      ((0 to orders.size) zip orders).toMap
+      ((0 to orders.size) zip orders.toSeq.map(_.value).sorted).toMap
     }
-
+    
     val oldOrderIds = Order.listActiveOrderIds(id, repository, commit).diff(orders)
     val oldOrderFiles = oldOrderIds.map { orderId =>
       val orderFile = repository.getOrderFile(id, orderId)
@@ -147,7 +148,7 @@ object VersionOrder extends Logging {
         val lines = variants.sortBy(getVersion).reverse.map { variant =>
           VariantMetadata.fromVariant(variant).hash.value
         }
-        val orderId = newOrderIds(index)
+        val orderId = OrderId(newOrderIds(index))
         val orderFile = repository.getOrderFile(id, orderId)
         writeLines(lines, orderFile)
         orderFile
