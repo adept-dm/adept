@@ -25,6 +25,10 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
   import GitRepository._
   import Repository._
 
+  def exists: Boolean = {
+    new File(dir, ".git").isDirectory
+  }
+  
   def hasCommit(commit: Commit): Boolean = {
     usingRevWalk { (gitRepo, revWalk) =>
       lookup(gitRepo, revWalk, commit.value).isDefined
@@ -136,7 +140,7 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
   private[adept] def asGitPath(file: File): String = {
     file.getAbsolutePath().replace(dir.getAbsolutePath() + File.separator, "").replace(File.separator, GitRepository.GitPathSep)
   }
-
+  
   private[repository] def lookup(gitRepo: JGitRepository, revWalk: RevWalk, commitString: String) = {
     val resolvedRef = gitRepo.resolve(commitString)
     if (resolvedRef != null) {

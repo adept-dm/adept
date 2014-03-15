@@ -20,9 +20,9 @@ class GitLoaderTest extends FunSuite with Matchers {
 
   def basicSetup(dir: File) = {
     val progress = new TextProgressMonitor()
-    val repoA = new GitRepository(dir, RepositoryName("com.a"), progress)
+    val repoA = new GitRepository(dir, RepositoryName("com.a"))
     repoA.init()
-    val repoB = new GitRepository(dir, RepositoryName("com.b"), progress)
+    val repoB = new GitRepository(dir, RepositoryName("com.b"))
     repoB.init()
     val info = Set(
       Variant("A", Set(version -> Set("1.0.0"), binaryVersion -> Set("1.0")),
@@ -49,7 +49,7 @@ class GitLoaderTest extends FunSuite with Matchers {
 
           ResolutionResult(v.id, r.name, commit, metadata.hash) -> RepositoryLocations(Set.empty)
       }
-      val loader = new GitLoader(tmpDir, repositoryInfos, progress, cacheManager)
+      val loader = new GitLoader(tmpDir, repositoryInfos)
       val result = resolve(requirements, loader)
       checkResolved(result, Set("A", "B"))
       checkVariants(result, "A", version -> Set("1.0.0"), binaryVersion -> Set("1.0"))
