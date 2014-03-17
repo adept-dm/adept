@@ -38,7 +38,6 @@ class IvyInserterTest extends FunSuite with Matchers {
     repository.commit("Ordered " + variant.id)
   }
 
-
   test("Basics: verify that IvyInserter can add ivy results") {
     usingTmpDir { tmpDir =>
       //***** SETUP START
@@ -78,8 +77,8 @@ class IvyInserterTest extends FunSuite with Matchers {
         requirements = Set.empty), scalaRepository)
 
       //--- Scala
-      //****** SETUP END 
 
+      //--- Akka
       val akkaRepository = new GitRepository(tmpDir, RepositoryName("com.typesafe.akka"))
       akkaRepository.init()
       val akkaId = "akka-actor"
@@ -88,6 +87,9 @@ class IvyInserterTest extends FunSuite with Matchers {
         requirements = Set(
           configVariant.id.value -> Set.empty[Constraint],
           scalaVariant.id.value -> Set.empty[Constraint]))
+
+      //****** SETUP END 
+
       val versionInfo: Set[((RepositoryName, Id, VariantHash), Set[(RepositoryName, Id, Version)])] = Set(
 
         ((akkaRepository.name, akkaVariant.id, VariantMetadata.fromVariant(akkaVariant).hash),
