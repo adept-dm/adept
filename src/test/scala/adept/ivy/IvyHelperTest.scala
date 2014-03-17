@@ -120,7 +120,7 @@ class IvyHelperTest extends FunSuite with Matchers {
 //
 //      val ivyHelper = new IvyHelper(ivy)
 //      val time1 = System.currentTimeMillis()
-//      val results = ivyHelper.ivyConvert("com.typesafe.play", "play_2.10", "2.2.1", progress)
+//      val results = ivyHelper.ivyConvert("com.typesafe.play", "play_2.10", "2.2.2", progress)
 //      val time2 = System.currentTimeMillis()
 //      println("import completed: " + ((time2 - time1)/1000.0) + "s")
 //      val resolutionResults = IvyHelper.insert(tmpDir, results, progress)

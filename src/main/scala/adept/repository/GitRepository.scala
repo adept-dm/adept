@@ -31,6 +31,10 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
     new File(dir, ".git").isDirectory
   }
 
+  def gc(): Unit = {
+    git.gc().call() //TODO: .setProgressMonitor(progress)?
+  }
+  
   def hasCommit(commit: Commit): Boolean = {
     usingRevWalk { (gitRepo, revWalk) =>
       lookup(gitRepo, revWalk, commit.value).isDefined

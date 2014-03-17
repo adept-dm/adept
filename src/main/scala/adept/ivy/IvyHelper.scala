@@ -38,7 +38,28 @@ case class AdeptIvyException(msg: String) extends Exception(msg)
 object IvyHelper extends Logging {
   import AttributeDefaults.{ NameAttribute, OrgAttribute, VersionAttribute }
 
-  lazy val errorIvyLogger = new DefaultMessageLogger(Message.MSG_ERR)
+  lazy val errorIvyLogger = new DefaultMessageLogger(Message.MSG_ERR) {
+    var i = 0
+    
+    override def doProgress(): Unit = {
+      val indicator = if (i == 0) "-"
+      else if (i == 1) "/"
+      else if (i == 2) "-"
+      else if (i == 3) "\\"
+      else if (i == 4) "|"
+      else {
+        i = 0
+        "/"
+      }
+      i = i + 1
+      System.out.print(indicator + "\r")
+    }
+
+    override def doEndProgress(ivyMsg: String): Unit = {
+      val msg = "Downloaded "+ ivyMsg
+      System.out.print(msg + ("\r" * msg.size) + (" " * msg.size) + ("\r" *msg.size))
+    }
+  }
   lazy val warnIvyLogger = new DefaultMessageLogger(Message.MSG_WARN)
   lazy val infoIvyLogger = new DefaultMessageLogger(Message.MSG_INFO)
   lazy val debugIvyLogger = new DefaultMessageLogger(Message.MSG_DEBUG)
@@ -85,6 +106,14 @@ object IvyHelper extends Logging {
         }
         progress.update(1)
         completedResults
+    }
+    progress.endTask()
+    progress.beginTask("GCing new Ivy repo(s)", grouped.size)
+    grouped.par.foreach { //NOTICE .par TODO: same as above (IO vs CPU)
+      case (name, _) =>
+        val repository = new GitRepository(baseDir, name)
+        repository.gc()
+        progress.update(1)
     }
     progress.endTask()
     all
@@ -212,7 +241,7 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[St
       //print warnings:
       notLoaded.foreach { ivyNode =>
         if (!dependencies.isDefinedAt(ivyNode.getId)) {
-          logger.debug(ivyNode + " is not defined")
+          logger.debug(mrid + " has a node " + ivyNode + " which was not loaded, but it is not required in upper-call tree so we ignore")
 
           if (ivyNode == null) {
             logger.error("Got a null while loading: " + mrid)
@@ -221,7 +250,7 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[St
           else if (ivyNode.getDescriptor() != null && ivyNode.getDescriptor().canExclude()) {
             logger.debug(mrid + " required" + ivyNode + " which can be excluded.")
           } else {
-            logger.error(mrid + " required " + ivyNode + ", but is was not loaded (nor evicted) so cannot import. This is potentially a problem") //TODO: is this acceptable? if not find a way to load ivy nodes...
+            logger.debug(mrid + " required " + ivyNode + ", but is was not loaded (nor evicted) so cannot import. This is potentially a problem") //TODO: is this acceptable? if not find a way to load ivy nodes...
           }
         } else throw new Exception("Could not load " + ivyNode + "declared in: " + mrid)
       }
@@ -289,21 +318,21 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[St
         } else {
           Set.empty[(RepositoryName, Id, Version)]
         }
-      } 
+      }
 
       //TODO: overrides must also be imported and then we must this to versionInfo:
-//      ++ parentNode.getDescriptor().getAllDependencyDescriptorMediators().getAllRules().asScala.map {
-//        case (matcher: MapMatcher, overrideMediator: OverrideDependencyDescriptorMediator) =>
-//          val matcherName = matcher.getPatternMatcher().getName()
-//          matcherName match {
-//            case PatternMatcher.EXACT => true
-//            case _ => throw new Exception("found matcher: " + matcherName + ". currently only: " + PatternMatcher.EXACT + " is supported. parent:" + parentNode)
-//          }
-//          val org = matcher.getAttributes.get(IvyPatternHelper.ORGANISATION_KEY) match { case s: String => s }
-//          val name = matcher.getAttributes.get(IvyPatternHelper.MODULE_KEY) match { case s: String => s }
-//          val overriddenVersion = overrideMediator.getVersion()
-//          (RepositoryName(org), Id(name), Version(overriddenVersion))
-//      }
+      //      ++ parentNode.getDescriptor().getAllDependencyDescriptorMediators().getAllRules().asScala.map {
+      //        case (matcher: MapMatcher, overrideMediator: OverrideDependencyDescriptorMediator) =>
+      //          val matcherName = matcher.getPatternMatcher().getName()
+      //          matcherName match {
+      //            case PatternMatcher.EXACT => true
+      //            case _ => throw new Exception("found matcher: " + matcherName + ". currently only: " + PatternMatcher.EXACT + " is supported. parent:" + parentNode)
+      //          }
+      //          val org = matcher.getAttributes.get(IvyPatternHelper.ORGANISATION_KEY) match { case s: String => s }
+      //          val name = matcher.getAttributes.get(IvyPatternHelper.MODULE_KEY) match { case s: String => s }
+      //          val overriddenVersion = overrideMediator.getVersion()
+      //          (RepositoryName(org), Id(name), Version(overriddenVersion))
+      //      }
 
       IvyImportResult(
         variant = variant,
