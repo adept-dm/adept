@@ -62,7 +62,7 @@ class VersionOrderTest extends FunSpec with Matchers {
         val variantMetadata = VariantMetadata.fromVariant(variant)
         repo.add(variantMetadata.write(variant.id, repo))
         repo.commit("Added: " + variant.id)
-        repo.add(VersionOrder.orderBinaryVersions(variant.id, repo, repo.getHead))
+        repo.add(VersionOrder.useDefaultVersionOrder(variant.id, repo, repo.getHead))
         repo.add(ResolutionResultsMetadata(resolutionResults.toSeq).write(variant.id, variantMetadata.hash, repo))
         repo.commit("Order & repository metadata: " + variant.id)
       }
@@ -137,8 +137,33 @@ class VersionOrderTest extends FunSpec with Matchers {
     }
   }
 
-  describe("Variants with binary versions") {
-    it("should be automatically re-ordered by orderBinaryVersions") {
+  describe("Variants") {
+    it("should be automatically re-ordered by useDefaultVersionOrder if they have only versions") {
+      usingTmpDir { tmpDir =>
+        val id = Id("A")
+        val variant101 = Variant(id, Set(version -> Set("1.0.1")))
+        val variant100 = Variant(id, Set(version -> Set("1.0.0")))
+        val variant102 = Variant(id, Set(version -> Set("1.0.2")))
+
+        val repository = new GitRepository(tmpDir, RepositoryName("com.a"))
+        repository.init()
+        repository.add(VariantMetadata.fromVariant(variant101).write(id, repository))
+        repository.add(VariantMetadata.fromVariant(variant100).write(id, repository))
+
+        val commit1 = repository.commit("Adding some data")
+        repository.add(VersionOrder.useDefaultVersionOrder(id, repository, commit1))
+        val commit2 = repository.commit("Order! Oooorder in the repo!")
+        Order.chosenVariants(id, Set.empty, repository, commit2) shouldEqual Set(VariantMetadata.fromVariant(variant101).hash)
+
+        repository.add(VariantMetadata.fromVariant(variant102).write(id, repository))
+        val commit4 = repository.commit("Add some data...")
+
+        repository.add(VersionOrder.useDefaultVersionOrder(id, repository, commit4))
+        val commit5 = repository.commit("And some order")
+        Order.chosenVariants(id, Set.empty, repository, commit5) shouldEqual Set(VariantMetadata.fromVariant(variant102).hash)
+      }
+    }
+    it("should be automatically re-ordered by useDefaultVersionOrder if they have binary versions") {
       usingTmpDir { tmpDir =>
         val id = Id("A")
         val variant101 = Variant(id, Set(version -> Set("1.0.1"), binaryVersion -> Set("1.0")))
@@ -158,7 +183,7 @@ class VersionOrderTest extends FunSpec with Matchers {
         repository.add(VariantMetadata.fromVariant(variant200).write(id, repository))
 
         val commit1 = repository.commit("Adding some data")
-        repository.add(VersionOrder.orderBinaryVersions(id, repository, commit1))
+        repository.add(VersionOrder.useDefaultVersionOrder(id, repository, commit1))
         val commit2 = repository.commit("Order! Oooorder in the repo!")
         Order.chosenVariants(id, Set.empty, repository, commit2) shouldEqual Set(VariantMetadata.fromVariant(variant101).hash, VariantMetadata.fromVariant(variant110).hash, VariantMetadata.fromVariant(variant200).hash)
 
@@ -170,13 +195,13 @@ class VersionOrderTest extends FunSpec with Matchers {
         repository.add(VariantMetadata.fromVariant(variant112).write(id, repository))
         val commit4 = repository.commit("Add some data...")
 
-        repository.add(VersionOrder.orderBinaryVersions(id, repository, commit4))
+        repository.add(VersionOrder.useDefaultVersionOrder(id, repository, commit4))
         val commit5 = repository.commit("And some order")
         Order.chosenVariants(id, Set.empty, repository, commit5) shouldEqual Set(VariantMetadata.fromVariant(variant112).hash, VariantMetadata.fromVariant(variant102).hash)
 
         repository.add(VariantMetadata.fromVariant(variant200).write(id, repository))
         val commit6 = repository.commit("Re-added something we removed")
-        repository.add(VersionOrder.orderBinaryVersions(id, repository, commit6))
+        repository.add(VersionOrder.useDefaultVersionOrder(id, repository, commit6))
         val commit7 = repository.commit("Adept: Now with more order!")
 
         Order.chosenVariants(id, Set.empty, repository, commit7) shouldEqual Set(VariantMetadata.fromVariant(variant112).hash, VariantMetadata.fromVariant(variant102).hash, VariantMetadata.fromVariant(variant200).hash)

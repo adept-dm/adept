@@ -115,7 +115,27 @@ object VersionOrder extends Logging {
     }
   }
 
-  def orderBinaryVersions(id: Id, repository: GitRepository, commit: Commit): Set[File] = {
+  /** Creates new order files (and deletes the contents of old) according to 1) binary versions and 2) versions */
+  def useDefaultVersionOrder(id: Id, repository: GitRepository, commit: Commit): Set[File] = {
+    def writeSortedByVersions(variants: Seq[Variant], orderId: OrderId) = {
+      val lines = variants.sortBy(getVersion).reverse.map { variant =>
+        VariantMetadata.fromVariant(variant).hash.value
+      }
+      val orderFile = repository.getOrderFile(id, orderId)
+      writeLines(lines, orderFile)
+      orderFile
+    }
+
+    def getOldOrderFiles(orders: Set[OrderId]) = {
+      val formerOrders = Order.listActiveOrderIds(id, repository, commit)
+      val oldOrderIds = formerOrders.diff(orders)
+      oldOrderIds.map { orderId =>
+        val orderFile = repository.getOrderFile(id, orderId)
+        writeLines(Seq.empty, repository.getOrderFile(id, orderId)) //delete
+        orderFile
+      }
+    }
+
     //TODO: there is something strange with listVariants or listActiveOrderIds because sometimes files are skipped?
     val variants = VariantMetadata.listVariants(id, repository, commit).map { hash =>
       VariantMetadata.read(id, hash, repository, commit) match {
@@ -131,31 +151,31 @@ object VersionOrder extends Logging {
         allBinaryVersions += binaryVersion -> (variant +: parsedVariants)
       }
     }
-    val orderSize = allBinaryVersions.size
-    val orders = Order.getXOrderId(repository, 0, orderSize) //overwrites former files
-    assert(orderSize == orders.size)
-    val newOrderIds = {
-      ((0 to orders.size) zip orders.toSeq.map(_.value).sorted).toMap
-    }
-    val formerOrders = Order.listActiveOrderIds(id, repository, commit)
-    val oldOrderIds = formerOrders.diff(orders)
-    val oldOrderFiles = oldOrderIds.map { orderId =>
-      val orderFile = repository.getOrderFile(id, orderId)
-      writeLines(Seq.empty, repository.getOrderFile(id, orderId)) //delete
-      orderFile
-    }
 
-    val orderFiles = allBinaryVersions.toSeq.sortBy { case (binaryVersion, _) => Version(binaryVersion) }.zipWithIndex.map {
-      case ((binaryVersion, variants), index) =>
-        val lines = variants.sortBy(getVersion).reverse.map { variant =>
-          VariantMetadata.fromVariant(variant).hash.value
-        }
-        val orderId = OrderId(newOrderIds(index))
-        val orderFile = repository.getOrderFile(id, orderId)
-        writeLines(lines, orderFile)
-        orderFile
+    if (allBinaryVersions.nonEmpty) {
+      val orderSize = allBinaryVersions.size
+      val orders = Order.getXOrderId(repository, 0, orderSize) //overwrites former files
+      assert(orders.size == orderSize)
+      val newOrderIds = {
+        ((0 to orders.size) zip orders.toSeq.map(_.value).sorted).toMap
+      }
+      val oldOrderFiles = getOldOrderFiles(orders)
+      val orderFiles = allBinaryVersions.toSeq.sortBy { case (binaryVersion, _) => Version(binaryVersion) }.zipWithIndex.map {
+        case ((binaryVersion, variants), index) =>
+          val orderId = OrderId(newOrderIds(index))
+          writeSortedByVersions(variants, orderId)
+      }
+      orderFiles.toSet ++ oldOrderFiles.toSet
+    } else {
+      val orders = Order.getXOrderId(repository, 0, 1)
+      assert(orders.size == 1)
+
+      val oldOrderFiles = getOldOrderFiles(orders)
+      val orderFiles = orders.map { orderId =>
+        writeSortedByVersions(variants.toSeq, orderId)
+      }
+      orderFiles ++ oldOrderFiles
     }
-    orderFiles.toSet ++ oldOrderFiles.toSet
   }
 
   def useSemanticVersions(id: Id, hash: VariantHash, repository: GitRepository, commit: Commit, excludes: Set[Regex] = Set.empty, useVersionAsBinary: Set[Regex] = Set.empty): Set[File] = {

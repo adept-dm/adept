@@ -18,10 +18,7 @@ import adept.repository.serialization.ResolutionResultsMetadata
 class GitLoaderTest extends FunSuite with Matchers {
   import adept.test.FileUtils._
   import adept.test.ResolverUtils._
-
-  val cacheManager = CacheManager.create //this _should_ be safe (if there is a cache issue this is not the best way to find it though) - we speed up the tests because creating the cache manager takes a while
-
-  def progress = new TextProgressMonitor()
+  import adept.test.LoaderUtils._
 
   test("Git Loader basics: add and resolve") {
     usingTmpDir { tmpDir =>
@@ -77,13 +74,13 @@ class GitLoaderTest extends FunSuite with Matchers {
         requirements = Set(idB -> Set(Constraint(binaryVersion, Set("2.0"))))), repoA)
       val hashB = addVariant(Variant(idB, Set(version -> Set("2.0.1"), binaryVersion -> Set("2.0")), requirements = Set.empty), repoB)
       val commitB = repoB.commit("Adding B baby!")
-      repoB.add(VersionOrder.orderBinaryVersions(idB, repoB, commitB))
+      repoB.add(VersionOrder.useDefaultVersionOrder(idB, repoB, commitB))
       repoB.commit("The B(order)")
 
       //adding one more variant to verify that hashes work across commits:
       val hashB2 = addVariant(Variant(idB, Set(version -> Set("1.0.1"), binaryVersion -> Set("1.0")), requirements = Set.empty), repoB)
       val commitB2 = repoB.commit("Adding B baby!")
-      repoB.add(VersionOrder.orderBinaryVersions(idB, repoB, commitB2))
+      repoB.add(VersionOrder.useDefaultVersionOrder(idB, repoB, commitB2))
       val commitB3 = repoB.commit("The B(order) 2")
 
       //using latest commit for B and old hash (the first variant)
@@ -92,7 +89,7 @@ class GitLoaderTest extends FunSuite with Matchers {
       repoA.add(
         ResolutionResultsMetadata(Seq(resolutionResultB)).write(idA, hashA, repoA))
       val commitA = repoA.commit("Adding aaaaa A")
-      repoA.add(VersionOrder.orderBinaryVersions(idA, repoA, commitA))
+      repoA.add(VersionOrder.useDefaultVersionOrder(idA, repoA, commitA))
       repoA.commit("Order in a A")
       val requirements: Set[(RepositoryName, Requirement, Commit)] = Set(
         (repoA.name, (idA -> Set(Constraint(binaryVersion, Set("1.0")))), commitA), //should get overridden

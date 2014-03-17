@@ -17,6 +17,7 @@ import java.io.BufferedWriter
 import adept.repository.models.OrderId
 import java.io.BufferedInputStream
 import adept.utils.Hasher
+import java.io.InputStream
 
 case class IllegalOrderStateException(repository: Repository, reason: String) extends Exception("Order file(s) in " + repository.dir.getAbsolutePath + " are not well formed. Details: " + reason)
 
@@ -58,6 +59,45 @@ object Order {
     }
   }
 
+  private def throwException(result: Either[String, Option[InputStream]], id: Id, orderId: OrderId, repository: GitRepository, commit: Commit) = {
+    result match {
+      case Right(None) => throw new Exception("Tried to find an order file: " + repository.asGitPath(repository.getOrderFile(id, orderId)) + " in commit " + commit + ", but could not find it?")
+      case Left(error) => throw new Exception("Could not read order file: " + repository.asGitPath(repository.getOrderFile(id, orderId)) + " in commit " + commit + ". Got error: " + error)
+      case unexpectedHere => throw new Exception("Got: " + unexpectedHere + " while trying to throw an error? In: " + repository.asGitPath(repository.getOrderFile(id, orderId)) + " in commit " + commit)
+    }
+  }
+
+  def scanFirst[A](id: Id, orderId: OrderId, repository: GitRepository, commit: Commit)(func: VariantHash => Option[A]): Option[A] = {
+    scan(id, orderId, repository, commit, stopOnFirst = true)(func).headOption
+  }
+  
+  def scan[A](id: Id, orderId: OrderId, repository: GitRepository, commit: Commit)(func: VariantHash => Option[A]): Seq[A] = {
+    scan(id, orderId, repository, commit, stopOnFirst = false)(func)
+  }
+  
+  private def scan[A](id: Id, orderId: OrderId, repository: GitRepository, commit: Commit, stopOnFirst: Boolean)(func: VariantHash => Option[A]): Seq[A] = {
+    var finished = false
+    var results = Vector.empty[A]
+    repository.usingOrderInputStream(id, orderId, commit) {
+      case Right(Some(is)) =>
+        val it = io.Source.fromInputStream(is).getLines
+        while (it.hasNext && !finished) {
+          val line = it.next
+          func(VariantHash(line.trim())) match {
+            case Some(value) =>
+              results = results :+ value
+              if (stopOnFirst) {
+                finished = true
+              }
+            case None =>
+          }
+
+        }
+      case notExpected => throwException(result = notExpected, id, orderId, repository, commit)
+    }
+    results
+  }
+
   def findOrderId(id: Id, repository: GitRepository, commit: Commit)(predicate: VariantHash => Boolean): Option[OrderId] = {
     val orderIds = listActiveOrderIds(id, repository, commit)
     var foundOrderId: Option[OrderId] = None
@@ -78,7 +118,7 @@ object Order {
               invalidated = true
             }
           }
-        case _ => //pass
+        case notExpected => throwException(result = notExpected, id, orderId, repository, commit)
       }
     }
     if (!invalidated) foundOrderId

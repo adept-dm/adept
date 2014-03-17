@@ -12,7 +12,7 @@ import java.io.File
 
 case class ResolutionResultsMetadata(values: Seq[ResolutionResult]) {
   import ResolutionResultsMetadata._
-  lazy val jsonString = Json.prettyPrint(Json.toJson(values))
+  lazy val jsonString = Json.prettyPrint(Json.toJson(values.sorted))
 
   def write(id: Id, hash: VariantHash, repository: Repository): File = {
     val file = repository.getResolutionResultsFile(id, hash)
