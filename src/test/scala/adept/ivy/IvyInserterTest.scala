@@ -63,8 +63,6 @@ class IvyInserterTest extends FunSuite with Matchers {
 
       val scalaTargetVersion = "2.10.2"
       val scalaId = "scala-library"
-      insert(Variant(scalaId, Set(version -> Set("2.9.3")),
-        requirements = Set.empty), scalaRepository)
       insert(Variant(scalaId, Set(version -> Set("2.10.1")),
         requirements = Set.empty), scalaRepository)
 
@@ -74,6 +72,8 @@ class IvyInserterTest extends FunSuite with Matchers {
       insert(scalaVariant, scalaRepository)
 
       insert(Variant(scalaId, Set(version -> Set("2.10.3")),
+        requirements = Set.empty), scalaRepository)
+      insert(Variant(scalaId, Set(version -> Set("2.9.3")),
         requirements = Set.empty), scalaRepository)
 
       //--- Scala
@@ -87,11 +87,11 @@ class IvyInserterTest extends FunSuite with Matchers {
         requirements = Set(
           configVariant.id.value -> Set.empty[Constraint],
           scalaVariant.id.value -> Set.empty[Constraint]))
+      insert(akkaVariant, akkaRepository)
 
       //****** SETUP END 
 
       val versionInfo: Set[((RepositoryName, Id, VariantHash), Set[(RepositoryName, Id, Version)])] = Set(
-
         ((akkaRepository.name, akkaVariant.id, VariantMetadata.fromVariant(akkaVariant).hash),
           Set((configRepository.name, configVariant.id, Version(configTargetVersion)),
             (scalaRepository.name, scalaVariant.id, Version(scalaTargetVersion)))))
@@ -122,16 +122,17 @@ class IvyInserterTest extends FunSuite with Matchers {
           } else None
       }
 
-      insert(akkaVariant, akkaRepository)
       updatedRepositories.foreach {
         _.commit("Added resolution results from version map")
       }
 
-      val requirements: Set[Requirement] = Set(
-        akkaVariant.id.value -> Set.empty[Constraint])
+      val inputRepostioryRequirements: Set[(RepositoryName, Requirement)] = Set(
+        akkaRepository.name ->
+          (akkaVariant.id.value -> Set.empty[Constraint]))
+      val resolutionResults = GitLoader.getLatestResolutionResults(tmpDir, inputRepostioryRequirements, progress, cacheManager).map(_._1)
 
-      val loader = new GitLoader(tmpDir, versionResolutionResults.flatMap(_._2) + ResolutionResult(akkaVariant.id, akkaRepository.name, akkaRepository.getHead, VariantMetadata.fromVariant(akkaVariant).hash), progress, cacheManager)
-      val result = resolve(requirements, loader)
+      val loader = new GitLoader(tmpDir, resolutionResults, progress, cacheManager)
+      val result = resolve(inputRepostioryRequirements.map(_._2), loader)
       checkResolved(result, Set(akkaVariant.id, configVariant.id, scalaVariant.id))
       checkVariants(result, akkaVariant.id, version -> Set(akkaTargetVersion))
       checkVariants(result, configVariant.id, version -> Set(configTargetVersion))
