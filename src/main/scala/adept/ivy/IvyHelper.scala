@@ -86,7 +86,7 @@ object IvyHelper extends Logging {
   }
 }
 
-private[ivy] case class MergableIvyResult(variant: Variant, artifacts: Set[Artifact], localFiles: Map[ArtifactHash, File], sourceVersionInfo: Option[(RepositoryName, Id, VariantHash)], targetVersionInfo: Set[(RepositoryName, Id, Version)])
+private[ivy] case class MergableIvyResult(variant: Variant, artifacts: Set[Artifact], localFiles: Map[ArtifactHash, File], repository: RepositoryName, versionInfo: Set[(RepositoryName, Id, Version)])
 case class IvyImportResult(variants: Set[Variant], artifacts: Set[Artifact], localFiles: Map[ArtifactHash, File], versionInfo: Set[((RepositoryName, Id, VariantHash), Set[(RepositoryName, Id, Version)])])
 object IvyImportResult {
   private[ivy] def fromMergable(mergableResults: Set[MergableIvyResult]): IvyImportResult = {
@@ -223,7 +223,7 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[St
           val targetId = ivyIdAsId(ivyNode.getId)
           val targetRepositoryName = ivyIdAsRepositoryName(ivyNode.getId)
           val targetVersion = ivyIdAsVersion(ivyNode.getId)
-          Some(targetRepositoryName, targetId, targetVersion)
+          Some((targetRepositoryName, targetId, targetVersion))
         } else {
           None
         }
@@ -233,17 +233,17 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[St
         variant = variant,
         artifacts = artifacts,
         localFiles = localFiles,
-        sourceVersionInfo = Some((ivyIdAsRepositoryName(mrid), ivyIdAsId(mrid), VariantMetadata.fromVariant(variant).hash)),
-        targetVersionInfo = targetVersionInfo)
+        repository = ivyIdAsRepositoryName(mrid),
+        versionInfo = targetVersionInfo)
     }.toSet
 
     mergableResults +
-      MergableIvyResult( //<-- adding main configuration
+      MergableIvyResult( //<-- adding main configuration to make sure that there is not 2 variants with different "configurations" 
         variant = Variant(id, attributes = attributes + Attribute(ConfigurationAttribute, Set(configurationHash))),
-        Set.empty,
-        Map.empty,
-        None,
-        Set.empty)
+        artifacts = Set.empty,
+        localFiles = Map.empty,
+        repository = ivyIdAsRepositoryName(mrid),
+        versionInfo = Set.empty)
   }
 
   private def createDependencyTree(mrid: ModuleRevisionId) = { //TODO: rename to requirement? or perhaps not?
