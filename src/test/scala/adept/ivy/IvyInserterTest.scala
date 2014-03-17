@@ -81,7 +81,7 @@ class IvyInserterTest extends FunSuite with Matchers {
       //--- Akka
       val akkaRepository = new GitRepository(tmpDir, RepositoryName("com.typesafe.akka"))
       akkaRepository.init()
-      val akkaId = "akka-actor"
+      val akkaId = "akka-actor_2.10"
       val akkaTargetVersion = "2.2.0"
       val akkaVariant = Variant(akkaId, Set(version -> Set(akkaTargetVersion)),
         requirements = Set(
@@ -91,6 +91,11 @@ class IvyInserterTest extends FunSuite with Matchers {
 
       //****** SETUP END 
 
+      
+      //replace with:
+      //val IvyImportResult(versionInfo, variants, artifacts, localFiles) = ivyHelper.import("com.typesafe.akka", "akka-actor_2.10", "2.2.0")
+      //VersionOrder.updateResolutionResults(versionInfo)
+      //updateResolutionResults start
       val versionInfo: Set[((RepositoryName, Id, VariantHash), Set[(RepositoryName, Id, Version)])] = Set(
         ((akkaRepository.name, akkaVariant.id, VariantMetadata.fromVariant(akkaVariant).hash),
           Set((configRepository.name, configVariant.id, Version(configTargetVersion)),
@@ -125,6 +130,7 @@ class IvyInserterTest extends FunSuite with Matchers {
       updatedRepositories.foreach {
         _.commit("Added resolution results from version map")
       }
+      //end 
 
       val inputRepostioryRequirements: Set[(RepositoryName, Requirement)] = Set(
         akkaRepository.name ->

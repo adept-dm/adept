@@ -6,7 +6,7 @@ import adept.utils.Hasher
 
 case class ArtifactHash(value: String) extends AnyVal
 
-object AritfactHash {
+object ArtifactHash {
   def fromFile(file: File): ArtifactHash = {
     val fos = new FileInputStream(file)
     try {
