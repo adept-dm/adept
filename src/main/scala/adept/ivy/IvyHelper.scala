@@ -71,10 +71,15 @@ object IvyHelper extends Logging {
   def ivyIdAsId(mrid: ModuleRevisionId): Id = {
     Id(mrid.getName)
   }
+  val IdConfig = "config"
 
+  def withConfiguration(id: Id, confName: String): Id = {
+    Id(id.value + Id.Sep + IdConfig + Id.Sep + confName)
+  }
+  
   def ivyIdAsId(mrid: ModuleRevisionId, confName: String): Id = {
     assert(!confName.contains(Id.Sep))
-    Id(mrid.getName + Id.Sep + "config" + Id.Sep + confName)
+    withConfiguration(Id(mrid.getName), confName)
   }
 
   def ivyIdAsRepositoryName(mrid: ModuleRevisionId): RepositoryName = {
@@ -86,18 +91,7 @@ object IvyHelper extends Logging {
   }
 }
 
-private[ivy] case class MergableIvyResult(variant: Variant, artifacts: Set[Artifact], localFiles: Map[ArtifactHash, File], repository: RepositoryName, versionInfo: Set[(RepositoryName, Id, Version)])
-case class IvyImportResult(variants: Set[Variant], artifacts: Set[Artifact], localFiles: Map[ArtifactHash, File], versionInfo: Set[((RepositoryName, Id, VariantHash), Set[(RepositoryName, Id, Version)])])
-object IvyImportResult {
-  private[ivy] def fromMergable(mergableResults: Set[MergableIvyResult]): IvyImportResult = {
-    var variants = Set.empty[Variant]
-    var artifacts = Set.empty[Artifact]
-    var localFiles = Map.empty[ArtifactHash, File]
-    var versionInfo = Set.empty[((RepositoryName, Id, VariantHash), Set[(RepositoryName, Id, Version)])]
-
-    IvyImportResult(variants, artifacts, localFiles, versionInfo)
-  }
-}
+case class IvyImportResult(variant: Variant, artifacts: Set[Artifact], localFiles: Map[ArtifactHash, File], repository: RepositoryName, versionInfo: Set[(RepositoryName, Id, Version)])
 
 class IvyHelper(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[String]] = Some(Set("javadoc", "sources"))) extends Logging {
   import AttributeDefaults.{ NameAttribute, OrgAttribute, VersionAttribute, ArtifactConfAttribute }
@@ -108,7 +102,7 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[St
   /**
    * Import from ivy based on coordinates
    */
-  def ivyImport(org: String, name: String, version: String): IvyImportResult = {
+  def ivyImport(org: String, name: String, version: String): Set[IvyImportResult] = {
     val mergableResults = ivy.synchronized { // ivy is not thread safe
       val mrid = ModuleRevisionId.newInstance(org, name, version)
       val dependencyTree = createDependencyTree(mrid)
@@ -116,11 +110,10 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[St
       val result = results(workingNode)(dependencyTree)
       result
     }
-
-    IvyImportResult.fromMergable(mergableResults)
+    mergableResults
   }
 
-  private def results(mrid: ModuleRevisionId)(dependencies: Map[ModuleRevisionId, Set[IvyNode]]): Set[MergableIvyResult] = {
+  private def results(mrid: ModuleRevisionId)(dependencies: Map[ModuleRevisionId, Set[IvyNode]]): Set[IvyImportResult] = {
     val children = dependencies.getOrElse(mrid, Set.empty)
     val currentResults = createIvyResult(mrid, children)
     children.flatMap { childNode =>
@@ -130,7 +123,7 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[St
     } ++ currentResults
   }
 
-  private def createIvyResult(mrid: ModuleRevisionId, unloadedChildren: Set[IvyNode]) = { //: IvyImportResult = {
+  private def createIvyResult(mrid: ModuleRevisionId, unloadedChildren: Set[IvyNode]): Set[IvyImportResult] = {
     val id = ivyIdAsId(mrid)
     val versionAttribute = Attribute(VersionAttribute, Set(mrid.getRevision()))
     val nameAttribute = Attribute(NameAttribute, Set(mrid.getName()))
@@ -229,7 +222,7 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[St
         }
       }
 
-      MergableIvyResult(
+      IvyImportResult(
         variant = variant,
         artifacts = artifacts,
         localFiles = localFiles,
@@ -238,7 +231,7 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[St
     }.toSet
 
     mergableResults +
-      MergableIvyResult( //<-- adding main configuration to make sure that there is not 2 variants with different "configurations" 
+      IvyImportResult( //<-- adding main configuration to make sure that there is not 2 variants with different "configurations" 
         variant = Variant(id, attributes = attributes + Attribute(ConfigurationAttribute, Set(configurationHash))),
         artifacts = Set.empty,
         localFiles = Map.empty,

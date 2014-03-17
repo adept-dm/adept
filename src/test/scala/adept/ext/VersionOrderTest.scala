@@ -209,4 +209,96 @@ class VersionOrderTest extends FunSpec with Matchers {
     }
   }
 
+  def insert(variant: Variant, repository: GitRepository) = {
+    val metadata = VariantMetadata.fromVariant(variant)
+    repository.add(metadata.write(variant.id, repository))
+    val commit = repository.commit("Adding " + variant.id)
+
+    repository.add(VersionOrder.useDefaultVersionOrder(variant.id, repository, commit))
+    repository.commit("Ordered " + variant.id)
+  }
+
+  import adept.test.LoaderUtils._
+  describe("When importing variants from something that is version-based, VersionOrder") {
+    it("should create resolution results for us") {
+      usingTmpDir { tmpDir =>
+        //***** SETUP START
+        //Config ----
+        val configRepository = new GitRepository(tmpDir, RepositoryName("com.typesafe"))
+        configRepository.init()
+        val configId = "config"
+        insert(Variant(configId, Set(version -> Set("1.0.0")),
+          requirements = Set.empty), configRepository)
+
+        val configTargetVersion = "1.0.2"
+        val configVariant = Variant(configId, Set(version -> Set(configTargetVersion)),
+          requirements = Set.empty)
+        insert(configVariant, configRepository)
+
+        insert(Variant(configId, Set(version -> Set("1.1.0")),
+          requirements = Set.empty), configRepository)
+        //--- Config
+
+        //Scala ---
+        val scalaRepository = new GitRepository(tmpDir, RepositoryName("org.scala-lang"))
+        scalaRepository.init()
+
+        val scalaTargetVersion = "2.10.2"
+        val scalaId = "scala-library"
+        insert(Variant(scalaId, Set(version -> Set("2.10.1")),
+          requirements = Set.empty), scalaRepository)
+
+        val scalaVariant = Variant("scala-library", Set(version -> Set(scalaTargetVersion)),
+          requirements = Set.empty)
+
+        insert(scalaVariant, scalaRepository)
+
+        insert(Variant(scalaId, Set(version -> Set("2.10.3")),
+          requirements = Set.empty), scalaRepository)
+        insert(Variant(scalaId, Set(version -> Set("2.9.3")),
+          requirements = Set.empty), scalaRepository)
+
+        //--- Scala
+
+        //--- Akka
+        val akkaRepository = new GitRepository(tmpDir, RepositoryName("com.typesafe.akka"))
+        akkaRepository.init()
+        val akkaId = "akka-actor_2.10"
+        val akkaTargetVersion = "2.2.0"
+        val akkaVariant = Variant(akkaId, Set(version -> Set(akkaTargetVersion)),
+          requirements = Set(
+            configVariant.id.value -> Set.empty[Constraint],
+            scalaVariant.id.value -> Set.empty[Constraint]))
+        insert(akkaVariant, akkaRepository)
+
+        //****** SETUP END 
+
+        val versionInfo: Set[((RepositoryName, Id, VariantHash), Set[(RepositoryName, Id, Version)])] = Set(
+          ((akkaRepository.name, akkaVariant.id, VariantMetadata.fromVariant(akkaVariant).hash),
+            Set((configRepository.name, configVariant.id, Version(configTargetVersion)),
+              (scalaRepository.name, scalaVariant.id, Version(scalaTargetVersion)))))
+
+        val updates = VersionOrder.createResolutionResults(tmpDir, versionInfo)
+        updates.foreach {
+          case (repository, file) =>
+            repository.add(file)
+            repository.commit("Added resolution results from version map")
+        }
+        //end 
+
+        val inputRepostioryRequirements: Set[(RepositoryName, Requirement)] = Set(
+          akkaRepository.name ->
+            (akkaVariant.id.value -> Set.empty[Constraint]))
+        val resolutionResults = GitLoader.getLatestResolutionResults(tmpDir, inputRepostioryRequirements, progress, cacheManager).map(_._1)
+
+        val loader = new GitLoader(tmpDir, resolutionResults, progress, cacheManager)
+        val result = resolve(inputRepostioryRequirements.map(_._2), loader)
+        checkResolved(result, Set(akkaVariant.id, configVariant.id, scalaVariant.id))
+        checkVariants(result, akkaVariant.id, version -> Set(akkaTargetVersion))
+        checkVariants(result, configVariant.id, version -> Set(configTargetVersion))
+        checkVariants(result, scalaVariant.id, version -> Set(scalaTargetVersion))
+      }
+    }
+  }
+
 }
