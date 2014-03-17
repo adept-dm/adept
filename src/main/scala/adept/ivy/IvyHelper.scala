@@ -26,6 +26,11 @@ import adept.repository.serialization.VariantMetadata
 import adept.repository.GitRepository
 import adept.ext.VersionOrder
 import adept.repository.serialization.ResolutionResultsMetadata
+import org.eclipse.jgit.lib.ProgressMonitor
+import org.apache.ivy.plugins.matcher.MapMatcher
+import org.apache.ivy.core.module.descriptor.OverrideDependencyDescriptorMediator
+import org.apache.ivy.plugins.matcher.PatternMatcher
+import org.apache.ivy.core.IvyPatternHelper
 
 case class AdeptIvyResolveException(msg: String) extends Exception(msg)
 case class AdeptIvyException(msg: String) extends Exception(msg)
@@ -38,36 +43,51 @@ object IvyHelper extends Logging {
   lazy val infoIvyLogger = new DefaultMessageLogger(Message.MSG_INFO)
   lazy val debugIvyLogger = new DefaultMessageLogger(Message.MSG_DEBUG)
 
-  def insert(baseDir: File, results: Set[IvyImportResult]) = {
-    results.foreach { result =>
-      val variant = result.variant
-      val id = variant.id
+  def insert(baseDir: File, results: Set[IvyImportResult], progress: ProgressMonitor): Set[ResolutionResult] = {
+    val grouped = results.groupBy(_.repository) //grouping to avoid multiple parallel operations on a repo
+    progress.beginTask("Importing and ordering Ivy variants", grouped.size)
+    grouped.par.foreach { //NOTICE .par TODO: replace with something more optimized for IO not for CPU
+      case (_, results) =>
+        results.foreach { result =>
+          val variant = result.variant
+          val id = variant.id
 
-      val repository = new GitRepository(baseDir, result.repository)
-      if (!repository.exists) repository.init()
-      val variantMetadata = VariantMetadata.fromVariant(variant)
-      //
-      repository.add(variantMetadata.write(id, repository))
-      val commit = repository.commit("Ivy Import of " + variant.id)
-      repository.add(VersionOrder.useDefaultVersionOrder(id, repository, commit))
-      repository.commit("Ordered Ivy Import of " + variant.id)
+          val repository = new GitRepository(baseDir, result.repository)
+          if (!repository.exists) repository.init()
+          val variantMetadata = VariantMetadata.fromVariant(variant)
+          //
+          repository.add(variantMetadata.write(id, repository))
+          val commit = repository.commit("Ivy Import of " + variant.id)
+          repository.add(VersionOrder.useDefaultVersionOrder(id, repository, commit))
+          repository.commit("Ordered Ivy Import of " + variant.id)
+        }
+        progress.update(1)
     }
-    results.flatMap { result =>
-      val variant = result.variant
-      val id = variant.id
+    progress.endTask()
+    progress.beginTask("Converting Ivy versions", grouped.size)
+    val all = Set() ++ grouped.par.flatMap { //NOTICE .par TODO: same as above (IO vs CPU)
+      case (_, results) =>
+        val completedResults = results.flatMap { result =>
+          val variant = result.variant
+          val id = variant.id
 
-      val repository = new GitRepository(baseDir, result.repository)
-      if (!repository.exists) repository.init()
-      val variantMetadata = VariantMetadata.fromVariant(variant)
+          val repository = new GitRepository(baseDir, result.repository)
+          if (!repository.exists) repository.init()
+          val variantMetadata = VariantMetadata.fromVariant(variant)
 
-      val currentResults = VersionOrder.createResolutionResults(baseDir, result.versionInfo) ++
-        Set(ResolutionResult(id, repository.name, repository.getHead, variantMetadata.hash))
+          val currentResults = VersionOrder.createResolutionResults(baseDir, result.versionInfo) ++
+            Set(ResolutionResult(id, repository.name, repository.getHead, variantMetadata.hash))
 
-      val resolutionResultsMetadata = ResolutionResultsMetadata(currentResults.toSeq)
-      repository.add(resolutionResultsMetadata.write(id, variantMetadata.hash, repository))
-      repository.commit("Resolution results of " + variant.id)
-      currentResults
+          val resolutionResultsMetadata = ResolutionResultsMetadata(currentResults.toSeq)
+          repository.add(resolutionResultsMetadata.write(id, variantMetadata.hash, repository))
+          repository.commit("Resolution results of " + variant.id)
+          currentResults
+        }
+        progress.update(1)
+        completedResults
     }
+    progress.endTask()
+    all
   }
 
   def load(path: Option[String] = None, ivyLogger: AbstractMessageLogger = errorIvyLogger): Ivy = {
@@ -138,28 +158,33 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[St
   /**
    * Import from ivy based on coordinates
    */
-  def ivyConvert(org: String, name: String, version: String): Set[IvyImportResult] = {
+  def ivyConvert(org: String, name: String, version: String, progress: ProgressMonitor): Set[IvyImportResult] = {
     val mergableResults = ivy.synchronized { // ivy is not thread safe
       val mrid = ModuleRevisionId.newInstance(org, name, version)
       val dependencyTree = createDependencyTree(mrid)
       val workingNode = dependencyTree(ModuleRevisionId.newInstance(org, name + "-caller", "working")).head.getId
-      val result = results(workingNode)(dependencyTree)
+      progress.beginTask("Importing from Ivy", dependencyTree(workingNode).size)
+      val result = results(workingNode, progress, progressIndicatorRoot = true)(dependencyTree)
       result
     }
+    progress.endTask()
     mergableResults
   }
 
-  private def results(mrid: ModuleRevisionId)(dependencies: Map[ModuleRevisionId, Set[IvyNode]]): Set[IvyImportResult] = {
+  private def results(mrid: ModuleRevisionId, progress: ProgressMonitor, progressIndicatorRoot: Boolean)(dependencies: Map[ModuleRevisionId, Set[IvyNode]]): Set[IvyImportResult] = {
     val children = dependencies.getOrElse(mrid, Set.empty)
-    val currentResults = createIvyResult(mrid, children)
-    children.flatMap { childNode =>
+    val currentResults = createIvyResult(mrid, children, dependencies)
+    val allResults = children.flatMap { childNode =>
       val childId = childNode.getId
       val dependencyTree = createDependencyTree(childId)
-      results(childId)(dependencies ++ dependencyTree)
+      val finished = results(childId, progress, progressIndicatorRoot = false)(dependencies ++ dependencyTree)
+      if (progressIndicatorRoot) progress.update(1)
+      finished
     } ++ currentResults
+    allResults
   }
 
-  private def createIvyResult(mrid: ModuleRevisionId, unloadedChildren: Set[IvyNode]): Set[IvyImportResult] = {
+  private def createIvyResult(mrid: ModuleRevisionId, unloadedChildren: Set[IvyNode], dependencies: Map[ModuleRevisionId, Set[IvyNode]]): Set[IvyImportResult] = {
     val id = ivyIdAsId(mrid)
     val versionAttribute = Attribute(VersionAttribute, Set(mrid.getRevision()))
     val nameAttribute = Attribute(NameAttribute, Set(mrid.getName()))
@@ -186,13 +211,19 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[St
 
       //print warnings:
       notLoaded.foreach { ivyNode =>
-        if (ivyNode.isEvicted(confName))
-          logger.debug(ivyNode + " was not loaded but it is also evicted, so skipping!")
-        else if (ivyNode.getDescriptor().canExclude()) {
-          logger.warn(ivyNode + " can be excluded, so skipping!")
-        } else {
-          logger.error(ivyNode + " was not loaded and NOT evicted, so skipping! This is potentially a problem") //TODO: is this acceptable? if not find a way to load ivy nodes...
-        }
+        if (!dependencies.isDefinedAt(ivyNode.getId)) {
+          logger.debug(ivyNode + " is not defined")
+
+          if (ivyNode == null) {
+            logger.error("Got a null while loading: " + mrid)
+          } else if (ivyNode.isEvicted(confName))
+            logger.debug(mrid + " evicts " + ivyNode + " so it was not loaded.")
+          else if (ivyNode.getDescriptor() != null && ivyNode.getDescriptor().canExclude()) {
+            logger.debug(mrid + " required" + ivyNode + " which can be excluded.")
+          } else {
+            logger.error(mrid + " required " + ivyNode + ", but is was not loaded (nor evicted) so cannot import. This is potentially a problem") //TODO: is this acceptable? if not find a way to load ivy nodes...
+          }
+        } else throw new Exception("Could not load " + ivyNode + "declared in: " + mrid)
       }
 
       //get requirements:
@@ -258,7 +289,21 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[St
         } else {
           Set.empty[(RepositoryName, Id, Version)]
         }
-      }
+      } 
+
+      //TODO: must be imported:
+//      ++ parentNode.getDescriptor().getAllDependencyDescriptorMediators().getAllRules().asScala.map {
+//        case (matcher: MapMatcher, overrideMediator: OverrideDependencyDescriptorMediator) =>
+//          val matcherName = matcher.getPatternMatcher().getName()
+//          matcherName match {
+//            case PatternMatcher.EXACT => true
+//            case _ => throw new Exception("found matcher: " + matcherName + ". currently only: " + PatternMatcher.EXACT + " is supported. parent:" + parentNode)
+//          }
+//          val org = matcher.getAttributes.get(IvyPatternHelper.ORGANISATION_KEY) match { case s: String => s }
+//          val name = matcher.getAttributes.get(IvyPatternHelper.MODULE_KEY) match { case s: String => s }
+//          val overriddenVersion = overrideMediator.getVersion()
+//          (RepositoryName(org), Id(name), Version(overriddenVersion))
+//      }
 
       IvyImportResult(
         variant = variant,

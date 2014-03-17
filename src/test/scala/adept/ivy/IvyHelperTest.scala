@@ -46,7 +46,7 @@ class IvyHelperTest extends FunSuite with Matchers {
     val ivy = IvyHelper.load()
     val ivyHelper = new IvyHelper(ivy)
 
-    val results = ivyHelper.ivyConvert("com.typesafe.akka", "akka-actor_2.10", "2.1.0")
+    val results = ivyHelper.ivyConvert("com.typesafe.akka", "akka-actor_2.10", "2.1.0", progress)
 
     val byIds = results.groupBy(_.variant.id)
     byIds.keySet.intersect(akkaTransitiveIdsExpectedIds) should have size (akkaTransitiveIdsExpectedIds.size)
@@ -79,17 +79,17 @@ class IvyHelperTest extends FunSuite with Matchers {
       val ivy = IvyHelper.load()
       val ivyHelper = new IvyHelper(ivy)
 
-      val results = ivyHelper.ivyConvert("com.typesafe.akka", "akka-actor_2.10", "2.1.0")
+      val results = ivyHelper.ivyConvert("com.typesafe.akka", "akka-actor_2.10", "2.1.0", progress)
 
-      val resolutionResults = IvyHelper.insert(tmpDir, results)
+      val resolutionResults = IvyHelper.insert(tmpDir, results, progress)
 
       //insert something else to make sure process is stable:
-      IvyHelper.insert(tmpDir, ivyHelper.ivyConvert("com.typesafe.akka", "akka-actor_2.10", "2.2.1"))
-        //update to latest commit to make sure process is stable:
-      val confuscatedResolutionResults = resolutionResults.map{ r =>
+      IvyHelper.insert(tmpDir, ivyHelper.ivyConvert("com.typesafe.akka", "akka-actor_2.10", "2.2.1", progress), progress)
+      //update to latest commit to make sure process is stable:
+      val confuscatedResolutionResults = resolutionResults.map { r =>
         r.copy(commit = (new GitRepository(tmpDir, r.repository)).getHead)
       }
-      
+
       val loader = new GitLoader(tmpDir, confuscatedResolutionResults, progress, cacheManager)
       val requirements = Set(
         Requirement("akka-actor_2.10", Set.empty),
@@ -111,6 +111,38 @@ class IvyHelperTest extends FunSuite with Matchers {
       checkAttributeVariants(result, "scala-library", version -> Set("2.10.0"))
     }
   }
+
+//  test("REMOVE ME: add a proper more complicated test") {
+//    usingTmpDir { tmpDir =>
+//      import IvyHelper._
+//      val ivy = IvyHelper.load()
+//      ivy.configure(new File("src/test/resources/typesafe-ivy-settings.xml"))
+//
+//      val ivyHelper = new IvyHelper(ivy)
+//      val time1 = System.currentTimeMillis()
+//      val results = ivyHelper.ivyConvert("com.typesafe.play", "play_2.10", "2.2.1", progress)
+//      val time2 = System.currentTimeMillis()
+//      println("import completed: " + ((time2 - time1)/1000.0) + "s")
+//      val resolutionResults = IvyHelper.insert(tmpDir, results, progress)
+//      val time3 = System.currentTimeMillis()
+//      println("insert completed: " + ((time3 - time2)/1000.0) + "s")
+//      val confuscatedResolutionResults = resolutionResults.map { r =>
+//        r.copy(commit = (new GitRepository(tmpDir, r.repository)).getHead)
+//      }
+//
+//      val loader = new GitLoader(tmpDir, confuscatedResolutionResults, progress, cacheManager)
+//      val time4 = System.currentTimeMillis()
+//      println("loaded in: " + ((time4 - time3)/1000.0) + "s")
+//      val requirements = Set(
+//        Requirement("play_2.10", Set.empty),
+//        Requirement(withConfiguration("play_2.10", "compile"), Set.empty),
+//        Requirement(withConfiguration("play_2.10", "master"), Set.empty))
+//      val result = resolve(requirements, loader)
+//      val time5 = System.currentTimeMillis()
+//      println("resolution completed: " + ((time5 - time4)/1000.0) + "s")
+//      println(result)
+//    }
+//  }
 
   test("IvyImport end-to-end: import of akka should yield correct classpath") {
     pending
