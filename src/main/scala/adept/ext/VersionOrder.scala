@@ -161,36 +161,30 @@ object VersionOrder extends Logging {
     var allBinaryVersions = Map.empty[String, Seq[Variant]]
     variants.foreach { variant =>
       val binaryVersions = variant.attribute(BinaryVersionAttribute).values
-      binaryVersions.foreach { binaryVersion =>
-        val parsedVariants = allBinaryVersions.getOrElse(binaryVersion, Seq.empty)
-        allBinaryVersions += binaryVersion -> (variant +: parsedVariants)
+      if (binaryVersions.nonEmpty) {
+        binaryVersions.foreach { binaryVersion =>
+          val parsedVariants = allBinaryVersions.getOrElse(binaryVersion, Seq.empty)
+          allBinaryVersions += binaryVersion -> (variant +: parsedVariants)
+        }
+      } else if (binaryVersions.isEmpty) {
+        val parsedVariants = allBinaryVersions.getOrElse("", Seq.empty)
+        allBinaryVersions += "" -> (variant +: parsedVariants)
       }
     }
 
-    if (allBinaryVersions.nonEmpty) {
-      val orderSize = allBinaryVersions.size
-      val orders = Order.getXOrderId(repository, 0, orderSize) //overwrites former files
-      assert(orders.size == orderSize)
-      val newOrderIds = {
-        ((0 to orders.size) zip orders.toSeq.map(_.value).sorted).toMap
-      }
-      val oldOrderFiles = getOldOrderFiles(orders)
-      val orderFiles = allBinaryVersions.toSeq.sortBy { case (binaryVersion, _) => Version(binaryVersion) }.zipWithIndex.map {
-        case ((binaryVersion, variants), index) =>
-          val orderId = OrderId(newOrderIds(index))
-          writeSortedByVersions(variants, orderId)
-      }
-      orderFiles.toSet ++ oldOrderFiles.toSet
-    } else {
-      val orders = Order.getXOrderId(repository, 0, 1)
-      assert(orders.size == 1)
-
-      val oldOrderFiles = getOldOrderFiles(orders)
-      val orderFiles = orders.map { orderId =>
-        writeSortedByVersions(variants.toSeq, orderId)
-      }
-      orderFiles ++ oldOrderFiles
+    val orderSize = allBinaryVersions.size
+    val orders = Order.getXOrderId(repository, 0, orderSize) //overwrites former files
+    assert(orders.size == orderSize)
+    val newOrderIds = {
+      ((0 to orders.size) zip orders.toSeq.map(_.value).sorted).toMap
     }
+    val oldOrderFiles = getOldOrderFiles(orders)
+    val orderFiles = allBinaryVersions.toSeq.sortBy { case (binaryVersion, _) => Version(binaryVersion) }.zipWithIndex.map {
+      case ((binaryVersion, variants), index) =>
+        val orderId = OrderId(newOrderIds(index))
+        writeSortedByVersions(variants, orderId)
+    }
+    orderFiles.toSet ++ oldOrderFiles.toSet
   }
 
   def useSemanticVersions(id: Id, hash: VariantHash, repository: GitRepository, commit: Commit, excludes: Set[Regex] = Set.empty, useVersionAsBinary: Set[Regex] = Set.empty): Set[File] = {
