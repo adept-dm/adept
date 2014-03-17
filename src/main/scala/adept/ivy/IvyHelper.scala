@@ -209,7 +209,7 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[St
       }.toMap
 
       val configurationRequirements = parentNode.getConfiguration(confName).getExtends().map { targetConf =>
-        Requirement(ivyIdAsId(mrid, targetConf), Set(Constraint("configuration-hash", Set(configurationHash))))
+        Requirement(ivyIdAsId(mrid, targetConf), Set(Constraint(ConfigurationAttribute, Set(configurationHash))))
       }
 
       val variant = Variant(
