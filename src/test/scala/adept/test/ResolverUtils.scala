@@ -33,7 +33,7 @@ object ResolverUtils extends Matchers {
 
   def checkResolved(result: ResolveResult, ids: Set[Id]) = {
     val state = result.state
-    (state.resolved ++ state.implicitVariants.keys) shouldEqual(ids)
+    (state.resolved ++ state.implicitVariants.keys) shouldEqual (ids)
 
   }
 
@@ -41,7 +41,16 @@ object ResolverUtils extends Matchers {
     val state = result.state
     val underconstrained = state.underconstrained
     val overconstrained = state.overconstrained
-    (overconstrained ++ underconstrained) shouldEqual(ids)
+    (overconstrained ++ underconstrained) shouldEqual (ids)
+  }
+
+  def checkAttributeVariants(result: ResolveResult, id: Id, attr: Attribute) = {
+    import org.scalatest.OptionValues._
+    assert(result.state.isResolved, "Could not find resolved state:\n" + result)
+    val state = result.state
+    val variant = (state.resolvedVariants ++ state.implicitVariants).get(id).value
+    variant.id shouldEqual (id)
+    (id -> variant.attribute(attr.name)) shouldEqual (id -> attr)
   }
 
   def checkVariants(result: ResolveResult, id: Id, attrs: Attribute*) = {
@@ -49,8 +58,8 @@ object ResolverUtils extends Matchers {
     assert(result.state.isResolved, "Could not find resolved state:\n" + result)
     val state = result.state
     val variant = (state.resolvedVariants ++ state.implicitVariants).get(id).value
-    variant.id shouldEqual(id)
-    (id -> variant.attributes) shouldEqual(id -> attrs.toSet)
+    variant.id shouldEqual (id)
+    (id -> variant.attributes) shouldEqual (id -> attrs.toSet)
   }
 
   def getMemoryLoader(variants: Set[Variant]) = {

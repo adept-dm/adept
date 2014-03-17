@@ -278,10 +278,11 @@ class VersionOrderTest extends FunSpec with Matchers {
             Set((configRepository.name, configVariant.id, Version(configTargetVersion)),
               (scalaRepository.name, scalaVariant.id, Version(scalaTargetVersion)))))
 
-        val updates = VersionOrder.createResolutionResults(tmpDir, versionInfo)
-        updates.foreach {
-          case (repository, file) =>
-            repository.add(file)
+        versionInfo.foreach {
+          case ((name, id, hash), versionInfo) =>
+            val repository = new GitRepository(tmpDir, name)
+            val results = VersionOrder.createResolutionResults(tmpDir, versionInfo)
+            repository.add(ResolutionResultsMetadata(results.toSeq).write(id, hash, repository))
             repository.commit("Added resolution results from version map")
         }
         //end 

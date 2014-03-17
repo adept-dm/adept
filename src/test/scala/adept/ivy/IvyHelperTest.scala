@@ -28,28 +28,28 @@ class IvyHelperTest extends FunSuite with Matchers {
   import adept.test.ResolverUtils._
   import adept.test.LoaderUtils._
   import adept.test.FileUtils.usingTmpDir
+  import IvyHelper._
+
+  val akkaTransitiveIds: Set[Id] = Set(
+    "akka-actor_2.10",
+    "scala-library",
+    "config")
+  val akkaTransitiveIdsExpectedIds =
+    (for {
+      id <- akkaTransitiveIds
+      confName <- Set("optional", "test", "runtime", "provided", "javadoc", "system", "default", "sources", "compile")
+    } yield {
+      withConfiguration(id, confName)
+    }) ++ akkaTransitiveIds
 
   test("IvyImport basics: import of akka should yield correct results") {
-    import IvyHelper._
     val ivy = IvyHelper.load()
     val ivyHelper = new IvyHelper(ivy)
 
-    val results = ivyHelper.ivyImport("com.typesafe.akka", "akka-actor_2.10", "2.1.0")
-
-    val justIds: Set[Id] = Set(
-      "akka-actor_2.10",
-      "scala-library",
-      "config")
-    val expectedIds =
-      (for {
-        id <- justIds
-        confName <- Set("optional", "test", "runtime", "provided", "javadoc", "system", "default", "sources", "compile")
-      } yield {
-        withConfiguration(id, confName)
-      }) ++ justIds
+    val results = ivyHelper.ivyConvert("com.typesafe.akka", "akka-actor_2.10", "2.1.0")
 
     val byIds = results.groupBy(_.variant.id)
-    byIds.keySet.intersect(expectedIds) should have size (expectedIds.size)
+    byIds.keySet.intersect(akkaTransitiveIdsExpectedIds) should have size (akkaTransitiveIdsExpectedIds.size)
 
     results.foreach {
       case result =>
@@ -66,10 +66,53 @@ class IvyHelperTest extends FunSuite with Matchers {
         if (result.variant.id == IvyHelper.withConfiguration("akka-actor_2.10", "compile")) {
           result.variant.requirements.map(_.id) shouldEqual Set(Id("scala-library"), withConfiguration("scala-library", "compile"), withConfiguration("scala-library", "master"), Id("config"), withConfiguration("config", "compile"), withConfiguration("config", "master"))
           result.repository shouldEqual RepositoryName("com.typesafe.akka")
-          result.versionInfo shouldEqual Set(
-            (RepositoryName("org.scala-lang"), Id("scala-library"), Version("2.10.0")),
-            (RepositoryName("com.typesafe"), Id("config"), Version("1.0.0")))
+          result.versionInfo.map { case (name, _, version) => name -> version } shouldEqual Set(
+            (RepositoryName("org.scala-lang"), Version("2.10.0")),
+            (RepositoryName("com.typesafe"), Version("1.0.0")))
         }
     }
+  }
+
+  test("IvyImport end-to-end: import of akka should resolve correctly") {
+    usingTmpDir { tmpDir =>
+      import IvyHelper._
+      val ivy = IvyHelper.load()
+      val ivyHelper = new IvyHelper(ivy)
+
+      val results = ivyHelper.ivyConvert("com.typesafe.akka", "akka-actor_2.10", "2.1.0")
+
+      val resolutionResults = IvyHelper.insert(tmpDir, results)
+
+      //insert something else to make sure process is stable:
+      IvyHelper.insert(tmpDir, ivyHelper.ivyConvert("com.typesafe.akka", "akka-actor_2.10", "2.2.1"))
+        //update to latest commit to make sure process is stable:
+      val confuscatedResolutionResults = resolutionResults.map{ r =>
+        r.copy(commit = (new GitRepository(tmpDir, r.repository)).getHead)
+      }
+      
+      val loader = new GitLoader(tmpDir, confuscatedResolutionResults, progress, cacheManager)
+      val requirements = Set(
+        Requirement("akka-actor_2.10", Set.empty),
+        Requirement(withConfiguration("akka-actor_2.10", "compile"), Set.empty),
+        Requirement(withConfiguration("akka-actor_2.10", "master"), Set.empty))
+      val result = resolve(requirements, loader)
+      checkResolved(result, Set[Id](
+        "config/config/master",
+        "scala-library/config/compile",
+        "config/config/compile",
+        "akka-actor_2.10",
+        "akka-actor_2.10/config/compile",
+        "config",
+        "akka-actor_2.10/config/master",
+        "scala-library",
+        "scala-library/config/master"))
+      checkAttributeVariants(result, "akka-actor_2.10", version -> Set("2.1.0"))
+      checkAttributeVariants(result, "config", version -> Set("1.0.0"))
+      checkAttributeVariants(result, "scala-library", version -> Set("2.10.0"))
+    }
+  }
+
+  test("IvyImport end-to-end: import of akka should yield correct classpath") {
+    pending
   }
 }

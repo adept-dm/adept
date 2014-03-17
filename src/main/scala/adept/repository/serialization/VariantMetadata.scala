@@ -95,12 +95,15 @@ object VariantMetadata {
 
   import Repository._
   import GitRepository._
-  
+
+  private[adept] val HashExtractionRegex = {
+    s"""$VariantsMetadataDirName$GitPathSep(.*)$GitPathSep([0-9a-fA-F]{${Repository.Level1Length}})$GitPathSep([0-9a-fA-F]{${Repository.Level2Length}})$GitPathSep([0-9a-fA-F]{${Repository.Level3Length}})$GitPathSep$VariantMetadataFileName""".r
+  }
+
   def listVariants(id: Id, repository: GitRepository, commit: Commit): Set[VariantHash] = {
-    val HashExtractionRegex = s"""$VariantsMetadataDirName$GitPathSep${id.value}$GitPathSep(.*?)$GitPathSep(.*?)$GitPathSep(.*?)$GitPathSep$VariantMetadataFileName""".r
     repository.usePath[VariantHash](Some(VariantsMetadataDirName), commit) { path =>
       path match {
-        case HashExtractionRegex(level1, level2, level3) =>
+        case HashExtractionRegex(idValue, level1, level2, level3) if idValue == id.value =>
           Some(VariantHash(level1 + level2 + level3))
         case _ => None
       }

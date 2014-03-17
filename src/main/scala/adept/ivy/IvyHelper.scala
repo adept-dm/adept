@@ -23,6 +23,9 @@ import adept.resolution.models._
 import adept.utils.Hasher
 import java.io.FileInputStream
 import adept.repository.serialization.VariantMetadata
+import adept.repository.GitRepository
+import adept.ext.VersionOrder
+import adept.repository.serialization.ResolutionResultsMetadata
 
 case class AdeptIvyResolveException(msg: String) extends Exception(msg)
 case class AdeptIvyException(msg: String) extends Exception(msg)
@@ -34,6 +37,38 @@ object IvyHelper extends Logging {
   lazy val warnIvyLogger = new DefaultMessageLogger(Message.MSG_WARN)
   lazy val infoIvyLogger = new DefaultMessageLogger(Message.MSG_INFO)
   lazy val debugIvyLogger = new DefaultMessageLogger(Message.MSG_DEBUG)
+
+  def insert(baseDir: File, results: Set[IvyImportResult]) = {
+    results.foreach { result =>
+      val variant = result.variant
+      val id = variant.id
+
+      val repository = new GitRepository(baseDir, result.repository)
+      if (!repository.exists) repository.init()
+      val variantMetadata = VariantMetadata.fromVariant(variant)
+      //
+      repository.add(variantMetadata.write(id, repository))
+      val commit = repository.commit("Ivy Import of " + variant.id)
+      repository.add(VersionOrder.useDefaultVersionOrder(id, repository, commit))
+      repository.commit("Ordered Ivy Import of " + variant.id)
+    }
+    results.flatMap { result =>
+      val variant = result.variant
+      val id = variant.id
+
+      val repository = new GitRepository(baseDir, result.repository)
+      if (!repository.exists) repository.init()
+      val variantMetadata = VariantMetadata.fromVariant(variant)
+
+      val currentResults = VersionOrder.createResolutionResults(baseDir, result.versionInfo) ++
+        Set(ResolutionResult(id, repository.name, repository.getHead, variantMetadata.hash))
+
+      val resolutionResultsMetadata = ResolutionResultsMetadata(currentResults.toSeq)
+      repository.add(resolutionResultsMetadata.write(id, variantMetadata.hash, repository))
+      repository.commit("Resolution results of " + variant.id)
+      currentResults
+    }
+  }
 
   def load(path: Option[String] = None, ivyLogger: AbstractMessageLogger = errorIvyLogger): Ivy = {
     //setting up logging
@@ -76,7 +111,7 @@ object IvyHelper extends Logging {
   def withConfiguration(id: Id, confName: String): Id = {
     Id(id.value + Id.Sep + IdConfig + Id.Sep + confName)
   }
-  
+
   def ivyIdAsId(mrid: ModuleRevisionId, confName: String): Id = {
     assert(!confName.contains(Id.Sep))
     withConfiguration(Id(mrid.getName), confName)
@@ -89,6 +124,7 @@ object IvyHelper extends Logging {
   def ivyIdAsVersion(mrid: ModuleRevisionId): Version = {
     Version(mrid.getRevision)
   }
+
 }
 
 case class IvyImportResult(variant: Variant, artifacts: Set[Artifact], localFiles: Map[ArtifactHash, File], repository: RepositoryName, versionInfo: Set[(RepositoryName, Id, Version)])
@@ -102,7 +138,7 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[St
   /**
    * Import from ivy based on coordinates
    */
-  def ivyImport(org: String, name: String, version: String): Set[IvyImportResult] = {
+  def ivyConvert(org: String, name: String, version: String): Set[IvyImportResult] = {
     val mergableResults = ivy.synchronized { // ivy is not thread safe
       val mrid = ModuleRevisionId.newInstance(org, name, version)
       val dependencyTree = createDependencyTree(mrid)
@@ -211,14 +247,16 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[St
         artifacts = artifactRefs,
         requirements = requirements)
 
-      val targetVersionInfo = loaded.flatMap { ivyNode =>
+      val targetVersionInfo: Set[(RepositoryName, Id, Version)] = loaded.flatMap { ivyNode =>
         if (!ivyNode.isEvicted(confName)) {
-          val targetId = ivyIdAsId(ivyNode.getId)
           val targetRepositoryName = ivyIdAsRepositoryName(ivyNode.getId)
           val targetVersion = ivyIdAsVersion(ivyNode.getId)
-          Some((targetRepositoryName, targetId, targetVersion))
+          ivyNode.getConfigurations(confName).toSet.map(ivyNode.getConfiguration).map { requirementConf =>
+            val targetId = ivyIdAsId(ivyNode.getId, requirementConf.getName)
+            (targetRepositoryName, targetId, targetVersion)
+          } + ((targetRepositoryName, ivyIdAsId(ivyNode.getId), targetVersion))
         } else {
-          None
+          Set.empty[(RepositoryName, Id, Version)]
         }
       }
 
