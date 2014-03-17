@@ -94,9 +94,7 @@ object IvyImportResult {
     var artifacts = Set.empty[Artifact]
     var localFiles = Map.empty[ArtifactHash, File]
     var versionInfo = Set.empty[((RepositoryName, Id, VariantHash), Set[(RepositoryName, Id, Version)])]
-    
-    
-    
+
     IvyImportResult(variants, artifacts, localFiles, versionInfo)
   }
 }
@@ -105,28 +103,32 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[St
   import AttributeDefaults.{ NameAttribute, OrgAttribute, VersionAttribute, ArtifactConfAttribute }
   import IvyHelper._
 
-  private def createDependencyTree(mrid: ModuleRevisionId) = { //TODO: rename to requirement? or perhaps not?
-    var dependencies = Map.empty[ModuleRevisionId, Set[IvyNode]]
-    val report = ivy.resolve(mrid, resolveOptions(), changing)
-    def addDependency(mrid: ModuleRevisionId, ivyNode: IvyNode) = {
-      val current = dependencies.getOrElse(mrid, Set.empty) + ivyNode
-      dependencies += mrid -> current
+  val ConfigurationAttribute = "configuration-hash"
+
+  /**
+   * Import from ivy based on coordinates
+   */
+  def ivyImport(org: String, name: String, version: String): IvyImportResult = {
+    val mergableResults = ivy.synchronized { // ivy is not thread safe
+      val mrid = ModuleRevisionId.newInstance(org, name, version)
+      val dependencyTree = createDependencyTree(mrid)
+      val workingNode = dependencyTree(ModuleRevisionId.newInstance(org, name + "-caller", "working")).head.getId
+      val result = results(workingNode)(dependencyTree)
+      result
     }
 
-    report.getDependencies().asScala.foreach {
-      case ivyNode: IvyNode =>
-        if (mrid != ivyNode.getId) addDependency(mrid, ivyNode)
-    }
-
-    val currentCallers = report.getDependencies().asScala.foreach {
-      case ivyNode: IvyNode => ivyNode.getAllCallers.map { caller =>
-        if (caller.getModuleRevisionId != ivyNode.getId) addDependency(caller.getModuleRevisionId, ivyNode)
-      }
-    }
-    dependencies
+    IvyImportResult.fromMergable(mergableResults)
   }
 
-  val ConfigurationAttribute = "configuration-hash"
+  private def results(mrid: ModuleRevisionId)(dependencies: Map[ModuleRevisionId, Set[IvyNode]]): Set[MergableIvyResult] = {
+    val children = dependencies.getOrElse(mrid, Set.empty)
+    val currentResults = createIvyResult(mrid, children)
+    children.flatMap { childNode =>
+      val childId = childNode.getId
+      val dependencyTree = createDependencyTree(childId)
+      results(childId)(dependencies ++ dependencyTree)
+    } ++ currentResults
+  }
 
   def createIvyResult(mrid: ModuleRevisionId, unloadedChildren: Set[IvyNode]) = { //: IvyImportResult = {
     val id = ivyIdAsId(mrid)
@@ -152,7 +154,7 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[St
         }.toSet
         children.partition(_.isLoaded)
       }
-      
+
       //print warnings:
       notLoaded.foreach { ivyNode =>
         if (ivyNode.isEvicted(confName))
@@ -163,7 +165,7 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[St
           logger.error(ivyNode + " was not loaded and NOT evicted, so skipping! This is potentially a problem") //TODO: is this acceptable? if not find a way to load ivy nodes...
         }
       }
-      
+
       //get requirements:
       val requirements = loaded.flatMap { ivyNode =>
         ivyNode.getConfigurations(confName).toSet.map(ivyNode.getConfiguration).map { requirementConf =>
@@ -244,28 +246,24 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[St
         Set.empty)
   }
 
-  /**
-   * Import from ivy based on coordinates
-   */
-  def ivyImport(org: String, name: String, version: String): IvyImportResult = {
-    val mergableResults = ivy.synchronized { // ivy is not thread safe
-      val mrid = ModuleRevisionId.newInstance(org, name, version)
-      val dependencyTree = createDependencyTree(mrid)
-      val workingNode = dependencyTree(ModuleRevisionId.newInstance(org, name + "-caller", "working")).head.getId
-      val result = results(workingNode)(dependencyTree)
-      result
+  private def createDependencyTree(mrid: ModuleRevisionId) = { //TODO: rename to requirement? or perhaps not?
+    var dependencies = Map.empty[ModuleRevisionId, Set[IvyNode]]
+    val report = ivy.resolve(mrid, resolveOptions(), changing)
+    def addDependency(mrid: ModuleRevisionId, ivyNode: IvyNode) = {
+      val current = dependencies.getOrElse(mrid, Set.empty) + ivyNode
+      dependencies += mrid -> current
     }
 
-    IvyImportResult.fromMergable(mergableResults)
-  }
+    report.getDependencies().asScala.foreach {
+      case ivyNode: IvyNode =>
+        if (mrid != ivyNode.getId) addDependency(mrid, ivyNode)
+    }
 
-  private def results(mrid: ModuleRevisionId)(dependencies: Map[ModuleRevisionId, Set[IvyNode]]): Set[MergableIvyResult] = {
-    val children = dependencies.getOrElse(mrid, Set.empty)
-    val currentResults = createIvyResult(mrid, children)
-    children.flatMap { childNode =>
-      val childId = childNode.getId
-      val dependencyTree = createDependencyTree(childId)
-      results(childId)(dependencies ++ dependencyTree)
-    } ++ currentResults
+    val currentCallers = report.getDependencies().asScala.foreach {
+      case ivyNode: IvyNode => ivyNode.getAllCallers.map { caller =>
+        if (caller.getModuleRevisionId != ivyNode.getId) addDependency(caller.getModuleRevisionId, ivyNode)
+      }
+    }
+    dependencies
   }
 }
