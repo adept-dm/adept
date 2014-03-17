@@ -45,7 +45,7 @@ object IvyHelper extends Logging {
 
   def insert(baseDir: File, results: Set[IvyImportResult], progress: ProgressMonitor): Set[ResolutionResult] = {
     val grouped = results.groupBy(_.repository) //grouping to avoid multiple parallel operations on a repo
-    progress.beginTask("Importing and ordering Ivy variants", grouped.size)
+    progress.beginTask("Writing Ivy results to repo(s)", grouped.size)
     grouped.par.foreach { //NOTICE .par TODO: replace with something more optimized for IO not for CPU
       case (_, results) =>
         results.foreach { result =>
@@ -64,7 +64,7 @@ object IvyHelper extends Logging {
         progress.update(1)
     }
     progress.endTask()
-    progress.beginTask("Converting Ivy versions", grouped.size)
+    progress.beginTask("Converting Ivy version in repo(s)", grouped.size)
     val all = Set() ++ grouped.par.flatMap { //NOTICE .par TODO: same as above (IO vs CPU)
       case (_, results) =>
         val completedResults = results.flatMap { result =>
@@ -163,7 +163,7 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[St
       val mrid = ModuleRevisionId.newInstance(org, name, version)
       val dependencyTree = createDependencyTree(mrid)
       val workingNode = dependencyTree(ModuleRevisionId.newInstance(org, name + "-caller", "working")).head.getId
-      progress.beginTask("Importing from Ivy", dependencyTree(workingNode).size)
+      progress.beginTask("Importing " + mrid, dependencyTree(workingNode).size)
       val result = results(workingNode, progress, progressIndicatorRoot = true)(dependencyTree)
       result
     }
