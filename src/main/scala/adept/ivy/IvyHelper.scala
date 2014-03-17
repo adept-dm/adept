@@ -130,7 +130,7 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[St
     } ++ currentResults
   }
 
-  def createIvyResult(mrid: ModuleRevisionId, unloadedChildren: Set[IvyNode]) = { //: IvyImportResult = {
+  private def createIvyResult(mrid: ModuleRevisionId, unloadedChildren: Set[IvyNode]) = { //: IvyImportResult = {
     val id = ivyIdAsId(mrid)
     val versionAttribute = Attribute(VersionAttribute, Set(mrid.getRevision()))
     val nameAttribute = Attribute(NameAttribute, Set(mrid.getName()))
