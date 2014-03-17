@@ -88,6 +88,34 @@ case class BinaryVersionUpdateException(msg: String) extends Exception(msg)
 object VersionOrder extends Logging {
   import adept.ext.AttributeDefaults._
 
+  def createResolutionResults(baseDir: File, versionInfo: Set[((RepositoryName, Id, VariantHash), Set[(RepositoryName, Id, Version)])]): Set[(GitRepository, File)] = {
+    val versionResolutionResults = versionInfo.map {
+      case ((name, id, hash), dependencies) =>
+        val resolutionResults = dependencies.map {
+          case (targetName, targetId, targetVersion) =>
+            val repository = new GitRepository(baseDir, targetName)
+            val commit = repository.getHead
+
+            VersionScanner.findVersion(targetId, targetVersion, repository, commit) match {
+              case Some(targetHash) =>
+                val result = ResolutionResult(targetId, targetName, commit, targetHash)
+                result
+              case None => throw new Exception("Could not find: " + targetVersion + " for " + targetId + " in " + targetName + "")
+            }
+        }
+        (name, id, hash) -> resolutionResults
+    }
+
+    val updatedRepositories = versionResolutionResults.flatMap {
+      case ((name, id, hash), resolutionResults) =>
+        if (resolutionResults.nonEmpty) {
+          val repository = new GitRepository(baseDir, name)
+          Some(repository -> ResolutionResultsMetadata(resolutionResults.toSeq).write(id, hash, repository))
+        } else None
+    }
+    updatedRepositories
+  }
+
   def getVersion(variant: Variant) = {
     variant.attributes.find { attribute =>
       attribute.name == VersionAttribute

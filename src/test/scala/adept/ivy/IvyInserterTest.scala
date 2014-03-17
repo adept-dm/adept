@@ -101,34 +101,10 @@ class IvyInserterTest extends FunSuite with Matchers {
           Set((configRepository.name, configVariant.id, Version(configTargetVersion)),
             (scalaRepository.name, scalaVariant.id, Version(scalaTargetVersion)))))
 
-      val versionResolutionResults = versionInfo.map {
-        case ((name, id, hash), dependencies) =>
-          val resolutionResults = dependencies.map {
-            case (targetName, targetId, targetVersion) =>
-              val repository = new GitRepository(tmpDir, targetName)
-              val commit = repository.getHead
-
-              VersionScanner.findVersion(targetId, targetVersion, repository, commit) match {
-                case Some(targetHash) =>
-                  val result = ResolutionResult(targetId, targetName, commit, targetHash)
-                  result
-                case None => throw new Exception("Could not find: " + targetVersion + " for " + targetId + " in " + targetName + "")
-              }
-          }
-          (name, id, hash) -> resolutionResults
-      }
-
-      val updatedRepositories = versionResolutionResults.flatMap {
-        case ((name, id, hash), resolutionResults) =>
-          if (resolutionResults.nonEmpty) {
-            val repository = new GitRepository(tmpDir, name)
-            repository.add(ResolutionResultsMetadata(resolutionResults.toSeq).write(id, hash, repository))
-            Some(repository)
-          } else None
-      }
-
-      updatedRepositories.foreach {
-        _.commit("Added resolution results from version map")
+      val updates = VersionOrder.createResolutionResults(tmpDir, versionInfo)
+      updates.foreach { case (repository, file) =>
+        repository.add(file)
+        repository.commit("Added resolution results from version map")
       }
       //end 
 
