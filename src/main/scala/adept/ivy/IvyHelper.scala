@@ -291,7 +291,7 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[St
         }
       } 
 
-      //TODO: must be imported:
+      //TODO: overrides must also be imported and then we must this to versionInfo:
 //      ++ parentNode.getDescriptor().getAllDependencyDescriptorMediators().getAllRules().asScala.map {
 //        case (matcher: MapMatcher, overrideMediator: OverrideDependencyDescriptorMediator) =>
 //          val matcherName = matcher.getPatternMatcher().getName()
