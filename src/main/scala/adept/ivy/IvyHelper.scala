@@ -448,20 +448,6 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[St
         }
       }
 
-      //TODO: overrides must also be imported and then we must this to versionInfo (or perhaps not)
-      //      ++ parentNode.getDescriptor().getAllDependencyDescriptorMediators().getAllRules().asScala.map {
-      //        case (matcher: MapMatcher, overrideMediator: OverrideDependencyDescriptorMediator) =>
-      //          val matcherName = matcher.getPatternMatcher().getName()
-      //          matcherName match {
-      //            case PatternMatcher.EXACT => true
-      //            case _ => throw new Exception("found matcher: " + matcherName + ". currently only: " + PatternMatcher.EXACT + " is supported. parent:" + parentNode)
-      //          }
-      //          val org = matcher.getAttributes.get(IvyPatternHelper.ORGANISATION_KEY) match { case s: String => s }
-      //          val name = matcher.getAttributes.get(IvyPatternHelper.MODULE_KEY) match { case s: String => s }
-      //          val overriddenVersion = overrideMediator.getVersion()
-      //          (RepositoryName(org), Id(name), Version(overriddenVersion))
-      //      }
-
       IvyImportResult(
         variant = variant,
         artifacts = artifacts,
