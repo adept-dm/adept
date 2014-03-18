@@ -94,7 +94,7 @@ class Resolver(loader: VariantsLoader, skipImplicitResolve: Boolean = false) {
 
   private[adept] def resolveNodes(requirements: Set[Requirement], state: State) = requirements.flatMap(requirement => state.nodes.get(requirement.id))
 
-  private[adept] def resolveRequirements(requirements: Set[Requirement], visited: Set[Requirement], lastState: State): State = {
+  private[adept] def resolveRequirements(requirements: Set[Requirement], visited: Set[Requirement], exclusions: Set[Id], lastState: State): State = {
     val newRequirements = requirements.filter { requirement =>
       !visited(requirement) //remove requirements we have already visited
     }
@@ -103,15 +103,19 @@ class Resolver(loader: VariantsLoader, skipImplicitResolve: Boolean = false) {
     newRequirements.foldLeft(lastState) { (state, requirement) => //collapse all requirements that can be found into one
       resolveVariant(requirement, state) match {
         case (Some(variant), resolvedState) =>
+          val (excludedRequirements, includedRequirements) = variant.requirements.partition(requirement => exclusions.contains(requirement.id))
+          if (exclusions.nonEmpty) println("excluding: " + excludedRequirements)
           val state =
             if (variant.requirements.isEmpty) resolvedState
-            else resolveRequirements(variant.requirements, visited + requirement, resolvedState)
+            else resolveRequirements(includedRequirements, visited + requirement, variant.exclusions ++ exclusions, resolvedState)
 
           val node = state.nodes(variant.id)
 
-          state.copy(nodes = state.nodes +
-            (variant.id -> node.copy(children =
-              resolveNodes(variant.requirements, state))))
+          state.copy(
+            excluded = state.excluded ++ excludedRequirements.map(_.id),
+            nodes = state.nodes +
+              (variant.id -> node.copy(children =
+                resolveNodes(variant.requirements, state))))
         case (None, unresolvedState) if !unresolvedState.isResolved =>
           unresolvedState
         case _ => throw new UnexpectedResolutionStateException("Could not find a variant for a resolved requirement: " + requirement + " state: " + state)
@@ -124,13 +128,14 @@ class Resolver(loader: VariantsLoader, skipImplicitResolve: Boolean = false) {
    *
    * Is thread-safe.
    */
-  def resolve(requirements: Set[Requirement]): ResolveResult = {
+  def resolve(requirements: Set[Requirement], globalExclusions: Set[Id] = Set.empty): ResolveResult = {
     val initState = new State(
       resolved = Set.empty,
       underconstrained = Set.empty,
       overconstrained = Set.empty,
       resolvedVariants = Map.empty,
       implicitVariants = Map.empty,
+      excluded = Set.empty,
       constraints = Map.empty,
       nodes = Map.empty)
 
@@ -140,7 +145,7 @@ class Resolver(loader: VariantsLoader, skipImplicitResolve: Boolean = false) {
       java.util.Collections.newSetFromMap(
         new java.util.concurrent.ConcurrentHashMap[State, java.lang.Boolean]()).asScala
     }
-    implicitResolve(requirements, initState, Set.empty, optimalUnderconstrainedStates) match {
+    implicitResolve(requirements, globalExclusions, initState, Set.empty, optimalUnderconstrainedStates) match {
       case Right(state) => new ResolvedResult(state, resolveNodes(requirements, state))
       case Left(failedState) =>
         if (failedState.isUnderconstrained) {
@@ -153,8 +158,8 @@ class Resolver(loader: VariantsLoader, skipImplicitResolve: Boolean = false) {
     }
   }
 
-  private def implicitResolve(requirements: Set[Requirement], currentState: State, previouslyUnderconstrained: Set[Id], optimalUnderconstrainedStates: collection.mutable.Set[State]): Either[State, State] = {
-    val state = resolveRequirements(requirements, Set.empty, currentState)
+  private def implicitResolve(requirements: Set[Requirement], exclusions: Set[Id], currentState: State, previouslyUnderconstrained: Set[Id], optimalUnderconstrainedStates: collection.mutable.Set[State]): Either[State, State] = {
+    val state = resolveRequirements(requirements, Set.empty, exclusions, currentState)
 
     if (state.isUnderconstrained && skipImplicitResolve) {
       Left(state)
@@ -165,7 +170,7 @@ class Resolver(loader: VariantsLoader, skipImplicitResolve: Boolean = false) {
         !state.implicitVariants.isDefinedAt(requirement.id)
       }
 
-      val ignoredIds = (state.implicitVariants.values.map { variant => //ignore id of implicit variants
+      val ignoredIds = exclusions ++ (state.implicitVariants.values.map { variant => //ignore id of implicit variants
         variant.id
       } ++ previouslyUnderconstrained).toSet //ignore ids which are under-constrained already
 
@@ -180,7 +185,7 @@ class Resolver(loader: VariantsLoader, skipImplicitResolve: Boolean = false) {
           val implicitState = state.copy(
             underconstrained = state.underconstrained -- combination.map(_.id), //we are no longer under-constrained on the implicitVariants
             implicitVariants = state.implicitVariants ++ implicitVariants)
-          implicitResolve(nonImplicitRequirements, implicitState, ignoredIds ++ state.underconstrained, optimalUnderconstrainedStates) //ignore ids that are already under-constrained at this level
+          implicitResolve(nonImplicitRequirements, exclusions, implicitState, ignoredIds ++ state.underconstrained, optimalUnderconstrainedStates) //ignore ids that are already under-constrained at this level
         }.collect {
           case Right(state) => state
         }.toList //TODO: is there a way to avoid this toList? We need to use this iterator to find *then* extract the state, which is why toList is there now.

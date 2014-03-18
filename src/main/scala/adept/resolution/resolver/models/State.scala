@@ -24,6 +24,7 @@ case class State(
   val resolved: Set[Id],
   val resolvedVariants: Map[Id, Variant],
   val implicitVariants: Map[Id, Variant],
+  val excluded: Set[Id],
   val constraints: Map[Id, Set[Constraint]],
   val nodes: Map[Id, Node]) {
 
@@ -37,6 +38,7 @@ case class State(
       (if (underconstrained.nonEmpty) "under-constrained: " + underconstrained + "\n" else "") +
       "resolved-variants: " + resolvedVariants + "\n" +
       "implicit-variants: " + implicitVariants + "\n" +
+      "excluded: " + excluded + "\n" +
       "constraints: " + constraints
   }
 }

@@ -61,6 +61,12 @@ object ResolverUtils extends Matchers {
     variant.id shouldEqual (id)
     (id -> variant.attributes) shouldEqual (id -> attrs.toSet)
   }
+  
+  def checkExcluded(result: ResolveResult, id: Id) = {
+    import org.scalatest.OptionValues._
+    val state = result.state
+    state.excluded should contain(id)
+  }
 
   def getMemoryLoader(variants: Set[Variant]) = {
     new MemoryLoader(variants)

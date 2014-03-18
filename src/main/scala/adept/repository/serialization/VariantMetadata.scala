@@ -15,7 +15,7 @@ import adept.utils.Hasher
 import adept.repository.GitRepository
 import java.io.File
 
-case class VariantMetadata(attributes: Seq[Attribute], artifacts: Seq[ArtifactRef], requirements: Seq[Requirement]) {
+case class VariantMetadata(attributes: Seq[Attribute], artifacts: Seq[ArtifactRef], requirements: Seq[Requirement], exclusions: Seq[Id]) {
 
   def toVariant(id: Id): Variant = {
     Variant(id, attributes.toSet, artifacts.toSet, requirements.toSet)
@@ -37,7 +37,7 @@ case class VariantMetadata(attributes: Seq[Attribute], artifacts: Seq[ArtifactRe
 object VariantMetadata {
 
   def fromVariant(variant: Variant): VariantMetadata = {
-    VariantMetadata(variant.attributes.toSeq, variant.artifacts.toSeq, variant.requirements.toSeq)
+    VariantMetadata(variant.attributes.toSeq, variant.artifacts.toSeq, variant.requirements.toSeq, variant.exclusions.toSeq)
   }
 
   import ArtifactMetadata._
@@ -63,19 +63,22 @@ object VariantMetadata {
     (
       (__ \ "attributes").format[Map[String, Set[String]]] and
       (__ \ "artifacts").format[Seq[ArtifactRef]] and
-      (__ \ "requirements").format[Seq[Requirement]])({
-        case (attributes, artifacts, requirements) =>
+      (__ \ "requirements").format[Seq[Requirement]] and
+      (__ \ "exclusions").format[Seq[String]])({
+        case (attributes, artifacts, requirements, exclusions) =>
           VariantMetadata(
             attributes.map { case (name, values) => Attribute(name, values) }.toSeq,
             artifacts,
-            requirements)
+            requirements,
+            exclusions.map(Id(_)))
       },
         unlift({ vm: VariantMetadata =>
-          val VariantMetadata(attributes, artifacts, requirements) = vm
+          val VariantMetadata(attributes, artifacts, requirements, exclusions) = vm
           Some((
             attributes.toSeq.sorted.map(a => a.name -> a.values).toMap,
             artifacts.toSeq.sorted,
-            requirements.toSeq.sorted))
+            requirements.toSeq.sorted,
+            exclusions.toSeq.map(_.value).sorted))
         }))
   }
 

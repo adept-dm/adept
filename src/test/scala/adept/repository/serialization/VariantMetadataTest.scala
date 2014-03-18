@@ -23,7 +23,8 @@ class VariantMetadataTest extends FunSuite with Matchers {
         artifacts = Seq(
           ArtifactRef(ArtifactHash(Hasher.hash("foo".getBytes)), Set(ArtifactAttribute("some-stuff", Set("value"))), Some("test-file.jar")),
           ArtifactRef(ArtifactHash(Hasher.hash("blah".getBytes)), Set(ArtifactAttribute("other-stuff", Set("value 2"))), Some("test-file2.jar"))),
-        requirements = Seq(Requirement(Id("i/require/this"), constraints = Set(Constraint("binary-version", Set("2.1", "2.0"))))))
+        requirements = Seq(Requirement(Id("i/require/this"), constraints = Set(Constraint("binary-version", Set("2.1", "2.0"))))),
+        exclusions = Seq(Id("foo"), Id("abc")))
 
       repository.add(variantMetadata.write(id, repository))
       repository.commit("Added variant")

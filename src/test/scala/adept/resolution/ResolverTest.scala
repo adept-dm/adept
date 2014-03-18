@@ -327,5 +327,35 @@ class ResolverTest extends FunSuite with Matchers {
     checkVariants(result, "D", version -> Set("1.0.0"), binaryVersion -> Set("1.0"))
     checkVariants(result, "E", version -> Set("2.0.0"), binaryVersion -> Set("2.0"))
   }
+
+  test("basic exclusions") {
+    val variants: Set[Variant] = Set(
+      Variant("A", Set(version -> Set("V")),
+        requirements = Set(
+            "B" -> Set.empty[Constraint],
+            "D" -> Set[Constraint](version -> Set("A"))),
+        exclusions = Set("C")),                                           //<- we exclude C which
+
+      Variant("B", Set(version -> Set("X")),
+        requirements = Set("C" -> Set[Constraint](version -> Set("X")))), //<- is chosen by B
+
+      Variant("C", Set(version -> Set("X")),
+        requirements = Set("D" -> Set[Constraint](version -> Set("Z")))), //<- and requires version Z of D, which would make resolution fail
+      Variant("C", Set(version -> Set("Y")),
+        requirements = Set("D" -> Set[Constraint](version -> Set("Z")))),
+
+      Variant("D", Set(version -> Set("Z")),
+        requirements = Set.empty),
+      Variant("D", Set(version -> Set("A")),
+        requirements = Set.empty))
+
+    val requirements: Set[Requirement] = Set(
+      "A" -> Set(Constraint(version, Set("V"))))
+
+    val result = resolve(requirements, getMemoryLoader(variants))
+    checkResolved(result, Set("A", "B", "D"))
+    checkExcluded(result, "C")
+    checkVariants(result, "D", version -> Set("A"))
+  }
 }
 

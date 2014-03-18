@@ -13,7 +13,7 @@ import adept.artifact.models.ArtifactRef
  * but with different requirements). Therefore, 'version' would be a poor choice 
  * for a name while variant fits the bill perfectly.
  */
-case class Variant(id: Id, attributes: Set[Attribute] = Set.empty, artifacts: Set[ArtifactRef] = Set.empty, requirements: Set[Requirement] = Set.empty) {
+case class Variant(id: Id, attributes: Set[Attribute] = Set.empty, artifacts: Set[ArtifactRef] = Set.empty, requirements: Set[Requirement] = Set.empty, exclusions: Set[Id] = Set.empty) {
   
   def attribute(name: String) = {
     val values = attributes.collect {
