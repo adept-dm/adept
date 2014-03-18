@@ -333,8 +333,9 @@ class ResolverTest extends FunSuite with Matchers {
       Variant("A", Set(version -> Set("V")),
         requirements = Set(
             "B" -> Set.empty[Constraint],
+            "L" -> Set.empty[Constraint],
             "D" -> Set[Constraint](version -> Set("A"))),
-        exclusions = Set("C")),                                           //<- we exclude C which
+        exclusions = Set("C", "L")),                                      //<- we exclude L which does not exists and C which
 
       Variant("B", Set(version -> Set("X")),
         requirements = Set("C" -> Set[Constraint](version -> Set("X")))), //<- is chosen by B
@@ -355,6 +356,7 @@ class ResolverTest extends FunSuite with Matchers {
     val result = resolve(requirements, getMemoryLoader(variants))
     checkResolved(result, Set("A", "B", "D"))
     checkExcluded(result, "C")
+    checkExcluded(result, "L")
     checkVariants(result, "D", version -> Set("A"))
   }
 }
