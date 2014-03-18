@@ -26,32 +26,28 @@ class ResolverTest extends FunSuite with Matchers {
     checkVariants(result, "B", version -> Set("X"))
   }
 
-  // FIXME:
-  //  test("Internal combinations method works as expected") {
-  //    val d10 = Variant("D", Set(version -> Set("1.0")))
-  //    val d20 = Variant("D", Set(version -> Set("2.0")))
-  //    val e10 = Variant("E", Set(version -> Set("1.0")))
-  //
-  //    val variants: Set[Variant] = Set(
-  //      Variant("A", Set(version -> Set("1.0"))),
-  //      Variant("A", Set(version -> Set("2.0"))),
-  //      Variant("B", Set(version -> Set("1.0"))),
-  //      Variant("B", Set(version -> Set("2.0"))),
-  //      Variant("C", Set(version -> Set("1.0"))),
-  //      Variant("C", Set(version -> Set("2.0"))),
-  //      d10,
-  //      d20,
-  //      e10)
-  //
-  //    val resolver = getResolver(variants)
-  //
-  //    val combinations = resolver.combinations(Set(new Id("D"), new Id("E")), Set.empty, Map.empty).map(_.toSet).toList
-  //    combinations(0) must be === Set(List(d10), List(d20), List(e10))
-  //
-  //    //FIXME: this one should not fail if I am right?
-  //    //D 1.0, E 1.0, D 2.0, D 1.0 & E 1.0, D 2.0 & E 1.0
-  //    combinations(1) must be === Set(List(d10, e10), List(d20, e10))
-  //  }
+  test("Internal combinations method works as expected") {
+    val d10 = Variant("D", Set(version -> Set("1.0")))
+    val d20 = Variant("D", Set(version -> Set("2.0")))
+    val e10 = Variant("E", Set(version -> Set("1.0")))
+
+    val variants: Set[Variant] = Set(
+      Variant("A", Set(version -> Set("1.0"))),
+      Variant("A", Set(version -> Set("2.0"))),
+      Variant("B", Set(version -> Set("1.0"))),
+      Variant("B", Set(version -> Set("2.0"))),
+      Variant("C", Set(version -> Set("1.0"))),
+      Variant("C", Set(version -> Set("2.0"))),
+      d10,
+      d20,
+      e10)
+
+    val resolver = new Resolver(getMemoryLoader(variants))
+
+    val combinations = resolver.combinations(Set(new Id("D"), new Id("E")), Set.empty, Map.empty).map(_.toSet).toList
+    combinations(0) shouldEqual Set(List(d10), List(d20), List(e10))
+    combinations(1) shouldEqual Set(List(d10, e10), List(d20, e10))
+  }
 
   test("All transitive variants are resolved correctly") {
     val variants: Set[Variant] = Set(

@@ -44,7 +44,8 @@ class Resolver(loader: VariantsLoader, skipImplicitResolve: Boolean = false) {
     }
 
     (1 to ids.size).iterator.map { size =>
-      variants.toList.combinations(size)
+      variants.toList.combinations(size) //remove combinations with more than one of the same id
+        .filter(variants => variants.map(_.id).toSet.size == variants.size)
     }
   }
 
