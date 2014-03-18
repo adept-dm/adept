@@ -327,24 +327,5 @@ class ResolverTest extends FunSuite with Matchers {
     checkVariants(result, "D", version -> Set("1.0.0"), binaryVersion -> Set("1.0"))
     checkVariants(result, "E", version -> Set("2.0.0"), binaryVersion -> Set("2.0"))
   }
-
-  //TODO:
-  //  test("larger unconstrained graphs") {
-  //    val (dependencies, variants) = useTestData(LargeDataSets.basic: _*)
-  //
-  //    val result = new Resolver(new DefinedVariants(variants)).resolve(Set(
-  //      // uncomment to resolve:
-  //      //            Dependency(Id("org.scala-lang/scala-library"), Set(Constraint("version", Set("2.10.3")))),
-  //      //            Dependency(Id("com.typesafe.akka/akka-actors"),  Set(Constraint("version", Set("2.2.0")))),
-  //      Dependency(Id("com.typesafe.play/play"), Set.empty),
-  //      Dependency(Id("com.typesafe.play/play-slick"), Set.empty)))
-  //
-  //    val state = unresolved(result)
-  //    result match {
-  //      case result: UnderconstrainedResult => result.optimalStates must have size 8
-  //      case _ => assert(false, "result was not under constrained: " + result)
-  //    }
-  //  }
-
 }
 
