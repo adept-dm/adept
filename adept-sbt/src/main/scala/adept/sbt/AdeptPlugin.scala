@@ -283,7 +283,15 @@ object AdeptPlugin extends Plugin {
   }
   
   def adeptSettings = Seq(
-    adeptDirectory := Path.userHome / ".adept",
+    adeptDirectory := {
+      val log = streams.value.log
+      println(ivyModule.value.dependencyMapping(log))
+      println(ivyModule.value.defaultConfig(log))
+      println(ivyModule.value.moduleDescriptor(log))
+      println(ivyModule.value.moduleSettings)
+      
+      Path.userHome / ".adept"
+    },
     adeptConfigurations := Set("compile", "master"),
     //adeptConfigurations in Test := Set("test", "compile", "master"),
     adeptLockFile := new File(baseDirectory.value, "adept.lock"),

@@ -31,6 +31,8 @@ import org.apache.ivy.plugins.matcher.MapMatcher
 import org.apache.ivy.core.module.descriptor.OverrideDependencyDescriptorMediator
 import org.apache.ivy.plugins.matcher.PatternMatcher
 import org.apache.ivy.core.IvyPatternHelper
+import org.apache.ivy.core.module.descriptor.ModuleDescriptor
+import org.apache.ivy.core.cache.ResolutionCacheManager
 
 case class AdeptIvyResolveException(msg: String) extends Exception(msg)
 case class AdeptIvyException(msg: String) extends Exception(msg)
@@ -40,7 +42,7 @@ object IvyHelper extends Logging {
 
   lazy val errorIvyLogger = new DefaultMessageLogger(Message.MSG_ERR) {
     var i = 0
-    
+
     override def doProgress(): Unit = {
       val indicator = if (i == 0) "-"
       else if (i == 1) "/"
@@ -52,12 +54,12 @@ object IvyHelper extends Logging {
         "/"
       }
       i = i + 1
+      //System.out.print("\r" * 80 + " " * 80 + "\r" * 80)
       System.out.print(indicator + "\r")
     }
 
     override def doEndProgress(ivyMsg: String): Unit = {
-      val msg = "Downloaded "+ ivyMsg
-      System.out.print(msg + ("\r" * msg.size) + (" " * msg.size) + ("\r" *msg.size))
+      //pass
     }
   }
   lazy val warnIvyLogger = new DefaultMessageLogger(Message.MSG_WARN)
@@ -184,19 +186,72 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[St
 
   val ConfigurationAttribute = "configuration-hash"
 
+  /** As in sbt */
+  private[adept] def cleanModule(mrid: ModuleRevisionId, resolveId: String, manager: ResolutionCacheManager) {
+    val files =
+      Option(manager.getResolvedIvyFileInCache(mrid)).toList :::
+        Option(manager.getResolvedIvyPropertiesInCache(mrid)).toList :::
+        Option(manager.getConfigurationResolveReportsInCache(resolveId)).toList.flatten
+    import scala.reflect.io.Directory
+    files.foreach { file =>
+      (new Directory(file)).deleteRecursively() //I hop ethis works
+    }
+  }
+
+  private def importAsSbt(module: ModuleDescriptor, progress: ProgressMonitor) = {
+    //    val currentResolveOptions = resolveOptions()
+    //    val resolveId = ResolveOptions.getDefaultResolveId(module)
+    //    currentResolveOptions.setResolveId(resolveId)
+    //    cleanModule(module.getModuleRevisionId, resolveId, ivy.getSettings.getResolutionCacheManager)
+
+    progress.beginTask("Resolving Ivy module(s)", module.getDependencies().size)
+    val resolveReport = ivy.resolve(module, resolveOptions())
+    
+    progress.update(module.getDependencies().size)
+    progress.endTask()
+    if (resolveReport.hasError) {
+      val messages = resolveReport.getAllProblemMessages.toArray.map(_.toString).distinct
+      val failed = resolveReport.getUnresolvedDependencies
+      Left(new Exception(failed.mkString(",") + "failed to resolve. Messages:\n" + messages.mkString("\n")))
+    } else Right(resolveReport)
+  }
+
+  def ivyImport(module: ModuleDescriptor, progress: ProgressMonitor): Set[IvyImportResult] = { //, Set[ResolutionResult]) = {
+    ivy.synchronized { //ivy is not thread safe
+      val mrid = module.getModuleRevisionId()
+      importAsSbt(module, progress) match {
+        case Right(resolveReport) =>
+          val dependencyTree = createDependencyTree(mrid)(resolveReport)
+          progress.start(module.getDependencies().size)
+          val mergableResults = module.getDependencies().flatMap { directDependency =>
+            val drid = directDependency.getDependencyRevisionId()
+            ivyImport(drid.getOrganisation(), drid.getName(), drid.getRevision(), progress)
+          }
+          val resolutionResults = dependencyTree(mrid)
+          println("--------------")
+          println(resolveReport.getAllArtifactsReports().map { a =>
+            a
+            //case a: IvyArtifact => a.getModuleRevisionId().getOrganisation() + ":" + a.getModuleRevisionId().getName() + ":" + a.getModuleRevisionId().getRevision()
+          })
+          mergableResults.toSet
+        case Left(exception) => throw exception
+      }
+    }
+  }
+
   /**
    * Import from ivy based on coordinates
    */
-  def ivyConvert(org: String, name: String, version: String, progress: ProgressMonitor): Set[IvyImportResult] = {
-    val mergableResults = ivy.synchronized { // ivy is not thread safe
-      val mrid = ModuleRevisionId.newInstance(org, name, version)
-      val dependencyTree = createDependencyTree(mrid)
+  def ivyImport(org: String, name: String, version: String, progress: ProgressMonitor): Set[IvyImportResult] = {
+    val mrid = ModuleRevisionId.newInstance(org, name, version)
+    val mergableResults = { //ivy.synchronized { // ivy is not thread safe
+      val dependencyTree = createDependencyTree(mrid)(ivy.resolve(mrid, resolveOptions(), changing))
       val workingNode = dependencyTree(ModuleRevisionId.newInstance(org, name + "-caller", "working")).head.getId
       progress.beginTask("Importing " + mrid, dependencyTree(workingNode).size)
-      val result = results(workingNode, progress, progressIndicatorRoot = true)(dependencyTree)
-      result
+      val mergableResults = results(workingNode, progress, progressIndicatorRoot = true)(dependencyTree)
+      progress.endTask()
+      mergableResults
     }
-    progress.endTask()
     mergableResults
   }
 
@@ -205,7 +260,7 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[St
     val currentResults = createIvyResult(mrid, children, dependencies)
     val allResults = children.flatMap { childNode =>
       val childId = childNode.getId
-      val dependencyTree = createDependencyTree(childId)
+      val dependencyTree = createDependencyTree(childId)(ivy.resolve(childId, resolveOptions(), changing))
       val finished = results(childId, progress, progressIndicatorRoot = false)(dependencies ++ dependencyTree)
       if (progressIndicatorRoot) progress.update(1)
       finished
@@ -257,9 +312,11 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[St
 
       //get requirements:
       val requirements = loaded.flatMap { ivyNode =>
-        ivyNode.getConfigurations(confName).toSet.map(ivyNode.getConfiguration).map { requirementConf =>
-          Requirement(ivyIdAsId(ivyNode.getId, requirementConf.getName()), Set.empty)
-        } + Requirement(ivyIdAsId(ivyNode.getId), Set.empty)
+        if (!ivyNode.isEvicted(confName)) {
+          ivyNode.getConfigurations(confName).toSet.map(ivyNode.getConfiguration).map { requirementConf =>
+            Requirement(ivyIdAsId(ivyNode.getId, requirementConf.getName()), Set.empty)
+          } + Requirement(ivyIdAsId(ivyNode.getId), Set.empty)
+        } else Set.empty[Requirement]
       }
 
       val artifactInfos = ivy.resolve(mrid, resolveOptions(ivyConfiguration.getName), changing).getArtifactsReports(mrid).flatMap { artifactReport =>
@@ -351,9 +408,8 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[St
         versionInfo = Set.empty)
   }
 
-  private def createDependencyTree(mrid: ModuleRevisionId) = { //TODO: rename to requirement? or perhaps not?
+  private def createDependencyTree(mrid: ModuleRevisionId)(report: ResolveReport) = { //TODO: rename to requirement? or perhaps not?
     var dependencies = Map.empty[ModuleRevisionId, Set[IvyNode]]
-    val report = ivy.resolve(mrid, resolveOptions(), changing)
     def addDependency(mrid: ModuleRevisionId, ivyNode: IvyNode) = {
       val current = dependencies.getOrElse(mrid, Set.empty) + ivyNode
       dependencies += mrid -> current
