@@ -1,6 +1,8 @@
 package adept.resolution.models
 
-case class Requirement(id: Id, constraints: Set[Constraint]) {
+import adept.utils.OrderingHelpers
+
+case class Requirement(id: Id, constraints: Set[Constraint], exclusions: Set[Id]) {
   override def toString = id + " " + constraints.map(c => c.name + "=" + c.values.mkString("(", ",", ")")).mkString("[", ",", "]")
 
   def constraint(name: String) = {
@@ -23,10 +25,17 @@ object Requirement {
         if (x.constraints.size == y.constraints.size) {
           x.constraints.toSeq.sorted.zip(y.constraints.toSeq.sorted).foldLeft(0) {
             case (res, (cx, cy)) =>
-              if (res == 0) Constraint.ordering.compare(cx, cy)
+              if (res == 0) {
+                val constraintOrder = Constraint.ordering.compare(cx, cy)
+                if (constraintOrder == 0) 
+                  OrderingHelpers.stringSetCompare(x.exclusions.map(_.value), y.exclusions.map(_.value))
+                else constraintOrder
+              }
               else res
           }
-        } else x.constraints.size - y.constraints.size
+        } else {
+          x.constraints.size - y.constraints.size
+        }
       }
     }
   }

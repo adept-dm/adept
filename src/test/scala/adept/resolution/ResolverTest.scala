@@ -332,16 +332,14 @@ class ResolverTest extends FunSuite with Matchers {
     val variants: Set[Variant] = Set(
       Variant("A", Set(version -> Set("V")),
         requirements = Set(
-            "B" -> Set.empty[Constraint],
-            "L" -> Set.empty[Constraint],
-            "D" -> Set[Constraint](version -> Set("A"))),
-        exclusions = Set("C", "L")),                                      //<- we exclude L which does not exists and C which
+            "D" -> Set[Constraint](version -> Set("A")),  //<- we really want D version A
+            "B" -> Set.empty[Constraint])),                                      
 
       Variant("B", Set(version -> Set("X")),
-        requirements = Set("C" -> Set[Constraint](version -> Set("X")))), //<- is chosen by B
+        requirements = Set(Requirement("C", Set(Constraint(version, Set("X"))), Set("D")))), //<- therefore we exclude D from C
 
       Variant("C", Set(version -> Set("X")),
-        requirements = Set("D" -> Set[Constraint](version -> Set("Z")))), //<- and requires version Z of D, which would make resolution fail
+        requirements = Set("D" -> Set[Constraint](version -> Set("Z")))), //<- because it requires version Z
       Variant("C", Set(version -> Set("Y")),
         requirements = Set("D" -> Set[Constraint](version -> Set("Z")))),
 
@@ -352,11 +350,10 @@ class ResolverTest extends FunSuite with Matchers {
 
     val requirements: Set[Requirement] = Set(
       "A" -> Set(Constraint(version, Set("V"))))
-
+      
     val result = resolve(requirements, getMemoryLoader(variants))
-    checkResolved(result, Set("A", "B", "D"))
-    checkExcluded(result, "C")
-    checkExcluded(result, "L")
+    checkResolved(result, Set("A", "B", "C", "D"))
+    checkExcluded(result, "D")
     checkVariants(result, "D", version -> Set("A"))
   }
 }

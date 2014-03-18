@@ -28,7 +28,7 @@ object ResolverUtils extends Matchers {
 
   implicit def tuple2ToRequirement(t: (String, Set[Constraint])): Requirement = {
     val (name, constraints) = t
-    Requirement(name, constraints)
+    Requirement(name, constraints, Set.empty)
   }
 
   def checkResolved(result: ResolveResult, ids: Set[Id]) = {

@@ -15,7 +15,7 @@ import adept.utils.Hasher
 import adept.repository.GitRepository
 import java.io.File
 
-case class VariantMetadata(attributes: Seq[Attribute], artifacts: Seq[ArtifactRef], requirements: Seq[Requirement], exclusions: Seq[Id]) {
+case class VariantMetadata(attributes: Seq[Attribute], artifacts: Seq[ArtifactRef], requirements: Seq[Requirement]) {
 
   def toVariant(id: Id): Variant = {
     Variant(id, attributes.toSet, artifacts.toSet, requirements.toSet)
@@ -37,7 +37,7 @@ case class VariantMetadata(attributes: Seq[Attribute], artifacts: Seq[ArtifactRe
 object VariantMetadata {
 
   def fromVariant(variant: Variant): VariantMetadata = {
-    VariantMetadata(variant.attributes.toSeq, variant.artifacts.toSeq, variant.requirements.toSeq, variant.exclusions.toSeq)
+    VariantMetadata(variant.attributes.toSeq, variant.artifacts.toSeq, variant.requirements.toSeq)
   }
 
   import ArtifactMetadata._
@@ -45,17 +45,20 @@ object VariantMetadata {
   private[adept] implicit val requirementFormat: Format[Requirement] = {
     (
       (__ \ "id").format[String] and
-      (__ \ "constraints").format[Map[String, Set[String]]])({
-        case (id, constraints) =>
+      (__ \ "constraints").format[Map[String, Set[String]]] and
+      (__ \ "exclusions").format[Seq[String]])({
+        case (id, constraints, exclusions) =>
           Requirement(
             Id(id),
-            constraints.map { case (name, values) => Constraint(name, values) }.toSet)
+            constraints.map { case (name, values) => Constraint(name, values) }.toSet,
+            exclusions.map(Id(_)).toSet)
       },
         unlift({ r: Requirement =>
-          val Requirement(id, constraints) = r
+          val Requirement(id, constraints, exlusions) = r
           Some((
             id.value,
-            constraints.toSeq.sorted.map(c => c.name -> c.values).toMap))
+            constraints.toSeq.sorted.map(c => c.name -> c.values).toMap,
+            exlusions.toSeq.map(_.value).sorted))
         }))
   }
 
@@ -63,22 +66,19 @@ object VariantMetadata {
     (
       (__ \ "attributes").format[Map[String, Set[String]]] and
       (__ \ "artifacts").format[Seq[ArtifactRef]] and
-      (__ \ "requirements").format[Seq[Requirement]] and
-      (__ \ "exclusions").format[Seq[String]])({
-        case (attributes, artifacts, requirements, exclusions) =>
+      (__ \ "requirements").format[Seq[Requirement]])({
+        case (attributes, artifacts, requirements) =>
           VariantMetadata(
             attributes.map { case (name, values) => Attribute(name, values) }.toSeq,
             artifacts,
-            requirements,
-            exclusions.map(Id(_)))
+            requirements)
       },
         unlift({ vm: VariantMetadata =>
-          val VariantMetadata(attributes, artifacts, requirements, exclusions) = vm
+          val VariantMetadata(attributes, artifacts, requirements) = vm
           Some((
             attributes.toSeq.sorted.map(a => a.name -> a.values).toMap,
             artifacts.toSeq.sorted,
-            requirements.toSeq.sorted,
-            exclusions.toSeq.map(_.value).sorted))
+            requirements.toSeq.sorted))
         }))
   }
 

@@ -98,23 +98,20 @@ class Resolver(loader: VariantsLoader, skipImplicitResolve: Boolean = false) {
     val newRequirements = requirements.filter { requirement =>
       !visited(requirement) //remove requirements we have already visited
     }
-
-    val (topExcludedRequirements, topNewRequirements) = newRequirements.partition { requirement =>
-      exclusions.contains(requirement.id)
-    }
+    val (excludedRequirements, includedRequirements) = newRequirements.partition(r => exclusions.contains(r.id))
+    val lastStateWithExclusions = lastState.copy(excluded = lastState.excluded ++ excludedRequirements.map(_.id))
+    
     //TODO: evaluate whether breadth-first is normally faster than depth-first (used now) or find an heuristic that is good at _finding constraints_ that are _likely_ to be used: I believe this is what it is all about 
-    topNewRequirements.foldLeft(lastState) { (state, requirement) => //collapse all requirements that can be found into one
+    includedRequirements.foldLeft(lastStateWithExclusions) { (state, requirement) => //collapse all requirements that can be found into one
       resolveVariant(requirement, state) match {
         case (Some(variant), resolvedState) =>
-          val (excludedRequirements, includedRequirements) = variant.requirements.partition(requirement => exclusions.contains(requirement.id))
           val state =
             if (variant.requirements.isEmpty) resolvedState
-            else resolveRequirements(includedRequirements, visited + requirement, variant.exclusions ++ exclusions, resolvedState)
+            else resolveRequirements(variant.requirements, visited + requirement, requirement.exclusions ++ exclusions, resolvedState)
 
           val node = state.nodes(variant.id)
 
           state.copy(
-            excluded = state.excluded ++ (topExcludedRequirements ++ excludedRequirements).map(_.id),
             nodes = state.nodes +
               (variant.id -> node.copy(children =
                 resolveNodes(variant.requirements, state))))
@@ -130,7 +127,7 @@ class Resolver(loader: VariantsLoader, skipImplicitResolve: Boolean = false) {
    *
    * Is thread-safe.
    */
-  def resolve(requirements: Set[Requirement], globalExclusions: Set[Id] = Set.empty): ResolveResult = {
+  def resolve(requirements: Set[Requirement]): ResolveResult = {
     val initState = new State(
       resolved = Set.empty,
       underconstrained = Set.empty,
@@ -147,7 +144,7 @@ class Resolver(loader: VariantsLoader, skipImplicitResolve: Boolean = false) {
       java.util.Collections.newSetFromMap(
         new java.util.concurrent.ConcurrentHashMap[State, java.lang.Boolean]()).asScala
     }
-    implicitResolve(requirements, globalExclusions, initState, Set.empty, optimalUnderconstrainedStates) match {
+    implicitResolve(requirements, initState, Set.empty, optimalUnderconstrainedStates) match {
       case Right(state) => new ResolvedResult(state, resolveNodes(requirements, state))
       case Left(failedState) =>
         if (failedState.isUnderconstrained) {
@@ -160,20 +157,19 @@ class Resolver(loader: VariantsLoader, skipImplicitResolve: Boolean = false) {
     }
   }
 
-  private def implicitResolve(requirements: Set[Requirement], exclusions: Set[Id], currentState: State, previouslyUnderconstrained: Set[Id], optimalUnderconstrainedStates: collection.mutable.Set[State]): Either[State, State] = {
-    val (excludedRequirements, onlyIncludedRequirements) = requirements.partition(r => exclusions.contains(r.id))
-    val state = resolveRequirements(onlyIncludedRequirements, Set.empty, exclusions, currentState.copy(excluded = excludedRequirements.map(_.id)))
+  private def implicitResolve(requirements: Set[Requirement], currentState: State, previouslyUnderconstrained: Set[Id], optimalUnderconstrainedStates: collection.mutable.Set[State]): Either[State, State] = {
+    val state = resolveRequirements(requirements, Set.empty, Set.empty, currentState)
 
     if (state.isUnderconstrained && skipImplicitResolve) {
       Left(state)
     } else if (state.isUnderconstrained && !skipImplicitResolve) {
       //under-constrained; perhaps there is a unique combination of variants where we still can resolve:
 
-      val nonImplicitRequirements = onlyIncludedRequirements.filter { requirement =>
+      val nonImplicitRequirements = requirements.filter { requirement =>
         !state.implicitVariants.isDefinedAt(requirement.id)
       }
 
-      val ignoredIds = exclusions ++ (state.implicitVariants.values.map { variant => //ignore id of implicit variants
+      val ignoredIds = (state.implicitVariants.values.map { variant => //ignore id of implicit variants
         variant.id
       } ++ previouslyUnderconstrained).toSet //ignore ids which are under-constrained already
 
@@ -188,7 +184,7 @@ class Resolver(loader: VariantsLoader, skipImplicitResolve: Boolean = false) {
           val implicitState = state.copy(
             underconstrained = state.underconstrained -- combination.map(_.id), //we are no longer under-constrained on the implicitVariants
             implicitVariants = state.implicitVariants ++ implicitVariants)
-          implicitResolve(nonImplicitRequirements, exclusions, implicitState, ignoredIds ++ state.underconstrained, optimalUnderconstrainedStates) //ignore ids that are already under-constrained at this level
+          implicitResolve(nonImplicitRequirements, implicitState, ignoredIds ++ state.underconstrained, optimalUnderconstrainedStates) //ignore ids that are already under-constrained at this level
         }.collect {
           case Right(state) => state
         }.toList //TODO: is there a way to avoid this toList? We need to use this iterator to find *then* extract the state, which is why toList is there now.

@@ -84,10 +84,10 @@ class VersionOrderTest extends FunSpec with Matchers {
         val hashA = VariantMetadata.fromVariant(variantA).hash
         val resolveResultA = ResolutionResult(idA, repoA.name, commitA, hashA)
         addThenCommit(Variant(idB, Set(version -> Set("1.0.0"), binaryVersion -> Set("1.0")),
-          requirements = Set(Requirement(idA, Set.empty))), repoB,
+          requirements = Set(Requirement(idA, Set.empty, Set.empty))), repoB,
           Set(resolveResultA))
         addThenCommit(Variant(idC, Set(version -> Set("1.0.0"), binaryVersion -> Set("1.0")),
-          requirements = Set(Requirement(idA, Set.empty))), repoC,
+          requirements = Set(Requirement(idA, Set.empty, Set.empty))), repoC,
           Set(resolveResultA))
 
         VersionOrder.useBinaryVersionOf(idA, repoA, commitA, inRepositories = Set(repoB, repoC)).foreach {
