@@ -23,6 +23,10 @@ case class ArtifactMetadata(size: Long, locations: Set[String]) {
 
 object ArtifactMetadata {
 
+  def fromArtifact(artifact: Artifact): ArtifactMetadata = {
+    ArtifactMetadata(artifact.size, artifact.locations)
+  }
+
   private[adept] implicit val formatArtifactRef: Format[ArtifactRef] = {
     (
       (__ \ "hash").format[String] and
@@ -58,7 +62,7 @@ object ArtifactMetadata {
         val json = Json.parse(io.Source.fromInputStream(is).getLines.mkString("\n"))
         Json.fromJson[ArtifactMetadata](json) match {
           case JsSuccess(value, _) => Some(value)
-          case JsError(errors) => throw new Exception("Could parse json: " + hash + " for commit: " + commit + " in dir:  " + repository.dir + " ("+ repository.getArtifactFile(hash).getAbsolutePath + "). Got errors: " + errors)
+          case JsError(errors) => throw new Exception("Could parse json: " + hash + " for commit: " + commit + " in dir:  " + repository.dir + " (" + repository.getArtifactFile(hash).getAbsolutePath + "). Got errors: " + errors)
         }
       case Right(None) => None
       case Left(error) =>

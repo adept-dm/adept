@@ -19,6 +19,7 @@ import adept.utils.Hasher
 import net.sf.ehcache.CacheManager
 import org.eclipse.jgit.lib.TextProgressMonitor
 import adept.artifact.models.Artifact
+import adept.artifact.models.ArtifactHash
 import adept.resolution.models.Variant
 import adept.resolution.models.Constraint
 import adept.resolution.models.Id
@@ -46,6 +47,7 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
   import adept.test.BenchmarkUtils._ //convert to benchmark hashes
   import adept.test.OutputUtils._
   import adept.test.EitherUtils._
+  import adept.test.ArtifactUtils._
 
   import IvyConstants._
   import IvyUtils.withConfiguration
@@ -180,7 +182,7 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
         Requirement("com.typesafe.akka/akka-actor_2.10", Set.empty, Set.empty),
         Requirement(withConfiguration("com.typesafe.akka/akka-actor_2.10", "compile"), Set.empty, Set.empty),
         Requirement(withConfiguration("com.typesafe.akka/akka-actor_2.10", "master"), Set.empty, Set.empty))
-      val result = benchmark(Resolved, requirements && loader){
+      val result = benchmark(Resolved, requirements && loader) {
         resolve(requirements, loader)
       }
       checkResolved(result, Set[Id](
@@ -196,6 +198,11 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
       checkAttributeVariants(result, "com.typesafe.akka/akka-actor_2.10", version -> Set("2.1.0"))
       checkAttributeVariants(result, "com.typesafe/config", version -> Set("1.0.0"))
       checkAttributeVariants(result, "org.scala-lang/scala-library", version -> Set("2.10.0"))
+      //artifacts:
+      val akkaRepo = new GitRepository(tmpDir, RepositoryName("com.typesafe.akka"))
+      checkArtifactFilename(akkaRepo, result.state.resolvedVariants("com.typesafe.akka/akka-actor_2.10/config/master"))
+      checkArtifactFilename(new GitRepository(tmpDir, RepositoryName("com.typesafe")), result.state.resolvedVariants("com.typesafe/config/config/master"))
+      checkArtifactFilename(new GitRepository(tmpDir, RepositoryName("org.scala-lang")), result.state.resolvedVariants("org.scala-lang/scala-library/config/master"))
     }
   }
 
