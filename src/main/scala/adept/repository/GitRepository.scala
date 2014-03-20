@@ -244,6 +244,10 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
     usingInputStream(commit, asGitPath(getOrderFile(id, orderId)))(block)
   }
 
+  def usingRepositoryLocationsStream[A](name: RepositoryName, commit: Commit)(block: Either[String, Option[InputStream]] => A): A = {
+    usingInputStream(commit, asGitPath(getRepositoryLocationsFile(name)))(block)
+  }
+
   def isClean: Boolean = {
     git.status().call().isClean()
   }

@@ -12,6 +12,7 @@ import org.eclipse.jgit.lib.ProgressMonitor
 import adept.repository.serialization.ResolutionResultsMetadata
 import CacheHelpers._
 import adept.logging.Logging
+import adept.repository.serialization.RepositoryLocationsMetadata
 
 object GitLoader extends Logging {
   private def hash(id: Id, constraints: Set[Constraint], uniqueId: String): String = {
@@ -34,7 +35,7 @@ object GitLoader extends Logging {
     Hasher.hash(uniqueString.getBytes)
   }
 
-  def getLatestResolutionResults(baseDir: File, requirements: Set[(RepositoryName, Requirement)], progress: ProgressMonitor, cacheManager: CacheManager): Set[(ResolutionResult, RepositoryLocations)] = {
+  def getLatestResolutionResults(baseDir: File, requirements: Set[(RepositoryName, Requirement)], progress: ProgressMonitor, cacheManager: CacheManager): Set[(ResolutionResult, Option[RepositoryLocations])] = {
     val currentRequirements = requirements.map {
       case (name, requirement) =>
         val repository = new GitRepository(baseDir, name)
@@ -43,7 +44,7 @@ object GitLoader extends Logging {
     getResolutionResults(baseDir, currentRequirements, progress, cacheManager)
   }
 
-  def getResolutionResults(baseDir: File, requirements: Set[(RepositoryName, Requirement, Commit)], progress: ProgressMonitor, cacheManager: CacheManager): Set[(ResolutionResult, RepositoryLocations)] = {
+  def getResolutionResults(baseDir: File, requirements: Set[(RepositoryName, Requirement, Commit)], progress: ProgressMonitor, cacheManager: CacheManager): Set[(ResolutionResult, Option[RepositoryLocations])] = {
     usingCache(key = "getResolutionResults" + hash(requirements), getCache(cacheManager)) {
       val latestRequirements = requirements.groupBy { case (name, requirement, _) => requirement.id -> name }.map {
         case ((id, name), values) =>
@@ -81,18 +82,13 @@ object GitLoader extends Logging {
             ResolutionResult(id, repository.name, commit, hash)
         }
       } yield {
-        /*TODO:
-        val locations: Set[RepositoryLocations] = RepositoryLocationsMetadata.read(id, resolutionResult.name, repository, commit).getOrElse{ Seq.empty[RepositoryLocations] }
-        */
-        resolutionResult -> fakeLocation(resolutionResult.repository.value)
+        val locations =
+          RepositoryLocationsMetadata.read(resolutionResult.repository, repository, commit).map(_.toRepositoryLocations(resolutionResult.repository))
+
+        resolutionResult -> locations
       }
       resolutionResults
     }
-  }
-
-  def fakeLocation(name: String) = { //TODO: replace this with something REAL
-    logger.warn("Using fake location for: " + name)
-    RepositoryLocations(Set("https://github.com/adept-test-repo1/" + name))
   }
 
   def fetchLocations(repository: GitRepository, repositoryLocations: RepositoryLocations, progress: ProgressMonitor, passphrase: Option[String]) = {
@@ -147,11 +143,12 @@ class GitLoader(baseDir: File, private[adept] val results: Set[ResolutionResult]
   }
 
   private lazy val byId = {
-    cachedById.map{ case (id, values) =>
-      id -> values.map{
-        case (variant, repositoryName, commit) =>
-          (variant, new GitRepository(baseDir, repositoryName), commit)
-      }
+    cachedById.map {
+      case (id, values) =>
+        id -> values.map {
+          case (variant, repositoryName, commit) =>
+            (variant, new GitRepository(baseDir, repositoryName), commit)
+        }
     }
   }
 

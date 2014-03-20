@@ -52,12 +52,12 @@ object ArtifactMetadata {
       }))
   }
 
-  private[adept] def read(hash: ArtifactHash, repository: GitRepository, commit: Commit): Option[Artifact] = {
+  private[adept] def read(hash: ArtifactHash, repository: GitRepository, commit: Commit): Option[ArtifactMetadata] = {
     repository.usingArtifactInputStream(hash, commit) {
       case Right(Some(is)) =>
         val json = Json.parse(io.Source.fromInputStream(is).getLines.mkString("\n"))
         Json.fromJson[ArtifactMetadata](json) match {
-          case JsSuccess(value, _) => Some(value.toArtifact(hash))
+          case JsSuccess(value, _) => Some(value)
           case JsError(errors) => throw new Exception("Could parse json: " + hash + " for commit: " + commit + " in dir:  " + repository.dir + " ("+ repository.getArtifactFile(hash).getAbsolutePath + "). Got errors: " + errors)
         }
       case Right(None) => None

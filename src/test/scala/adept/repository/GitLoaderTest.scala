@@ -14,6 +14,7 @@ import adept.ext.VersionOrder
 import adept.ext.AttributeDefaults
 import adept.repository.serialization.VariantMetadata
 import adept.repository.serialization.ResolutionResultsMetadata
+import adept.repository.serialization.RepositoryLocationsMetadata
 
 class GitLoaderTest extends FunSuite with Matchers {
   import adept.test.FileUtils._
@@ -70,7 +71,8 @@ class GitLoaderTest extends FunSuite with Matchers {
       repoB.init()
       val idB = "B"
       val idA = "A"
-
+      val locationsA = Set("git@github.com/coolio/foo.git", "git@adepthub.com/coolio/foo.git")
+        
       val hashA = addVariant(Variant(idA, Set(version -> Set("1.0.0"), binaryVersion -> Set("1.0")),
         requirements = Set(idB -> Set(Constraint(binaryVersion, Set("2.0"))))), repoA)
       val hashB = addVariant(Variant(idB, Set(version -> Set("2.0.1"), binaryVersion -> Set("2.0")), requirements = Set.empty), repoB)
@@ -89,6 +91,8 @@ class GitLoaderTest extends FunSuite with Matchers {
 
       repoA.add(
         ResolutionResultsMetadata(Seq(resolutionResultB)).write(idA, hashA, repoA))
+      repoA.add(
+        RepositoryLocationsMetadata(locationsA.toSeq).write(repoA.name, repoA))
       val commitA = repoA.commit("Adding aaaaa A")
       repoA.add(VersionOrder.useDefaultVersionOrder(idA, repoA, commitA))
       repoA.commit("Order in a A")
@@ -96,10 +100,8 @@ class GitLoaderTest extends FunSuite with Matchers {
         (repoA.name, (idA -> Set(Constraint(binaryVersion, Set("1.0")))), commitA), //should get overridden
         (repoA.name, (idA -> Set(Constraint(binaryVersion, Set("1.0")))), repoA.getHead))
 
-      val resultAndLocations = GitLoader.getResolutionResults(tmpDir, requirements, progress, cacheManager)
-      val results = resultAndLocations.map { case (result, _) => result }
-      //TODO: verify location as well
-      results shouldEqual Set(resolutionResultB, ResolutionResult(idA, repoA.name, repoA.getHead, hashA))
+      val results = GitLoader.getResolutionResults(tmpDir, requirements, progress, cacheManager)
+      results shouldEqual Set(resolutionResultB -> None, ResolutionResult(idA, repoA.name, repoA.getHead, hashA) -> Some(RepositoryLocations(repoA.name, locationsA)))
     }
   }
 

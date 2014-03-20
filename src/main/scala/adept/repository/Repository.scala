@@ -12,11 +12,13 @@ import java.io.FileReader
 import java.io.FilenameFilter
 
 case class InitException(reason: String) extends Exception("Could not initialize: " + reason)
-case class MalformedVariantHashException(repo: Repository, hash: VariantHash) extends Exception("Variant hash: '" + hash.value + "' (size: "+hash.value.length+") was not well-formed in repository: " + repo.dir.getAbsolutePath)
+case class MalformedVariantHashException(repo: Repository, hash: VariantHash) extends Exception("Variant hash: '" + hash.value + "' (size: " + hash.value.length + ") was not well-formed in repository: " + repo.dir.getAbsolutePath)
 case class MalformedArtifactHashException(repo: Repository, hash: ArtifactHash) extends Exception("Artifact hash: '" + hash.value + "' was not well-formed in repository: " + repo.dir.getAbsolutePath)
 
 object Repository {
+  val LocationsDirName = "locations"
   val ArtifactsMetadataDirName = "artifacts"
+  val RepositoryLocationsMetadataDirName = "repos"
   val VariantsMetadataDirName = "variants"
   val ReposDirName = "repos"
 
@@ -25,6 +27,7 @@ object Repository {
   val InfoMetadataFileName = "info." + JsonFileEnding
   val VariantMetadataFileName = "variant." + JsonFileEnding
   val OrderFileNamePrefix = "order-"
+  val RepositoryLocationsFileName = "repository." + JsonFileEnding
 
   val IdDirSep = "/" //the character in an ID that indicates a different directory
 
@@ -35,7 +38,11 @@ object Repository {
 
   def getReposDir(baseDir: File) = new File(baseDir, ReposDirName)
   def getRepoDir(baseDir: File, name: RepositoryName) = new File(getReposDir(baseDir), name.value)
-  def getArtifactsMetadataDir(baseDir: File, name: RepositoryName) = new File(getRepoDir(baseDir, name), ArtifactsMetadataDirName)
+
+  private def getLocationsDir(baseDir: File, name: RepositoryName) = new File(getRepoDir(baseDir, name), LocationsDirName)
+
+  def getArtifactsMetadataDir(baseDir: File, name: RepositoryName) = new File(getLocationsDir(baseDir, name), ArtifactsMetadataDirName)
+  def getRepositoryLocationsMetadataDir(baseDir: File, name: RepositoryName) = new File(getLocationsDir(baseDir, name), RepositoryLocationsMetadataDirName)
   def getVariantsMetadataDir(baseDir: File, name: RepositoryName) = new File(getRepoDir(baseDir, name), VariantsMetadataDirName)
 
   private[adept] def ensureParentDirs(file: File) = {
@@ -77,6 +84,7 @@ private[adept] class Repository(val baseDir: File, val name: RepositoryName) {
   val dir = getRepoDir(baseDir, name)
 
   val artifactsMetadataDir = getArtifactsMetadataDir(baseDir, name)
+  val repositoryLocationsMetadataDir = getRepositoryLocationsMetadataDir(baseDir, name)
   val variantsMetadataDir = getVariantsMetadataDir(baseDir, name)
 
   private def getVariantHashDir(id: Id, hash: VariantHash) = {
@@ -117,5 +125,10 @@ private[adept] class Repository(val baseDir: File, val name: RepositoryName) {
   def getOrderFile(id: Id, orderId: OrderId): File = {
     val orderDir = getIdFile(variantsMetadataDir, id)
     ensureParentDirs(new File(orderDir, OrderFileNamePrefix + orderId.value))
+  }
+
+  def getRepositoryLocationsFile(name: RepositoryName): File = {
+    val repositoryLocationsDir = new File(repositoryLocationsMetadataDir, name.value)
+    ensureParentDirs(new File(repositoryLocationsDir, RepositoryLocationsFileName))
   }
 }
