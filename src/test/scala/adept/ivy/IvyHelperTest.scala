@@ -36,12 +36,17 @@ import org.apache.ivy.plugins.matcher.ExactPatternMatcher
 import org.apache.ivy.core.module.descriptor.DefaultDependencyDescriptor
 import adept.resolution.resolver.models.ResolvedResult
 import adept.resolution.models.Attribute
+import adept.test.TestDetails
 
 class IvyHelperTest extends FunSuite with Matchers {
   import adept.test.ResolverUtils._
   import adept.test.LoaderUtils._
   import adept.test.FileUtils.usingTmpDir
+  import adept.test.BenchmarkUtils._ //convert to benchmark hashes
+  import adept.test.BenchmarkUtils.defaultBencharMarker.benchmark
   import IvyHelper._
+  import adept.ext.AttributeDefaults._
+  import org.scalatest.EitherValues._
 
   val akkaTransitiveIds: Set[Id] = Set(
     "akka-actor_2.10",
@@ -127,7 +132,7 @@ class IvyHelperTest extends FunSuite with Matchers {
     val transitive = true
     val changing = true
     val force = true
-    val ivyModule = DefaultModuleDescriptor.newBasicInstance(ModuleRevisionId.newInstance("com.adepthub", "test", "1.0"), new java.util.Date())
+    val ivyModule = DefaultModuleDescriptor.newBasicInstance(ModuleRevisionId.newInstance("com.adepthub", "test", "1.0"), new java.util.Date(1395315115209L))
     ivyModule.addConfiguration(new IvyConfiguration("default", IvyConfiguration.Visibility.PUBLIC, "", Array("master", "runtime"), true, ""))
     ivyModule.addConfiguration(new IvyConfiguration("master", IvyConfiguration.Visibility.PUBLIC, "", Array.empty, true, ""))
     ivyModule.addConfiguration(new IvyConfiguration("runtime", IvyConfiguration.Visibility.PUBLIC, "", Array("compile"), true, ""))
@@ -146,8 +151,7 @@ class IvyHelperTest extends FunSuite with Matchers {
     ivyModule
   }
 
-  test("Ivy requirements transformation") {
-    import adept.ext.AttributeDefaults._
+  test("Ivy requirements conversion") {
     val ivyModule = getAkkaRemoteTestIvyModule
 
     val fakeIvyResults: Set[IvyImportResult] = Set(
@@ -156,9 +160,9 @@ class IvyHelperTest extends FunSuite with Matchers {
           id = Id("akka-remote_2.10/config/default"),
           attributes = Set(
             Attribute(ConfigurationAttribute, Set("default")),
-            Attribute(NameAttribute, Set("akka-remote_2.10")),
+            Attribute(IvyNameAttribute, Set("akka-remote_2.10")),
             Attribute(VersionAttribute, Set("2.2.1")),
-            Attribute(OrgAttribute, Set("com.typesafe.akka"))))),
+            Attribute(IvyOrgAttribute, Set("com.typesafe.akka"))))),
         repository = RepositoryName("com.typesafe.akka"),
         artifacts = Set.empty, localFiles = Map.empty,
         versionInfo = Set.empty, excludeRules = Map.empty),
@@ -167,9 +171,9 @@ class IvyHelperTest extends FunSuite with Matchers {
           id = Id("akka-remote_2.10/config/compile"),
           attributes = Set(
             Attribute(ConfigurationAttribute, Set("compile")),
-            Attribute(NameAttribute, Set("akka-remote_2.10")),
+            Attribute(IvyNameAttribute, Set("akka-remote_2.10")),
             Attribute(VersionAttribute, Set("2.2.1")),
-            Attribute(OrgAttribute, Set("com.typesafe.akka"))))),
+            Attribute(IvyOrgAttribute, Set("com.typesafe.akka"))))),
         repository = RepositoryName("com.typesafe.akka"),
         artifacts = Set.empty, localFiles = Map.empty,
         versionInfo = Set.empty, excludeRules = Map.empty),
@@ -178,9 +182,9 @@ class IvyHelperTest extends FunSuite with Matchers {
           id = Id("akka-remote_2.10/config/runtime"),
           attributes = Set(
             Attribute(ConfigurationAttribute, Set("runtime")),
-            Attribute(NameAttribute, Set("akka-remote_2.10")),
+            Attribute(IvyNameAttribute, Set("akka-remote_2.10")),
             Attribute(VersionAttribute, Set("2.2.1")),
-            Attribute(OrgAttribute, Set("com.typesafe.akka"))))),
+            Attribute(IvyOrgAttribute, Set("com.typesafe.akka"))))),
         repository = RepositoryName("com.typesafe.akka"),
         artifacts = Set.empty, localFiles = Map.empty,
         versionInfo = Set.empty, excludeRules = Map.empty),
@@ -189,9 +193,9 @@ class IvyHelperTest extends FunSuite with Matchers {
           id = Id("akka-remote_2.10/config/master"),
           attributes = Set(
             Attribute(ConfigurationAttribute, Set("master")),
-            Attribute(NameAttribute, Set("akka-remote_2.10")),
+            Attribute(IvyNameAttribute, Set("akka-remote_2.10")),
             Attribute(VersionAttribute, Set("2.2.1")),
-            Attribute(OrgAttribute, Set("com.typesafe.akka"))))),
+            Attribute(IvyOrgAttribute, Set("com.typesafe.akka"))))),
         repository = RepositoryName("com.typesafe.akka"),
         artifacts = Set.empty, localFiles = Map.empty,
         versionInfo = Set.empty, excludeRules = Map.empty),
@@ -201,9 +205,9 @@ class IvyHelperTest extends FunSuite with Matchers {
           id = Id("akka-remote_2.10/config/bogus"),
           attributes = Set(
             Attribute(ConfigurationAttribute, Set("bogus")),
-            Attribute(NameAttribute, Set("akka-remote_2.10")),
+            Attribute(IvyNameAttribute, Set("akka-remote_2.10")),
             Attribute(VersionAttribute, Set("2.2.1")),
-            Attribute(OrgAttribute, Set("com.typesafe.akka"))))),
+            Attribute(IvyOrgAttribute, Set("com.typesafe.akka"))))),
         repository = RepositoryName("com.typesafe.akka"),
         artifacts = Set.empty, localFiles = Map.empty,
         versionInfo = Set.empty, excludeRules = Map.empty),
@@ -213,9 +217,9 @@ class IvyHelperTest extends FunSuite with Matchers {
           id = Id("scalatest_2.10/config/default"),
           attributes = Set(
             Attribute(ConfigurationAttribute, Set("default")),
-            Attribute(NameAttribute, Set("scalatest_2.10")),
+            Attribute(IvyNameAttribute, Set("scalatest_2.10")),
             Attribute(VersionAttribute, Set("1.9.1")),
-            Attribute(OrgAttribute, Set("org.scalatest"))))),
+            Attribute(IvyOrgAttribute, Set("org.scalatest"))))),
         repository = RepositoryName("org.scalatest"),
         artifacts = Set.empty, localFiles = Map.empty,
         versionInfo = Set.empty, excludeRules = Map.empty),
@@ -224,9 +228,9 @@ class IvyHelperTest extends FunSuite with Matchers {
           id = Id("scalatest_2.10/config/compile"),
           attributes = Set(
             Attribute(ConfigurationAttribute, Set("compile")),
-            Attribute(NameAttribute, Set("scalatest_2.10")),
+            Attribute(IvyNameAttribute, Set("scalatest_2.10")),
             Attribute(VersionAttribute, Set("1.9.1")),
-            Attribute(OrgAttribute, Set("org.scalatest"))))),
+            Attribute(IvyOrgAttribute, Set("org.scalatest"))))),
         repository = RepositoryName("org.scalatest"),
         artifacts = Set.empty, localFiles = Map.empty,
         versionInfo = Set.empty, excludeRules = Map.empty),
@@ -235,9 +239,9 @@ class IvyHelperTest extends FunSuite with Matchers {
           id = Id("scalatest_2.10/config/runtime"),
           attributes = Set(
             Attribute(ConfigurationAttribute, Set("runtime")),
-            Attribute(NameAttribute, Set("scalatest_2.10")),
+            Attribute(IvyNameAttribute, Set("scalatest_2.10")),
             Attribute(VersionAttribute, Set("1.9.1")),
-            Attribute(OrgAttribute, Set("org.scalatest"))))),
+            Attribute(IvyOrgAttribute, Set("org.scalatest"))))),
         repository = RepositoryName("org.scalatest"),
         artifacts = Set.empty, localFiles = Map.empty,
         versionInfo = Set.empty, excludeRules = Map.empty),
@@ -246,9 +250,9 @@ class IvyHelperTest extends FunSuite with Matchers {
           id = Id("scalatest_2.10/config/master"),
           attributes = Set(
             Attribute(ConfigurationAttribute, Set("master")),
-            Attribute(NameAttribute, Set("scalatest_2.10")),
+            Attribute(IvyNameAttribute, Set("scalatest_2.10")),
             Attribute(VersionAttribute, Set("1.9.1")),
-            Attribute(OrgAttribute, Set("org.scalatest"))))),
+            Attribute(IvyOrgAttribute, Set("org.scalatest"))))),
         repository = RepositoryName("org.scalatest"),
         artifacts = Set.empty, localFiles = Map.empty,
         versionInfo = Set.empty, excludeRules = Map.empty))
@@ -271,10 +275,9 @@ class IvyHelperTest extends FunSuite with Matchers {
       Requirement(Id("scalatest_2.10/config/runtime"), Set.empty, Set.empty))
   }
 
-  test("REMOVE ME: add a proper more complicated test") {
+  test("Ivy end-to-end: import, insert, resolution, verfication") {
+    implicit val testDetails = TestDetails("End-to-end (akka-remote & scalatest)")
     usingTmpDir { tmpDir =>
-      import IvyHelper._
-      import org.scalatest.EitherValues._
       val ivy = IvyHelper.load()
       ivy.configure(new File("src/test/resources/typesafe-ivy-settings.xml"))
 
@@ -284,26 +287,26 @@ class IvyHelperTest extends FunSuite with Matchers {
       val time1 = System.currentTimeMillis()
       val results = ivyHelper.getIvyImportResults(ivyModule, progress)
       val time2 = System.currentTimeMillis()
-      println("import completed: " + ((time2 - time1) / 1000.0) + "s")
+      benchmark("Ivy-import", time2 - time1, ivyModule)
       val resolutionResults = IvyHelper.insertAsResolutionResults(tmpDir, results, progress)
       val time3 = System.currentTimeMillis()
-      println("insert completed: " + ((time3 - time2) / 1000.0) + "s")
+      benchmark("Insert", time3 - time2, resolutionResults)
       val requirements = IvyHelper.convertIvyAsRequirements(ivyModule, results)
       val loader = new GitLoader(tmpDir, resolutionResults, progress, cacheManager)
       val time4 = System.currentTimeMillis()
-      println("loaded in: " + ((time4 - time3) / 1000.0) + "s")
+      benchmark("Loaded", time4 - time3, resolutionResults)
 
       for (confName <- requirements.keys) {
         val time4 = System.currentTimeMillis()
         val result = resolve(requirements(confName), loader)
         val time5 = System.currentTimeMillis()
-        println("resolution in " + confName + " completed: " + ((time5 - time4) / 1000.0) + "s")
+        benchmark("Resolved", time5 - time4, requirements(confName))
         result match {
           case resolvedResult: ResolvedResult =>
             val verificationResult = ivyHelper.verifyImport(confName, ivyModule, resolvedResult)
             val time6 = System.currentTimeMillis()
             if (verificationResult.isRight) {
-              println("verification of " + confName + " completed: " + ((time6 - time5) / 1000.0) + "s")
+              benchmark("Verification", time6 - time5, ivyModule)
             } else {
               assert(false, "Verification of " + confName + " failed:\n" + verificationResult)
             }

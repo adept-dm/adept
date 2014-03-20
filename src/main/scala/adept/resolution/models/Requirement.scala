@@ -3,7 +3,7 @@ package adept.resolution.models
 import adept.utils.OrderingHelpers
 
 case class Requirement(id: Id, constraints: Set[Constraint], exclusions: Set[Id]) {
-  override def toString = id + " " + constraints.map(c => c.name + "=" + c.values.mkString("(", ",", ")")).mkString("[", ",", "]")
+  override def toString = id + " " + constraints.map(c => c.name + "=" + c.values.mkString("(", ",", ")")).mkString("[", ",", "]") + (if (exclusions.nonEmpty) exclusions.mkString("![", " & ", "]") else "")
 
   def constraint(name: String) = {
     val values = constraints.collect {

@@ -71,50 +71,55 @@ case class IvyVerificationErrorReport(msg: String, adeptExtraArtifacts: Map[Arti
   }
 }
 
+class AdeptIvyMessageLogger(level: Int = Message.MSG_ERR) extends DefaultMessageLogger(level) {
+  var i = 0
+
+  override def doProgress(): Unit = {
+    val indicator = if (i == 0) "-"
+    else if (i == 1) "/"
+    else if (i == 2) "-"
+    else if (i == 3) "\\"
+    else if (i == 4) "|"
+    else {
+      i = 0
+      "/"
+    }
+    i = i + 1
+    //System.out.print("\r" * 80 + " " * 80 + "\r" * 80)
+    System.out.print(indicator + "\r")
+  }
+
+  override def doEndProgress(ivyMsg: String): Unit = {
+    //pass
+  }
+}
+
 object IvyHelper extends Logging {
-  import AttributeDefaults.{ NameAttribute, OrgAttribute, VersionAttribute }
+  val IvyNameAttribute = "ivy-name"
+  val IvyOrgAttribute = "ivy-organisation"
+
+  import AttributeDefaults.VersionAttribute
   val ConfigurationHashAttribute = "configuration-hash"
   val ConfigurationAttribute = "configuration"
   val ArtifactConfAttribute = "configurations"
   val IdConfig = "config"
 
-  lazy val errorIvyLogger = new DefaultMessageLogger(Message.MSG_ERR) {
-    var i = 0
-
-    override def doProgress(): Unit = {
-      val indicator = if (i == 0) "-"
-      else if (i == 1) "/"
-      else if (i == 2) "-"
-      else if (i == 3) "\\"
-      else if (i == 4) "|"
-      else {
-        i = 0
-        "/"
-      }
-      i = i + 1
-      //System.out.print("\r" * 80 + " " * 80 + "\r" * 80)
-      System.out.print(indicator + "\r")
-    }
-
-    override def doEndProgress(ivyMsg: String): Unit = {
-      //pass
-    }
-  }
-  lazy val warnIvyLogger = new DefaultMessageLogger(Message.MSG_WARN)
-  lazy val infoIvyLogger = new DefaultMessageLogger(Message.MSG_INFO)
-  lazy val debugIvyLogger = new DefaultMessageLogger(Message.MSG_DEBUG)
+  lazy val errorIvyLogger = new AdeptIvyMessageLogger(Message.MSG_ERR)
+  lazy val warnIvyLogger = new AdeptIvyMessageLogger(Message.MSG_WARN)
+  lazy val infoIvyLogger = new AdeptIvyMessageLogger(Message.MSG_INFO)
+  lazy val debugIvyLogger = new AdeptIvyMessageLogger(Message.MSG_DEBUG)
 
   private def matchVariant(mrid: ModuleRevisionId, variant: Variant): Boolean = {
     val moduleId = mrid.getModuleId()
-    variant.attribute(NameAttribute).values == Set(moduleId.getName()) &&
-      variant.attribute(OrgAttribute).values == Set(moduleId.getOrganisation()) &&
+    variant.attribute(IvyNameAttribute).values == Set(moduleId.getName()) &&
+      variant.attribute(IvyOrgAttribute).values == Set(moduleId.getOrganisation()) &&
       variant.attribute(VersionAttribute).values == Set(mrid.getRevision())
   }
 
   private def matchesExcludeRule(excludeRule: ExcludeRule, variant: Variant): Boolean = {
     val moduleId = excludeRule.getId.getModuleId
-    variant.attribute(NameAttribute).values == Set(moduleId.getName()) &&
-      variant.attribute(OrgAttribute).values == Set(moduleId.getOrganisation())
+    variant.attribute(IvyNameAttribute).values == Set(moduleId.getName()) &&
+      variant.attribute(IvyOrgAttribute).values == Set(moduleId.getOrganisation())
   }
 
   private def getParentNode(resolveReport: ResolveReport) = {
@@ -346,7 +351,7 @@ object IvyHelper extends Logging {
       }
     }
 
-    //pass 2: expand the requirements of each configuration
+    //pass 2: expand the requirements of each configuration (instead of only having test -> */config/test, we have test -> (*/config/test AND */config/compile etc etc))
     module.getDependencies().foreach { descriptor =>
       descriptor.getModuleConfigurations().foreach { confName =>
         val allRequirements = getAllConfigurations(module, confName).flatMap { expandedConfName =>
@@ -385,7 +390,7 @@ object IvyHelper extends Logging {
 case class IvyImportResult(variant: Variant, artifacts: Set[Artifact], localFiles: Map[ArtifactHash, File], repository: RepositoryName, versionInfo: Set[(RepositoryName, Id, Version)], excludeRules: Map[(Id, Id), Set[ExcludeRule]])
 
 class IvyHelper(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[String]] = Some(Set("javadoc", "sources"))) extends Logging {
-  import AttributeDefaults.{ NameAttribute, OrgAttribute, VersionAttribute }
+  import AttributeDefaults.VersionAttribute
   import IvyHelper._
 
   /** As in sbt */
@@ -512,8 +517,6 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[St
   private def ivySingleImport(org: String, name: String, version: String, progress: ProgressMonitor): Set[IvyImportResult] = {
     val mrid = ModuleRevisionId.newInstance(org, name, version)
     val resolveReport = ivy.resolve(mrid, resolveOptions(), changing)
-
-    println("--------------")
     val dependencyTree = createDependencyTree(mrid)(resolveReport)
     val workingNode = dependencyTree(ModuleRevisionId.newInstance(org, name + "-caller", "working")).head
     progress.beginTask("Importing " + mrid, dependencyTree(workingNode.getId).size)
@@ -541,8 +544,8 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[St
     val mrid = currentIvyNode.getId
     val id = ivyIdAsId(mrid.getModuleId)
     val versionAttribute = Attribute(VersionAttribute, Set(mrid.getRevision()))
-    val nameAttribute = Attribute(NameAttribute, Set(mrid.getName()))
-    val orgAttribute = Attribute(OrgAttribute, Set(mrid.getOrganisation()))
+    val nameAttribute = Attribute(IvyNameAttribute, Set(mrid.getName()))
+    val orgAttribute = Attribute(IvyOrgAttribute, Set(mrid.getOrganisation()))
 
     val configurationHash = Hasher.hash(mrid.toString.getBytes) //TODO: make more unique? 
     val attributes = Set(orgAttribute, nameAttribute, versionAttribute)
