@@ -18,6 +18,7 @@ import adept.repository.serialization.VariantMetadata
 import adept.utils.Hasher
 import net.sf.ehcache.CacheManager
 import org.eclipse.jgit.lib.TextProgressMonitor
+import adept.artifact.models.Artifact
 import adept.resolution.models.Variant
 import adept.resolution.models.Constraint
 import adept.resolution.models.Id
@@ -102,7 +103,17 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
     ivyModule
   }
 
+  private def verifyLocation(artifacts: Set[Artifact], ending: String) = {
+    artifacts.foreach { artifact =>
+      artifact.locations.toSeq match {
+        case elem +: Nil => assert(elem.endsWith(ending), "Location: " + elem + " does not end with: '" + ending + "'")
+        case _ => assert(false, "Did not find expected location ending with: '" + ending + "'. Found " + artifact.locations)
+      }
+    }
+  }
+
   test("IvyImport basics: import of akka should yield correct results") {
+
     implicit val testDetails = TestDetails("Basic import akka 2.1.0")
     val ivyConverter = new IvyAdeptConverter(ivy)
     val ivyModule = getAkka210TestIvyModule
@@ -115,13 +126,13 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
     results.foreach {
       case result =>
         if (result.variant.id == withConfiguration("com.typesafe.akka/akka-actor_2.10", "master")) {
-          result.artifacts.flatMap(_.locations) shouldEqual Set("http://repo1.maven.org/maven2/com/typesafe/akka/akka-actor_2.10/2.1.0/akka-actor_2.10-2.1.0.jar")
+          verifyLocation(result.artifacts, "akka-actor_2.10-2.1.0.jar")
         }
         if (result.variant.id == withConfiguration("com.typesafe/config", "master")) {
-          result.artifacts.flatMap(_.locations) shouldEqual Set("http://repo.typesafe.com/typesafe/releases/com/typesafe/config/1.0.0/config-1.0.0.jar")
+          verifyLocation(result.artifacts, "config-1.0.0.jar")
         }
         if (result.variant.id == withConfiguration("org.scala-lang/scala-library", "master")) {
-          result.artifacts.flatMap(_.locations) shouldEqual Set("http://repo1.maven.org/maven2/org/scala-lang/scala-library/2.10.0/scala-library-2.10.0.jar")
+          verifyLocation(result.artifacts, "scala-library-2.10.0.jar")
         }
         //
         if (result.variant.id == withConfiguration("com.typesafe.akka/akka-actor_2.10", "compile")) {
