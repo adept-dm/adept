@@ -82,12 +82,12 @@ object VariantMetadata {
         }))
   }
 
-  def read(id: Id, hash: VariantHash, repository: GitRepository, commit: Commit): Option[Variant] = { //TODO: Change to Option[VariantMetadata] because it makes more sense
+  def read(id: Id, hash: VariantHash, repository: GitRepository, commit: Commit): Option[VariantMetadata] = {
     repository.usingVariantInputStream(id, hash, commit) {
       case Right(Some(is)) =>
         val json = Json.parse(io.Source.fromInputStream(is).getLines.mkString("\n"))
         Json.fromJson[VariantMetadata](json) match {
-          case JsSuccess(value, _) => Some(value.toVariant(id))
+          case JsSuccess(value, _) => Some(value)
           case JsError(errors) => throw new Exception("Could parse json: " + hash + " for commit: " + commit + " in dir:  " + repository.dir + " (" + repository.getVariantFile(id, hash).getAbsolutePath + "). Got errors: " + errors)
         }
       case Right(None) => None

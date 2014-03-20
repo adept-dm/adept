@@ -12,12 +12,12 @@ object VersionScanner {
       Order.scanFirst(id, orderId, repository, commit) { hash =>
 
         for {
-          variant <- VariantMetadata.read(id, hash, repository, commit)
+          metadata <- VariantMetadata.read(id, hash, repository, commit)
           foundVersion <- {
-            VersionOrder.getVersion(variant)
+            VersionOrder.getVersion(metadata.toVariant(id))
           } if (foundVersion == version)
         } yield {
-          (orderId, VariantMetadata.fromVariant(variant).hash)
+          (orderId, metadata.hash)
         }
       }
     }

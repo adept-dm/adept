@@ -28,7 +28,7 @@ class VariantMetadataTest extends FunSuite with Matchers {
       repository.add(variantMetadata.write(id, repository))
       repository.commit("Added variant")
       import org.scalatest.OptionValues._
-      VariantMetadata.read(id, variantMetadata.hash, repository, repository.getHead).value shouldEqual variantMetadata.toVariant(id)
+      VariantMetadata.read(id, variantMetadata.hash, repository, repository.getHead).value shouldEqual variantMetadata
     }
   }
 

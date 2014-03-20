@@ -38,7 +38,7 @@ class VersionOrderTest extends FunSpec with Matchers {
         val activeAs = Order.activeVariants(idA, repoA, repoA.getHead)
         activeAs should have size (1)
         val hash = activeAs.headOption.value
-        VariantMetadata.read(idA, hash, repoA, repoA.getHead).value.attribute(AttributeDefaults.BinaryVersionAttribute).values
+        VariantMetadata.read(idA, hash, repoA, repoA.getHead).value.toVariant(idA).attribute(AttributeDefaults.BinaryVersionAttribute).values
       }
     }
 

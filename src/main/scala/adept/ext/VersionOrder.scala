@@ -154,7 +154,7 @@ object VersionOrder extends Logging {
     //TODO: there is something strange with listVariants or listActiveOrderIds because sometimes files are skipped? REMOVE THIS COMMENT: this was fixed
     val variants = VariantMetadata.listVariants(id, repository, commit).map { hash =>
       VariantMetadata.read(id, hash, repository, commit) match {
-        case Some(variant) => variant
+        case Some(variantMetadata) => variantMetadata.toVariant(id)
         case _ => throw new Exception("Unexpectly could not read variant: " + hash + " in  " + repository.dir.getAbsolutePath)
       }
     }
@@ -188,8 +188,9 @@ object VersionOrder extends Logging {
   }
 
   def useSemanticVersions(id: Id, hash: VariantHash, repository: GitRepository, commit: Commit, excludes: Set[Regex] = Set.empty, useVersionAsBinary: Set[Regex] = Set.empty): Set[File] = {
-    val variant = VariantMetadata.read(id, hash, repository, commit)
+    val variantMetadata = VariantMetadata.read(id, hash, repository, commit)
       .getOrElse(throw new Exception("Could not find variant: " + id + " hash: " + hash + " in " + repository.dir.getAbsolutePath + " for " + commit))
+    val variant = variantMetadata.toVariant(id)
     val versions = variant.attribute(AttributeDefaults.VersionAttribute).values
     val existingBinaryVersions = variant.attribute(AttributeDefaults.BinaryVersionAttribute).values
     if (versions.size == 1 && existingBinaryVersions.isEmpty) {
@@ -246,9 +247,12 @@ object VersionOrder extends Logging {
       if (currentResults.size > 1) throw new Exception("Aborting binary version update because we found more than 1 target repositories for: " + id + " in " + resolutionResults + ": " + currentResults)
 
       val maybeBinaryVersion = currentResults.headOption.flatMap { matchingRepositoryInfo =>
-        val maybeFoundVariant = VariantMetadata.read(matchingRepositoryInfo.id, matchingRepositoryInfo.variant,
-          repository, matchingRepositoryInfo.commit)
-        val foundVariant = maybeFoundVariant.getOrElse(throw new Exception("Aborting binary version update because we could not update required variant for: " + matchingRepositoryInfo + " in " + repository.dir))
+        val foundVariant = {
+          val maybeMetadata = VariantMetadata.read(matchingRepositoryInfo.id, matchingRepositoryInfo.variant,
+            repository, matchingRepositoryInfo.commit)
+          val metadata = maybeMetadata.getOrElse(throw new Exception("Aborting binary version update because we could not update required variant for: " + matchingRepositoryInfo + " in " + repository.dir))
+          metadata.toVariant(matchingRepositoryInfo.id)
+        }
         getVersion(foundVariant).map(_.asBinaryVersion)
       }
 
@@ -266,7 +270,10 @@ object VersionOrder extends Logging {
       VariantMetadata.listIds(otherRepo, otherCommit).flatMap { otherId =>
         val variants = Order.activeVariants(otherId, otherRepo, otherCommit)
         variants.flatMap { otherHash =>
-          val otherVariant = VariantMetadata.read(otherId, otherHash, otherRepo, otherCommit).getOrElse(throw new Exception("Could not update binary version for: " + id + " in " + otherId + " because we could not find a variant for hash: " + otherHash + " in " + otherRepo + " and commit " + commit))
+          val otherVariant = {
+            val metadata = VariantMetadata.read(otherId, otherHash, otherRepo, otherCommit).getOrElse(throw new Exception("Could not update binary version for: " + id + " in " + otherId + " because we could not find a variant for hash: " + otherHash + " in " + otherRepo + " and commit " + commit))
+            metadata.toVariant(otherId)
+          }
           val resolutionResults = ResolutionResultsMetadata.read(otherId, otherHash, otherRepo, otherCommit).getOrElse(throw new Exception("Could not update binary version for: " + id + " in " + otherId + " because we could not find a repository info for: " + otherHash + " in repo " + otherRepo.dir.getAbsolutePath + " commit " + otherCommit))
           val (fixedRequirements, untouchedRequirements) = getBinaryVersionRequirements(otherVariant, resolutionResults)
 

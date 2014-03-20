@@ -58,8 +58,9 @@ object GitLoader extends Logging {
       for {
         (id, constraints, repository, commit) <- latestRequirements
         hash <- Order.activeVariants(id, repository, commit)
-        variant <- VariantMetadata.read(id, hash, repository, commit)
+        metadata <- VariantMetadata.read(id, hash, repository, commit)
       } { //<-- Notice (no yield)
+        val variant = metadata.toVariant(id)
         val (formerVariants: Set[(Variant, GitRepository, Commit)], formerConstraints: Set[Constraint]) = allVariants.getOrElse(id, (Set.empty[(Variant, GitRepository, Commit)], Set.empty[Constraint]))
         val allVariantInfo = formerVariants + ((variant, repository, commit))
         allVariants += id -> (allVariantInfo, (formerConstraints ++ constraints))
@@ -164,7 +165,7 @@ class GitLoader(baseDir: File, private[adept] val results: Set[ResolutionResult]
       val allVariants: Set[Variant] = {
         locateAllIdentifiers(id).flatMap {
           case (hash, repository, commit) =>
-            VariantMetadata.read(id, hash, repository, commit)
+            VariantMetadata.read(id, hash, repository, commit).map(_.toVariant(id))
         }
       }
       AttributeConstraintFilter.filter(id, allVariants, constraints)
