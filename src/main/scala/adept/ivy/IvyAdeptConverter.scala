@@ -37,7 +37,7 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, skippableConf: Optio
    * 
    * Conversion from Ivy to Adept consists of 2 steps:
    * 1) Load Ivy import results from Ivy: @see [[adept.ivy.IvyAdeptConverter.loadAsIvyImportResults]] in this class
-   * 2) Insert Ivy import results into corresponding Adept repositories: @see [[adept.ivy.IvyResolutionResults.insertAsResolutionResults]]
+   * 2) Insert Ivy import results into corresponding Adept repositories: @see [[adept.ivy.IvyImportResultInserter.insertAsResolutionResults]]
    * 
    * To convert dependencies to requirements @see [[adept.ivy.IvyRequirements.convertIvyAsRequirements]]
    * 

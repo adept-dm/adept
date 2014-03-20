@@ -14,7 +14,7 @@ class GitHelpersTest extends FunSuite with Matchers {
       val commit1 = repository.commit("Test 1")
       val commit2 = repository.commit("Test 2")
       val commit3 = repository.commit("Test 3")
-      val commits = Set(commit1, commit2, commit3)
+      val commits = Set(commit2, commit3, commit1)
       GitHelpers.lastestCommit(repository, commits) shouldEqual Some(commit3)
     }
   }

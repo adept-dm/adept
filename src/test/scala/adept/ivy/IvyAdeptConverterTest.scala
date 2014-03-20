@@ -155,7 +155,7 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
       }
 
       val resolutionResults = benchmark(Inserted, results) {
-        IvyResolutionResults.insertAsResolutionResults(tmpDir, results, progress)
+        IvyImportResultInserter.insertAsResolutionResults(tmpDir, results, progress)
       }
 
       //insert something else to make sure process is stable:
@@ -165,7 +165,7 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
           ivyConverter.loadAsIvyImportResults(ivyModule, progress).failOnLeft
         }
         benchmark(Inserted, extraResults) {
-          IvyResolutionResults.insertAsResolutionResults(tmpDir, extraResults, progress)
+          IvyImportResultInserter.insertAsResolutionResults(tmpDir, extraResults, progress)
         }
       }
       //update to latest commit to make sure process is stable:
@@ -358,7 +358,7 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
         ivyConverter.loadAsIvyImportResults(ivyModule, progress).failOnLeft
       }
       val resolutionResults = benchmark(Inserted, results) {
-        IvyResolutionResults.insertAsResolutionResults(tmpDir, results, progress)
+        IvyImportResultInserter.insertAsResolutionResults(tmpDir, results, progress)
       }
 
       val requirements = benchmark(Converted, ivyModule && results) {
