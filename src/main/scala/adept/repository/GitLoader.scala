@@ -126,7 +126,7 @@ class GitLoader(baseDir: File, private[adept] val results: Set[ResolutionResult]
 
   private val cache: Ehcache = getCache(cacheManager)
 
-  private lazy val cachedById = usingCache("byId" + thisUniqueId, cache) { //TODO: lazy since this might take a while?
+  private lazy val cachedById = usingCache("byId" + thisUniqueId, cache) { //lazy this might take a while
     results.groupBy(_.id).map {
       case (id, results) =>
         val latestCommitsOnly = results.groupBy(_.repository).flatMap {

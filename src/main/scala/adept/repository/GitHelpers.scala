@@ -8,8 +8,9 @@ import org.eclipse.jgit.transport.URIish
 import org.eclipse.jgit.transport.CredentialsProviderUserInfo
 import org.eclipse.jgit.transport.SshSessionFactory
 import adept.repository.models.Commit
+import adept.logging.Logging
 
-private[adept] object GitHelpers {
+private[adept] object GitHelpers extends Logging {
   def lastestCommit(repository: GitRepository, commits: Set[Commit]): Option[Commit] = {
     if (commits.isEmpty) None
     else {
@@ -17,7 +18,9 @@ private[adept] object GitHelpers {
         maybeCurrentLatest.flatMap { currentLatest =>
           repository.compareCommits(currentLatest, current) match {
             case (Some(first), Some(second)) => Some(first)
-            case _ => None
+            case commits =>
+              logger.warn("Found a non-comparable commits: " + commits + " in " + commits + " but we do not support it yet") //TODO: fix this
+              None
           }
         }
       }
