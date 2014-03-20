@@ -14,6 +14,10 @@ import adept.logging.Logging
 object IvyResolutionResults extends Logging {
   import IvyUtils._
   
+  /** 
+   *  Insert Ivy Import results (variants, resolution results, ...) into corresponding Adept repositories.
+   *  Automatically orders variants according to versions.
+   *  */
   def insertAsResolutionResults(baseDir: File, results: Set[IvyImportResult], progress: ProgressMonitor): Set[ResolutionResult] = {
     progress.beginTask("Applying exclusion(s)", results.size * 2)
     val included = results.flatMap { result =>

@@ -13,7 +13,42 @@ object IvyRequirements {
   import adept.ext.AttributeDefaults._
 
   val unsupportedStrings = Set("%", "!", "[", "]", "@", "#")
+  
+  /** Transform the dependencies in a Ivy Module to Adept requirements */
+  def convertIvyAsRequirements(module: ModuleDescriptor, allIvyImportResults: Set[IvyImportResult]): Map[String, Set[Requirement]] = {
+    var requirements = Map.empty[String, Set[Requirement]]
 
+    //pass 1: convert everything to requirements
+    module.getDependencies().foreach { descriptor =>
+      descriptor.getModuleConfigurations().foreach { confName =>
+        descriptor.getDependencyConfigurations(confName).foreach { configurationExpr =>
+          val allValidConfigExprs = {
+            configurationExpr.split(",").flatMap { possibleFallbackExpr =>
+              if (unsupportedStrings.exists(illegal => possibleFallbackExpr.contains(illegal))) throw new Exception("Cannot process configuration: " + configurationExpr + " in " + descriptor + " because it contains part of a string we do not support: " + unsupportedStrings)
+              val (rest, fallback) = findFallback(possibleFallbackExpr)
+              getAllConfigurations(module, rest) ++ fallback.toSet[String].flatMap(getAllConfigurations(module, _))
+            }
+          }
+          val newRequirements = convertDescriptor2Requirements(descriptor, allValidConfigExprs.toSet, allIvyImportResults)
+          val formerRequirements = requirements.getOrElse(confName, Set.empty[Requirement])
+          requirements += confName -> (formerRequirements ++ newRequirements)
+        }
+      }
+    }
+
+    //pass 2: expand the requirements of each configuration (instead of only having test -> */config/test, we have test -> (*/config/test AND */config/compile etc etc))
+    module.getDependencies().foreach { descriptor =>
+      descriptor.getModuleConfigurations().foreach { confName =>
+        val allRequirements = getAllConfigurations(module, confName).flatMap { expandedConfName =>
+          requirements.getOrElse(expandedConfName, Set.empty[Requirement])
+        }
+        requirements += confName -> allRequirements
+
+      }
+    }
+    requirements
+  }
+  
   private def findFallback(confExpr: String): (String, Option[String]) = {
     val FallbackExpr = """(.*?)\((.*?)\)$""".r
     confExpr.trim match {
@@ -68,40 +103,6 @@ object IvyRequirements {
             }
           }
         }
-      }
-    }
-    requirements
-  }
-
-  def convertIvyAsRequirements(module: ModuleDescriptor, allIvyImportResults: Set[IvyImportResult]): Map[String, Set[Requirement]] = {
-    var requirements = Map.empty[String, Set[Requirement]]
-
-    //pass 1: convert everything to requirements
-    module.getDependencies().foreach { descriptor =>
-      descriptor.getModuleConfigurations().foreach { confName =>
-        descriptor.getDependencyConfigurations(confName).foreach { configurationExpr =>
-          val allValidConfigExprs = {
-            configurationExpr.split(",").flatMap { possibleFallbackExpr =>
-              if (unsupportedStrings.exists(illegal => possibleFallbackExpr.contains(illegal))) throw new Exception("Cannot process configuration: " + configurationExpr + " in " + descriptor + " because it contains part of a string we do not support: " + unsupportedStrings)
-              val (rest, fallback) = findFallback(possibleFallbackExpr)
-              getAllConfigurations(module, rest) ++ fallback.toSet[String].flatMap(getAllConfigurations(module, _))
-            }
-          }
-          val newRequirements = convertDescriptor2Requirements(descriptor, allValidConfigExprs.toSet, allIvyImportResults)
-          val formerRequirements = requirements.getOrElse(confName, Set.empty[Requirement])
-          requirements += confName -> (formerRequirements ++ newRequirements)
-        }
-      }
-    }
-
-    //pass 2: expand the requirements of each configuration (instead of only having test -> */config/test, we have test -> (*/config/test AND */config/compile etc etc))
-    module.getDependencies().foreach { descriptor =>
-      descriptor.getModuleConfigurations().foreach { confName =>
-        val allRequirements = getAllConfigurations(module, confName).flatMap { expandedConfName =>
-          requirements.getOrElse(expandedConfName, Set.empty[Requirement])
-        }
-        requirements += confName -> allRequirements
-
       }
     }
     requirements
