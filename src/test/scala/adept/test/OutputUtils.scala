@@ -8,13 +8,13 @@ object OutputUtils {
 
   def progress = if (printOnCommandline) new TextProgressMonitor() else NullProgressMonitor.INSTANCE
   
-  def benchmark[A](name: BenchmarkName, benchmarkId: BenchmarkId)(func: => A)(implicit testId: TestDetails): A = {
+  def benchmark[A](name: BenchmarkName, benchmarkId: BenchmarkId)(func: => A)(implicit testDetails: TestDetails): A = {
     val initTime = System.currentTimeMillis()
     val res = func
     if (printOnCommandline)
-      Benchmarkers.systemErrBenchmarker.benchmark(name, System.currentTimeMillis() - initTime, benchmarkId)(testId)
+      Benchmarkers.systemErrBenchmarker.benchmark(name, System.currentTimeMillis() - initTime, benchmarkId)(testDetails)
     else
-      Benchmarkers.nullBenchmarker.benchmark(name, System.currentTimeMillis() - initTime, benchmarkId)(testId)
+      Benchmarkers.nullBenchmarker.benchmark(name, System.currentTimeMillis() - initTime, benchmarkId)(testDetails)
     res
   }
   

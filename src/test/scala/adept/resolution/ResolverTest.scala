@@ -4,9 +4,12 @@ import org.scalatest.FunSuite
 import org.scalatest.Matchers
 import adept.resolution.models._
 import adept.repository._
+import adept.test.TestDetails
 
 class ResolverTest extends FunSuite with Matchers {
   import adept.test.ResolverUtils._
+  import adept.test.OutputUtils._
+  import adept.test.BenchmarkUtils._
 
   test("Very simple resolution works correctly") {
     val variants: Set[Variant] = Set(
@@ -168,6 +171,7 @@ class ResolverTest extends FunSuite with Matchers {
   }
 
   test("nested constraints") {
+    implicit val testDetails = TestDetails("Nested constraints")
     //B is unconstrained, but D forces C v 3.0, only B v 1.0 is constrained on C v 3.0 so B v 1.0 must be used:
     val variants: Set[Variant] = Set(
 
@@ -201,12 +205,15 @@ class ResolverTest extends FunSuite with Matchers {
     val requirements: Set[Requirement] = Set(
       "A" -> Set(Constraint(binaryVersion, Set("1.0"))))
 
-    val result = resolve(requirements, getMemoryLoader(variants))
+    val result = benchmark(Resolved, requirements && variants) {
+      resolve(requirements, getMemoryLoader(variants))
+    }
     checkResolved(result, Set("A", "B", "C", "D", "E"))
     checkUnresolved(result, Set())
   }
 
   test("nested under-constrained path find") {
+    implicit val testDetails = TestDetails("Nested under-constrained path find")
     //B is under-constrained initially and so is F, but since E requires D v 1.0
     //and D 1.0 requires C 3.0, only B 2.0 and F 2.0 can be used with C 3.0
     //this graph should be resolved    val variants: Set[Variant] = Set(
@@ -249,7 +256,9 @@ class ResolverTest extends FunSuite with Matchers {
     val requirements: Set[Requirement] = Set(
       "A" -> Set(Constraint(binaryVersion, Set("1.0"))))
 
-    val result = resolve(requirements, getMemoryLoader(variants))
+    val result = benchmark(Resolved, requirements && variants) {
+      resolve(requirements, getMemoryLoader(variants))
+    }
     checkResolved(result, Set("A", "B", "C", "D", "E", "F"))
     checkUnresolved(result, Set())
   }
@@ -286,6 +295,7 @@ class ResolverTest extends FunSuite with Matchers {
   }
 
   test("multiple under-constrained paths find") {
+    implicit val testDetails = TestDetails("Multiple under-constrained paths find")
     val variants: Set[Variant] = Set(
 
       Variant("A", Set(version -> Set("1.0.0"), binaryVersion -> Set("1.0")),
@@ -318,7 +328,9 @@ class ResolverTest extends FunSuite with Matchers {
     val requirements: Set[Requirement] = Set(
       "A" -> Set(Constraint(binaryVersion, Set("1.0"))))
 
-    val result = resolve(requirements, getMemoryLoader(variants))
+    val result =  benchmark(Resolved, requirements && variants) {
+      resolve(requirements, getMemoryLoader(variants))
+    }
     checkResolved(result, Set("A", "B", "C", "D", "E"))
     checkUnresolved(result, Set())
     checkVariants(result, "A", version -> Set("1.0.0"), binaryVersion -> Set("1.0"))
@@ -332,8 +344,8 @@ class ResolverTest extends FunSuite with Matchers {
     val variants: Set[Variant] = Set(
       Variant("A", Set(version -> Set("V")),
         requirements = Set(
-            "D" -> Set[Constraint](version -> Set("A")),  //<- we really want D version A
-            "B" -> Set.empty[Constraint])),                                      
+          "D" -> Set[Constraint](version -> Set("A")), //<- we really want D version A
+          "B" -> Set.empty[Constraint])),
 
       Variant("B", Set(version -> Set("X")),
         requirements = Set(Requirement("C", Set(Constraint(version, Set("X"))), Set("D")))), //<- therefore we exclude D from C
@@ -350,7 +362,7 @@ class ResolverTest extends FunSuite with Matchers {
 
     val requirements: Set[Requirement] = Set(
       "A" -> Set(Constraint(version, Set("V"))))
-      
+
     val result = resolve(requirements, getMemoryLoader(variants))
     checkResolved(result, Set("A", "B", "C", "D"))
     checkExcluded(result, "D")
