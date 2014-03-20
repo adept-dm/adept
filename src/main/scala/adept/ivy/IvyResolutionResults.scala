@@ -73,8 +73,6 @@ object IvyResolutionResults extends Logging {
           val repository = new GitRepository(baseDir, result.repository)
           if (!repository.exists) repository.init()
           val variantMetadata = VariantMetadata.fromVariant(variant)
-          //
-          //          println("wrote"+id + " in "+repository.name)
           repository.add(variantMetadata.write(id, repository))
           val commit = repository.commit("Ivy Import of " + variant.id)
           repository.add(VersionOrder.useDefaultVersionOrder(id, repository, commit))
