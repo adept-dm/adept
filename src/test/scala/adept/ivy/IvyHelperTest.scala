@@ -24,8 +24,18 @@ import adept.resolution.models.Id
 import adept.resolution.models.Requirement
 import adept.ext.VersionScanner
 import org.apache.ivy.core.module.descriptor.ModuleDescriptor
+import org.apache.ivy.core.module.descriptor.{ Configuration => IvyConfiguration }
 import org.apache.ivy.core.module.descriptor.DefaultModuleDescriptor
 import org.apache.ivy.core.module.id.ModuleRevisionId
+import org.apache.ivy.core.module.descriptor.ExcludeRule
+import org.apache.ivy.core.module.descriptor.DefaultExcludeRule
+import org.apache.ivy.core.module.descriptor.DefaultArtifact
+import org.apache.ivy.core.module.id.ArtifactId
+import org.apache.ivy.core.module.id.ModuleId
+import org.apache.ivy.plugins.matcher.ExactPatternMatcher
+import org.apache.ivy.core.module.descriptor.DefaultDependencyDescriptor
+import adept.resolution.resolver.models.ResolvedResult
+import adept.resolution.models.Attribute
 
 class IvyHelperTest extends FunSuite with Matchers {
   import adept.test.ResolverUtils._
@@ -113,72 +123,187 @@ class IvyHelperTest extends FunSuite with Matchers {
   //    }
   //  }
 
+  def getDefaultIvyModule = {
+    val transitive = true
+    val changing = true
+    val force = true
+    val ivyModule = DefaultModuleDescriptor.newBasicInstance(ModuleRevisionId.newInstance("com.adepthub", "test", "1.0"), new java.util.Date())
+    ivyModule.addConfiguration(new IvyConfiguration("default", IvyConfiguration.Visibility.PUBLIC, "", Array("master", "runtime"), true, ""))
+    ivyModule.addConfiguration(new IvyConfiguration("master", IvyConfiguration.Visibility.PUBLIC, "", Array.empty, true, ""))
+    ivyModule.addConfiguration(new IvyConfiguration("runtime", IvyConfiguration.Visibility.PUBLIC, "", Array("compile"), true, ""))
+    ivyModule.addConfiguration(new IvyConfiguration("compile", IvyConfiguration.Visibility.PUBLIC, "", Array.empty, true, ""))
+    ivyModule.addConfiguration(new IvyConfiguration("test", IvyConfiguration.Visibility.PRIVATE, "", Array("runtime"), true, ""))
+
+    val akkaDep = new DefaultDependencyDescriptor(ivyModule,
+      ModuleRevisionId.newInstance("com.typesafe.akka", "akka-remote_2.10", "2.2.1"), force, changing, transitive)
+    akkaDep.addExcludeRule("compile", new DefaultExcludeRule(new ArtifactId(new ModuleId("com.google.protobuf", "protobuf-java"), "*", "*", "*"), ExactPatternMatcher.INSTANCE, new java.util.HashMap()))
+    akkaDep.addDependencyConfiguration("compile", "default(compile)")
+    ivyModule.addDependency(akkaDep)
+    val scalaTestDep = new DefaultDependencyDescriptor(ivyModule,
+      ModuleRevisionId.newInstance("org.scalatest", "scalatest_2.10", "1.9.1"), force, changing, transitive)
+    scalaTestDep.addDependencyConfiguration("test", "default(compile)")
+    ivyModule.addDependency(scalaTestDep)
+    ivyModule
+  }
+
+  test("Ivy requirements transformation") {
+    import adept.ext.AttributeDefaults._
+    val ivyModule = getDefaultIvyModule
+
+    val fakeIvyResults: Set[IvyImportResult] = Set(
+      IvyImportResult(
+        variant = (Variant(
+          id = Id("akka-remote_2.10/config/default"),
+          attributes = Set(
+            Attribute(ConfigurationAttribute, Set("default")),
+            Attribute(NameAttribute, Set("akka-remote_2.10")),
+            Attribute(VersionAttribute, Set("2.2.1")),
+            Attribute(OrgAttribute, Set("com.typesafe.akka"))))),
+        repository = RepositoryName("com.typesafe.akka"),
+        artifacts = Set.empty, localFiles = Map.empty,
+        versionInfo = Set.empty, excludeRules = Map.empty),
+      IvyImportResult(
+        variant = (Variant(
+          id = Id("akka-remote_2.10/config/compile"),
+          attributes = Set(
+            Attribute(ConfigurationAttribute, Set("compile")),
+            Attribute(NameAttribute, Set("akka-remote_2.10")),
+            Attribute(VersionAttribute, Set("2.2.1")),
+            Attribute(OrgAttribute, Set("com.typesafe.akka"))))),
+        repository = RepositoryName("com.typesafe.akka"),
+        artifacts = Set.empty, localFiles = Map.empty,
+        versionInfo = Set.empty, excludeRules = Map.empty),
+      IvyImportResult(
+        variant = (Variant(
+          id = Id("akka-remote_2.10/config/runtime"),
+          attributes = Set(
+            Attribute(ConfigurationAttribute, Set("runtime")),
+            Attribute(NameAttribute, Set("akka-remote_2.10")),
+            Attribute(VersionAttribute, Set("2.2.1")),
+            Attribute(OrgAttribute, Set("com.typesafe.akka"))))),
+        repository = RepositoryName("com.typesafe.akka"),
+        artifacts = Set.empty, localFiles = Map.empty,
+        versionInfo = Set.empty, excludeRules = Map.empty),
+      IvyImportResult(
+        variant = (Variant(
+          id = Id("akka-remote_2.10/config/master"),
+          attributes = Set(
+            Attribute(ConfigurationAttribute, Set("master")),
+            Attribute(NameAttribute, Set("akka-remote_2.10")),
+            Attribute(VersionAttribute, Set("2.2.1")),
+            Attribute(OrgAttribute, Set("com.typesafe.akka"))))),
+        repository = RepositoryName("com.typesafe.akka"),
+        artifacts = Set.empty, localFiles = Map.empty,
+        versionInfo = Set.empty, excludeRules = Map.empty),
+      //BOGUS:
+      IvyImportResult(
+        variant = (Variant(
+          id = Id("akka-remote_2.10/config/bogus"),
+          attributes = Set(
+            Attribute(ConfigurationAttribute, Set("bogus")),
+            Attribute(NameAttribute, Set("akka-remote_2.10")),
+            Attribute(VersionAttribute, Set("2.2.1")),
+            Attribute(OrgAttribute, Set("com.typesafe.akka"))))),
+        repository = RepositoryName("com.typesafe.akka"),
+        artifacts = Set.empty, localFiles = Map.empty,
+        versionInfo = Set.empty, excludeRules = Map.empty),
+      //----SCALATEST
+      IvyImportResult(
+        variant = (Variant(
+          id = Id("scalatest_2.10/config/default"),
+          attributes = Set(
+            Attribute(ConfigurationAttribute, Set("default")),
+            Attribute(NameAttribute, Set("scalatest_2.10")),
+            Attribute(VersionAttribute, Set("1.9.1")),
+            Attribute(OrgAttribute, Set("org.scalatest"))))),
+        repository = RepositoryName("org.scalatest"),
+        artifacts = Set.empty, localFiles = Map.empty,
+        versionInfo = Set.empty, excludeRules = Map.empty),
+      IvyImportResult(
+        variant = (Variant(
+          id = Id("scalatest_2.10/config/compile"),
+          attributes = Set(
+            Attribute(ConfigurationAttribute, Set("compile")),
+            Attribute(NameAttribute, Set("scalatest_2.10")),
+            Attribute(VersionAttribute, Set("1.9.1")),
+            Attribute(OrgAttribute, Set("org.scalatest"))))),
+        repository = RepositoryName("org.scalatest"),
+        artifacts = Set.empty, localFiles = Map.empty,
+        versionInfo = Set.empty, excludeRules = Map.empty),
+      IvyImportResult(
+        variant = (Variant(
+          id = Id("scalatest_2.10/config/runtime"),
+          attributes = Set(
+            Attribute(ConfigurationAttribute, Set("runtime")),
+            Attribute(NameAttribute, Set("scalatest_2.10")),
+            Attribute(VersionAttribute, Set("1.9.1")),
+            Attribute(OrgAttribute, Set("org.scalatest"))))),
+        repository = RepositoryName("org.scalatest"),
+        artifacts = Set.empty, localFiles = Map.empty,
+        versionInfo = Set.empty, excludeRules = Map.empty),
+      IvyImportResult(
+        variant = (Variant(
+          id = Id("scalatest_2.10/config/master"),
+          attributes = Set(
+            Attribute(ConfigurationAttribute, Set("master")),
+            Attribute(NameAttribute, Set("scalatest_2.10")),
+            Attribute(VersionAttribute, Set("1.9.1")),
+            Attribute(OrgAttribute, Set("org.scalatest"))))),
+        repository = RepositoryName("org.scalatest"),
+        artifacts = Set.empty, localFiles = Map.empty,
+        versionInfo = Set.empty, excludeRules = Map.empty))
+
+    val requirements = IvyHelper.ivyRequirements(ivyModule, fakeIvyResults)
+    requirements("compile") shouldEqual Set(
+      Requirement(Id("akka-remote_2.10/config/default"), Set.empty, Set.empty),
+      Requirement(Id("akka-remote_2.10/config/master"), Set.empty, Set.empty),
+      Requirement(Id("akka-remote_2.10/config/compile"), Set.empty, Set.empty),
+      Requirement(Id("akka-remote_2.10/config/runtime"), Set.empty, Set.empty))
+
+    requirements("test") shouldEqual Set(
+      Requirement(Id("akka-remote_2.10/config/default"), Set.empty, Set.empty),
+      Requirement(Id("akka-remote_2.10/config/master"), Set.empty, Set.empty),
+      Requirement(Id("akka-remote_2.10/config/compile"), Set.empty, Set.empty),
+      Requirement(Id("akka-remote_2.10/config/runtime"), Set.empty, Set.empty),
+      Requirement(Id("scalatest_2.10/config/default"), Set.empty, Set.empty),
+      Requirement(Id("scalatest_2.10/config/master"), Set.empty, Set.empty),
+      Requirement(Id("scalatest_2.10/config/compile"), Set.empty, Set.empty),
+      Requirement(Id("scalatest_2.10/config/runtime"), Set.empty, Set.empty))
+  }
+
   test("REMOVE ME: add a proper more complicated test") {
     usingTmpDir { tmpDir =>
       import IvyHelper._
+      import org.scalatest.EitherValues._
       val ivy = IvyHelper.load()
       ivy.configure(new File("src/test/resources/typesafe-ivy-settings.xml"))
 
-      //      module: adept-core#adept-core_2.10;mark-2 status=integration publication=Tue Mar 18 14:19:22 CET 2014 configurations={compile=compile, runtime=runtime, test=test, provided=provided, optional=optional, compile-internal=compile-internal, runtime-internal=runtime-internal, test-internal=test-internal, plugin=plugin, sources=sources, docs=docs, pom=pom, scala-tool=scala-tool} artifacts={pom=[adept-core#adept-core_2.10;mark-2!adept-core_2.10.pom], docs=[adept-core#adept-core_2.10;mark-2!adept-core_2.10.jar(doc)], compile=[adept-core#adept-core_2.10;mark-2!adept-core_2.10.jar], sources=[adept-core#adept-core_2.10;mark-2!adept-core_2.10.jar(src)]} dependencies=[dependency: org.scala-lang#scala-compiler;2.10.3 {scala-tool=[default, optional(default)]}, sbt.ivyint.MergedDescriptors@28ba6171, dependency: org.eclipse.jgit#org.eclipse.jgit;3.1.0.201310021548-r {compile=[default(compile)]}, dependency: net.sf.ehcache#ehcache-core;2.6.6 {compile=[default(compile)]}, dependency: javax.transaction#jta;1.1 {compile=[default(compile)]}, dependency: ch.qos.logback#logback-classic;1.0.13 {compile=[default(compile)]}, dependency: com.typesafe.play#play-json_2.10;2.2.1 {compile=[default(compile)]}, dependency: org.apache.ivy#ivy;2.3.0 {compile=[default(compile)]}, dependency: org.scalatest#scalatest_2.10;2.0 {test=[default(compile)]}]
-
-      //      val ivyHelper = new IvyHelper(ivy)
-      //      val time1 = System.currentTimeMillis()
-      //      val tranisitive = true
-      //      val changing = true
-      //      val ivyModule = DefaultModuleDescriptor.newCallerInstance(Array(
-      //          ModuleRevisionId.newInstance("com.typesafe.akka", "akka-actor_2.10", "2.2.2"),
-      //          ModuleRevisionId.newInstance("com.typesafe.play", "play_2.10", "2.2.1")
-      //      ), tranisitive, changing)
-      //      val results = ivyHelper.ivyImport(ivyModule, progress)
-      //      val time2 = System.currentTimeMillis()
-      //      println("import completed: " + ((time2 - time1) / 1000.0) + "s")
-      //      val resolutionResults = IvyHelper.insert(tmpDir, results, progress)
-      //      val time3 = System.currentTimeMillis()
-      //      println("insert completed: " + ((time3 - time2) / 1000.0) + "s")
-      //      val confuscatedResolutionResults = resolutionResults.map { r =>
-      //        r.copy(commit = (new GitRepository(tmpDir, r.repository)).getHead)
-      //      }
-      //
-      //      val loader = new GitLoader(tmpDir, confuscatedResolutionResults, progress, cacheManager)
-      //      val time4 = System.currentTimeMillis()
-      //      println("loaded in: " + ((time4 - time3) / 1000.0) + "s")
-      //      val requirements = Set(
-      //        Requirement("play_2.10", Set.empty),
-      //        Requirement(withConfiguration("play_2.10", "compile"), Set.empty),
-      //        Requirement(withConfiguration("play_2.10", "master"), Set.empty))
-      //      val result = resolve(requirements, loader)
-      //      val time5 = System.currentTimeMillis()
-      //      println("resolution completed: " + ((time5 - time4) / 1000.0) + "s")
-      //      println(result)
-
       val ivyHelper = new IvyHelper(ivy)
       val time1 = System.currentTimeMillis()
-      val tranisitive = true
-      val changing = true
-      val ivyModule = DefaultModuleDescriptor.newCallerInstance(Array(
-        ModuleRevisionId.newInstance("com.typesafe.akka", "akka-actor_2.10", "2.2.2"),
-        ModuleRevisionId.newInstance("com.typesafe.akka", "akka-remote_2.10", "2.2.2")), tranisitive, changing)
+      val ivyModule = getDefaultIvyModule
+
+      //
       val results = ivyHelper.ivyImport(ivyModule, progress)
       val time2 = System.currentTimeMillis()
-      println("import completed: " + ((time2 - time1) / 1000.0) + "s")
+//      println("import completed: " + ((time2 - time1) / 1000.0) + "s")
       val resolutionResults = IvyHelper.insert(tmpDir, results, progress)
       val time3 = System.currentTimeMillis()
-      println("insert completed: " + ((time3 - time2) / 1000.0) + "s")
-      val confuscatedResolutionResults = resolutionResults.map { r =>
-        r.copy(commit = (new GitRepository(tmpDir, r.repository)).getHead)
+//      println("insert completed: " + ((time3 - time2) / 1000.0) + "s")
+      val requirements = IvyHelper.ivyRequirements(ivyModule, results)
+      val loader = new GitLoader(tmpDir, resolutionResults, progress, cacheManager)
+      val time4 = System.currentTimeMillis()
+//      println("loaded in: " + ((time4 - time3) / 1000.0) + "s")
+      val result = resolve(requirements("test"), loader)
+      val time5 = System.currentTimeMillis()
+//      println("resolution completed: " + ((time5 - time4) / 1000.0) + "s")
+      result match {
+        case resolvedResult: ResolvedResult =>
+          ivyHelper.verifyImport("test", ivyModule, resolvedResult).right.value
+        case _ =>
+          assert(false, "Expected to be able to resolve Adept. Got result:\n"+result)
       }
 
-      val loader = new GitLoader(tmpDir, confuscatedResolutionResults, progress, cacheManager)
-      val time4 = System.currentTimeMillis()
-      println("loaded in: " + ((time4 - time3) / 1000.0) + "s")
-      val requirements = Set(
-        Requirement("akka-remote_2.10", Set.empty, Set.empty),
-        Requirement(withConfiguration("akka-remote_2.10", "compile"), Set.empty, Set.empty),
-        Requirement(withConfiguration("akka-remote_2.10", "master"), Set.empty, Set.empty))
-      val result = resolve(requirements, loader)
-      val time5 = System.currentTimeMillis()
-      println("resolution completed: " + ((time5 - time4) / 1000.0) + "s")
-      println(result)
+
     }
   }
 
