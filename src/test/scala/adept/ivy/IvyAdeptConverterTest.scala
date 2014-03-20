@@ -38,7 +38,7 @@ import adept.resolution.resolver.models.ResolvedResult
 import adept.resolution.models.Attribute
 import adept.test.TestDetails
 
-class IvyHelperTest extends FunSuite with Matchers {
+class IvyAdeptConverterTest extends FunSuite with Matchers {
   import adept.test.ResolverUtils._
   import adept.test.LoaderUtils._
   import adept.test.FileUtils.usingTmpDir
