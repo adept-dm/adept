@@ -74,7 +74,7 @@ object IvyResolutionResults extends Logging {
           if (!repository.exists) repository.init()
           val variantMetadata = VariantMetadata.fromVariant(variant)
           repository.add(variantMetadata.write(id, repository))
-          val commit = repository.commit("Ivy Import of " + variant.id)
+          val commit = repository.commit("Ivy Import of " + variant.id) //TODO: We could remove this commit, and I suspect things will go a bit faster
           repository.add(VersionOrder.useDefaultVersionOrder(id, repository, commit))
           repository.commit("Ordered Ivy Import of " + variant.id)
         }
