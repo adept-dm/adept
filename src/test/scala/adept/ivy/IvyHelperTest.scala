@@ -44,10 +44,10 @@ class IvyHelperTest extends FunSuite with Matchers {
   import adept.test.FileUtils.usingTmpDir
   import adept.test.BenchmarkUtils._ //convert to benchmark hashes
   import adept.test.OutputUtils._
+  import adept.test.EitherUtils._
 
   import IvyHelper._
   import adept.ext.AttributeDefaults._
-  import org.scalatest.EitherValues._
 
   val akkaTransitiveIds: Set[Id] = Set(
     "akka-actor_2.10",
@@ -56,7 +56,7 @@ class IvyHelperTest extends FunSuite with Matchers {
   val akkaTransitiveIdsExpectedIds =
     (for {
       id <- akkaTransitiveIds
-      confName <- Set("optional", "test", "runtime", "provided", "javadoc", "system", "default", "sources", "compile")
+      confName <- Set("optional", "runtime", "provided", "javadoc", "system", "default", "sources", "compile")
     } yield {
       withConfiguration(id, confName)
     }) ++ akkaTransitiveIds
@@ -98,14 +98,13 @@ class IvyHelperTest extends FunSuite with Matchers {
   }
 
   test("IvyImport basics: import of akka should yield correct results") {
-  implicit val testDetails = TestDetails("Basic import akka 2.1.0")
+    implicit val testDetails = TestDetails("Basic import akka 2.1.0")
     val ivy = IvyHelper.load()
     val ivyHelper = new IvyHelper(ivy)
     val ivyModule = getAkka210TestIvyModule
-    val time1 = System.currentTimeMillis()
-    val results = ivyHelper.getIvyImportResults(getAkka210TestIvyModule, progress)
-    val time2 = System.currentTimeMillis()
-    benchmark("Ivy-import", time2 - time1, ivyModule)
+    val results = benchmark(IvyImport, ivyModule) {
+      ivyHelper.getIvyImportResults(ivyModule, progress).failOnLeft
+    }
 
     val byIds = results.groupBy(_.variant.id)
     byIds.keySet.intersect(akkaTransitiveIdsExpectedIds) should have size (akkaTransitiveIdsExpectedIds.size)
@@ -133,21 +132,37 @@ class IvyHelperTest extends FunSuite with Matchers {
   }
 
   test("IvyImport end-to-end: import of akka should resolve correctly") {
+    implicit val testDetails = TestDetails("End-to-end (akka-remote & scalatest)")
     usingTmpDir { tmpDir =>
       val ivy = IvyHelper.load()
       val ivyHelper = new IvyHelper(ivy)
-      val results = ivyHelper.getIvyImportResults(getAkka210TestIvyModule, progress)
+      val ivyModule = getAkka210TestIvyModule
+      val results = benchmark(IvyImport, ivyModule) {
+        ivyHelper.getIvyImportResults(ivyModule, progress).failOnLeft
+      }
 
-      val resolutionResults = IvyHelper.insertAsResolutionResults(tmpDir, results, progress)
+      val resolutionResults = benchmark(Inserted, results) {
+        IvyHelper.insertAsResolutionResults(tmpDir, results, progress)
+      }
 
       //insert something else to make sure process is stable:
-      IvyHelper.insertAsResolutionResults(tmpDir, ivyHelper.getIvyImportResults(getAkka221TestIvyModule, progress), progress)
+      {
+        val ivyModule = getAkka221TestIvyModule
+        val extraResults = benchmark(IvyImport, ivyModule) {
+          ivyHelper.getIvyImportResults(ivyModule, progress).failOnLeft
+        }
+        benchmark(Inserted, extraResults) {
+          IvyHelper.insertAsResolutionResults(tmpDir, extraResults, progress)
+        }
+      }
       //update to latest commit to make sure process is stable:
       val confuscatedResolutionResults = resolutionResults.map { r =>
         r.copy(commit = (new GitRepository(tmpDir, r.repository)).getHead)
       }
 
-      val loader = new GitLoader(tmpDir, confuscatedResolutionResults, progress, cacheManager)
+      val loader = benchmark(IvyImport, confuscatedResolutionResults) {
+        new GitLoader(tmpDir, confuscatedResolutionResults, progress, cacheManager)
+      }
       val requirements = Set(
         Requirement("akka-actor_2.10", Set.empty, Set.empty),
         Requirement(withConfiguration("akka-actor_2.10", "compile"), Set.empty, Set.empty),
@@ -325,32 +340,31 @@ class IvyHelperTest extends FunSuite with Matchers {
       val ivyHelper = new IvyHelper(ivy)
       val ivyModule = getAkkaRemoteTestIvyModule
 
-      val time1 = System.currentTimeMillis()
-      val results = ivyHelper.getIvyImportResults(ivyModule, progress)
-      val time2 = System.currentTimeMillis()
-      benchmark("Ivy-import", time2 - time1, ivyModule)
-      val resolutionResults = IvyHelper.insertAsResolutionResults(tmpDir, results, progress)
-      val time3 = System.currentTimeMillis()
-      benchmark("Insert", time3 - time2, resolutionResults)
-      val requirements = IvyHelper.convertIvyAsRequirements(ivyModule, results)
-      val loader = new GitLoader(tmpDir, resolutionResults, progress, cacheManager)
-      val time4 = System.currentTimeMillis()
-      benchmark("Loaded", time4 - time3, resolutionResults)
+      val results = benchmark(IvyImport, ivyModule) {
+        ivyHelper.getIvyImportResults(ivyModule, progress).failOnLeft
+      }
+      val resolutionResults = benchmark(Inserted, results) {
+        IvyHelper.insertAsResolutionResults(tmpDir, results, progress)
+      }
+
+      val requirements = benchmark(Converted, ivyModule && results) {
+        IvyHelper.convertIvyAsRequirements(ivyModule, results)
+      }
+
+      val loader = benchmark(Loaded, resolutionResults) {
+        new GitLoader(tmpDir, resolutionResults, progress, cacheManager)
+      }
 
       for (confName <- requirements.keys) {
-        val time4 = System.currentTimeMillis()
-        val result = resolve(requirements(confName), loader)
-        val time5 = System.currentTimeMillis()
-        benchmark("Resolved", time5 - time4, requirements(confName))
+        val result = benchmark(Resolved, requirements(confName)) {
+          resolve(requirements(confName), loader)
+        }
         result match {
           case resolvedResult: ResolvedResult =>
-            val verificationResult = ivyHelper.verifyImport(confName, ivyModule, resolvedResult)
-            val time6 = System.currentTimeMillis()
-            if (verificationResult.isRight) {
-              benchmark("Verification", time6 - time5, ivyModule)
-            } else {
-              assert(false, "Verification of " + confName + " failed:\n" + verificationResult)
+            val verificationResult = benchmark(Verified, resolvedResult && ivyModule) {
+              ivyHelper.verifyImport(confName, ivyModule, resolvedResult)
             }
+            assert(verificationResult.isRight, "Verification of " + confName + " failed:\n" + verificationResult)
           case _ =>
             assert(false, "Expected to be able to resolve Adept for " + confName + ". Got result:\n" + result)
         }

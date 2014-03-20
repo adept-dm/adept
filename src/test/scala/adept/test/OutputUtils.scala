@@ -7,10 +7,15 @@ object OutputUtils {
   val printOnCommandline = true
 
   def progress = if (printOnCommandline) new TextProgressMonitor() else NullProgressMonitor.INSTANCE
-  def benchmark(name: String, timeSpentMillis: Long, hash: BenchmarkId)(implicit testId: TestDetails): Unit = {
+  
+  def benchmark[A](name: BenchmarkName, benchmarkId: BenchmarkId)(func: => A)(implicit testId: TestDetails): A = {
+    val initTime = System.currentTimeMillis()
+    val res = func
     if (printOnCommandline)
-      Benchmarkers.systemErrBenchmarker.benchmark(name, timeSpentMillis, hash)(testId)
+      Benchmarkers.systemErrBenchmarker.benchmark(name, System.currentTimeMillis() - initTime, benchmarkId)(testId)
     else
-      Benchmarkers.nullBenchmarker.benchmark(name, timeSpentMillis, hash)(testId)
+      Benchmarkers.nullBenchmarker.benchmark(name, System.currentTimeMillis() - initTime, benchmarkId)(testId)
+    res
   }
+  
 }
