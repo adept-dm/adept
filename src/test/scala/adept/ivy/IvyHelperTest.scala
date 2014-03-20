@@ -43,7 +43,9 @@ class IvyHelperTest extends FunSuite with Matchers {
   import adept.test.LoaderUtils._
   import adept.test.FileUtils.usingTmpDir
   import adept.test.BenchmarkUtils._ //convert to benchmark hashes
-  import adept.test.BenchmarkUtils.defaultBencharMarker.benchmark
+  import adept.test.OutputUtils._
+
+  
   import IvyHelper._
   import adept.ext.AttributeDefaults._
   import org.scalatest.EitherValues._

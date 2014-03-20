@@ -9,8 +9,8 @@ case class TestDetails(id: String)
 case class BenchmarkId(id: String) extends AnyVal
 
 object BenchmarkUtils {
-
-  val defaultBencharMarker = Benchmarkers.systemErrBenchmarker
+  import scala.language.implicitConversions //it is OK we are in test configuration only
+  
   //TODO: move all Ivy things including this one to some other project?
   implicit def convertIvyModule(ivyModule: ModuleDescriptor): BenchmarkId = {
     BenchmarkId(ivyModule.toString)

@@ -14,6 +14,7 @@ import org.scalatest.OptionValues._
 class VersionOrderTest extends FunSpec with Matchers {
   import adept.test.FileUtils._
   import adept.test.ResolverUtils._
+  import adept.test.OutputUtils._
 
   describe("Creating binary versions") {
     val idA = Id("A")
@@ -218,8 +219,8 @@ class VersionOrderTest extends FunSpec with Matchers {
     repository.commit("Ordered " + variant.id)
   }
 
-  import adept.test.LoaderUtils._
   describe("When importing variants from something that is version-based, VersionOrder") {
+    import adept.test.LoaderUtils._
     it("should create resolution results for us") {
       usingTmpDir { tmpDir =>
         //***** SETUP START
