@@ -91,7 +91,7 @@ private[ivy] object IvyUtils extends Logging {
   }
 
   def ivyIdAsId(moduleId: ModuleId): Id = {
-    Id(moduleId.getName)
+    Id(moduleId.getOrganisation + Id.Sep + moduleId.getName)
   }
 
   def withConfiguration(id: Id, confName: String): Id = {
@@ -100,7 +100,7 @@ private[ivy] object IvyUtils extends Logging {
 
   def ivyIdAsId(moduleId: ModuleId, confName: String): Id = {
     assert(!confName.contains(Id.Sep))
-    withConfiguration(Id(moduleId.getName), confName)
+    withConfiguration(ivyIdAsId(moduleId), confName)
   }
 
   def ivyIdAsRepositoryName(moduleId: ModuleId): RepositoryName = {

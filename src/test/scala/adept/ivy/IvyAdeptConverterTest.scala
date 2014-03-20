@@ -51,9 +51,9 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
   import adept.ext.AttributeDefaults._
 
   val akkaTransitiveIds: Set[Id] = Set(
-    "akka-actor_2.10",
-    "scala-library",
-    "config")
+    "com.typesafe.akka/akka-actor_2.10",
+    "org.scala-lang/scala-library",
+    "com.typesafe/config")
   val akkaTransitiveIdsExpectedIds =
     (for {
       id <- akkaTransitiveIds
@@ -106,24 +106,23 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
     val results = benchmark(IvyImport, ivyModule) {
       ivyConverter.loadAsIvyImportResults(ivyModule, progress).failOnLeft
     }
-
     val byIds = results.groupBy(_.variant.id)
     byIds.keySet.intersect(akkaTransitiveIdsExpectedIds) should have size (akkaTransitiveIdsExpectedIds.size)
 
     results.foreach {
       case result =>
-        if (result.variant.id == withConfiguration("akka-actor_2.10", "master")) {
+        if (result.variant.id == withConfiguration("com.typesafe.akka/akka-actor_2.10", "master")) {
           result.artifacts.flatMap(_.locations) shouldEqual Set("http://repo1.maven.org/maven2/com/typesafe/akka/akka-actor_2.10/2.1.0/akka-actor_2.10-2.1.0.jar")
         }
-        if (result.variant.id == withConfiguration("config", "master")) {
+        if (result.variant.id == withConfiguration("com.typesafe/config", "master")) {
           result.artifacts.flatMap(_.locations) shouldEqual Set("http://repo.typesafe.com/typesafe/releases/com/typesafe/config/1.0.0/config-1.0.0.jar")
         }
-        if (result.variant.id == withConfiguration("scala-library", "master")) {
+        if (result.variant.id == withConfiguration("org.scala-lang/scala-library", "master")) {
           result.artifacts.flatMap(_.locations) shouldEqual Set("http://repo1.maven.org/maven2/org/scala-lang/scala-library/2.10.0/scala-library-2.10.0.jar")
         }
         //
-        if (result.variant.id == withConfiguration("akka-actor_2.10", "compile")) {
-          result.variant.requirements.map(_.id) shouldEqual Set(Id("scala-library"), withConfiguration("scala-library", "compile"), withConfiguration("scala-library", "master"), Id("config"), withConfiguration("config", "compile"), withConfiguration("config", "master"))
+        if (result.variant.id == withConfiguration("com.typesafe.akka/akka-actor_2.10", "compile")) {
+          result.variant.requirements.map(_.id) shouldEqual Set(Id("org.scala-lang/scala-library"), withConfiguration("org.scala-lang/scala-library", "compile"), withConfiguration("org.scala-lang/scala-library", "master"), Id("com.typesafe/config"), withConfiguration("com.typesafe/config", "compile"), withConfiguration("com.typesafe/config", "master"))
           result.repository shouldEqual RepositoryName("com.typesafe.akka")
           result.versionInfo.map { case (name, _, version) => name -> version } shouldEqual Set(
             (RepositoryName("org.scala-lang"), Version("2.10.0")),
@@ -165,23 +164,23 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
         new GitLoader(tmpDir, confuscatedResolutionResults, progress, cacheManager)
       }
       val requirements = Set(
-        Requirement("akka-actor_2.10", Set.empty, Set.empty),
-        Requirement(withConfiguration("akka-actor_2.10", "compile"), Set.empty, Set.empty),
-        Requirement(withConfiguration("akka-actor_2.10", "master"), Set.empty, Set.empty))
+        Requirement("com.typesafe.akka/akka-actor_2.10", Set.empty, Set.empty),
+        Requirement(withConfiguration("com.typesafe.akka/akka-actor_2.10", "compile"), Set.empty, Set.empty),
+        Requirement(withConfiguration("com.typesafe.akka/akka-actor_2.10", "master"), Set.empty, Set.empty))
       val result = resolve(requirements, loader)
       checkResolved(result, Set[Id](
-        "config/config/master",
-        "scala-library/config/compile",
-        "config/config/compile",
-        "akka-actor_2.10",
-        "akka-actor_2.10/config/compile",
-        "config",
-        "akka-actor_2.10/config/master",
-        "scala-library",
-        "scala-library/config/master"))
-      checkAttributeVariants(result, "akka-actor_2.10", version -> Set("2.1.0"))
-      checkAttributeVariants(result, "config", version -> Set("1.0.0"))
-      checkAttributeVariants(result, "scala-library", version -> Set("2.10.0"))
+        "com.typesafe/config/config/master",
+        "org.scala-lang/scala-library/config/compile",
+        "com.typesafe/config/config/compile",
+        "com.typesafe.akka/akka-actor_2.10",
+        "com.typesafe.akka/akka-actor_2.10/config/compile",
+        "com.typesafe/config",
+        "com.typesafe.akka/akka-actor_2.10/config/master",
+        "org.scala-lang/scala-library",
+        "org.scala-lang/scala-library/config/master"))
+      checkAttributeVariants(result, "com.typesafe.akka/akka-actor_2.10", version -> Set("2.1.0"))
+      checkAttributeVariants(result, "com.typesafe/config", version -> Set("1.0.0"))
+      checkAttributeVariants(result, "org.scala-lang/scala-library", version -> Set("2.10.0"))
     }
   }
 
@@ -332,7 +331,7 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
       Requirement(Id("scalatest_2.10/config/runtime"), Set.empty, Set.empty))
   }
 
-  test("Ivy end-to-end: import, insert, resolution, verfication") {
+  test("Ivy end-to-end: import, insert, resolution, verification") {
     implicit val testDetails = TestDetails("End-to-end (akka-remote & scalatest)")
     usingTmpDir { tmpDir =>
       val ivy = IvyUtils.load()
