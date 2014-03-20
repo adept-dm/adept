@@ -371,8 +371,4 @@ class IvyHelperTest extends FunSuite with Matchers {
       }
     }
   }
-
-  test("IvyImport end-to-end: import of akka should yield correct classpath") {
-    pending
-  }
 }
