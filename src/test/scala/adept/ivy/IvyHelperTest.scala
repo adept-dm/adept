@@ -123,7 +123,7 @@ class IvyHelperTest extends FunSuite with Matchers {
   //    }
   //  }
 
-  def getDefaultIvyModule = {
+  def getAkkaRemoteTestIvyModule = {
     val transitive = true
     val changing = true
     val force = true
@@ -148,7 +148,7 @@ class IvyHelperTest extends FunSuite with Matchers {
 
   test("Ivy requirements transformation") {
     import adept.ext.AttributeDefaults._
-    val ivyModule = getDefaultIvyModule
+    val ivyModule = getAkkaRemoteTestIvyModule
 
     val fakeIvyResults: Set[IvyImportResult] = Set(
       IvyImportResult(
@@ -253,7 +253,7 @@ class IvyHelperTest extends FunSuite with Matchers {
         artifacts = Set.empty, localFiles = Map.empty,
         versionInfo = Set.empty, excludeRules = Map.empty))
 
-    val requirements = IvyHelper.ivyRequirements(ivyModule, fakeIvyResults)
+    val requirements = IvyHelper.convertIvyAsRequirements(ivyModule, fakeIvyResults)
     requirements("compile") shouldEqual Set(
       Requirement(Id("akka-remote_2.10/config/default"), Set.empty, Set.empty),
       Requirement(Id("akka-remote_2.10/config/master"), Set.empty, Set.empty),
@@ -279,31 +279,35 @@ class IvyHelperTest extends FunSuite with Matchers {
       ivy.configure(new File("src/test/resources/typesafe-ivy-settings.xml"))
 
       val ivyHelper = new IvyHelper(ivy)
+      val ivyModule = getAkkaRemoteTestIvyModule
+
       val time1 = System.currentTimeMillis()
-      val ivyModule = getDefaultIvyModule
-
-      //
-      val results = ivyHelper.ivyImport(ivyModule, progress)
+      val results = ivyHelper.getIvyImportResults(ivyModule, progress)
       val time2 = System.currentTimeMillis()
-//      println("import completed: " + ((time2 - time1) / 1000.0) + "s")
-      val resolutionResults = IvyHelper.insert(tmpDir, results, progress)
+      println("import completed: " + ((time2 - time1) / 1000.0) + "s")
+      val resolutionResults = IvyHelper.insertAsResolutionResults(tmpDir, results, progress)
       val time3 = System.currentTimeMillis()
-//      println("insert completed: " + ((time3 - time2) / 1000.0) + "s")
-      val requirements = IvyHelper.ivyRequirements(ivyModule, results)
+      println("insert completed: " + ((time3 - time2) / 1000.0) + "s")
+      val requirements = IvyHelper.convertIvyAsRequirements(ivyModule, results)
       val loader = new GitLoader(tmpDir, resolutionResults, progress, cacheManager)
-      val time4 = System.currentTimeMillis()
-//      println("loaded in: " + ((time4 - time3) / 1000.0) + "s")
-      val result = resolve(requirements("test"), loader)
-      val time5 = System.currentTimeMillis()
-//      println("resolution completed: " + ((time5 - time4) / 1000.0) + "s")
-      result match {
-        case resolvedResult: ResolvedResult =>
-          ivyHelper.verifyImport("test", ivyModule, resolvedResult).right.value
-        case _ =>
-          assert(false, "Expected to be able to resolve Adept. Got result:\n"+result)
+      for (conf <- List("test", "compile")) {
+        val time4 = System.currentTimeMillis()
+        println("loaded " + conf + " in: " + ((time4 - time3) / 1000.0) + "s")
+        val result = resolve(requirements(conf), loader)
+        val time5 = System.currentTimeMillis()
+        println("resolution in " + conf + " completed: " + ((time5 - time4) / 1000.0) + "s")
+        result match {
+          case resolvedResult: ResolvedResult =>
+            val verificationResult  = ivyHelper.verifyImport(conf, ivyModule, resolvedResult)
+            if (verificationResult.isRight) {
+              println("verification of " + conf + " completed: " + ((time5 - time4) / 1000.0) + "s")
+            } else {
+              assert(false, "Verification of "+conf+" failed:\n" + verificationResult)
+            }
+          case _ =>
+            assert(false, "Expected to be able to resolve Adept for " + conf + ". Got result:\n" + result)
+        }
       }
-
-
     }
   }
 

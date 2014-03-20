@@ -41,7 +41,35 @@ import org.apache.ivy.core.module.descriptor.ExcludeRule
 case class AdeptIvyResolveException(msg: String) extends Exception(msg)
 case class AdeptIvyException(msg: String) extends Exception(msg)
 
-case class IvyVerficationErrorReport(msg: String, adeptExtraArtifacts: Map[ArtifactHash, Variant], ivyExtraArtifacts: Map[ArtifactHash, ModuleRevisionId], nonMatchingArtifacts: Set[(ArtifactHash, Variant, Set[ArtifactHash])])
+case class IvyVerificationError(mismatchOnHash: ArtifactHash, variant: Variant, matchingHashes: Set[ArtifactHash])
+case class IvyVerificationErrorReport(msg: String, adeptExtraArtifacts: Map[ArtifactHash, Variant], ivyExtraArtifacts: Map[ArtifactHash, ModuleRevisionId], nonMatching: Set[IvyVerificationError]) {
+  override def toString = {
+    msg + "\n" +
+      (if (ivyExtraArtifacts.nonEmpty) {
+        "artifacts found in Adept, but not in Ivy:\n" + adeptExtraArtifacts.map {
+          case (hash, variant) =>
+            "\t" + hash + " in " + variant
+        }.mkString("\n")
+      } else "") +
+      (if (ivyExtraArtifacts.nonEmpty) {
+        "artifacts found in Ivy, but not in Adept:\n" + ivyExtraArtifacts.map {
+          case (hash, mrid) =>
+            "\t" + hash + " in " + mrid
+        }.mkString("\n")
+      } else "") +
+      (if (nonMatching.nonEmpty) {
+        "\nfound a variant for the artifact, but not the right artfact(s):\n" + nonMatching.map {
+          case IvyVerificationError(hash, variant, matchingHashes) =>
+            "\t" + hash + " in " + variant + (if (matchingHashes.nonEmpty) " found matching hashes:\n" +
+              "\t\t" + matchingHashes.mkString(",")
+            else " no matching hashes:\n") +
+              (if (variant.artifacts.nonEmpty) "\t among variant artifacts:\n" +
+                "\t\t" + variant.artifacts.mkString(",")
+              else " NO variant artifacts!")
+        }.mkString("\n")
+      } else "")
+  }
+}
 
 object IvyHelper extends Logging {
   import AttributeDefaults.{ NameAttribute, OrgAttribute, VersionAttribute }
@@ -109,7 +137,7 @@ object IvyHelper extends Logging {
     }
   }
 
-  def insert(baseDir: File, results: Set[IvyImportResult], progress: ProgressMonitor): Set[ResolutionResult] = {
+  def insertAsResolutionResults(baseDir: File, results: Set[IvyImportResult], progress: ProgressMonitor): Set[ResolutionResult] = {
     progress.beginTask("Applying exclusion(s)", results.size * 2)
     val included = results.flatMap { result =>
       var requirementModifications = Map.empty[Id, Set[Variant]]
@@ -297,7 +325,7 @@ object IvyHelper extends Logging {
     requirements
   }
 
-  def ivyRequirements(module: ModuleDescriptor, allIvyImportResults: Set[IvyImportResult]): Map[String, Set[Requirement]] = {
+  def convertIvyAsRequirements(module: ModuleDescriptor, allIvyImportResults: Set[IvyImportResult]): Map[String, Set[Requirement]] = {
     var requirements = Map.empty[String, Set[Requirement]]
 
     //pass 1: convert everything to requirements
@@ -372,7 +400,7 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[St
     }
   }
 
-  def verifyImport(confName: String, module: ModuleDescriptor, resolvedResult: ResolvedResult): Either[IvyVerficationErrorReport, Set[Id]] = {
+  def verifyImport(confName: String, module: ModuleDescriptor, resolvedResult: ResolvedResult): Either[IvyVerificationErrorReport, Set[Id]] = {
     val resolvedVariants = resolvedResult.state.resolvedVariants
     val adeptIds = resolvedVariants.keySet
     val allDepArtifacts = resolvedVariants.flatMap {
@@ -383,7 +411,7 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[St
     }
     var adeptExtraArtifacts = allDepArtifacts
     var ivyExtraArtifacts = Map.empty[ArtifactHash, ModuleRevisionId]
-    var nonMatchingArtifacts = Set.empty[(ArtifactHash, Variant, Set[ArtifactHash])]
+    var nonMatchingArtifacts = Set.empty[IvyVerificationError]
 
     importAsSbt(module, resolveOptions(confName)) match {
       case Right(resolveReport) =>
@@ -400,37 +428,36 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[St
             }
           }
           val mrid = ivyArtifact.getModuleRevisionId()
-          val targetId = ivyIdAsId(mrid.getModuleId, configurationReport.getConfiguration)
           adeptExtraArtifacts -= ivyArtifactHash //we found an artifact in ivy which we was found in adept
-          resolvedVariants.get(targetId) match {
-            case Some(variant) =>
-              val matchingArtifacts = variant.artifacts.filter { artifact =>
-                artifact.attribute(ArtifactConfAttribute).values == ivyArtifact.getConfigurations()
-              }
-
-              //we did not find 1 artifact matching or some of the hashes are different
-              if (matchingArtifacts.size != 1 || ivyArtifactHash != matchingArtifacts.head.hash) {
-                nonMatchingArtifacts += ((ivyArtifactHash, variant, matchingArtifacts.map(_.hash)))
-              }
-            case None => {
-              if (!allDepArtifacts.isDefinedAt(ivyArtifactHash)) {
-                ivyExtraArtifacts += ((ivyArtifactHash, mrid)) //we found an artifact 
-              }
+          if (!allDepArtifacts.isDefinedAt(ivyArtifactHash)) {
+            ivyExtraArtifacts += ((ivyArtifactHash, mrid)) //we found an artifact in ivy which do not have in adept
+          }
+          (ivyArtifact.getConfigurations().toSet + configurationReport.getConfiguration).foreach { confName =>
+            val targetId = ivyIdAsId(mrid.getModuleId, confName)
+            resolvedVariants.get(targetId) match {
+              case Some(variant) =>
+                val matchingArtifacts = variant.artifacts.filter { artifact =>
+                  artifact.attribute(ArtifactConfAttribute).values == ivyArtifact.getConfigurations().toSet
+                }
+                //we found  1 artifact matching but the hashes are different
+                if (matchingArtifacts.size == 1 && ivyArtifactHash != matchingArtifacts.head.hash) {
+                  nonMatchingArtifacts += IvyVerificationError(ivyArtifactHash, variant, matchingArtifacts.map(_.hash))
+                }
+              case None => //pass
             }
           }
         }
-
         if (nonMatchingArtifacts.isEmpty && ivyExtraArtifacts.isEmpty && adeptExtraArtifacts.isEmpty) {
           Right(adeptIds)
         } else {
-          Left(IvyVerficationErrorReport(
+          Left(IvyVerificationErrorReport(
             msg = "Ivy was resolved, but there was mis-matching artifacts found",
             adeptExtraArtifacts,
             ivyExtraArtifacts,
             nonMatchingArtifacts))
         }
       case Left(error) =>
-        Left(IvyVerficationErrorReport(
+        Left(IvyVerificationErrorReport(
           msg = error,
           adeptExtraArtifacts,
           ivyExtraArtifacts,
@@ -462,7 +489,7 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[St
   /**
    * Import Ivy Module
    */
-  def ivyImport(module: ModuleDescriptor, progress: ProgressMonitor): Set[IvyImportResult] = { //, Set[ResolutionResult]) = {
+  def getIvyImportResults(module: ModuleDescriptor, progress: ProgressMonitor): Set[IvyImportResult] = { //, Set[ResolutionResult]) = {
     ivy.synchronized { //ivy is not thread safe
       val mrid = module.getModuleRevisionId()
       progress.beginTask("Resolving Ivy module(s)", module.getDependencies().size)
