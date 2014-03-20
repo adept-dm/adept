@@ -144,7 +144,7 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, skippableConf: Optio
     def reportErrorString(resolveReport: ResolveReport) = {
       val messages = resolveReport.getAllProblemMessages.toArray.map(_.toString).distinct
       val failed = resolveReport.getUnresolvedDependencies
-      failed.mkString(",") + "failed to resolve. Messages:\n" + messages.mkString("\n")
+      failed.mkString(",") + " failed to resolve. Messages:\n" + messages.mkString("\n")
     }
 
     val resolveReport = ivy.resolve(module, initialResolveOptions)
