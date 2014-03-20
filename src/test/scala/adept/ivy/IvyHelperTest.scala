@@ -45,7 +45,6 @@ class IvyHelperTest extends FunSuite with Matchers {
   import adept.test.BenchmarkUtils._ //convert to benchmark hashes
   import adept.test.OutputUtils._
 
-  
   import IvyHelper._
   import adept.ext.AttributeDefaults._
   import org.scalatest.EitherValues._
@@ -61,74 +60,114 @@ class IvyHelperTest extends FunSuite with Matchers {
     } yield {
       withConfiguration(id, confName)
     }) ++ akkaTransitiveIds
-  //
-  //  test("IvyImport basics: import of akka should yield correct results") {
-  //    val ivy = IvyHelper.load()
-  //    val ivyHelper = new IvyHelper(ivy)
-  //    val results = ivyHelper.ivyImport("com.typesafe.akka", "akka-actor_2.10", "2.1.0", progress)
-  //
-  //    val byIds = results.groupBy(_.variant.id)
-  //    byIds.keySet.intersect(akkaTransitiveIdsExpectedIds) should have size (akkaTransitiveIdsExpectedIds.size)
-  //
-  //    results.foreach {
-  //      case result =>
-  //        if (result.variant.id == IvyHelper.withConfiguration("akka-actor_2.10", "master")) {
-  //          result.artifacts.flatMap(_.locations) shouldEqual Set("http://repo1.maven.org/maven2/com/typesafe/akka/akka-actor_2.10/2.1.0/akka-actor_2.10-2.1.0.jar")
-  //        }
-  //        if (result.variant.id == IvyHelper.withConfiguration("config", "master")) {
-  //          result.artifacts.flatMap(_.locations) shouldEqual Set("http://repo.typesafe.com/typesafe/releases/com/typesafe/config/1.0.0/config-1.0.0.jar")
-  //        }
-  //        if (result.variant.id == IvyHelper.withConfiguration("scala-library", "master")) {
-  //          result.artifacts.flatMap(_.locations) shouldEqual Set("http://repo1.maven.org/maven2/org/scala-lang/scala-library/2.10.0/scala-library-2.10.0.jar")
-  //        }
-  //        //
-  //        if (result.variant.id == IvyHelper.withConfiguration("akka-actor_2.10", "compile")) {
-  //          result.variant.requirements.map(_.id) shouldEqual Set(Id("scala-library"), withConfiguration("scala-library", "compile"), withConfiguration("scala-library", "master"), Id("config"), withConfiguration("config", "compile"), withConfiguration("config", "master"))
-  //          result.repository shouldEqual RepositoryName("com.typesafe.akka")
-  //          result.versionInfo.map { case (name, _, version) => name -> version } shouldEqual Set(
-  //            (RepositoryName("org.scala-lang"), Version("2.10.0")),
-  //            (RepositoryName("com.typesafe"), Version("1.0.0")))
-  //        }
-  //    }
-  //  }
-  //
-  //  test("IvyImport end-to-end: import of akka should resolve correctly") {
-  //    usingTmpDir { tmpDir =>
-  //      val ivy = IvyHelper.load()
-  //      val ivyHelper = new IvyHelper(ivy)
-  //
-  //      val results = ivyHelper.ivyImport("com.typesafe.akka", "akka-actor_2.10", "2.1.0", progress)
-  //
-  //      val resolutionResults = IvyHelper.insert(tmpDir, results, progress)
-  //
-  //      //insert something else to make sure process is stable:
-  //      IvyHelper.insert(tmpDir, ivyHelper.ivyImport("com.typesafe.akka", "akka-actor_2.10", "2.2.1", progress), progress)
-  //      //update to latest commit to make sure process is stable:
-  //      val confuscatedResolutionResults = resolutionResults.map { r =>
-  //        r.copy(commit = (new GitRepository(tmpDir, r.repository)).getHead)
-  //      }
-  //
-  //      val loader = new GitLoader(tmpDir, confuscatedResolutionResults, progress, cacheManager)
-  //      val requirements = Set(
-  //        Requirement("akka-actor_2.10", Set.empty),
-  //        Requirement(withConfiguration("akka-actor_2.10", "compile"), Set.empty),
-  //        Requirement(withConfiguration("akka-actor_2.10", "master"), Set.empty))
-  //      val result = resolve(requirements, loader)
-  //      checkResolved(result, Set[Id](
-  //        "config/config/master",
-  //        "scala-library/config/compile",
-  //        "config/config/compile",
-  //        "akka-actor_2.10",
-  //        "akka-actor_2.10/config/compile",
-  //        "config",
-  //        "akka-actor_2.10/config/master",
-  //        "scala-library",
-  //        "scala-library/config/master"))
-  //      checkAttributeVariants(result, "akka-actor_2.10", version -> Set("2.1.0"))
-  //      checkAttributeVariants(result, "config", version -> Set("1.0.0"))
-  //      checkAttributeVariants(result, "scala-library", version -> Set("2.10.0"))
-  //    }
-  //  }
+
+  def getAkka210TestIvyModule = {
+    val transitive = true
+    val changing = true
+    val force = true
+    val ivyModule = DefaultModuleDescriptor.newBasicInstance(ModuleRevisionId.newInstance("com.adepthub", "test", "1.0"), new java.util.Date(1395315115209L))
+    ivyModule.addConfiguration(new IvyConfiguration("default", IvyConfiguration.Visibility.PUBLIC, "", Array("master", "runtime"), true, ""))
+    ivyModule.addConfiguration(new IvyConfiguration("master", IvyConfiguration.Visibility.PUBLIC, "", Array.empty, true, ""))
+    ivyModule.addConfiguration(new IvyConfiguration("runtime", IvyConfiguration.Visibility.PUBLIC, "", Array("compile"), true, ""))
+    ivyModule.addConfiguration(new IvyConfiguration("compile", IvyConfiguration.Visibility.PUBLIC, "", Array.empty, true, ""))
+    ivyModule.addConfiguration(new IvyConfiguration("test", IvyConfiguration.Visibility.PRIVATE, "", Array("runtime"), true, ""))
+
+    val akkaDep = new DefaultDependencyDescriptor(ivyModule,
+      ModuleRevisionId.newInstance("com.typesafe.akka", "akka-actor_2.10", "2.1.0"), force, changing, transitive)
+    akkaDep.addDependencyConfiguration("compile", "default(compile)")
+    ivyModule.addDependency(akkaDep)
+    ivyModule
+  }
+
+  def getAkka221TestIvyModule = {
+    val transitive = true
+    val changing = true
+    val force = true
+    val ivyModule = DefaultModuleDescriptor.newBasicInstance(ModuleRevisionId.newInstance("com.adepthub", "test", "1.0"), new java.util.Date(1395315115209L))
+    ivyModule.addConfiguration(new IvyConfiguration("default", IvyConfiguration.Visibility.PUBLIC, "", Array("master", "runtime"), true, ""))
+    ivyModule.addConfiguration(new IvyConfiguration("master", IvyConfiguration.Visibility.PUBLIC, "", Array.empty, true, ""))
+    ivyModule.addConfiguration(new IvyConfiguration("runtime", IvyConfiguration.Visibility.PUBLIC, "", Array("compile"), true, ""))
+    ivyModule.addConfiguration(new IvyConfiguration("compile", IvyConfiguration.Visibility.PUBLIC, "", Array.empty, true, ""))
+    ivyModule.addConfiguration(new IvyConfiguration("test", IvyConfiguration.Visibility.PRIVATE, "", Array("runtime"), true, ""))
+
+    val akkaDep = new DefaultDependencyDescriptor(ivyModule,
+      ModuleRevisionId.newInstance("com.typesafe.akka", "akka-actor_2.10", "2.2.1"), force, changing, transitive)
+    akkaDep.addDependencyConfiguration("compile", "default(compile)")
+    ivyModule.addDependency(akkaDep)
+    ivyModule
+  }
+
+  test("IvyImport basics: import of akka should yield correct results") {
+  implicit val testDetails = TestDetails("Basic import akka 2.1.0")
+    val ivy = IvyHelper.load()
+    val ivyHelper = new IvyHelper(ivy)
+    val ivyModule = getAkka210TestIvyModule
+    val time1 = System.currentTimeMillis()
+    val results = ivyHelper.getIvyImportResults(getAkka210TestIvyModule, progress)
+    val time2 = System.currentTimeMillis()
+    benchmark("Ivy-import", time2 - time1, ivyModule)
+
+    val byIds = results.groupBy(_.variant.id)
+    byIds.keySet.intersect(akkaTransitiveIdsExpectedIds) should have size (akkaTransitiveIdsExpectedIds.size)
+
+    results.foreach {
+      case result =>
+        if (result.variant.id == IvyHelper.withConfiguration("akka-actor_2.10", "master")) {
+          result.artifacts.flatMap(_.locations) shouldEqual Set("http://repo1.maven.org/maven2/com/typesafe/akka/akka-actor_2.10/2.1.0/akka-actor_2.10-2.1.0.jar")
+        }
+        if (result.variant.id == IvyHelper.withConfiguration("config", "master")) {
+          result.artifacts.flatMap(_.locations) shouldEqual Set("http://repo.typesafe.com/typesafe/releases/com/typesafe/config/1.0.0/config-1.0.0.jar")
+        }
+        if (result.variant.id == IvyHelper.withConfiguration("scala-library", "master")) {
+          result.artifacts.flatMap(_.locations) shouldEqual Set("http://repo1.maven.org/maven2/org/scala-lang/scala-library/2.10.0/scala-library-2.10.0.jar")
+        }
+        //
+        if (result.variant.id == IvyHelper.withConfiguration("akka-actor_2.10", "compile")) {
+          result.variant.requirements.map(_.id) shouldEqual Set(Id("scala-library"), withConfiguration("scala-library", "compile"), withConfiguration("scala-library", "master"), Id("config"), withConfiguration("config", "compile"), withConfiguration("config", "master"))
+          result.repository shouldEqual RepositoryName("com.typesafe.akka")
+          result.versionInfo.map { case (name, _, version) => name -> version } shouldEqual Set(
+            (RepositoryName("org.scala-lang"), Version("2.10.0")),
+            (RepositoryName("com.typesafe"), Version("1.0.0")))
+        }
+    }
+  }
+
+  test("IvyImport end-to-end: import of akka should resolve correctly") {
+    usingTmpDir { tmpDir =>
+      val ivy = IvyHelper.load()
+      val ivyHelper = new IvyHelper(ivy)
+      val results = ivyHelper.getIvyImportResults(getAkka210TestIvyModule, progress)
+
+      val resolutionResults = IvyHelper.insertAsResolutionResults(tmpDir, results, progress)
+
+      //insert something else to make sure process is stable:
+      IvyHelper.insertAsResolutionResults(tmpDir, ivyHelper.getIvyImportResults(getAkka221TestIvyModule, progress), progress)
+      //update to latest commit to make sure process is stable:
+      val confuscatedResolutionResults = resolutionResults.map { r =>
+        r.copy(commit = (new GitRepository(tmpDir, r.repository)).getHead)
+      }
+
+      val loader = new GitLoader(tmpDir, confuscatedResolutionResults, progress, cacheManager)
+      val requirements = Set(
+        Requirement("akka-actor_2.10", Set.empty, Set.empty),
+        Requirement(withConfiguration("akka-actor_2.10", "compile"), Set.empty, Set.empty),
+        Requirement(withConfiguration("akka-actor_2.10", "master"), Set.empty, Set.empty))
+      val result = resolve(requirements, loader)
+      checkResolved(result, Set[Id](
+        "config/config/master",
+        "scala-library/config/compile",
+        "config/config/compile",
+        "akka-actor_2.10",
+        "akka-actor_2.10/config/compile",
+        "config",
+        "akka-actor_2.10/config/master",
+        "scala-library",
+        "scala-library/config/master"))
+      checkAttributeVariants(result, "akka-actor_2.10", version -> Set("2.1.0"))
+      checkAttributeVariants(result, "config", version -> Set("1.0.0"))
+      checkAttributeVariants(result, "scala-library", version -> Set("2.10.0"))
+    }
+  }
 
   def getAkkaRemoteTestIvyModule = {
     val transitive = true
