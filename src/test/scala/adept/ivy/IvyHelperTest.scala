@@ -290,22 +290,25 @@ class IvyHelperTest extends FunSuite with Matchers {
       println("insert completed: " + ((time3 - time2) / 1000.0) + "s")
       val requirements = IvyHelper.convertIvyAsRequirements(ivyModule, results)
       val loader = new GitLoader(tmpDir, resolutionResults, progress, cacheManager)
-      for (conf <- List("test", "compile")) {
+      val time4 = System.currentTimeMillis()
+      println("loaded in: " + ((time4 - time3) / 1000.0) + "s")
+
+      for (confName <- requirements.keys) {
         val time4 = System.currentTimeMillis()
-        println("loaded " + conf + " in: " + ((time4 - time3) / 1000.0) + "s")
-        val result = resolve(requirements(conf), loader)
+        val result = resolve(requirements(confName), loader)
         val time5 = System.currentTimeMillis()
-        println("resolution in " + conf + " completed: " + ((time5 - time4) / 1000.0) + "s")
+        println("resolution in " + confName + " completed: " + ((time5 - time4) / 1000.0) + "s")
         result match {
           case resolvedResult: ResolvedResult =>
-            val verificationResult  = ivyHelper.verifyImport(conf, ivyModule, resolvedResult)
+            val verificationResult = ivyHelper.verifyImport(confName, ivyModule, resolvedResult)
+            val time6 = System.currentTimeMillis()
             if (verificationResult.isRight) {
-              println("verification of " + conf + " completed: " + ((time5 - time4) / 1000.0) + "s")
+              println("verification of " + confName + " completed: " + ((time6 - time5) / 1000.0) + "s")
             } else {
-              assert(false, "Verification of "+conf+" failed:\n" + verificationResult)
+              assert(false, "Verification of " + confName + " failed:\n" + verificationResult)
             }
           case _ =>
-            assert(false, "Expected to be able to resolve Adept for " + conf + ". Got result:\n" + result)
+            assert(false, "Expected to be able to resolve Adept for " + confName + ". Got result:\n" + result)
         }
       }
     }
