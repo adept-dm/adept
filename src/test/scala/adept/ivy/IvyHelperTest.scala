@@ -46,7 +46,8 @@ class IvyHelperTest extends FunSuite with Matchers {
   import adept.test.OutputUtils._
   import adept.test.EitherUtils._
 
-  import IvyHelper._
+  import IvyConstants._
+  import IvyUtils.withConfiguration
   import adept.ext.AttributeDefaults._
 
   val akkaTransitiveIds: Set[Id] = Set(
@@ -99,11 +100,11 @@ class IvyHelperTest extends FunSuite with Matchers {
 
   test("IvyImport basics: import of akka should yield correct results") {
     implicit val testDetails = TestDetails("Basic import akka 2.1.0")
-    val ivy = IvyHelper.load()
-    val ivyHelper = new IvyHelper(ivy)
+    val ivy = IvyUtils.load()
+    val ivyConverter = new IvyAdeptConverter(ivy)
     val ivyModule = getAkka210TestIvyModule
     val results = benchmark(IvyImport, ivyModule) {
-      ivyHelper.getIvyImportResults(ivyModule, progress).failOnLeft
+      ivyConverter.loadAsIvyImportResults(ivyModule, progress).failOnLeft
     }
 
     val byIds = results.groupBy(_.variant.id)
@@ -111,17 +112,17 @@ class IvyHelperTest extends FunSuite with Matchers {
 
     results.foreach {
       case result =>
-        if (result.variant.id == IvyHelper.withConfiguration("akka-actor_2.10", "master")) {
+        if (result.variant.id == withConfiguration("akka-actor_2.10", "master")) {
           result.artifacts.flatMap(_.locations) shouldEqual Set("http://repo1.maven.org/maven2/com/typesafe/akka/akka-actor_2.10/2.1.0/akka-actor_2.10-2.1.0.jar")
         }
-        if (result.variant.id == IvyHelper.withConfiguration("config", "master")) {
+        if (result.variant.id == withConfiguration("config", "master")) {
           result.artifacts.flatMap(_.locations) shouldEqual Set("http://repo.typesafe.com/typesafe/releases/com/typesafe/config/1.0.0/config-1.0.0.jar")
         }
-        if (result.variant.id == IvyHelper.withConfiguration("scala-library", "master")) {
+        if (result.variant.id == withConfiguration("scala-library", "master")) {
           result.artifacts.flatMap(_.locations) shouldEqual Set("http://repo1.maven.org/maven2/org/scala-lang/scala-library/2.10.0/scala-library-2.10.0.jar")
         }
         //
-        if (result.variant.id == IvyHelper.withConfiguration("akka-actor_2.10", "compile")) {
+        if (result.variant.id == withConfiguration("akka-actor_2.10", "compile")) {
           result.variant.requirements.map(_.id) shouldEqual Set(Id("scala-library"), withConfiguration("scala-library", "compile"), withConfiguration("scala-library", "master"), Id("config"), withConfiguration("config", "compile"), withConfiguration("config", "master"))
           result.repository shouldEqual RepositoryName("com.typesafe.akka")
           result.versionInfo.map { case (name, _, version) => name -> version } shouldEqual Set(
@@ -134,25 +135,25 @@ class IvyHelperTest extends FunSuite with Matchers {
   test("IvyImport end-to-end: import of akka should resolve correctly") {
     implicit val testDetails = TestDetails("End-to-end (akka-remote & scalatest)")
     usingTmpDir { tmpDir =>
-      val ivy = IvyHelper.load()
-      val ivyHelper = new IvyHelper(ivy)
+      val ivy = IvyUtils.load()
+      val ivyConverter = new IvyAdeptConverter(ivy)
       val ivyModule = getAkka210TestIvyModule
       val results = benchmark(IvyImport, ivyModule) {
-        ivyHelper.getIvyImportResults(ivyModule, progress).failOnLeft
+        ivyConverter.loadAsIvyImportResults(ivyModule, progress).failOnLeft
       }
 
       val resolutionResults = benchmark(Inserted, results) {
-        IvyHelper.insertAsResolutionResults(tmpDir, results, progress)
+        IvyResolutionResults.insertAsResolutionResults(tmpDir, results, progress)
       }
 
       //insert something else to make sure process is stable:
       {
         val ivyModule = getAkka221TestIvyModule
         val extraResults = benchmark(IvyImport, ivyModule) {
-          ivyHelper.getIvyImportResults(ivyModule, progress).failOnLeft
+          ivyConverter.loadAsIvyImportResults(ivyModule, progress).failOnLeft
         }
         benchmark(Inserted, extraResults) {
-          IvyHelper.insertAsResolutionResults(tmpDir, extraResults, progress)
+          IvyResolutionResults.insertAsResolutionResults(tmpDir, extraResults, progress)
         }
       }
       //update to latest commit to make sure process is stable:
@@ -313,7 +314,7 @@ class IvyHelperTest extends FunSuite with Matchers {
         artifacts = Set.empty, localFiles = Map.empty,
         versionInfo = Set.empty, excludeRules = Map.empty))
 
-    val requirements = IvyHelper.convertIvyAsRequirements(ivyModule, fakeIvyResults)
+    val requirements = IvyRequirements.convertIvyAsRequirements(ivyModule, fakeIvyResults)
     requirements("compile") shouldEqual Set(
       Requirement(Id("akka-remote_2.10/config/default"), Set.empty, Set.empty),
       Requirement(Id("akka-remote_2.10/config/master"), Set.empty, Set.empty),
@@ -334,21 +335,21 @@ class IvyHelperTest extends FunSuite with Matchers {
   test("Ivy end-to-end: import, insert, resolution, verfication") {
     implicit val testDetails = TestDetails("End-to-end (akka-remote & scalatest)")
     usingTmpDir { tmpDir =>
-      val ivy = IvyHelper.load()
+      val ivy = IvyUtils.load()
       ivy.configure(new File("src/test/resources/typesafe-ivy-settings.xml"))
 
-      val ivyHelper = new IvyHelper(ivy)
+      val ivyConverter = new IvyAdeptConverter(ivy)
       val ivyModule = getAkkaRemoteTestIvyModule
 
       val results = benchmark(IvyImport, ivyModule) {
-        ivyHelper.getIvyImportResults(ivyModule, progress).failOnLeft
+        ivyConverter.loadAsIvyImportResults(ivyModule, progress).failOnLeft
       }
       val resolutionResults = benchmark(Inserted, results) {
-        IvyHelper.insertAsResolutionResults(tmpDir, results, progress)
+        IvyResolutionResults.insertAsResolutionResults(tmpDir, results, progress)
       }
 
       val requirements = benchmark(Converted, ivyModule && results) {
-        IvyHelper.convertIvyAsRequirements(ivyModule, results)
+        IvyRequirements.convertIvyAsRequirements(ivyModule, results)
       }
 
       val loader = benchmark(Loaded, resolutionResults) {
@@ -362,7 +363,7 @@ class IvyHelperTest extends FunSuite with Matchers {
         result match {
           case resolvedResult: ResolvedResult =>
             val verificationResult = benchmark(Verified, resolvedResult && ivyModule) {
-              ivyHelper.verifyImport(confName, ivyModule, resolvedResult)
+              ivyConverter.verifyConversion(confName, ivyModule, resolvedResult)
             }
             assert(verificationResult.isRight, "Verification of " + confName + " failed:\n" + verificationResult)
           case _ =>
