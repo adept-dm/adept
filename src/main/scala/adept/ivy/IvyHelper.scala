@@ -555,6 +555,85 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[St
     else Left(errors)
   }
 
+  private def printWarnings(mrid: ModuleRevisionId, confName: String, notLoaded: Set[IvyNode], dependencies: Map[ModuleRevisionId, Set[IvyNode]]): Unit = {
+    notLoaded.foreach { ivyNode => //TODO: I am not a 100% certain that we do not really need them? Where do these deps come from, somebody wanted them originally?
+      if (!dependencies.isDefinedAt(ivyNode.getId)) {
+        logger.debug(mrid + " has a node " + ivyNode + " which was not loaded, but it is not required in upper-call tree so we ignore")
+
+        if (ivyNode == null) {
+          logger.error("Got a null while loading: " + mrid)
+        } else if (ivyNode.isEvicted(confName))
+          logger.debug(mrid + " evicts " + ivyNode + " so it was not loaded.")
+        else if (ivyNode.getDescriptor() != null && ivyNode.getDescriptor().canExclude()) {
+          logger.debug(mrid + " required" + ivyNode + " which can be excluded.")
+        } else {
+          logger.error(mrid + " required " + ivyNode + ", but is was not loaded (nor evicted) so cannot import. This is potentially a problem") //TODO: is this acceptable? if not find a way to load ivy nodes...
+        }
+      } else throw new Exception("Could not load " + ivyNode + "declared in: " + mrid)
+    }
+  }
+
+  private def extractRequirementsAndExcludes(thisVariantId: Id, confName: String, currentIvyNode: IvyNode, loaded: Set[IvyNode]) = {
+    var excludeRules = Map.empty[(Id, Id), Set[ExcludeRule]]
+
+    val requirements = loaded.flatMap { ivyNode =>
+      val currentExcludeRules = getExcludeRules(currentIvyNode, ivyNode)
+      if (!ivyNode.isEvicted(confName)) {
+        val requirements = ivyNode.getConfigurations(confName).toSet.map(ivyNode.getConfiguration).map { requirementConf =>
+          Requirement(ivyIdAsId(ivyNode.getId.getModuleId, requirementConf.getName()), Set.empty, Set.empty)
+        } + Requirement(ivyIdAsId(ivyNode.getId.getModuleId), Set.empty, Set.empty)
+        requirements.foreach { requirement =>
+          if (currentExcludeRules.nonEmpty) {
+            excludeRules += (thisVariantId, requirement.id) -> currentExcludeRules //<-- MUTATE!
+          }
+        }
+        requirements
+      } else Set.empty[Requirement]
+    }
+    requirements -> excludeRules
+  }
+
+  private def extractArtifactInfosAndErrors(mrid: ModuleRevisionId, ivyConfiguration: IvyConfiguration, confName: String) = { //TODO: what is the difference on confName and ivyConfiguration.getName?
+    var errors = Set.empty[ArtifactLocationError]
+    ivy.resolve(mrid, resolveOptions(ivyConfiguration.getName), changing).getArtifactsReports(mrid).flatMap { artifactReport =>
+      if (artifactReport.getArtifact().getConfigurations().toList.contains(confName)) {
+        val file = artifactReport.getLocalFile
+        if (file != null) {
+          val hash = {
+            val is = new FileInputStream(file)
+            try {
+              ArtifactHash(Hasher.hash(is))
+            } finally {
+              is.close()
+            }
+          }
+          val location = artifactReport.getArtifactOrigin().getLocation()
+          if (!location.startsWith("http")) errors += ArtifactLocationError(location, file) //we must have somewhere we can download this files from
+          Some((location, artifactReport.getArtifact().getConfigurations(), file, hash, file.getName))
+        } else if (file == null && skippableConf.isDefined && skippableConf.get(ivyConfiguration.getName())) {
+          None
+        } else {
+          throw new Exception("Could not download: " + mrid + " in " + confName)
+        }
+      } else None
+    }.toSet -> errors
+  }
+
+  private def extractTargetVersionInfo(confName: String, loaded: Set[IvyNode]) = {
+    loaded.flatMap { ivyNode =>
+      if (!ivyNode.isEvicted(confName)) {
+        val targetRepositoryName = ivyIdAsRepositoryName(ivyNode.getId.getModuleId)
+        val targetVersion = ivyIdAsVersion(ivyNode.getId)
+        ivyNode.getConfigurations(confName).toSet.map(ivyNode.getConfiguration).map { requirementConf =>
+          val targetId = ivyIdAsId(ivyNode.getId.getModuleId, requirementConf.getName)
+          (targetRepositoryName, targetId, targetVersion)
+        } + ((targetRepositoryName, ivyIdAsId(ivyNode.getId.getModuleId), targetVersion))
+      } else {
+        Set.empty[(RepositoryName, Id, Version)]
+      }
+    }
+  }
+
   private def createIvyResult(currentIvyNode: IvyNode, unloadedChildren: Set[IvyNode], dependencies: Map[ModuleRevisionId, Set[IvyNode]]): Either[Set[IvyImportError], Set[IvyImportResult]] = {
     var errors = Set.empty[IvyImportError]
 
@@ -588,63 +667,11 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[St
           children.partition(_.isLoaded)
         }
 
-        //print warnings:
-        notLoaded.foreach { ivyNode => //TODO: I am not a 100% certain that we do not really need them? Where do these deps come from, somebody wanted them originally?
-          if (!dependencies.isDefinedAt(ivyNode.getId)) {
-            logger.debug(mrid + " has a node " + ivyNode + " which was not loaded, but it is not required in upper-call tree so we ignore")
+        printWarnings(mrid, confName, notLoaded, dependencies)
+        val (requirements, excludeRules) = extractRequirementsAndExcludes(thisVariantId, confName, currentIvyNode, loaded)
 
-            if (ivyNode == null) {
-              logger.error("Got a null while loading: " + mrid)
-            } else if (ivyNode.isEvicted(confName))
-              logger.debug(mrid + " evicts " + ivyNode + " so it was not loaded.")
-            else if (ivyNode.getDescriptor() != null && ivyNode.getDescriptor().canExclude()) {
-              logger.debug(mrid + " required" + ivyNode + " which can be excluded.")
-            } else {
-              logger.error(mrid + " required " + ivyNode + ", but is was not loaded (nor evicted) so cannot import. This is potentially a problem") //TODO: is this acceptable? if not find a way to load ivy nodes...
-            }
-          } else throw new Exception("Could not load " + ivyNode + "declared in: " + mrid)
-        }
-        //exclude rules:
-        var excludeRules = Map.empty[(Id, Id), Set[ExcludeRule]]
-
-        //requirements:
-        val requirements = loaded.flatMap { ivyNode =>
-          val currentExcludeRules = getExcludeRules(currentIvyNode, ivyNode)
-          if (!ivyNode.isEvicted(confName)) {
-            val requirements = ivyNode.getConfigurations(confName).toSet.map(ivyNode.getConfiguration).map { requirementConf =>
-              Requirement(ivyIdAsId(ivyNode.getId.getModuleId, requirementConf.getName()), Set.empty, Set.empty)
-            } + Requirement(ivyIdAsId(ivyNode.getId.getModuleId), Set.empty, Set.empty)
-            requirements.foreach { requirement =>
-              if (currentExcludeRules.nonEmpty) {
-                excludeRules += (thisVariantId, requirement.id) -> currentExcludeRules //<-- MUTATE!
-              }
-            }
-            requirements
-          } else Set.empty[Requirement]
-        }
-
-        val artifactInfos = ivy.resolve(mrid, resolveOptions(ivyConfiguration.getName), changing).getArtifactsReports(mrid).flatMap { artifactReport =>
-          if (artifactReport.getArtifact().getConfigurations().toList.contains(confName)) {
-            val file = artifactReport.getLocalFile
-            if (file != null) {
-              val hash = {
-                val is = new FileInputStream(file)
-                try {
-                  ArtifactHash(Hasher.hash(is))
-                } finally {
-                  is.close()
-                }
-              }
-              val location = artifactReport.getArtifactOrigin().getLocation()
-              if (!location.startsWith("http")) errors += ArtifactLocationError(location, file) //we must have somewhere we can download this files from
-              Some((location, artifactReport.getArtifact().getConfigurations(), file, hash, file.getName))
-            } else if (file == null && skippableConf.isDefined && skippableConf.get(ivyConfiguration.getName())) {
-              None
-            } else {
-              throw new Exception("Could not download: " + mrid + " in " + confName)
-            }
-          } else None
-        }.toSet
+        val (artifactInfos, newErrors) = extractArtifactInfosAndErrors(mrid, ivyConfiguration, confName)
+        errors ++= newErrors //MUTATE!
 
         //TODO: skipping empty configurations? if (artifactInfos.nonEmpty || dependencies.nonEmpty)... 
         val artifacts = artifactInfos.map {
@@ -672,18 +699,7 @@ class IvyHelper(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[St
           artifacts = artifactRefs,
           requirements = requirements ++ configurationRequirements)
 
-        val targetVersionInfo: Set[(RepositoryName, Id, Version)] = loaded.flatMap { ivyNode =>
-          if (!ivyNode.isEvicted(confName)) {
-            val targetRepositoryName = ivyIdAsRepositoryName(ivyNode.getId.getModuleId)
-            val targetVersion = ivyIdAsVersion(ivyNode.getId)
-            ivyNode.getConfigurations(confName).toSet.map(ivyNode.getConfiguration).map { requirementConf =>
-              val targetId = ivyIdAsId(ivyNode.getId.getModuleId, requirementConf.getName)
-              (targetRepositoryName, targetId, targetVersion)
-            } + ((targetRepositoryName, ivyIdAsId(ivyNode.getId.getModuleId), targetVersion))
-          } else {
-            Set.empty[(RepositoryName, Id, Version)]
-          }
-        }
+        val targetVersionInfo = extractTargetVersionInfo(confName, loaded)
 
         IvyImportResult(
           variant = variant,
