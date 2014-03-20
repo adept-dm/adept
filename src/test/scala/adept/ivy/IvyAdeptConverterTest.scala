@@ -50,6 +50,10 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
   import IvyUtils.withConfiguration
   import adept.ext.AttributeDefaults._
 
+  def ivy = this.synchronized { //avoid parallel test messing up Ivy imports
+    IvyUtils.load()
+  }
+
   val akkaTransitiveIds: Set[Id] = Set(
     "com.typesafe.akka/akka-actor_2.10",
     "org.scala-lang/scala-library",
@@ -100,7 +104,6 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
 
   test("IvyImport basics: import of akka should yield correct results") {
     implicit val testDetails = TestDetails("Basic import akka 2.1.0")
-    val ivy = IvyUtils.load()
     val ivyConverter = new IvyAdeptConverter(ivy)
     val ivyModule = getAkka210TestIvyModule
     val results = benchmark(IvyImport, ivyModule) {
@@ -134,7 +137,6 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
   test("IvyImport end-to-end: import of akka should resolve correctly") {
     implicit val testDetails = TestDetails("End-to-end (akka-remote & scalatest)")
     usingTmpDir { tmpDir =>
-      val ivy = IvyUtils.load()
       val ivyConverter = new IvyAdeptConverter(ivy)
       val ivyModule = getAkka210TestIvyModule
       val results = benchmark(IvyImport, ivyModule) {
@@ -334,7 +336,6 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
   test("Ivy end-to-end: import, insert, resolution, verification") {
     implicit val testDetails = TestDetails("End-to-end (akka-remote & scalatest)")
     usingTmpDir { tmpDir =>
-      val ivy = IvyUtils.load()
       ivy.configure(new File("src/test/resources/typesafe-ivy-settings.xml"))
 
       val ivyConverter = new IvyAdeptConverter(ivy)
