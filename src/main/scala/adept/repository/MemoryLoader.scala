@@ -7,7 +7,7 @@ import adept.resolution.models._
  * 
  * It is useful for testing.
  */
-class MemoryLoader(variants: Set[Variant]) extends VariantsLoader {
+class MemoryLoader(private[adept] val variants: Set[Variant]) extends VariantsLoader {
   val variantsById = variants.groupBy(_.id) //avoid filtering ids that we know won't match
 
   def loadVariants(id: Id, constraints: Set[Constraint]): Set[Variant] = {

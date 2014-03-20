@@ -204,9 +204,10 @@ class ResolverTest extends FunSuite with Matchers {
 
     val requirements: Set[Requirement] = Set(
       "A" -> Set(Constraint(binaryVersion, Set("1.0"))))
-
-    val result = benchmark(Resolved, requirements && variants) {
-      resolve(requirements, getMemoryLoader(variants))
+    
+      val loader = getMemoryLoader(variants)
+    val result = benchmark(Resolved, requirements && loader) {
+      resolve(requirements, loader)
     }
     checkResolved(result, Set("A", "B", "C", "D", "E"))
     checkUnresolved(result, Set())
@@ -256,7 +257,7 @@ class ResolverTest extends FunSuite with Matchers {
     val requirements: Set[Requirement] = Set(
       "A" -> Set(Constraint(binaryVersion, Set("1.0"))))
 
-    val result = benchmark(Resolved, requirements && variants) {
+    val result = benchmark(Resolved, requirements && getMemoryLoader(variants)) {
       resolve(requirements, getMemoryLoader(variants))
     }
     checkResolved(result, Set("A", "B", "C", "D", "E", "F"))
@@ -328,8 +329,9 @@ class ResolverTest extends FunSuite with Matchers {
     val requirements: Set[Requirement] = Set(
       "A" -> Set(Constraint(binaryVersion, Set("1.0"))))
 
-    val result =  benchmark(Resolved, requirements && variants) {
-      resolve(requirements, getMemoryLoader(variants))
+    val loader = getMemoryLoader(variants)
+    val result = benchmark(Resolved, requirements && loader) {
+      resolve(requirements, loader)
     }
     checkResolved(result, Set("A", "B", "C", "D", "E"))
     checkUnresolved(result, Set())

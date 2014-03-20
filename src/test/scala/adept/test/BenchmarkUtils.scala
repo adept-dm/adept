@@ -7,6 +7,9 @@ import adept.utils.Hasher
 import adept.ivy.IvyImportResult
 import adept.resolution.resolver.models.ResolveResult
 import adept.resolution.models.Variant
+import adept.repository.VariantsLoader
+import adept.repository.GitLoader
+import adept.repository.MemoryLoader
 
 case class TestDetails(id: String)
 case class BenchmarkId(id: String) extends AnyVal {
@@ -39,12 +42,16 @@ object BenchmarkUtils {
     BenchmarkId(requirements.toString)
   }
 
-  implicit def convertVariants(variants: Set[Variant]): BenchmarkId = {
-    BenchmarkId(variants.toString)
+  implicit def convertResults(results: Set[ResolutionResult]): BenchmarkId = {
+    BenchmarkId(results.toString)
+    
+  }
+  implicit def convertGitLoader(loader: GitLoader): BenchmarkId = {
+    convertResults(loader.results)
   }
 
-  implicit def convertResolutionResults(resolutionResults: Set[ResolutionResult]): BenchmarkId = {
-    BenchmarkId(resolutionResults.toString)
+  implicit def convertMemGitLoader(loader: MemoryLoader): BenchmarkId = {
+    BenchmarkId(loader.variants.toString)
   }
 
   implicit def convertResolveResult(resolveResult: ResolveResult): BenchmarkId = {
@@ -59,7 +66,7 @@ object Benchmarkers {
   }
   private[test] val systemErrBenchmarker = new Benchmarker {
     override def benchmark(name: BenchmarkName, timeSpentMillis: Long, hash: BenchmarkId)(implicit testDetails: TestDetails): Unit = {
-      System.err.println("Completed task: '" + name.value + "' ("+testDetails.id+") in " + (timeSpentMillis / 1000.0) + "s")
+      System.err.println("Completed task: '" + name.value + "' (" + testDetails.id + ") in " + (timeSpentMillis / 1000.0) + "s")
     }
   }
 }

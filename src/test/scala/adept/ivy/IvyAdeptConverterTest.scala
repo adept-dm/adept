@@ -180,7 +180,9 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
         Requirement("com.typesafe.akka/akka-actor_2.10", Set.empty, Set.empty),
         Requirement(withConfiguration("com.typesafe.akka/akka-actor_2.10", "compile"), Set.empty, Set.empty),
         Requirement(withConfiguration("com.typesafe.akka/akka-actor_2.10", "master"), Set.empty, Set.empty))
-      val result = resolve(requirements, loader)
+      val result = benchmark(Resolved, requirements && loader){
+        resolve(requirements, loader)
+      }
       checkResolved(result, Set[Id](
         "com.typesafe/config/config/master",
         "org.scala-lang/scala-library/config/compile",
@@ -368,7 +370,7 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
       }
 
       for (confName <- requirements.keys) {
-        val result = benchmark(Resolved, requirements(confName)) {
+        val result = benchmark(Resolved, requirements(confName) && loader) {
           resolve(requirements(confName), loader)
         }
         result match {

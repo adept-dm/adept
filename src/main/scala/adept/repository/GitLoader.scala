@@ -120,14 +120,14 @@ object GitLoader extends Logging {
   }
 }
 
-class GitLoader(baseDir: File, initialResults: Set[ResolutionResult], progress: ProgressMonitor, cacheManager: CacheManager) extends VariantsLoader {
+class GitLoader(baseDir: File, private[adept] val results: Set[ResolutionResult], progress: ProgressMonitor, cacheManager: CacheManager) extends VariantsLoader {
   import GitLoader._
-  private val thisUniqueId = Hasher.hash(initialResults.map { resolution => resolution.id.value + "-" + resolution.repository.value + "-" + resolution.variant.value + "-" + resolution.commit.value }.toSeq.sorted.mkString("#").getBytes)
+  private val thisUniqueId = Hasher.hash(results.map { resolution => resolution.id.value + "-" + resolution.repository.value + "-" + resolution.variant.value + "-" + resolution.commit.value }.toSeq.sorted.mkString("#").getBytes)
 
   private val cache: Ehcache = getCache(cacheManager)
 
   private lazy val cachedById = usingCache("byId" + thisUniqueId, cache) { //TODO: lazy since this might take a while?
-    initialResults.groupBy(_.id).map {
+    results.groupBy(_.id).map {
       case (id, results) =>
         val latestCommitsOnly = results.groupBy(_.repository).flatMap {
           case (repositoryName, results) =>
