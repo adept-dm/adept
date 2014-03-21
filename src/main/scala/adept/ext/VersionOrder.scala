@@ -141,24 +141,27 @@ object VersionOrder extends Logging {
       orderFile
     }
 
-    def getOldOrderFiles(orders: Set[OrderId]) = {
+    def removeContentsOfOldOrderFiles(orders: Set[OrderId]) = {
       val formerOrders = Order.listActiveOrderIds(id, repository, commit)
       val oldOrderIds = formerOrders.diff(orders)
       oldOrderIds.map { orderId =>
         val orderFile = repository.getOrderFile(id, orderId)
-        writeLines(Seq.empty, repository.getOrderFile(id, orderId)) //delete
+        writeLines(Seq.empty, repository.getOrderFile(id, orderId)) //NOTICE: Seq.empty
         orderFile
       }
     }
 
-    //TODO: there is something strange with listVariants or listActiveOrderIds because sometimes files are skipped? REMOVE THIS COMMENT: this was fixed
+    //1) Get variants
     val variants = VariantMetadata.listVariants(id, repository, commit).map { hash =>
       VariantMetadata.read(id, hash, repository, commit) match {
         case Some(variantMetadata) => variantMetadata.toVariant(id)
         case _ => throw new Exception("Unexpectly could not read variant: " + hash + " in  " + repository.dir.getAbsolutePath)
       }
     }
+    
+    //2) Find binary versions
     var allBinaryVersions = Map.empty[String, Seq[Variant]]
+    val NoBinaryVersion = ""
     variants.foreach { variant =>
       val binaryVersions = variant.attribute(BinaryVersionAttribute).values
       if (binaryVersions.nonEmpty) {
@@ -167,18 +170,21 @@ object VersionOrder extends Logging {
           allBinaryVersions += binaryVersion -> (variant +: parsedVariants)
         }
       } else if (binaryVersions.isEmpty) {
-        val parsedVariants = allBinaryVersions.getOrElse("", Seq.empty)
-        allBinaryVersions += "" -> (variant +: parsedVariants)
+        val parsedVariants = allBinaryVersions.getOrElse(NoBinaryVersion, Seq.empty)
+        allBinaryVersions += NoBinaryVersion -> (variant +: parsedVariants)
       }
     }
 
+    //3) Get orders
     val orderSize = allBinaryVersions.size
     val orders = Order.getXOrderId(repository, 0, orderSize) //overwrites former files
     assert(orders.size == orderSize)
     val newOrderIds = {
       ((0 to orders.size) zip orders.toSeq.map(_.value).sorted).toMap
     }
-    val oldOrderFiles = getOldOrderFiles(orders)
+    val oldOrderFiles = removeContentsOfOldOrderFiles(orders) //we need the old order files in case there were more binary versions (order files) before than there is now
+
+    //4) Write variants to order files 
     val orderFiles = allBinaryVersions.toSeq.sortBy { case (binaryVersion, _) => Version(binaryVersion) }.zipWithIndex.map {
       case ((binaryVersion, variants), index) =>
         val orderId = OrderId(newOrderIds(index))
