@@ -199,10 +199,13 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
       checkAttributeVariants(result, "com.typesafe/config", version -> Set("1.0.0"))
       checkAttributeVariants(result, "org.scala-lang/scala-library", version -> Set("2.10.0"))
       //artifacts:
-      val akkaRepo = new GitRepository(tmpDir, RepositoryName("com.typesafe.akka"))
-      checkArtifactFilename(akkaRepo, result.state.resolvedVariants("com.typesafe.akka/akka-actor_2.10/config/master"))
+      checkArtifactFilename(new GitRepository(tmpDir, RepositoryName("com.typesafe.akka")), result.state.resolvedVariants("com.typesafe.akka/akka-actor_2.10/config/master"))
       checkArtifactFilename(new GitRepository(tmpDir, RepositoryName("com.typesafe")), result.state.resolvedVariants("com.typesafe/config/config/master"))
       checkArtifactFilename(new GitRepository(tmpDir, RepositoryName("org.scala-lang")), result.state.resolvedVariants("org.scala-lang/scala-library/config/master"))
+      //artifact cache:
+      checkArtifactCache(tmpDir, result.state.resolvedVariants("com.typesafe.akka/akka-actor_2.10/config/master"))
+      checkArtifactCache(tmpDir, result.state.resolvedVariants("com.typesafe/config/config/master"))
+      checkArtifactCache(tmpDir, result.state.resolvedVariants("org.scala-lang/scala-library/config/master"))
     }
   }
 

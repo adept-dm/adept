@@ -8,6 +8,8 @@ import adept.repository.GitRepository
 import adept.repository.serialization._
 import adept.repository.models._
 import adept.resolution.models._
+import adept.artifact.ArtifactCache
+import adept.artifact.models._
 import java.io.File
 import adept.logging.Logging
 
@@ -114,6 +116,24 @@ object IvyImportResultInserter extends Logging {
       case (name, _) =>
         val repository = new GitRepository(baseDir, name)
         repository.gc()
+        progress.update(1)
+    }
+    progress.endTask()
+    
+    progress.beginTask("Copying files to Adept cache", grouped.size)
+    grouped.par.foreach { //NOTICE .par TODO: same as above (IO vs CPU)
+      case (_, results) =>
+        for {
+          result <- results
+          artifact <- result.variant.artifacts
+          (expectedHash, file) <- result.localFiles
+          if artifact.hash == expectedHash
+        } { //<- NOTICE
+          ArtifactCache.cache(baseDir, file, expectedHash, artifact.filename.getOrElse(file.getName)) match {
+            case Left(error) => logger.error("While copying artifacts for: " + result.variant.id + " got: " + error + ". Variant: " + result.variant + " (src file: " + file.getAbsolutePath + ")")
+            case _ => //we do not check if we got the right amount of artifacts, because it can always be downloaded later. Caching is done as a convenience if we are going to use the Ivy import directly. 
+          }
+        }
         progress.update(1)
     }
     progress.endTask()
