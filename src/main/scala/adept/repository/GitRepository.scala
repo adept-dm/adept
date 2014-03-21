@@ -17,6 +17,7 @@ import adept.logging.Logging
 import adept.utils.Hasher
 import org.eclipse.jgit.revwalk.RevCommit
 import org.eclipse.jgit.revwalk.filter.RevFilter
+import org.eclipse.jgit.lib.ConfigConstants
 
 /**
  *  Defines Git operations and streams methods used for READ operations.
@@ -39,6 +40,14 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
     usingRevWalk { (gitRepo, revWalk) =>
       lookup(gitRepo, revWalk, commit.value).isDefined
     }
+  }
+
+  def getRemoteUri(remoteName: String): Option[String] = {
+    if (remoteName != GitRepository.DefaultRemote) throw new Exception("Cannot get " + remoteName + " remote uri because we only support: " + DefaultRemote + ".") //TODO: support other names
+    val repoConfig = git.getRepository().getConfig()
+    Some(repoConfig.getString(
+      ConfigConstants.CONFIG_REMOTE_SECTION, remoteName,
+      ConfigConstants.CONFIG_KEY_URL))
   }
 
   def fetchRemote(uri: String, passphrase: Option[String], progress: ProgressMonitor = NullProgressMonitor.INSTANCE) = {
@@ -80,7 +89,8 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
 
   def init() = {
     val git = Git.init().setDirectory(dir).call()
-    val initCommit = commit("Initialized " + name.value)
+    val revCommit = git.commit().setMessage("Initialized " + name.value).call
+    val initCommit = Commit(revCommit.name)
     git.tag().setName(InitTag).call()
     initCommit
   }
@@ -98,8 +108,13 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
   }
 
   def commit(msg: String): Commit = {
-    val revCommit = git.commit().setMessage(msg).call
-    Commit(revCommit.name)
+    if (isClean) {
+      logger.debug("Tried to commit to empty repository, ignoring... Message was: " + msg)
+      getHead
+    } else {
+      val revCommit = git.commit().setMessage(msg).call
+      Commit(revCommit.name)
+    }
   }
 
   def asGitPath(file: File): String = {
@@ -107,6 +122,7 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
   }
 
   //Members private to repository:
+  private[repository] def git = Git.open(dir)
 
   private[repository] def usingGitRepo[A](func: JGitRepository => A): A = {
     var repo: JGitRepository = null
@@ -251,8 +267,6 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
   }
 
   //Private members
-  
-  private def git = Git.open(dir)
 
   private def usingInputStream[A](commit: Commit, path: String)(block: Either[String, Option[InputStream]] => A): A = {
     usingTreeWalk { (gitRepo, revWalk, treeWalk) =>
@@ -288,6 +302,7 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
 
 object GitRepository {
   val InitTag = "init"
+  val DefaultRemote = "origin"
   val DefaultBranchName = "master"
   val Head = Constants.HEAD
 

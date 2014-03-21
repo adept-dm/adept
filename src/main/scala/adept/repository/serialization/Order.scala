@@ -70,11 +70,11 @@ object Order {
   def scanFirst[A](id: Id, orderId: OrderId, repository: GitRepository, commit: Commit)(func: VariantHash => Option[A]): Option[A] = {
     scan(id, orderId, repository, commit, stopOnFirst = true)(func).headOption
   }
-  
+
   def scan[A](id: Id, orderId: OrderId, repository: GitRepository, commit: Commit)(func: VariantHash => Option[A]): Seq[A] = {
     scan(id, orderId, repository, commit, stopOnFirst = false)(func)
   }
-  
+
   private def scan[A](id: Id, orderId: OrderId, repository: GitRepository, commit: Commit, stopOnFirst: Boolean)(func: VariantHash => Option[A]): Seq[A] = {
     var finished = false
     var results = Vector.empty[A]
@@ -136,6 +136,20 @@ object Order {
       val append = true
       addLine(hash.value, new FileOutputStream(newOrderFile, append))
       Set(newOrderFile)
+    } catch {
+      case e: Exception =>
+        newOrderFile.delete()
+        throw IllegalOrderStateException(repository, "An exception was thrown: " + e.getCause() + " (files where deleted)")
+    }
+  }
+
+  def insertNewFile(id: Id, orderId: OrderId, hash: VariantHash, repository: GitRepository): File = {
+    val newOrderFile = repository.getOrderFile(id, orderId)
+    if (newOrderFile.exists()) throw new Exception("Cannot create new order file " + newOrderFile.getAbsolutePath + " for " + id + " order id: " + orderId + " for hash " + hash + " in " + repository.dir.getAbsolutePath + " because the file already exists!")
+    try {
+      val append = false
+      addLine(hash.value, new FileOutputStream(newOrderFile, append))
+      newOrderFile
     } catch {
       case e: Exception =>
         newOrderFile.delete()

@@ -158,7 +158,7 @@ object VersionOrder extends Logging {
         case _ => throw new Exception("Unexpectly could not read variant: " + hash + " in  " + repository.dir.getAbsolutePath)
       }
     }
-    
+
     //2) Find binary versions
     var allBinaryVersions = Map.empty[String, Seq[Variant]]
     val NoBinaryVersion = ""
@@ -193,6 +193,7 @@ object VersionOrder extends Logging {
     orderFiles.toSet ++ oldOrderFiles.toSet
   }
 
+  /** Updates a variant with binary version. Useful for variants that are "semantic versioned" */
   def useSemanticVersions(id: Id, hash: VariantHash, repository: GitRepository, commit: Commit, excludes: Set[Regex] = Set.empty, useVersionAsBinary: Set[Regex] = Set.empty): Set[File] = {
     val variantMetadata = VariantMetadata.read(id, hash, repository, commit)
       .getOrElse(throw new Exception("Could not find variant: " + id + " hash: " + hash + " in " + repository.dir.getAbsolutePath + " for " + commit))
@@ -241,6 +242,7 @@ object VersionOrder extends Logging {
     changedFiles
   }
 
+  /** For variants that have binary-versions set in (id and repository), find all variants that requires it (in inRepositories) and lock the requirements to this binary-version */
   def useBinaryVersionOf(id: Id, repository: GitRepository, commit: Commit, inRepositories: Set[GitRepository]): Set[(GitRepository, File)] = {
     def getBinaryVersionRequirements(variant: Variant, resolutionResults: ResolutionResultsMetadata) = {
       val (targetRequirements, untouchedRequirements) = variant.requirements

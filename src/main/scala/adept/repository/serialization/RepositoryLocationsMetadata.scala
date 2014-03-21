@@ -8,6 +8,7 @@ import adept.repository.Repository
 import java.io.File
 import adept.repository.GitRepository
 import adept.repository.models.Commit
+import org.eclipse.jgit.lib.ConfigConstants
 
 case class RepositoryLocationsMetadata(uris: Seq[String]) {
  def toRepositoryLocations(name: RepositoryName) : RepositoryLocations = {
@@ -24,7 +25,7 @@ case class RepositoryLocationsMetadata(uris: Seq[String]) {
 
 
 object RepositoryLocationsMetadata {
-
+  
   private[adept] def read(name: RepositoryName, repository: GitRepository, commit: Commit): Option[RepositoryLocationsMetadata] = {
     repository.usingRepositoryLocationsStream(name, commit) {
       case Right(Some(is)) =>
