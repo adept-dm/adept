@@ -22,13 +22,18 @@ case class VariantMetadata(attributes: Seq[Attribute], artifacts: Seq[ArtifactRe
   }
 
   lazy val hash: VariantHash = {
+    //This means we are whitespace sensitive, on the other hand it makes it easier to create other tools that generate/checks the hash (SHA-256 of the contents). 
+    //We are also assuming that there is not that many people who will actually edit the content manually, and that if they do it will be picked up by Git so it is very visible. 
+    //Adept only reads from Git so we again we should be good.
+    //I agree that it feels dangerous (and not very defensive), but it is better than using another string as basis for the hash (without whitespaces) because that would be even more confusing and even harder to define exactly how the hash is calculated.
+    //Having a hash that is calculated from the internals would be a more sensible option, but it makes it hard to define how the hash should be. You could imagine that 2 platforms for example sort strings differently which would make it hard.
     VariantHash(Hasher.hash(jsonString.getBytes))
   }
 
   lazy val jsonString = Json.prettyPrint(Json.toJson(this))
 
   def write(id: Id, repository: Repository): File = {
-    require(hash.value.length == Repository.HashLength, "Hash for: " + id + " (" + this + ") had length:" + hash.value.length + " but should have " + Repository.HashLength)
+    require(hash.value.length == Repository.HashLength, "Hash for: " + id + " (" + this + ") has length:" + hash.value.length + " but should have " + Repository.HashLength)
     val file = repository.getVariantFile(id, hash)
     MetadataContent.write(jsonString, file)
   }
