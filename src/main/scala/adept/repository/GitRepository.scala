@@ -19,7 +19,7 @@ import org.eclipse.jgit.revwalk.RevCommit
 import org.eclipse.jgit.revwalk.filter.RevFilter
 
 /**
- *  Defines Git operations and defines streams methods used for READ operations.
+ *  Defines Git operations and streams methods used for READ operations.
  *
  *  See [[adept.repository.Repository]] for WRITE operations and layout
  */
