@@ -68,8 +68,6 @@ object Repository {
  *         - <hash>: is the variant hash of the item (SHA-256 of the contents of variant.json) and is split into 2 sub directories (first 4 chars (level 1), next 4 chars (level 2), then the rest (level 3))
  *           - "variant.json": the variant metadata: attributes, requirements and artifacts references
  *           - "resolution-results.json": the exact repository information this variant requires to resolve (commit, name, variant, ..)
- *           - "redirect.json" (OPTIONAL): defines the redirect information (see below) 
- *           - "conflicts.json" (OPTIONAL): defines the conflict information (see below) 
  *     - "locations"
  *       - "hosts.properties" (OPTIONAL): hosts that are used and can be overridden in locations and uris TODO: this has not been implemented yet
  *       - repositories
@@ -78,18 +76,6 @@ object Repository {
  *       - artifacts
  *         - <hash>: same as variant hash, but for artifacts so this is the actual hash of the file represented by the artifact
  *           - "artifact.json": information about the hashes (file size and locations)
- *           
- * Redirects and conflicts:
- * Redirects points to another repository and another id or both. Adept will look for the same hash (so same variant metadata) in there. 
- * A caller can either use the variant here or the variant in the other repo/id - it is strictly the same.
- * 
- * The conflict meta information defines the Ids which this variant conflicts with, i.e. resolution if there is no way to resolve except having a variant with both of these.
- * It is not part of the variant metadata because the variant itself should not change when there is another variant that happens to conflict with it.
- * Conflicts are useful by themselves (my module conflicts on another module), but can also used for renaming.
- *
- * When renaming a variant (change id, repository or both), the destination (new) variant defines a conflict with the source (old) variant, while the source (old) variant redirects to the destination (new) variant.
- * A user can be prompted to uprade to the new variant based on the redirect information. If the user transitively happens to use both (source/old & destination/new) variants, (s)he will have to upgrade the dependencies.
- *  
  */
 private[adept] class Repository(val baseDir: File, val name: RepositoryName) {
   import Repository._

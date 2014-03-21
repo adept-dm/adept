@@ -184,6 +184,7 @@ object Order {
     chosenVariants(id, Set.empty, repository, commit)
   }
 
+  //TODO: move this somewhere else since it is logic 
   def chosenVariants(id: Id, variants: Set[VariantHash], repository: GitRepository, commit: Commit): Set[VariantHash] = {
     var comparableVariants = variants
     val orderIds = listActiveOrderIds(id, repository, commit)

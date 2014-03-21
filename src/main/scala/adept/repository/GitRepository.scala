@@ -89,11 +89,11 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
     git.status().call().isClean()
   }
 
-  def pull(remoteName: String, uri: String) = {
+  def update(remoteName: String, uri: String) = {
     ???
   }
 
-  def push(remoteName: String, uri: String) = {
+  def publish(remoteName: String, uri: String) = {
     ???
   }
 
