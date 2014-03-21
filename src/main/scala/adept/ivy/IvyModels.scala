@@ -8,7 +8,7 @@ import adept.repository.models._
 import adept.ext.Version
 import org.apache.ivy.core.module.descriptor.ExcludeRule
 
-//Contains the 
+//Contains everything needed to be able to import from Ivy to Adept
 case class IvyImportResult(variant: Variant, artifacts: Set[Artifact], localFiles: Map[ArtifactHash, File], repository: RepositoryName, versionInfo: Set[(RepositoryName, Id, Version)], excludeRules: Map[(Id, Id), Set[ExcludeRule]])
 
 //Exceptions (thrown by Adept's Ivy import):
@@ -16,7 +16,7 @@ class IvyImportError(msg: String) extends Exception(msg)
 case class AdeptIvyResolveException(msg: String) extends Exception(msg)
 case class AdeptIvyException(msg: String) extends Exception(msg)
 
-//Errors (returned in Eithers so caller can recover):
+//Errors (returned in Either objects so caller can recover from them):
 case class ArtifactLocationError(location: String, file: File) extends IvyImportError("Could not determine artifact location: " + location + " for file: '" + file.getAbsolutePath + "'. Deleting the file might help.")
 case class IvyVerificationError(mismatchOnHash: ArtifactHash, variant: Variant, matchingHashes: Set[ArtifactHash])
 case class IvyVerificationErrorReport(msg: String, adeptExtraArtifacts: Map[ArtifactHash, Variant], ivyExtraArtifacts: Map[ArtifactHash, ModuleRevisionId], nonMatching: Set[IvyVerificationError]) {
