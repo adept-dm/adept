@@ -87,12 +87,17 @@ object VariantMetadata {
         }))
   }
 
-  def read(id: Id, hash: VariantHash, repository: GitRepository, commit: Commit): Option[VariantMetadata] = {
+  def read(id: Id, hash: VariantHash, repository: GitRepository, commit: Commit, checkHash: Boolean = true): Option[VariantMetadata] = {
     repository.usingVariantInputStream(id, hash, commit) {
       case Right(Some(is)) =>
         val json = Json.parse(io.Source.fromInputStream(is).getLines.mkString("\n"))
         Json.fromJson[VariantMetadata](json) match {
-          case JsSuccess(value, _) => Some(value)
+          case JsSuccess(value, _) =>
+            if (checkHash) {
+              if (value.hash == hash) {
+                Some(value)
+              } else throw new Exception("Found variant metdata: " + value + " for hash " + hash + " but it has a different hash: " + hash) //TODO: this might be overkill?
+            } else Some(value)
           case JsError(errors) => throw new Exception("Could parse json: " + hash + " for commit: " + commit + " in dir:  " + repository.dir + " (" + repository.getVariantFile(id, hash).getAbsolutePath + "). Got errors: " + errors)
         }
       case Right(None) => None
