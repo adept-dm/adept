@@ -143,7 +143,7 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
     }
   }
 
-  private[adept] def asGitPath(file: File): String = {
+  def asGitPath(file: File): String = {
     file.getAbsolutePath().replace(dir.getAbsolutePath() + File.separator, "").replace(File.separator, GitRepository.GitPathSep)
   }
 
@@ -228,23 +228,23 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
     }
   }
 
-  def usingResolutionResultsInputStream[A](id: Id, hash: VariantHash, commit: Commit)(block: Either[String, Option[InputStream]] => A): A = {
+  private[repository] def usingResolutionResultsInputStream[A](id: Id, hash: VariantHash, commit: Commit)(block: Either[String, Option[InputStream]] => A): A = {
     usingInputStream(commit, asGitPath(getResolutionResultsFile(id, hash)))(block)
   }
 
-  def usingVariantInputStream[A](id: Id, hash: VariantHash, commit: Commit)(block: Either[String, Option[InputStream]] => A): A = {
+  private[repository] def usingVariantInputStream[A](id: Id, hash: VariantHash, commit: Commit)(block: Either[String, Option[InputStream]] => A): A = {
     usingInputStream(commit, asGitPath(getVariantFile(id, hash)))(block)
   }
 
-  def usingArtifactInputStream[A](hash: ArtifactHash, commit: Commit)(block: Either[String, Option[InputStream]] => A): A = {
+  private[repository] def usingArtifactInputStream[A](hash: ArtifactHash, commit: Commit)(block: Either[String, Option[InputStream]] => A): A = {
     usingInputStream(commit, asGitPath(getArtifactFile(hash)))(block)
   }
 
-  def usingOrderInputStream[A](id: Id, orderId: OrderId, commit: Commit)(block: Either[String, Option[InputStream]] => A): A = {
+  private[repository] def usingOrderInputStream[A](id: Id, orderId: OrderId, commit: Commit)(block: Either[String, Option[InputStream]] => A): A = {
     usingInputStream(commit, asGitPath(getOrderFile(id, orderId)))(block)
   }
 
-  def usingRepositoryLocationsStream[A](name: RepositoryName, commit: Commit)(block: Either[String, Option[InputStream]] => A): A = {
+  private[repository] def usingRepositoryLocationsStream[A](name: RepositoryName, commit: Commit)(block: Either[String, Option[InputStream]] => A): A = {
     usingInputStream(commit, asGitPath(getRepositoryLocationsFile(name)))(block)
   }
 
