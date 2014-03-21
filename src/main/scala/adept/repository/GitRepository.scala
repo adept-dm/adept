@@ -34,7 +34,7 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
   def gc(): Unit = {
     git.gc().call() //TODO: .setProgressMonitor(progress)?
   }
-  
+
   def hasCommit(commit: Commit): Boolean = {
     usingRevWalk { (gitRepo, revWalk) =>
       lookup(gitRepo, revWalk, commit.value).isDefined
@@ -49,40 +49,6 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
 
   def checkout(branch: String) = { //TODO: REMOVE this one and manage remote uris properly
     git.checkout().setName(branch).call()
-  }
-
-  private def git = Git.open(dir)
-
-  private[repository] def usingGitRepo[A](func: JGitRepository => A): A = {
-    var repo: JGitRepository = null
-    try {
-      repo = git.getRepository()
-      func(repo)
-    } finally {
-      if (repo != null) repo.close()
-    }
-  }
-
-  private[repository] def usingRevWalk[A](func: (JGitRepository, RevWalk) => A) = {
-    usingGitRepo { gitRepo =>
-      val revWalk = new RevWalk(gitRepo)
-      try {
-        func(gitRepo, revWalk)
-      } finally {
-        revWalk.release()
-      }
-    }
-  }
-
-  private[repository] def usingTreeWalk[A](func: (JGitRepository, RevWalk, TreeWalk) => A) = {
-    usingRevWalk { (gitRepo, revWalk) =>
-      val treeWalk = new TreeWalk(gitRepo)
-      try {
-        func(gitRepo, revWalk, treeWalk)
-      } finally {
-        treeWalk.release()
-      }
-    }
   }
 
   def getHead: Commit = usingRevWalk { (gitRepo, revWalk) =>
@@ -119,9 +85,8 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
     initCommit
   }
 
-  def commit(msg: String): Commit = {
-    val revCommit = git.commit().setMessage(msg).call
-    Commit(revCommit.name)
+  def isClean: Boolean = {
+    git.status().call().isClean()
   }
 
   def pull(remoteName: String, uri: String) = {
@@ -132,19 +97,47 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
     ???
   }
 
-  private def readBlob[A](treeWalk: TreeWalk, gitRepo: JGitRepository)(f: InputStream => A) = {
-    val objectId = treeWalk.getObjectId(0) //nth == 0, means we are reading the 0th tree
-    val loader = gitRepo.open(objectId)
-    val stream = loader.openStream()
-    try {
-      f(loader.openStream())
-    } finally {
-      stream.close()
-    }
+  def commit(msg: String): Commit = {
+    val revCommit = git.commit().setMessage(msg).call
+    Commit(revCommit.name)
   }
 
   def asGitPath(file: File): String = {
     file.getAbsolutePath().replace(dir.getAbsolutePath() + File.separator, "").replace(File.separator, GitRepository.GitPathSep)
+  }
+
+  //Members private to repository:
+
+  private[repository] def usingGitRepo[A](func: JGitRepository => A): A = {
+    var repo: JGitRepository = null
+    try {
+      repo = git.getRepository()
+      func(repo)
+    } finally {
+      if (repo != null) repo.close()
+    }
+  }
+
+  private[repository] def usingRevWalk[A](func: (JGitRepository, RevWalk) => A) = {
+    usingGitRepo { gitRepo =>
+      val revWalk = new RevWalk(gitRepo)
+      try {
+        func(gitRepo, revWalk)
+      } finally {
+        revWalk.release()
+      }
+    }
+  }
+
+  private[repository] def usingTreeWalk[A](func: (JGitRepository, RevWalk, TreeWalk) => A) = {
+    usingRevWalk { (gitRepo, revWalk) =>
+      val treeWalk = new TreeWalk(gitRepo)
+      try {
+        func(gitRepo, revWalk, treeWalk)
+      } finally {
+        treeWalk.release()
+      }
+    }
   }
 
   private[repository] def lookup(gitRepo: JGitRepository, revWalk: RevWalk, commitString: String) = {
@@ -154,6 +147,17 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
       Option(revCommit)
     } else {
       None
+    }
+  }
+
+  private[repository] def readBlob[A](treeWalk: TreeWalk, gitRepo: JGitRepository)(f: InputStream => A) = {
+    val objectId = treeWalk.getObjectId(0) //nth == 0, means we are reading the 0th tree
+    val loader = gitRepo.open(objectId)
+    val stream = loader.openStream()
+    try {
+      f(loader.openStream())
+    } finally {
+      stream.close()
     }
   }
 
@@ -197,37 +201,6 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
     }
   }
 
-  private def usingInputStream[A](commit: Commit, path: String)(block: Either[String, Option[InputStream]] => A): A = {
-    usingTreeWalk { (gitRepo, revWalk, treeWalk) =>
-      val revCommit = lookup(gitRepo, revWalk, commit.value).getOrElse {
-        throw new Exception("Could not find: " + commit + " in " + dir.getAbsolutePath)
-      }
-      try {
-        revWalk.markStart(revCommit)
-      } catch {
-        case _: org.eclipse.jgit.errors.MissingObjectException =>
-          block(Left("Cannot find commit: " + commit + " in " + dir))
-      }
-      val currentTree = revCommit.getTree()
-      if (currentTree != null) { //if null means we on an empty commit (no tree)
-        treeWalk.addTree(currentTree)
-        treeWalk.setFilter(PathFilter.create(path))
-        treeWalk.setRecursive(true) //without recursive Git will return the directory, not the file
-        val res = if (treeWalk.next()) {
-          readBlob(treeWalk, gitRepo) { is =>
-            block(Right(Some(is)))
-          }
-        } else {
-          block(Right(None))
-        }
-        if (treeWalk.next()) throw new Exception("Found too many files matching path: " + path + " this one was: " + treeWalk.getPathString)
-        else res
-      } else {
-        block(Left("Could not find file for path: " + path + " in commit: " + commit + " for dir: " + dir.getAbsolutePath))
-      }
-    }
-  }
-
   private[repository] def usingResolutionResultsInputStream[A](id: Id, hash: VariantHash, commit: Commit)(block: Either[String, Option[InputStream]] => A): A = {
     usingInputStream(commit, asGitPath(getResolutionResultsFile(id, hash)))(block)
   }
@@ -246,10 +219,6 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
 
   private[repository] def usingRepositoryLocationsStream[A](name: RepositoryName, commit: Commit)(block: Either[String, Option[InputStream]] => A): A = {
     usingInputStream(commit, asGitPath(getRepositoryLocationsFile(name)))(block)
-  }
-
-  def isClean: Boolean = {
-    git.status().call().isClean()
   }
 
   private[repository] def usePath[A](path: Option[String], commit: Commit)(accumulate: String => Option[A]): Set[A] = {
@@ -281,6 +250,40 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
     }
   }
 
+  //Private members
+  
+  private def git = Git.open(dir)
+
+  private def usingInputStream[A](commit: Commit, path: String)(block: Either[String, Option[InputStream]] => A): A = {
+    usingTreeWalk { (gitRepo, revWalk, treeWalk) =>
+      val revCommit = lookup(gitRepo, revWalk, commit.value).getOrElse {
+        throw new Exception("Could not find: " + commit + " in " + dir.getAbsolutePath)
+      }
+      try {
+        revWalk.markStart(revCommit)
+      } catch {
+        case _: org.eclipse.jgit.errors.MissingObjectException =>
+          block(Left("Cannot find commit: " + commit + " in " + dir))
+      }
+      val currentTree = revCommit.getTree()
+      if (currentTree != null) { //if null means we on an empty commit (no tree)
+        treeWalk.addTree(currentTree)
+        treeWalk.setFilter(PathFilter.create(path))
+        treeWalk.setRecursive(true) //without recursive Git will return the directory, not the file
+        val res = if (treeWalk.next()) {
+          readBlob(treeWalk, gitRepo) { is =>
+            block(Right(Some(is)))
+          }
+        } else {
+          block(Right(None))
+        }
+        if (treeWalk.next()) throw new Exception("Found too many files matching path: " + path + " this one was: " + treeWalk.getPathString)
+        else res
+      } else {
+        block(Left("Could not find file for path: " + path + " in commit: " + commit + " for dir: " + dir.getAbsolutePath))
+      }
+    }
+  }
 }
 
 object GitRepository {
@@ -289,8 +292,4 @@ object GitRepository {
   val Head = Constants.HEAD
 
   val GitPathSep = "/" //the character that separates paths in Git
-
-  def clone(baseDir: File, remoteName: String, uri: String) = {
-    ???
-  }
 }
