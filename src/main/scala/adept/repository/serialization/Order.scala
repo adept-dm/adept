@@ -31,16 +31,20 @@ case class IllegalOrderStateException(repository: Repository, reason: String) ex
  */
 object Order {
   private def assertNewHash(id: Id, hash: VariantHash, repository: GitRepository, commit: Commit) = {
-    listActiveOrderIds(id, repository, commit).par.foreach { orderId => //NOTICE .par TODO: use IO execution context
-      val currentFile = repository.getOrderFile(id, orderId)
-      io.Source.fromFile(currentFile).getLines.foreach { line =>
-        if (line == hash.value) {
-          throw IllegalOrderStateException(repository, "File: " + currentFile.getAbsolutePath + " already has " + hash + " on line: " + line)
-        }
-      }
+    if (exitsHashInCommit(id, hash, repository, commit)) {
+      throw IllegalOrderStateException(repository, "There is an order file for " +id  + " with " + hash + " in " + repository.dir.getAbsolutePath + " for " + commit)
     }
   }
 
+  def exitsHashInCommit(id: Id, hash: VariantHash, repository: GitRepository, commit: Commit) = {
+    listActiveOrderIds(id, repository, commit).par.exists { orderId => //NOTICE .par TODO: use IO execution context
+      val currentFile = repository.getOrderFile(id, orderId)
+      io.Source.fromFile(currentFile).getLines.exists { line =>
+        line == hash.value
+      }
+    }
+  }
+  
   private def addLine(line: String, getFos: => FileOutputStream) = {
     var fos: FileOutputStream = null
     try {

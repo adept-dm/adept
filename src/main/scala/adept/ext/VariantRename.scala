@@ -12,6 +12,7 @@ import adept.resolution.models.Attribute
 import adept.resolution.models.Requirement
 import adept.repository.models.RepositoryLocations
 import adept.repository.serialization.RepositoryLocationsMetadata
+import adept.repository.serialization.ResolutionResultsMetadata
 
 object VariantRename {
   def rename(baseDir: File, sourceId: Id, sourceName: RepositoryName, sourceCommit: Commit, destId: Id, destName: RepositoryName): ((GitRepository, Set[File]), (GitRepository, Set[File])) = { //source repo and files, dest repo and files
@@ -50,26 +51,39 @@ object VariantRename {
           artifacts = Seq.empty,
           requirements = Seq(Requirement(destId, constraints = Set.empty, Set.empty)))
 
+        val orderId = Order.findOrderId(sourceId, sourceRepository, sourceCommit) { predicateHash =>
+          metadata.hash == predicateHash
+        }.getOrElse(throw new Exception("Could not find order id for " + sourceHash + " while renaming " + sourceId + " in " + sourceRepository.dir.getAbsolutePath + " for " + sourceCommit))
+
+        //source files, for each order id:
+        //  write the new variant with redirect info
+        sourceFiles += redirectMetadata.write(sourceId, sourceRepository)
+        //  add the hash of the variant we just add to order file
+        sourceFiles += Order.add(sourceId, orderId, redirectMetadata.hash, sourceRepository, sourceCommit)
+        //  write repository locations for the new repository if it exists
         if (destRepository.exists) {
           destRepository.getRemoteUri(GitRepository.DefaultRemote).foreach { uri =>
             sourceRepository.add(RepositoryLocationsMetadata(Seq(uri)).write(destRepository.name, sourceRepository))
           }
         } else None
 
-        val orderId = Order.findOrderId(sourceId, sourceRepository, sourceCommit) { predicateHash =>
-          metadata.hash == predicateHash
-        }.getOrElse(throw new Exception("Could not find order id for " + sourceHash + " while renaming " + sourceId + " in " + sourceRepository.dir.getAbsolutePath + " for " + sourceCommit))
-
-        sourceFiles += redirectMetadata.write(sourceId, sourceRepository)
-        sourceFiles += Order.add(sourceId, orderId, redirectMetadata.hash, sourceRepository, sourceCommit)
-
         val destMetadata = metadata.copy(
           requirements = Seq(Requirement(sourceId, constraints = Set.empty, Set.empty)))
+        //dest files, for each order id:
+        //   write the new destination variant (with the extra attribute)
         destFiles += destMetadata.write(destId, destRepository)
+        //   if we do not have this hash in the redirect info already:
+        //   write the same redirect variant in this repository as well
         destFiles += redirectMetadata.write(sourceId, destRepository)
-        //TODO: add resolution results as well
-        destFiles += Order.insertNewFile(sourceId, destOrderId, sourceHash, destRepository)
+        destFiles ++= Order.insertNewFile(sourceId, redirectMetadata.hash, destRepository, destRepository.getHead)
         destFiles += Order.insertNewFile(destId, destOrderId, destMetadata.hash, destRepository)
+
+      //        destFiles ++= ResolutionResultsMetadata.read(sourceId, metadata.hash, sourceRepository, sourceCommit).map { resolutionResults =>
+      //          resolutionResults.write(destId, destMetadata.hash, destRepository)
+      //          resolutionResults.values.map{ resolutionResult =>
+      //            resolutionResult.repository //TODO: repository locations
+      //          }
+      //        }
     }
     (sourceRepository -> sourceFiles, destRepository -> destFiles)
   }
