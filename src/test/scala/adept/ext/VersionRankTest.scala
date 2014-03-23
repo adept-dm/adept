@@ -146,7 +146,7 @@ class VersionOrderTest extends FunSpec with Matchers {
   }
 
   describe("Variants") {
-    it("should be automatically re-ordered by useDefaultVersionOrder if they have only versions") {
+    it("should be automatically re-ordered by useDefaultVersionRanking if they have only versions") {
       usingTmpDir { tmpDir =>
         val id = Id("A")
         val variant101 = Variant(id, Set(version -> Set("1.0.1")))
@@ -162,7 +162,7 @@ class VersionOrderTest extends FunSpec with Matchers {
         val (addFiles, rmFiles) = VersionRank.useDefaultVersionRanking(id, repository, commit1)
         repository.add(addFiles)
         repository.rm(rmFiles)
-        val commit2 = repository.commit("Order! Oooorder in the repo!")
+        val commit2 = repository.commit("Order! Oooorder in the repo!") //rank used to be called order, it is a funny comment though :)
         rankLogic.getChosenVariants(id, Set.empty, repository, commit2) shouldEqual Set(VariantMetadata.fromVariant(variant101).hash)
 
         repository.add(VariantMetadata.fromVariant(variant102).write(id, repository))
@@ -175,7 +175,7 @@ class VersionOrderTest extends FunSpec with Matchers {
         rankLogic.getChosenVariants(id, Set.empty, repository, commit5) shouldEqual Set(VariantMetadata.fromVariant(variant102).hash)
       }
     }
-    it("should be automatically re-ordered by useDefaultVersionOrder if they have binary versions") {
+    it("should be automatically re-ordered by useDefaultVersionRanking if they have binary versions") {
       usingTmpDir { tmpDir =>
         val id = Id("A")
         val variant101 = Variant(id, Set(version -> Set("1.0.1"), binaryVersion -> Set("1.0")))

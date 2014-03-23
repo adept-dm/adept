@@ -121,22 +121,12 @@ object VersionRank extends Logging {
 
   /** Creates new order files (and deletes the contents of old) according to 1) binary versions and 2) versions */
   def useDefaultVersionRanking(id: Id, repository: GitRepository, commit: Commit): (Set[File], Set[File]) = {
-    def getSortedByVersions(variants: Seq[Variant], rankId: RankId): Ranking = {
+    def getSortedByVersions(variants: Seq[Variant]): Seq[VariantHash] = {
       val hashes = variants.sortBy(getVersion).reverse.map { variant =>
         VariantMetadata.fromVariant(variant).hash
       }
-      Ranking(id, rankId, hashes)
+      hashes
     }
-    //
-    //    def removeContentsOfOldOrderFiles(orders: Set[OrderId]) = {
-    //      val formerOrders = Order.listActiveOrderIds(id, repository, commit)
-    //      val oldOrderIds = formerOrders.diff(orders)
-    //      oldOrderIds.map { orderId =>
-    //        val orderFile = repository.getOrderFile(id, orderId)
-    //        writeLines(Seq.empty, repository.getOrderFile(id, orderId)) //NOTICE: Seq.empty
-    //        orderFile
-    //      }
-    //    }
 
     //1) Get variants
     val variants = VariantMetadata.listVariants(id, repository, commit).map { hash =>
@@ -177,7 +167,8 @@ object VersionRank extends Logging {
     val rankingFiles = allBinaryVersions.toSeq.sortBy { case (binaryVersion, _) => Version(binaryVersion) }.zipWithIndex.map {
       case ((binaryVersion, variants), index) =>
         val rankId = RankId(newRankIds(index))
-        RankingMetadata(variants.map(variant => VariantMetadata.fromVariant(variant).hash)).write(id, rankId, repository)
+        val sortedVariants = getSortedByVersions(variants)
+        RankingMetadata(sortedVariants).write(id, rankId, repository)
     }
     (rankingFiles.toSet, oldRankingFiles.toSet)
   }
