@@ -7,14 +7,15 @@ import java.io.File
 import net.sf.ehcache.CacheManager
 import adept.utils.Hasher
 import net.sf.ehcache.Ehcache
-import adept.repository.serialization.Order
 import org.eclipse.jgit.lib.ProgressMonitor
 import adept.repository.serialization.ResolutionResultsMetadata
 import CacheHelpers._
 import adept.logging.Logging
 import adept.repository.serialization.RepositoryLocationsMetadata
+import adept.repository.serialization.RankingMetadata
 
 object GitLoader extends Logging {
+
   private def hash(id: Id, constraints: Set[Constraint], uniqueId: String): String = {
     val uniqueString = "idc" + (id.value + constraints.toSeq.sorted.map(c => c.name + c.values.mkString(",").mkString(";")) + uniqueId)
     Hasher.hash(uniqueString.getBytes)
@@ -44,7 +45,7 @@ object GitLoader extends Logging {
     getResolutionResults(baseDir, currentRequirements, progress, cacheManager)
   }
 
-  def getResolutionResults(baseDir: File, requirements: Set[(RepositoryName, Requirement, Commit)], progress: ProgressMonitor, cacheManager: CacheManager): Set[(ResolutionResult, Option[RepositoryLocations])] = {
+  def getResolutionResults(baseDir: File, requirements: Set[(RepositoryName, Requirement, Commit)], progress: ProgressMonitor, cacheManager: CacheManager, rankLogic: RankLogic = new RankLogic): Set[(ResolutionResult, Option[RepositoryLocations])] = {
     usingCache(key = "getResolutionResults" + hash(requirements), getCache(cacheManager)) {
       val latestRequirements = requirements.groupBy { case (name, requirement, _) => requirement.id -> name }.map {
         case ((id, name), values) =>
@@ -58,7 +59,13 @@ object GitLoader extends Logging {
       var allVariants = Map.empty[Id, (Set[(Variant, GitRepository, Commit)], Set[Constraint])] //easier to read than folding
       for {
         (id, constraints, repository, commit) <- latestRequirements
-        hash <- Order.activeVariants(id, repository, commit)
+        hash <- {
+          val rankIds = RankingMetadata.listRankIds(id, repository, commit)
+          val rankings = rankIds.flatMap { rankId =>
+            RankingMetadata.read(id, rankId, repository, commit).map(_.toRanking(id, rankId))
+          }
+          rankLogic.activeVariants(rankings)
+        }
         metadata <- VariantMetadata.read(id, hash, repository, commit)
       } { //<-- Notice (no yield)
         val variant = metadata.toVariant(id)
@@ -123,6 +130,8 @@ class GitLoader(baseDir: File, private[adept] val results: Set[ResolutionResult]
 
   private val cache: Ehcache = getCache(cacheManager)
 
+  protected val rankLogic = new RankLogic //protected => it is possible to override ranking behavior, but do we want to do that?
+
   private lazy val cachedById = usingCache("byId" + thisUniqueId, cache) { //lazy this might take a while
     results.groupBy(_.id).map {
       case (id, results) =>
@@ -134,7 +143,13 @@ class GitLoader(baseDir: File, private[adept] val results: Set[ResolutionResult]
             maybeLatestCommit.toSet.flatMap { commit: Commit =>
               val variants = results.map(_.variant)
               //use only the very best variants for any given commit:
-              val chosenVariants = Order.chosenVariants(id, variants, repository, commit)
+              val chosenVariants = {
+                val rankIds = RankingMetadata.listRankIds(id, repository, commit)
+                val rankings = rankIds.flatMap { rankId =>
+                  RankingMetadata.read(id, rankId, repository, commit).map(_.toRanking(id, rankId))
+                }
+                rankLogic.chosenVariants(variants, rankings)
+              }
               chosenVariants.map { variant => (variant, repositoryName, commit) }
             }
         }.toSet

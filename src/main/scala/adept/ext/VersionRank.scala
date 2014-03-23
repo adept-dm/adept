@@ -6,10 +6,11 @@ import adept.repository.GitRepository
 import java.io.File
 import adept.repository.serialization.VariantMetadata
 import adept.logging.Logging
-import adept.repository.serialization.Order
 import java.io.FileWriter
 import adept.repository.serialization.ResolutionResultsMetadata
 import scala.util.matching.Regex
+import adept.repository.serialization.RankingMetadata
+import adept.repository.RankLogic
 
 //import adept.logging.Logging
 //import adept.repository.GitRepository
@@ -85,9 +86,11 @@ import scala.util.matching.Regex
 
 case class BinaryVersionUpdateException(msg: String) extends Exception(msg)
 
-object VersionOrder extends Logging {
+object VersionRank extends Logging {
   import adept.ext.AttributeDefaults._
 
+  protected val rankLogic = RankLogic.Default //TODO: add as params instead?
+  
   def createResolutionResults(baseDir: File, versionInfo: Set[(RepositoryName, Id, Version)]): Set[ResolutionResult] = {
     val results = versionInfo.map {
       case (targetName, targetId, targetVersion) =>
@@ -116,40 +119,24 @@ object VersionOrder extends Logging {
     }
   }
 
-  def writeLines(lines: Seq[String], file: File) = {
-    var writer: FileWriter = null
-    try {
-      val append = false
-      writer = new FileWriter(file, append)
-      lines.foreach { line =>
-        writer.write((line + '\n'))
-      }
-      writer.flush()
-    } finally {
-      if (writer != null) writer.close()
-    }
-  }
-
   /** Creates new order files (and deletes the contents of old) according to 1) binary versions and 2) versions */
-  def useDefaultVersionOrder(id: Id, repository: GitRepository, commit: Commit): Set[File] = {
-    def writeSortedByVersions(variants: Seq[Variant], orderId: OrderId) = {
-      val lines = variants.sortBy(getVersion).reverse.map { variant =>
-        VariantMetadata.fromVariant(variant).hash.value
+  def useDefaultVersionRanking(id: Id, repository: GitRepository, commit: Commit): (Set[File], Set[File]) = {
+    def getSortedByVersions(variants: Seq[Variant], rankId: RankId): Ranking = {
+      val hashes = variants.sortBy(getVersion).reverse.map { variant =>
+        VariantMetadata.fromVariant(variant).hash
       }
-      val orderFile = repository.getOrderFile(id, orderId)
-      writeLines(lines, orderFile)
-      orderFile
+      Ranking(id, rankId, hashes)
     }
-
-    def removeContentsOfOldOrderFiles(orders: Set[OrderId]) = {
-      val formerOrders = Order.listActiveOrderIds(id, repository, commit)
-      val oldOrderIds = formerOrders.diff(orders)
-      oldOrderIds.map { orderId =>
-        val orderFile = repository.getOrderFile(id, orderId)
-        writeLines(Seq.empty, repository.getOrderFile(id, orderId)) //NOTICE: Seq.empty
-        orderFile
-      }
-    }
+    //
+    //    def removeContentsOfOldOrderFiles(orders: Set[OrderId]) = {
+    //      val formerOrders = Order.listActiveOrderIds(id, repository, commit)
+    //      val oldOrderIds = formerOrders.diff(orders)
+    //      oldOrderIds.map { orderId =>
+    //        val orderFile = repository.getOrderFile(id, orderId)
+    //        writeLines(Seq.empty, repository.getOrderFile(id, orderId)) //NOTICE: Seq.empty
+    //        orderFile
+    //      }
+    //    }
 
     //1) Get variants
     val variants = VariantMetadata.listVariants(id, repository, commit).map { hash =>
@@ -175,22 +162,24 @@ object VersionOrder extends Logging {
       }
     }
 
-    //3) Get orders
-    val orderSize = allBinaryVersions.size
-    val orders = Order.getXOrderId(repository, 0, orderSize) //overwrites former files
-    assert(orders.size == orderSize)
-    val newOrderIds = {
-      ((0 to orders.size) zip orders.toSeq.map(_.value).sorted).toMap
+    //3) Get rankings
+    val rankingSize = allBinaryVersions.size
+    val rankings = RankingMetadata.getXRankId(id, repository, 0, rankingSize) //overwrites former files
+    assert(rankings.size == rankingSize)
+    val newRankIds = {
+      ((0 to rankings.size) zip rankings.toSeq.map(_.value).sorted).toMap
     }
-    val oldOrderFiles = removeContentsOfOldOrderFiles(orders) //we need the old order files in case there were more binary versions (order files) before than there is now
+    val oldRankingFiles = {
+      RankingMetadata.listRankIds(id, repository, commit).diff(rankings).map(rankId => repository.getRankingFile(id, rankId))
+    }
 
-    //4) Write variants to order files 
-    val orderFiles = allBinaryVersions.toSeq.sortBy { case (binaryVersion, _) => Version(binaryVersion) }.zipWithIndex.map {
+    //4) Write variants to ranking files 
+    val rankingFiles = allBinaryVersions.toSeq.sortBy { case (binaryVersion, _) => Version(binaryVersion) }.zipWithIndex.map {
       case ((binaryVersion, variants), index) =>
-        val orderId = OrderId(newOrderIds(index))
-        writeSortedByVersions(variants, orderId)
+        val rankId = RankId(newRankIds(index))
+        RankingMetadata(variants.map(variant => VariantMetadata.fromVariant(variant).hash)).write(id, rankId, repository)
     }
-    orderFiles.toSet ++ oldOrderFiles.toSet
+    (rankingFiles.toSet, oldRankingFiles.toSet)
   }
 
   /** Updates a variant with binary version. Useful for variants that are "semantic versioned" */
@@ -232,14 +221,17 @@ object VersionOrder extends Logging {
   private def replaceVariant(currentVariant: Variant, newVariant: Variant, repository: GitRepository, commit: Commit) = {
     val newMetadata = VariantMetadata.fromVariant(newVariant)
     val oldHash = VariantMetadata.fromVariant(currentVariant).hash
-    val changedFiles = Order.listActiveOrderIds(currentVariant.id, repository, commit).flatMap { orderId =>
-      Order.replace(currentVariant.id, orderId, repository, commit) { currentHash =>
-        if (currentHash == oldHash) {
-          Some(Seq(newMetadata.hash, oldHash)) //place new hash before old
+    val id = currentVariant.id
+    val changedFiles = RankingMetadata.listRankIds(id, repository, commit).flatMap { rankId =>
+      RankingMetadata.read(id, rankId, repository, commit).flatMap { rankings =>
+        if (rankings.variants.contains(oldHash)) {
+          val (before, after) = rankings.variants.span(_ != oldHash)
+          Some(RankingMetadata((before :+ newMetadata.hash) ++ after).write(id, rankId, repository))
         } else None
       }
-    } + newMetadata.write(newVariant.id, repository)
-    changedFiles
+    }
+
+    changedFiles + newMetadata.write(newVariant.id, repository)
   }
 
   /** For variants that have binary-versions set in (id and repository), find all variants that requires it (in inRepositories) and lock the requirements to this binary-version */
@@ -276,7 +268,7 @@ object VersionOrder extends Logging {
     val changedFiles = inRepositories.par.flatMap { otherRepo =>
       val otherCommit = otherRepo.getHead
       VariantMetadata.listIds(otherRepo, otherCommit).flatMap { otherId =>
-        val variants = Order.activeVariants(otherId, otherRepo, otherCommit)
+        val variants = rankLogic.getActiveVariants(otherId, otherRepo, otherCommit)
         variants.flatMap { otherHash =>
           val otherVariant = {
             val metadata = VariantMetadata.read(otherId, otherHash, otherRepo, otherCommit).getOrElse(throw new Exception("Could not update binary version for: " + id + " in " + otherId + " because we could not find a variant for hash: " + otherHash + " in " + otherRepo + " and commit " + commit))

@@ -79,7 +79,9 @@ object IvyImportResultInserter extends Logging {
             repository.add(ArtifactMetadata.fromArtifact(artifact).write(artifact.hash, repository))
           }
           val commit = repository.commit("Ivy Import of " + variant.id) //TODO: We could remove this commit, and I suspect things will go a bit faster
-          repository.add(VersionOrder.useDefaultVersionOrder(id, repository, commit))
+          val (addFiles, rmFiles) = VersionRank.useDefaultVersionRanking(id, repository, commit)
+          repository.add(addFiles)
+          repository.rm(rmFiles)
           repository.commit("Ordered Ivy Import of " + variant.id)
         }
         progress.update(1)
@@ -98,7 +100,7 @@ object IvyImportResultInserter extends Logging {
 
           val includedVersionInfo = result.versionInfo
 
-          val currentResults = VersionOrder.createResolutionResults(baseDir, includedVersionInfo) ++
+          val currentResults = VersionRank.createResolutionResults(baseDir, includedVersionInfo) ++
             Set(ResolutionResult(id, repository.name, repository.getHead, variantMetadata.hash))
 
           val resolutionResultsMetadata = ResolutionResultsMetadata(currentResults.toSeq)

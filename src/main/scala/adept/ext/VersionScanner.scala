@@ -7,22 +7,24 @@ import adept.repository.serialization._
 
 object VersionScanner {
   def findVersion(id: Id, version: Version, repository: GitRepository, commit: Commit): Option[VariantHash] = {
-    val activeIds = Order.listActiveOrderIds(id, repository, commit)
-    val foundHashes = activeIds.flatMap { orderId =>
-      Order.scanFirst(id, orderId, repository, commit) { hash =>
-
-        for {
-          metadata <- VariantMetadata.read(id, hash, repository, commit)
-          foundVersion <- {
-            VersionOrder.getVersion(metadata.toVariant(id))
-          } if (foundVersion == version)
-        } yield {
-          (orderId, metadata.hash)
-        }
+    val rankIds = RankingMetadata.listRankIds(id, repository, commit)
+    val foundHashes = rankIds.flatMap { rankId =>
+      RankingMetadata.read(id, rankId, repository, commit).flatMap { ranking =>
+        ranking.variants.find { hash =>
+          val maybeHash = for {
+            metadata <- VariantMetadata.read(id, hash, repository, commit)
+            foundVersion <- {
+              VersionRank.getVersion(metadata.toVariant(id))
+            } if (foundVersion == version)
+          } yield {
+            metadata.hash
+          }
+          maybeHash.isDefined
+        }.map(hash => rankId -> hash)
       }
     }
 
-    if (foundHashes.size > 1) throw new Exception("Could not determine one single order in which id: " + id + " version: " + version + " was found! Got: " + foundHashes)
+    if (foundHashes.size > 1) throw new Exception("Could not determine one single ranking in which id: " + id + " version: " + version + " was found! Got: " + foundHashes)
     else foundHashes.headOption.map {
       case (_, hash) =>
         hash

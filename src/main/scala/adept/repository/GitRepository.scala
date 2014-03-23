@@ -229,8 +229,8 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
     usingInputStream(commit, asGitPath(getArtifactFile(hash)))(block)
   }
 
-  private[repository] def usingOrderInputStream[A](id: Id, orderId: OrderId, commit: Commit)(block: Either[String, Option[InputStream]] => A): A = {
-    usingInputStream(commit, asGitPath(getOrderFile(id, orderId)))(block)
+  private[repository] def usingRankingInputStream[A](id: Id, rankId: RankId, commit: Commit)(block: Either[String, Option[InputStream]] => A): A = {
+    usingInputStream(commit, asGitPath(getRankingFile(id, rankId)))(block)
   }
 
   private[repository] def usingRepositoryLocationsStream[A](name: RepositoryName, commit: Commit)(block: Either[String, Option[InputStream]] => A): A = {

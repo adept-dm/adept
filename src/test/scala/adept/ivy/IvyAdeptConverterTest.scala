@@ -12,8 +12,6 @@ import adept.repository.serialization.ResolutionResultsMetadata
 import java.io.File
 import adept.repository.GitRepository
 import adept.repository.GitLoader
-import adept.ext.VersionOrder
-import adept.repository.serialization.Order
 import adept.repository.serialization.VariantMetadata
 import adept.utils.Hasher
 import net.sf.ehcache.CacheManager

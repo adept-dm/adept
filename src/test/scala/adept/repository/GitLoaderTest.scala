@@ -6,15 +6,15 @@ import org.eclipse.jgit.lib.TextProgressMonitor
 import adept.repository.models._
 import adept.resolution.models._
 import net.sf.ehcache.CacheManager
-import adept.repository.serialization.Order
 import java.io.File
 import adept.ext.Version
 import org.scalatest.OptionValues._
-import adept.ext.VersionOrder
 import adept.ext.AttributeDefaults
 import adept.repository.serialization.VariantMetadata
 import adept.repository.serialization.ResolutionResultsMetadata
 import adept.repository.serialization.RepositoryLocationsMetadata
+import adept.ext.VersionRank
+import adept.repository.serialization.RankingMetadata
 
 class GitLoaderTest extends FunSuite with Matchers {
   import adept.test.FileUtils._
@@ -41,7 +41,8 @@ class GitLoaderTest extends FunSuite with Matchers {
         case (v, r) =>
           val metadata = VariantMetadata.fromVariant(v)
           r.add(metadata.write(v.id, r))
-          r.add(Order.insertNewFile(v.id, metadata.hash, r, r.getHead))
+          val rankId = RankingMetadata.getXRankId(v.id, r, 0, 1).headOption.value
+          r.add(RankingMetadata(Seq(metadata.hash)).write(v.id, rankId, r))
           val commit = r.commit("Adding: " + v.id)
 
           ResolutionResult(v.id, r.name, commit, metadata.hash)
@@ -77,13 +78,17 @@ class GitLoaderTest extends FunSuite with Matchers {
         requirements = Set(idB -> Set(Constraint(binaryVersion, Set("2.0"))))), repoA)
       val hashB = addVariant(Variant(idB, Set(version -> Set("2.0.1"), binaryVersion -> Set("2.0")), requirements = Set.empty), repoB)
       val commitB = repoB.commit("Adding B baby!")
-      repoB.add(VersionOrder.useDefaultVersionOrder(idB, repoB, commitB))
+      val (addFiles1, rmFiles1) = VersionRank.useDefaultVersionRanking(idB, repoB, commitB) 
+      repoB.add(addFiles1)
+      repoB.rm(rmFiles1)
       repoB.commit("The B(order)")
 
       //adding one more variant to verify that hashes work across commits:
       val hashB2 = addVariant(Variant(idB, Set(version -> Set("1.0.1"), binaryVersion -> Set("1.0")), requirements = Set.empty), repoB)
       val commitB2 = repoB.commit("Adding B baby!")
-      repoB.add(VersionOrder.useDefaultVersionOrder(idB, repoB, commitB2))
+      val (addFiles2, rmFiles2) = VersionRank.useDefaultVersionRanking(idB, repoB, commitB2)
+      repoB.add(addFiles2)
+      repoB.add(rmFiles2)
       val commitB3 = repoB.commit("The B(order) 2")
 
       //using latest commit for B and old hash (the first variant)
@@ -94,7 +99,9 @@ class GitLoaderTest extends FunSuite with Matchers {
       repoA.add(
         RepositoryLocationsMetadata(locationsA.toSeq).write(repoA.name, repoA))
       val commitA = repoA.commit("Adding aaaaa A")
-      repoA.add(VersionOrder.useDefaultVersionOrder(idA, repoA, commitA))
+      val (addFiles3, rmFiles3) = VersionRank.useDefaultVersionRanking(idA, repoA, commitA)
+      repoA.add(addFiles3)
+      repoA.rm(rmFiles3)
       repoA.commit("Order in a A")
       val requirements: Set[(RepositoryName, Requirement, Commit)] = Set(
         (repoA.name, (idA -> Set(Constraint(binaryVersion, Set("1.0")))), commitA), //should get overridden
