@@ -8,15 +8,19 @@ import adept.repository.serialization.RankingMetadata
 import adept.repository.models.RankId
 
 object RankLogic {
-  val Default = new RankLogic
-}
 
-class RankLogic {
-
-  /** Defines rank logic */
+  /** Defines rank logic:
+   *  - if the list of input variants contains 2 or more that is in the same ranking file, select the first one
+   *  - if there is no variant hashes found for the input variants in the rankings, select the last one in the ranking file
+   *  
+   *  Also checks that 2 rankings does NOT contain the same hash
+   */
   def chosenVariants(variants: Set[VariantHash], rankings: Set[Ranking]): Set[VariantHash] = {
     var rankIds = Set.empty[RankId]
     var comparableVariants = variants
+    if (rankings.toSeq.flatMap(_.variants).size != rankings.flatMap(_.variants).toSet.size) {
+      throw new Exception("Found multiple ranking files that have the same hash:" + rankings.mkString("\n"))
+    } 
     rankings.foreach { ranking =>
       if (rankIds.contains(ranking.rankId)) throw new Exception("Could not chose variants, because there are multiple equal rank ids in rankings: " + rankings.map(_.rankId))
       rankIds += ranking.rankId

@@ -89,8 +89,6 @@ case class BinaryVersionUpdateException(msg: String) extends Exception(msg)
 object VersionRank extends Logging {
   import adept.ext.AttributeDefaults._
 
-  protected val rankLogic = RankLogic.Default //TODO: add as params instead?
-  
   def createResolutionResults(baseDir: File, versionInfo: Set[(RepositoryName, Id, Version)]): Set[ResolutionResult] = {
     val results = versionInfo.map {
       case (targetName, targetId, targetVersion) =>
@@ -259,7 +257,7 @@ object VersionRank extends Logging {
     val changedFiles = inRepositories.par.flatMap { otherRepo =>
       val otherCommit = otherRepo.getHead
       VariantMetadata.listIds(otherRepo, otherCommit).flatMap { otherId =>
-        val variants = rankLogic.getActiveVariants(otherId, otherRepo, otherCommit)
+        val variants = RankLogic.getActiveVariants(otherId, otherRepo, otherCommit)
         variants.flatMap { otherHash =>
           val otherVariant = {
             val metadata = VariantMetadata.read(otherId, otherHash, otherRepo, otherCommit).getOrElse(throw new Exception("Could not update binary version for: " + id + " in " + otherId + " because we could not find a variant for hash: " + otherHash + " in " + otherRepo + " and commit " + commit))

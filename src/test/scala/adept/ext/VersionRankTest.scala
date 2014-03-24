@@ -15,8 +15,6 @@ class VersionOrderTest extends FunSpec with Matchers {
   import adept.test.ResolverUtils._
   import adept.test.OutputUtils._
   
-  val rankLogic = RankLogic.Default
-  
   describe("Creating binary versions") {
     val idA = Id("A")
     def binaryVersion(variant: Variant) = {
@@ -39,7 +37,7 @@ class VersionOrderTest extends FunSpec with Matchers {
           excludes = Set("2\\.8.*?".r))
         repoA.add(addFiles)
         repoA.commit("SemVer")
-        val activeAs = rankLogic.getActiveVariants(idA, repoA, repoA.getHead)
+        val activeAs = RankLogic.getActiveVariants(idA, repoA, repoA.getHead)
         activeAs should have size (1)
         val hash = activeAs.headOption.value
         VariantMetadata.read(idA, hash, repoA, repoA.getHead).value.toVariant(idA).attribute(AttributeDefaults.BinaryVersionAttribute).values
@@ -102,14 +100,14 @@ class VersionOrderTest extends FunSpec with Matchers {
             repo.commit("Using binary version for: " + idA.value)
         }
 
-        val activeBs = rankLogic.getActiveVariants(idB, repoB, repoB.getHead)
+        val activeBs = RankLogic.getActiveVariants(idB, repoB, repoB.getHead)
         activeBs should have size (1)
         activeBs.map { hash =>
           val newVariant = VariantMetadata.read(idB, hash, repoB, repoB.getHead).value
           val requirements = newVariant.requirements.find(_.id == idA).value
           requirements.constraint(AttributeDefaults.BinaryVersionAttribute).values shouldEqual Set("1.0")
         }
-        val activeCs = rankLogic.getActiveVariants(idC, repoC, repoC.getHead)
+        val activeCs = RankLogic.getActiveVariants(idC, repoC, repoC.getHead)
         activeCs should have size (1)
         activeCs.map { hash =>
           val newVariant = VariantMetadata.read(idC, hash, repoC, repoC.getHead).value
@@ -163,7 +161,7 @@ class VersionOrderTest extends FunSpec with Matchers {
         repository.add(addFiles)
         repository.rm(rmFiles)
         val commit2 = repository.commit("Order! Oooorder in the repo!") //rank used to be called order, it is a funny comment though :)
-        rankLogic.getChosenVariants(id, Set.empty, repository, commit2) shouldEqual Set(VariantMetadata.fromVariant(variant101).hash)
+        RankLogic.getChosenVariants(id, Set.empty, repository, commit2) shouldEqual Set(VariantMetadata.fromVariant(variant101).hash)
 
         repository.add(VariantMetadata.fromVariant(variant102).write(id, repository))
         val commit4 = repository.commit("Add some data...")
@@ -172,7 +170,7 @@ class VersionOrderTest extends FunSpec with Matchers {
         repository.add(addFiles2)
         repository.rm(rmFiles2)
         val commit5 = repository.commit("And some order")
-        rankLogic.getChosenVariants(id, Set.empty, repository, commit5) shouldEqual Set(VariantMetadata.fromVariant(variant102).hash)
+        RankLogic.getChosenVariants(id, Set.empty, repository, commit5) shouldEqual Set(VariantMetadata.fromVariant(variant102).hash)
       }
     }
     it("should be automatically re-ordered by useDefaultVersionRanking if they have binary versions") {
@@ -199,7 +197,7 @@ class VersionOrderTest extends FunSpec with Matchers {
         repository.add(addFiles1)
         repository.rm(rmFiles1)
         val commit2 = repository.commit("Order! Oooorder in the repo!")
-        rankLogic.getChosenVariants(id, Set.empty, repository, commit2) shouldEqual Set(VariantMetadata.fromVariant(variant101).hash, VariantMetadata.fromVariant(variant110).hash, VariantMetadata.fromVariant(variant200).hash)
+        RankLogic.getChosenVariants(id, Set.empty, repository, commit2) shouldEqual Set(VariantMetadata.fromVariant(variant101).hash, VariantMetadata.fromVariant(variant110).hash, VariantMetadata.fromVariant(variant200).hash)
 
         repository.rm(repository.getVariantFile(id, VariantMetadata.fromVariant(variant200).hash))
         val commit3 = repository.commit("Remove some data...")
@@ -213,7 +211,7 @@ class VersionOrderTest extends FunSpec with Matchers {
         repository.add(addFiles2)
         repository.rm(rmFiles2)
         val commit5 = repository.commit("And some order")
-        rankLogic.getChosenVariants(id, Set.empty, repository, commit5) shouldEqual Set(VariantMetadata.fromVariant(variant112).hash, VariantMetadata.fromVariant(variant102).hash)
+        RankLogic.getChosenVariants(id, Set.empty, repository, commit5) shouldEqual Set(VariantMetadata.fromVariant(variant112).hash, VariantMetadata.fromVariant(variant102).hash)
 
         repository.add(VariantMetadata.fromVariant(variant200).write(id, repository))
         val commit6 = repository.commit("Re-added something we removed")
@@ -223,7 +221,7 @@ class VersionOrderTest extends FunSpec with Matchers {
 
         val commit7 = repository.commit("Adept: Now with more order!")
 
-        rankLogic.getChosenVariants(id, Set.empty, repository, commit7) shouldEqual Set(VariantMetadata.fromVariant(variant112).hash, VariantMetadata.fromVariant(variant102).hash, VariantMetadata.fromVariant(variant200).hash)
+        RankLogic.getChosenVariants(id, Set.empty, repository, commit7) shouldEqual Set(VariantMetadata.fromVariant(variant112).hash, VariantMetadata.fromVariant(variant102).hash, VariantMetadata.fromVariant(variant200).hash)
       }
     }
   }

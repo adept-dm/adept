@@ -18,8 +18,6 @@ class RankLogicTest extends FunSuite with Matchers {
   import adept.test.FileUtils.usingTmpDir
   import adept.test.HashUtils._
 
-  val RankLogic = adept.repository.RankLogic.Default
-
   test("Variant hash pruning") {
     val id = Id("test/foo")
 

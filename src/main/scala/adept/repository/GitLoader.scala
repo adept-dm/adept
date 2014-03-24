@@ -45,7 +45,7 @@ object GitLoader extends Logging {
     getResolutionResults(baseDir, currentRequirements, progress, cacheManager)
   }
 
-  def getResolutionResults(baseDir: File, requirements: Set[(RepositoryName, Requirement, Commit)], progress: ProgressMonitor, cacheManager: CacheManager, rankLogic: RankLogic = new RankLogic): Set[(ResolutionResult, Option[RepositoryLocations])] = {
+  def getResolutionResults(baseDir: File, requirements: Set[(RepositoryName, Requirement, Commit)], progress: ProgressMonitor, cacheManager: CacheManager): Set[(ResolutionResult, Option[RepositoryLocations])] = {
     usingCache(key = "getResolutionResults" + hash(requirements), getCache(cacheManager)) {
       val latestRequirements = requirements.groupBy { case (name, requirement, _) => requirement.id -> name }.map {
         case ((id, name), values) =>
@@ -64,7 +64,7 @@ object GitLoader extends Logging {
           val rankings = rankIds.flatMap { rankId =>
             RankingMetadata.read(id, rankId, repository, commit).map(_.toRanking(id, rankId))
           }
-          rankLogic.activeVariants(rankings)
+          RankLogic.activeVariants(rankings)
         }
         metadata <- VariantMetadata.read(id, hash, repository, commit)
       } { //<-- Notice (no yield)
@@ -130,8 +130,6 @@ class GitLoader(baseDir: File, private[adept] val results: Set[ResolutionResult]
 
   private val cache: Ehcache = getCache(cacheManager)
 
-  protected val rankLogic = new RankLogic //protected => it is possible to override ranking behavior, but do we want to do that?
-
   private lazy val cachedById = usingCache("byId" + thisUniqueId, cache) { //lazy this might take a while
     results.groupBy(_.id).map {
       case (id, results) =>
@@ -148,7 +146,7 @@ class GitLoader(baseDir: File, private[adept] val results: Set[ResolutionResult]
                 val rankings = rankIds.flatMap { rankId =>
                   RankingMetadata.read(id, rankId, repository, commit).map(_.toRanking(id, rankId))
                 }
-                rankLogic.chosenVariants(variants, rankings)
+                RankLogic.chosenVariants(variants, rankings)
               }
               chosenVariants.map { variant => (variant, repositoryName, commit) }
             }
