@@ -45,7 +45,7 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
   def getRemoteUri(remoteName: String): Option[String] = {
     if (remoteName != GitRepository.DefaultRemote) throw new Exception("Cannot get " + remoteName + " remote uri because we only support: " + DefaultRemote + ".") //TODO: support other names
     val repoConfig = git.getRepository().getConfig()
-    Some(repoConfig.getString(
+    Option(repoConfig.getString(
       ConfigConstants.CONFIG_REMOTE_SECTION, remoteName,
       ConfigConstants.CONFIG_KEY_URL))
   }
