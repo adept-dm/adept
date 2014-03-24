@@ -1,6 +1,6 @@
 package adept.repository
 
-import org.scalatest.FunSuite
+import org.scalatest.FunSpec
 import org.scalatest.Matchers
 import adept.resolution.models.Id
 import adept.repository.models.VariantHash
@@ -14,11 +14,11 @@ import adept.test.HashUtils.asHash
 import scala.Option.option2Iterable
 import adept.repository.models.Ranking
 
-class RankLogicTest extends FunSuite with Matchers {
+class RankLogicTest extends FunSpec with Matchers {
   import adept.test.FileUtils.usingTmpDir
   import adept.test.HashUtils._
 
-  test("Variant hash pruning") {
+  describe("Variant hash pruning") {
     val id = Id("test/foo")
 
     val hash1: VariantHash = "foobar"
@@ -31,38 +31,37 @@ class RankLogicTest extends FunSuite with Matchers {
     val rankId2 = RankId("foo2")
     val rankId3 = RankId("foo3")
     val ranking1 = Ranking(id, rankId1, Seq())
-    withClue("should check if one simple hash is found") {
+    it("should check if one simple hash is found") {
       RankLogic.chosenVariants(Set(hash1), Set(
         Ranking(id, rankId1, Seq(hash1)))) shouldEqual Set(hash1)
     }
-    withClue("should verify that hashes that are not known, are not pruned") {
+    it("should verify that hashes that are not known, are not pruned") {
       RankLogic.chosenVariants(Set(hash1, hash21), Set(
         Ranking(id, rankId1, Seq(hash1)))) shouldEqual Set(hash1, hash21)
     }
-    withClue("should verify that 2 existing hashes behaves correctly (both are found)") {
+    it("should verify that 2 existing hashes behaves correctly (both are found)") {
       RankLogic.chosenVariants(Set(hash1, hash21), Set(
         Ranking(id, rankId1, Seq(hash1)),
         Ranking(id, rankId2, Seq(hash21)))) shouldEqual Set(hash1, hash21)
     }
-    withClue("should verify that the old hashes are pruned away") {
+    it("should verify that the old hashes are pruned away") {
       RankLogic.chosenVariants(Set(hash1, hash22, hash21), Set(
         Ranking(id, rankId1, Seq(hash1)),
         Ranking(id, rankId2, Seq(hash22, hash21)))) shouldEqual Set(hash1, hash22)
     }
-    withClue("should verify that the latest ranking is included") {
+    it("should verify that the latest ranking is included") {
       RankLogic.chosenVariants(Set(hash1, hash22, hash21), Set(
         Ranking(id, rankId1, Seq(hash1)),
         Ranking(id, rankId3, Seq(hash31)),
         Ranking(id, rankId2, Seq(hash22, hash21)))) shouldEqual Set(hash1, hash22, hash31)
     }
-    withClue("should verify that the latest ranking always is the one which is defined (even if there is a newer one)") {
+    it("should verify that the latest ranking always is the one which is defined (even if there is a newer one)") {
       RankLogic.chosenVariants(Set(hash1, hash22, hash21, hash31), Set(
         Ranking(id, rankId1, Seq(hash1)),
         Ranking(id, rankId2, Seq(hash32, hash31)),
         Ranking(id, rankId3, Seq(hash22, hash21)))) shouldEqual Set(hash1, hash22, hash31)
     }
-
-    withClue("verify that default active variants work as expected") {
+    it("should verify that default active variants work as expected") {
       RankLogic.activeVariants(Set(
         Ranking(id, rankId1, Seq(hash1)),
         Ranking(id, rankId2, Seq(hash32, hash31)),
