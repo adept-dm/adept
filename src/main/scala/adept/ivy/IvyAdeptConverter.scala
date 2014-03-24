@@ -34,15 +34,15 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, skippableConf: Optio
 
   /**
    * Loads and converts results from an Ivy module to IyyImportResults which Adept can use.
-   * 
+   *
    * Conversion from Ivy to Adept consists of 2 steps:
    * 1) Load Ivy import results from Ivy: @see [[adept.ivy.IvyAdeptConverter.loadAsIvyImportResults]] in this class
    * 2) Insert Ivy import results into corresponding Adept repositories: @see [[adept.ivy.IvyImportResultInserter.insertAsResolutionResults]]
-   * 
+   *
    * To convert dependencies to requirements @see [[adept.ivy.IvyRequirements.convertIvyAsRequirements]]
-   * 
+   *
    * To verify that the requirements and the conversion was correct @see [[adept.ivy.IvyAdeptConverter.verifyConversion]]
-   **/
+   */
   def loadAsIvyImportResults(module: ModuleDescriptor, progress: ProgressMonitor): Either[Set[IvyImportError], Set[IvyImportResult]] = {
     ivy.synchronized { //ivy is not thread safe
       val mrid = module.getModuleRevisionId()
@@ -162,23 +162,23 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, skippableConf: Optio
     val dependencyTree = createDependencyTree(mrid)(resolveReport)
     val workingNode = dependencyTree(ModuleRevisionId.newInstance(org, name + "-caller", "working")).head
     progress.beginTask("Importing " + mrid, dependencyTree(workingNode.getId).size)
-    val allResults = results(workingNode, progress, progressIndicatorRoot = true)(dependencyTree)
+    val allResults = results(workingNode, Set.empty, progress, progressIndicatorRoot = true)(dependencyTree)
     progress.endTask()
     allResults
   }
 
-  private def results(currentIvyNode: IvyNode, progress: ProgressMonitor, progressIndicatorRoot: Boolean)(dependencies: Map[ModuleRevisionId, Set[IvyNode]]): Either[Set[IvyImportError], Set[IvyImportResult]] = {
+  private def results(currentIvyNode: IvyNode, visited: Set[IvyNode], progress: ProgressMonitor, progressIndicatorRoot: Boolean)(dependencies: Map[ModuleRevisionId, Set[IvyNode]]): Either[Set[IvyImportError], Set[IvyImportResult]] = {
     val mrid = currentIvyNode.getId
     val children = dependencies.getOrElse(mrid, Set.empty)
 
     val currentResults = createIvyResult(currentIvyNode, children, dependencies)
     var allResults = currentResults.right.getOrElse(Set.empty[IvyImportResult])
     var errors = currentResults.left.getOrElse(Set.empty[IvyImportError])
-
-    children.foreach { childNode =>
+    println(mrid)
+    children.filter(!visited(_)).foreach { childNode =>
       val childId = childNode.getId
       val dependencyTree = createDependencyTree(childId)(ivy.resolve(childId, resolveOptions(), changing))
-      val newResults = results(childNode, progress, progressIndicatorRoot = false)(dependencies ++ dependencyTree)
+      val newResults = results(childNode, visited ++ children + currentIvyNode, progress, progressIndicatorRoot = false)(dependencies ++ dependencyTree)
       if (progressIndicatorRoot) progress.update(1)
       allResults ++= newResults.right.getOrElse(Set.empty[IvyImportResult])
       errors ++= newResults.left.getOrElse(Set.empty[IvyImportError])
@@ -206,15 +206,25 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, skippableConf: Optio
     }
   }
 
+  private def getConfigurations(ivyNode: IvyNode, confName: String) = {
+    ivyNode.getConfigurations(confName).toSet[String]
+      .flatMap { conf =>
+        if (ivyNode.getConfiguration(conf) == null)
+          logger.warn("Got null for configuration: " + conf + " @ " + ivyNode)
+        Option(ivyNode.getConfiguration(conf))
+      }
+  }
+
   private def extractRequirementsAndExcludes(thisVariantId: Id, confName: String, currentIvyNode: IvyNode, loaded: Set[IvyNode]) = {
     var excludeRules = Map.empty[(Id, Id), Set[ExcludeRule]]
 
     val requirements = loaded.flatMap { ivyNode =>
       val currentExcludeRules = getExcludeRules(currentIvyNode, ivyNode)
       if (!ivyNode.isEvicted(confName)) {
-        val requirements = ivyNode.getConfigurations(confName).toSet.map(ivyNode.getConfiguration).map { requirementConf =>
-          Requirement(ivyIdAsId(ivyNode.getId.getModuleId, requirementConf.getName()), Set.empty, Set.empty)
-        } + Requirement(ivyIdAsId(ivyNode.getId.getModuleId), Set.empty, Set.empty)
+        val requirements = getConfigurations(ivyNode, confName).map { requirementConf =>
+            Requirement(ivyIdAsId(ivyNode.getId.getModuleId, requirementConf.getName()), Set.empty, Set.empty)
+          } + Requirement(ivyIdAsId(ivyNode.getId.getModuleId), Set.empty, Set.empty)
+
         requirements.foreach { requirement =>
           if (currentExcludeRules.nonEmpty) {
             excludeRules += (thisVariantId, requirement.id) -> currentExcludeRules //<-- MUTATE!
@@ -257,7 +267,7 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, skippableConf: Optio
       if (!ivyNode.isEvicted(confName)) {
         val targetRepositoryName = ivyIdAsRepositoryName(ivyNode.getId.getModuleId)
         val targetVersion = ivyIdAsVersion(ivyNode.getId)
-        ivyNode.getConfigurations(confName).toSet.map(ivyNode.getConfiguration).map { requirementConf =>
+        getConfigurations(ivyNode, confName).map { requirementConf =>
           val targetId = ivyIdAsId(ivyNode.getId.getModuleId, requirementConf.getName)
           (targetRepositoryName, targetId, targetVersion)
         } + ((targetRepositoryName, ivyIdAsId(ivyNode.getId.getModuleId), targetVersion))
