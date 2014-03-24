@@ -117,14 +117,15 @@ object VersionRank extends Logging {
     }
   }
 
+  private[adept] def getSortedByVersions(variants: Seq[Variant]): Seq[VariantHash] = {
+    val hashes = variants.sortBy(getVersion).reverse.map { variant =>
+      VariantMetadata.fromVariant(variant).hash
+    }
+    hashes
+  }
+
   /** Creates new order files (and deletes the contents of old) according to 1) binary versions and 2) versions */
   def useDefaultVersionRanking(id: Id, repository: GitRepository, commit: Commit): (Set[File], Set[File]) = {
-    def getSortedByVersions(variants: Seq[Variant]): Seq[VariantHash] = {
-      val hashes = variants.sortBy(getVersion).reverse.map { variant =>
-        VariantMetadata.fromVariant(variant).hash
-      }
-      hashes
-    }
 
     //1) Get variants
     val variants = VariantMetadata.listVariants(id, repository, commit).map { hash =>
