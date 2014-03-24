@@ -5,17 +5,22 @@ import adept.resolution.models.Id
 import adept.repository.models.VariantHash
 import adept.repository.models.Commit
 import adept.repository.serialization.RankingMetadata
+import adept.repository.models.RankId
 
 object RankLogic {
   val Default = new RankLogic
 }
 
 class RankLogic {
-  
+
   /** Defines rank logic */
   def chosenVariants(variants: Set[VariantHash], rankings: Set[Ranking]): Set[VariantHash] = {
+    var rankIds = Set.empty[RankId]
     var comparableVariants = variants
     rankings.foreach { ranking =>
+      if (rankIds.contains(ranking.rankId)) throw new Exception("Could not chose variants, because there are multiple equal rank ids in rankings: " + rankings.map(_.rankId))
+      rankIds += ranking.rankId
+
       var foundVariantHash: Option[VariantHash] = None
       var first = ranking.variants.headOption
       ranking.variants.foreach { hash =>
@@ -44,5 +49,25 @@ class RankLogic {
   def activeVariants(rankings: Set[Ranking]): Set[VariantHash] = {
     chosenVariants(Set.empty, rankings)
   }
-  
+
+  //Include these?
+  //  def newRanking(id: Id, hash: VariantHash, repository: GitRepository, commit: Commit) = {
+  //    val current = RankingMetadata.listRankIds(id, repository, commit)
+  //    val rankId = RankingMetadata.getXRankId(id, repository, current.size, 1).headOption.value
+  //    RankingMetadata(Seq(hash)).write(id, rankId, repository)
+  //  }
+  //
+  //  def findRankings(id: Id, hash: VariantHash, repository: GitRepository, commit: Commit) = {
+  //    val rankings = RankingMetadata.listRankIds(id, repository, commit).flatMap { rankId =>
+  //      RankingMetadata.read(id, rankId, repository, commit).map(_.toRanking(id, rankId))
+  //    }
+  //    val matchingRankings = rankings.filter(_.variants.contains(hash))
+  //    matchingRankings should have size (1)
+  //    matchingRankings.headOption.value
+  //  }
+  //
+  //  def prepend(id: Id, rankId: RankId, hash: VariantHash, repository: GitRepository, commit: Commit) = {
+  //    val rankingMetadata = RankingMetadata.read(id, rankId, repository, commit).headOption.value
+  //    rankingMetadata.copy(variants = hash +: rankingMetadata.variants).write(id, rankId, repository)
+  //  }
 }
