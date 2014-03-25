@@ -54,7 +54,7 @@ object GitLoader extends Logging {
           val constraints = values.flatMap { case (_, requirement: Requirement, _) => requirement.constraints }
           (id, constraints, repository, GitHelpers.lastestCommit(repository, commits).getOrElse(throw new Exception("Could not find a latest commit between (is empty or cannot compare?): " + commits + " in " + repository.dir.getAbsolutePath)))
       }
-
+      println("latestRequirements" + latestRequirements.map(lr => lr._1 -> lr._3.name))
       //populate allVariants:
       var allVariants = Map.empty[Id, (Set[(Variant, GitRepository, Commit)], Set[Constraint])] //easier to read than folding
       for {
@@ -64,9 +64,15 @@ object GitLoader extends Logging {
           val rankings = rankIds.flatMap { rankId =>
             RankingMetadata.read(id, rankId, repository, commit).map(_.toRanking(id, rankId))
           }
-          RankLogic.activeVariants(rankings)
+          val foundHashes = RankLogic.activeVariants(rankings)
+          if (foundHashes.isEmpty) logger.warn("Could not find any ranking matching: " + id + " in " + repository.dir.getAbsolutePath + " for " + commit)
+          foundHashes
         }
-        metadata <- VariantMetadata.read(id, hash, repository, commit)
+        metadata <- {
+          val maybeMetadata = VariantMetadata.read(id, hash, repository, commit)
+          if (!maybeMetadata.isDefined) logger.warn("Could not find variant metadata: " + hash + " for id: " +  id + " in dir " + repository.dir.getAbsolutePath + " for " + commit)
+          maybeMetadata
+        }
       } { //<-- Notice (no yield)
         val variant = metadata.toVariant(id)
         val (formerVariants: Set[(Variant, GitRepository, Commit)], formerConstraints: Set[Constraint]) = allVariants.getOrElse(id, (Set.empty[(Variant, GitRepository, Commit)], Set.empty[Constraint]))

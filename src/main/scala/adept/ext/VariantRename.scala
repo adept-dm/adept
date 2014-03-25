@@ -48,7 +48,7 @@ object VariantRename extends Logging {
     }
   }
 
-  def rename(baseDir: File, sourceId: Id, sourceName: RepositoryName, sourceCommit: Commit, destId: Id, destName: RepositoryName): ((GitRepository, Set[File]), (GitRepository, Set[File])) = { //source repo and files, dest repo and files
+  def rename(baseDir: File, sourceId: Id, sourceName: RepositoryName, sourceCommit: Commit, destId: Id, destName: RepositoryName): (Commit, Commit) = { //source, dest
     logger.warn("Renaming is EXPERIMENTAL")
     val sourceRepository = new GitRepository(baseDir, sourceName)
     val destRepository = new GitRepository(baseDir, destName)
@@ -65,6 +65,7 @@ object VariantRename extends Logging {
 
     var sourceFiles = Set.empty[File]
     var destFiles = Set.empty[File]
+    var newDestHashes = Set.empty[VariantHash]
 
     val redirectAttribute = Attribute("redirect", Set(sourceName.value + Repository.IdDirSep + sourceId.value + ":" + destName.value + Repository.IdDirSep + destId.value))
     val redirectRequirement = Requirement(destId, constraints = Set.empty, Set.empty)
@@ -72,6 +73,8 @@ object VariantRename extends Logging {
       attributes = Seq(redirectAttribute),
       artifacts = Seq.empty,
       requirements = Seq(redirectRequirement))
+    val conflictRequirement =
+      Requirement(sourceId, constraints = Set.empty, Set.empty)
 
     //gather files:
     destRepository.getRemoteUri(GitRepository.DefaultRemote).foreach { uri =>
@@ -84,7 +87,7 @@ object VariantRename extends Logging {
         Some(RankingMetadata(hashes ++ formerRankings.variants).write(id, rankId, repository))
       } else None
     }
-
+    var allResolutionResults = Set.empty[(VariantHash, Set[ResolutionResult])]
     (allSourceVariantsRankIds zip destRankIds).foreach {
       case ((sourceHashes, sourceRankId), destRankId) =>
         var newSourceHashes = IndexedSeq.empty[VariantHash] //appending so must be indexed
@@ -93,14 +96,16 @@ object VariantRename extends Logging {
           val VariantAssociations(variant, resolutionResults, repositoryLocations, artifactLocations) =
             getAllVariantAssociations(sourceId, sourceHash, sourceRepository, sourceCommit)
               .getOrElse(throw new Exception("Could not find associated data for: " + sourceHash + " in " + sourceId + " in repo: " + sourceRepository.dir.getAbsolutePath + " for " + sourceCommit))
-
-          val newSourceVariant = variant.copy(attributes = variant.attributes :+ redirectAttribute, requirements = variant.requirements.filter(_.id != destId) :+ redirectRequirement)
+          val newSourceVariant = variant.copy(attributes = variant.attributes :+ redirectAttribute, requirements = variant.requirements.filter(_.id != destId) :+ conflictRequirement)
           destFiles += newSourceVariant.write(destId, destRepository)
-          destFiles += ResolutionResultsMetadata(resolutionResults.toSeq).write(destId, variant.hash, destRepository)
           destFiles ++= repositoryLocations.map(repositoryLocation => RepositoryLocationsMetadata(repositoryLocation.uris.toSeq).write(repositoryLocation.name, destRepository))
           destFiles ++= artifactLocations.map(artifact => ArtifactMetadata.fromArtifact(artifact).write(artifact.hash, destRepository))
+
+          allResolutionResults += newSourceVariant.hash -> resolutionResults //adding current results
           newSourceHashes = newSourceHashes :+ newSourceVariant.hash
         }
+        newDestHashes += newSourceHashes.head
+
         destFiles ++= addRankingIfNonExisting(destId, newSourceHashes, destRankId, destRepository, destRepository.getHead)
         sourceFiles += redirectMetadata.write(sourceId, sourceRepository)
         sourceFiles ++= addRankingIfNonExisting(sourceId, Seq(redirectMetadata.hash), sourceRankId, sourceRepository, sourceCommit)
@@ -114,7 +119,28 @@ object VariantRename extends Logging {
     destFiles += RankingMetadata(Seq(redirectMetadata.hash)).write(sourceId, oldDestRankId, destRepository)
     destFiles += redirectMetadata.write(sourceId, destRepository)
 
-    println(destFiles.mkString("\n"))
-    (sourceRepository, sourceFiles) -> (destRepository, destFiles)
+    destRepository.add(destFiles)
+    val prevCommit = destRepository.getHead
+    val addDestCommit = destRepository.commit("Added files from " + sourceRepository.name.value + " " + sourceId.value + " to " + destRepository.name.value + " " + destId.value)
+
+    if (prevCommit != addDestCommit) {
+      sourceFiles ++= newDestHashes.flatMap { hash =>
+        Set() +
+          ResolutionResultsMetadata(Seq(ResolutionResult(sourceId, destName, addDestCommit, hash))).write(sourceId, redirectMetadata.hash, sourceRepository) +
+          ResolutionResultsMetadata(Seq(ResolutionResult(destId, destName, addDestCommit, redirectMetadata.hash))).write(sourceId, redirectMetadata.hash, sourceRepository)
+      }
+      destRepository.add(for {
+        (newSourceHash, resolutionResults) <- allResolutionResults
+      } yield {
+        ResolutionResultsMetadata((resolutionResults + ResolutionResult(sourceId, destRepository.name, addDestCommit, redirectMetadata.hash)).toSeq).write(destId, newSourceHash, destRepository)
+      })
+      val createdDestCommit = destRepository.commit("Renamed from " + sourceRepository.name.value + " " + sourceId.value + " to " + destRepository.name.value + " " + destId.value)
+      sourceRepository.add(sourceFiles)
+      val createdSourceCommit = sourceRepository.commit("Renamed to " + sourceRepository.name.value + " " + sourceId.value + " to " + destRepository.name.value + " " + destId.value)
+      createdSourceCommit -> createdDestCommit
+      
+    } else {
+      sourceRepository.getHead -> prevCommit
+    }
   }
 }

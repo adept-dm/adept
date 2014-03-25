@@ -12,10 +12,16 @@ import org.eclipse.jgit.api.Git
 import org.eclipse.jgit.lib.ConfigConstants
 import adept.resolution.models.Variant
 import adept.resolution.models.Id
+import adept.resolution.models.Requirement
+import adept.repository.GitLoader
+import adept.resolution.Resolver
+import adept.resolution.models.Constraint
 
 class VariantRenameTest extends FunSuite with Matchers {
   import adept.test.FileUtils._
   import adept.test.ResolverUtils._
+  import adept.test.LoaderUtils._
+  import adept.test.OutputUtils._
 
   test("Basic variant rename") {
     usingTmpDir { tmpDir =>
@@ -45,24 +51,49 @@ class VariantRenameTest extends FunSuite with Matchers {
       val destRepository = new GitRepository(tmpDir, RepositoryName("akka"))
       destRepository.init()
 
-      val ((sourceRepo, sourceFiles), (destRepo, destFiles)) =
+      val (sourceCommit1, destCommit1) =
         VariantRename.rename(tmpDir, sourceId, sourceRepository.name, sourceCommit, destId, destRepository.name)
 
-      sourceRepo.add(sourceFiles)
-      sourceRepo.commit("Renamed to: " + destId)
+      val (sourceCommit2, destCommit2) =
+        VariantRename.rename(tmpDir, sourceId, sourceRepository.name, sourceCommit, destId, destRepository.name)
 
-      destRepo.add(destFiles)
-      destRepo.commit("Renamed from " + sourceId)
+      assert(sourceCommit1 == sourceCommit2, "Rename should be idempotent but we got a new commit: " + sourceCommit2 + " when we already had: " + sourceCommit1)
+      assert(destCommit1 == destCommit2, "Rename should be idempotent but we got a new commit: " + destCommit2 + " when we already had: " + destCommit1)
 
-      sourceFiles should have size (3) //1 variant file (the one that just redirects) and modify the 2 order files to use new variant file 
-      destFiles should have size (8)
+      //check resolution
+      val sourceReq = Requirement(sourceId, Set.empty, Set.empty)
+      val destReq = Requirement(destId, Set(Constraint(binaryVersion, Set("2.2"))), Set.empty)
 
-      { //check idempotency
-        val ((sourceRepo, sourceFiles), (destRepo, destFiles)) =
+      withClue("Try resolution on source that has been renamed") {
+        val resolutionResults = GitLoader.getLatestResolutionResults(tmpDir, Set(sourceRepository.name -> sourceReq), progress, cacheManager)
+          .map(_._1)
+        val loader = new GitLoader(tmpDir, resolutionResults, progress, cacheManager)
+        val resolver = new Resolver(loader)
+        val result = resolver.resolve(Set(sourceReq))
+        checkResolved(result, Set(sourceId))
+        checkUnresolved(result, Set(destId)) //you cannot resolve this because it has been renamed
+      }
 
-          VariantRename.rename(tmpDir, sourceId, sourceRepository.name, sourceCommit, destId, destRepository.name)
-        assert(sourceRepository.isClean, "Source repository " + sourceRepository.dir + " was not clean though nothing new should have been added")
-        assert(destRepository.isClean, "Dest repository " + destRepository.dir + " was not clean though nothing new should have been added")
+      withClue("Try resolution on new dest") {
+        val resolutionResults = GitLoader.getLatestResolutionResults(tmpDir, Set(destRepository.name -> destReq), progress, cacheManager)
+          .map(_._1)
+        val loader = new GitLoader(tmpDir, resolutionResults, progress, cacheManager)
+        val resolver = new Resolver(loader)
+        val result = resolver.resolve(Set(destReq))
+        assert(result.isResolved)  //should be resolved
+        checkResolved(result, Set(sourceId, destId)) 
+        checkUnresolved(result, Set())
+      }
+
+      withClue("Try resolution when both source and dest is required") {
+        val resolutionResults = GitLoader.getResolutionResults(tmpDir, Set((destRepository.name, destReq, destRepository.getHead), (sourceRepository.name, sourceReq, sourceCommit)), progress, cacheManager)
+          .map(_._1)
+        println(resolutionResults.mkString("\n"))
+        val loader = new GitLoader(tmpDir, resolutionResults, progress, cacheManager)
+        val resolver = new Resolver(loader)
+        val result = resolver.resolve(Set(destReq))
+        checkResolved(result, Set(destId))
+        checkUnresolved(result, Set(sourceId)) //we are under-constrained because we are requiring something which has been reordered
       }
     }
   }
