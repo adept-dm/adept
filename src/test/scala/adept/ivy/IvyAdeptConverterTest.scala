@@ -393,4 +393,52 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
       }
     }
   }
+
+//  test("Ivy end-to-end: sbt plugin") {
+//    implicit val testDetails = TestDetails("End-to-end (play sbt plugin)")
+//    usingTmpDir { tmpDir =>
+//      val  ivy = IvyUtils.load(ivyLogger = IvyConstants.warnIvyLogger)
+//
+//      ivy.configure(new File("src/test/resources/sbt-plugin-ivy-settings.xml"))
+//      
+//      val ivyConverter = new IvyAdeptConverter(ivy)
+//
+//      val transitive = true
+//      val changing = true
+//      val force = true
+//      val ivyModule = DefaultModuleDescriptor.newBasicInstance(ModuleRevisionId.newInstance("com.adepthub", "test", "1.0"), new java.util.Date(1395315115209L))
+//      ivyModule.addConfiguration(new IvyConfiguration("default", IvyConfiguration.Visibility.PUBLIC, "", Array("master", "runtime"), true, ""))
+//      ivyModule.addConfiguration(new IvyConfiguration("master", IvyConfiguration.Visibility.PUBLIC, "", Array.empty, true, ""))
+//      ivyModule.addConfiguration(new IvyConfiguration("runtime", IvyConfiguration.Visibility.PUBLIC, "", Array("compile"), true, ""))
+//      ivyModule.addConfiguration(new IvyConfiguration("compile", IvyConfiguration.Visibility.PUBLIC, "", Array.empty, true, ""))
+//      ivyModule.addConfiguration(new IvyConfiguration("test", IvyConfiguration.Visibility.PRIVATE, "", Array("runtime"), true, ""))
+//
+//      val playSbtDep = new DefaultDependencyDescriptor(ivyModule,
+//        ModuleRevisionId.newInstance("com.typesafe.play", "sbt-plugin", "2.2.2"), force, changing, transitive)
+//      playSbtDep.addDependencyConfiguration("runtime", "default(runtime)")
+//      ivyModule.addDependency(playSbtDep)
+//
+//      val results = benchmark(IvyImport, ivyModule) {
+//        ivyConverter.loadAsIvyImportResults(ivyModule, progress).failOnLeft
+//      }
+//      val resolutionResults = benchmark(Inserted, results) {
+//        IvyImportResultInserter.insertAsResolutionResults(tmpDir, results, progress)
+//      }
+//
+//      val requirements = benchmark(Converted, ivyModule && results) {
+//        IvyRequirements.convertIvyAsRequirements(ivyModule, results)
+//      }
+//
+//      val loader = benchmark(Loaded, resolutionResults) {
+//        new GitLoader(tmpDir, resolutionResults, progress, cacheManager)
+//      }
+//
+//      for (confName <- requirements.keys) {
+//        val result = benchmark(Resolved, requirements(confName) && loader) {
+//          resolve(requirements(confName), loader)
+//        }
+//        println(result)
+//      }
+//    }
+//  }
 }

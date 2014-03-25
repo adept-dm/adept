@@ -14,7 +14,7 @@ class VersionOrderTest extends FunSpec with Matchers {
   import adept.test.FileUtils._
   import adept.test.ResolverUtils._
   import adept.test.OutputUtils._
-  
+
   describe("Creating binary versions") {
     val idA = Id("A")
     def binaryVersion(variant: Variant) = {
@@ -118,7 +118,7 @@ class VersionOrderTest extends FunSpec with Matchers {
     }
   }
 
-    describe("Variants") {
+  describe("Variants") {
     it("should be automatically re-ordered by useDefaultVersionRanking if they have only versions") {
       usingTmpDir { tmpDir =>
         val id = Id("A")

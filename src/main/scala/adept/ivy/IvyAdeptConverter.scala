@@ -174,7 +174,6 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, skippableConf: Optio
     val currentResults = createIvyResult(currentIvyNode, children, dependencies)
     var allResults = currentResults.right.getOrElse(Set.empty[IvyImportResult])
     var errors = currentResults.left.getOrElse(Set.empty[IvyImportError])
-    println(mrid)
     children.filter(!visited(_)).foreach { childNode =>
       val childId = childNode.getId
       val dependencyTree = createDependencyTree(childId)(ivy.resolve(childId, resolveOptions(), changing))
