@@ -88,7 +88,6 @@ class VariantRenameTest extends FunSuite with Matchers {
       withClue("Try resolution when both source and dest is required") {
         val resolutionResults = GitLoader.getResolutionResults(tmpDir, Set((destRepository.name, destReq, destRepository.getHead), (sourceRepository.name, sourceReq, sourceCommit)), progress, cacheManager)
           .map(_._1)
-        println(resolutionResults.mkString("\n"))
         val loader = new GitLoader(tmpDir, resolutionResults, progress, cacheManager)
         val resolver = new Resolver(loader)
         val result = resolver.resolve(Set(destReq))

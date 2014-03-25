@@ -54,7 +54,7 @@ object GitLoader extends Logging {
           val constraints = values.flatMap { case (_, requirement: Requirement, _) => requirement.constraints }
           (id, constraints, repository, GitHelpers.lastestCommit(repository, commits).getOrElse(throw new Exception("Could not find a latest commit between (is empty or cannot compare?): " + commits + " in " + repository.dir.getAbsolutePath)))
       }
-      println("latestRequirements" + latestRequirements.map(lr => lr._1 -> lr._3.name))
+
       //populate allVariants:
       var allVariants = Map.empty[Id, (Set[(Variant, GitRepository, Commit)], Set[Constraint])] //easier to read than folding
       for {
