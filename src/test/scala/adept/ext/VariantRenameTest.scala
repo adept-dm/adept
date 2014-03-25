@@ -12,10 +12,17 @@ import org.eclipse.jgit.api.Git
 import org.eclipse.jgit.lib.ConfigConstants
 import adept.resolution.models.Variant
 import adept.resolution.models.Id
+import adept.repository.GitLoader
+import adept.resolution.models.Requirement
+import adept.resolution.Resolver
+import adept.repository.models.ResolutionResult
+import adept.resolution.models.Constraint
 
 class VariantRenameTest extends FunSuite with Matchers {
   import adept.test.FileUtils._
   import adept.test.ResolverUtils._
+  import adept.test.LoaderUtils._
+  import adept.test.OutputUtils._
 
   test("Basic variant rename") {
     usingTmpDir { tmpDir =>
@@ -40,27 +47,39 @@ class VariantRenameTest extends FunSuite with Matchers {
       val destId = Id("akka-actor")
       val destRepository = new GitRepository(tmpDir, RepositoryName("akka"))
       destRepository.init()
-      
-      val ((sourceRepo, sourceFiles), (destRepo, destFiles)) =
+
+      val (sourceCommit1, destCommit1) =
         VariantRename.rename(tmpDir, sourceId, sourceRepository.name, sourceCommit, destId, destRepository.name)
 
-      sourceRepo.add(sourceFiles)
-      sourceRepo.commit("Renamed to: " + destId)
+      val (sourceCommit2, destCommit2) =
+        VariantRename.rename(tmpDir, sourceId, sourceRepository.name, sourceCommit, destId, destRepository.name)
 
-      destRepo.add(destFiles)
-      destRepo.commit("Renamed from " + sourceId)
-      
-      sourceFiles should have size (3) //1 variant file (the one that just redirects) and modify the 2 order files to use new variant file 
-      destFiles should have size (8) 
-      
-      { //check idempotency
-        val ((sourceRepo, sourceFiles), (destRepo, destFiles)) =
+      assert(sourceCommit1 == sourceCommit2, "Rename should be idempotent but we got a new commit: " + sourceCommit2 + " when we already had: " + sourceCommit1)
+      assert(destCommit1 == destCommit2, "Rename should be idempotent but we got a new commit: " + destCommit2 + " when we already had: " + destCommit1)
 
-          VariantRename.rename(tmpDir, sourceId, sourceRepository.name, sourceCommit, destId, destRepository.name)
-          assert(sourceRepository.isClean, "Source repository "+sourceRepository.dir+" was not clean though nothing new should have been added")
-          assert(destRepository.isClean, "Dest repository "+destRepository.dir+" was not clean though nothing new should have been added")
+      //check resolution
+      {
+        val sourceReq = Requirement(sourceId, Set.empty, Set.empty)
+        val resolutionResults = GitLoader.getLatestResolutionResults(tmpDir, Set(sourceRepository.name -> sourceReq), progress, cacheManager)
+          .map(_._1)
+        println(resolutionResults)
+        val loader = new GitLoader(tmpDir, resolutionResults, progress, cacheManager)
+        val resolver = new Resolver(loader)
+        println(resolver.resolve(Set(sourceReq)))
+      }
+
+      {
+        val sourceReq = Requirement(sourceId, Set.empty, Set.empty)
+        val destReq = Requirement(destId, Set(Constraint(binaryVersion, Set("2.1"))), Set.empty)
+        val resolutionResults = GitLoader.getLatestResolutionResults(tmpDir, Set(sourceRepository.name -> sourceReq), progress, cacheManager)
+          .map(_._1)
+        println(resolutionResults)
+        val loader = new GitLoader(tmpDir, resolutionResults, progress, cacheManager)
+        val resolver = new Resolver(loader)
+        println(resolver.resolve(Set(sourceReq)))
       }
     }
+
   }
 
 }
