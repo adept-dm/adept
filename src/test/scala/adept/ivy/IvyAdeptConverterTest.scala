@@ -41,7 +41,7 @@ import adept.test.TestDetails
 
 class IvyAdeptConverterTest extends FunSuite with Matchers {
   import adept.test.ResolverUtils._
-  import adept.test.LoaderUtils._
+  import adept.test.CacheUtils._
   import adept.test.FileUtils.usingTmpDir
   import adept.test.BenchmarkUtils._ //convert to benchmark hashes
   import adept.test.OutputUtils._

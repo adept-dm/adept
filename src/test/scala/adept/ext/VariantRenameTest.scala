@@ -20,7 +20,7 @@ import adept.resolution.models.Constraint
 class VariantRenameTest extends FunSuite with Matchers {
   import adept.test.FileUtils._
   import adept.test.ResolverUtils._
-  import adept.test.LoaderUtils._
+  import adept.test.CacheUtils._
   import adept.test.OutputUtils._
 
   test("Basic variant rename") {

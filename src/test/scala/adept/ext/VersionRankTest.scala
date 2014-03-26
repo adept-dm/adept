@@ -213,7 +213,7 @@ class VersionOrderTest extends FunSpec with Matchers {
   }
 
   describe("When importing variants from something that is version-based, VersionOrder") {
-    import adept.test.LoaderUtils._
+    import adept.test.CacheUtils._
     it("should create resolution results for us") {
       usingTmpDir { tmpDir =>
         //***** SETUP START
