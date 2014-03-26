@@ -23,14 +23,3 @@ libraryDependencies ++= Seq(
   "com.typesafe.play" %% "play-json" % "2.2.1", //REMOVE!
   "org.apache.ivy"  % "ivy" % "2.3.0" % "compile",
   "org.scalatest" %% "scalatest" % "2.0" % "test")
-
-  
-val showModule = taskKey[Unit](" ")
-
-showModule := {
- val log = streams.value.log
- println(ivyModule.value.dependencyMapping(log))
- println(ivyModule.value.defaultConfig(log))
- println(ivyModule.value.moduleDescriptor(log))
- println(ivyModule.value.moduleSettings)
-}
