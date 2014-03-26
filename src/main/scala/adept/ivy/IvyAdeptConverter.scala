@@ -158,10 +158,10 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, skippableConf: Optio
 
   private def ivySingleImport(org: String, name: String, version: String, progress: ProgressMonitor): Either[Set[IvyImportError], Set[IvyImportResult]] = {
     val mrid = ModuleRevisionId.newInstance(org, name, version)
+    progress.beginTask("Importing " + mrid, dependencyTree.get(workingNode.getId).map(_.size).getOrElse(ProgressMonitor.UNKNOWN))
     val resolveReport = ivy.resolve(mrid, resolveOptions(), changing)
     val dependencyTree = createDependencyTree(mrid)(resolveReport)
     val workingNode = dependencyTree(ModuleRevisionId.newInstance(org, name + "-caller", "working")).head
-    progress.beginTask("Importing " + mrid, dependencyTree(workingNode.getId).size)
     val allResults = results(workingNode, Set.empty, progress, progressIndicatorRoot = true)(dependencyTree)
     progress.endTask()
     allResults
@@ -174,7 +174,12 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, skippableConf: Optio
     val currentResults = createIvyResult(currentIvyNode, children, dependencies)
     var allResults = currentResults.right.getOrElse(Set.empty[IvyImportResult])
     var errors = currentResults.left.getOrElse(Set.empty[IvyImportError])
-    children.filter(!visited(_)).foreach { childNode =>
+
+    val (loaded, notLoaded) = children.partition(_.isLoaded)
+    if (progressIndicatorRoot) progress.update(notLoaded.size)
+
+    printWarnings(mrid, None, notLoaded, dependencies)
+    loaded.filter(!visited(_)).foreach { childNode =>
       val childId = childNode.getId
       val dependencyTree = createDependencyTree(childId)(ivy.resolve(childId, resolveOptions(), changing))
       val newResults = results(childNode, visited ++ children + currentIvyNode, progress, progressIndicatorRoot = false)(dependencies ++ dependencyTree)
@@ -187,19 +192,19 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, skippableConf: Optio
     else Left(errors)
   }
 
-  private def printWarnings(mrid: ModuleRevisionId, confName: String, notLoaded: Set[IvyNode], dependencies: Map[ModuleRevisionId, Set[IvyNode]]): Unit = {
+  private def printWarnings(mrid: ModuleRevisionId, confName: Option[String], notLoaded: Set[IvyNode], dependencies: Map[ModuleRevisionId, Set[IvyNode]]): Unit = {
     notLoaded.foreach { ivyNode => //TODO: I am not a 100% certain that we do not really need them? Where do these deps come from, somebody wanted them originally?
       if (!dependencies.isDefinedAt(ivyNode.getId)) {
         logger.debug(mrid + " has a node " + ivyNode + " which was not loaded, but it is not required in upper-call tree so we ignore")
 
         if (ivyNode == null) {
-          logger.error("Got a null while loading: " + mrid)
-        } else if (ivyNode.isEvicted(confName))
+          logger.debug("Got a null while loading: " + mrid)
+        } else if (confName.isDefined && ivyNode.isEvicted(confName.get)) { //<- careful .get
           logger.debug(mrid + " evicts " + ivyNode + " so it was not loaded.")
-        else if (ivyNode.getDescriptor() != null && ivyNode.getDescriptor().canExclude()) {
+        } else if (ivyNode.getDescriptor() != null && ivyNode.getDescriptor().canExclude()) {
           logger.debug(mrid + " required" + ivyNode + " which can be excluded.")
         } else {
-          logger.error(mrid + " required " + ivyNode + ", but is was not loaded (nor evicted) so cannot import. This is potentially a problem") //TODO: is this acceptable? if not find a way to load ivy nodes...
+          logger.debug(mrid + " required " + ivyNode + ", but is was not loaded (nor evicted) so cannot import. This is potentially a problem") //TODO: is this acceptable? if not find a way to load ivy nodes...
         }
       } else throw new Exception("Could not load " + ivyNode + "declared in: " + mrid)
     }
@@ -221,8 +226,8 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, skippableConf: Optio
       val currentExcludeRules = getExcludeRules(currentIvyNode, ivyNode)
       if (!ivyNode.isEvicted(confName)) {
         val requirements = getConfigurations(ivyNode, confName).map { requirementConf =>
-            Requirement(ivyIdAsId(ivyNode.getId.getModuleId, requirementConf.getName()), Set.empty, Set.empty)
-          } + Requirement(ivyIdAsId(ivyNode.getId.getModuleId), Set.empty, Set.empty)
+          Requirement(ivyIdAsId(ivyNode.getId.getModuleId, requirementConf.getName()), Set.empty, Set.empty)
+        } + Requirement(ivyIdAsId(ivyNode.getId.getModuleId), Set.empty, Set.empty)
 
         requirements.foreach { requirement =>
           if (currentExcludeRules.nonEmpty) {
@@ -291,6 +296,7 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, skippableConf: Optio
     val dependencyReport = ivy.resolve(mrid, resolveOptions(), changing)
     val moduleDescriptor = dependencyReport.getModuleDescriptor()
     val parentNode = getParentNode(dependencyReport)
+    if (!parentNode.isLoaded) throw new Exception("Cannot load: " + parentNode + " - it might not have been resolved. Errors:\n"+ dependencyReport.getAllProblemMessages().asScala.distinct.mkString("\n")) 
     val mergableResults = dependencyReport.getConfigurations()
       .map(c => parentNode.getConfiguration(c)) //careful here. you could think: moduleDescriptor.getConfigurations is the same but it is not (you get bogus configurations back) 
       .filter(_.getVisibility() == Visibility.PUBLIC) //we cannot get dependencies for private configurations so we just skip them all together
@@ -309,7 +315,7 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, skippableConf: Optio
           children.partition(_.isLoaded)
         }
 
-        printWarnings(mrid, confName, notLoaded, dependencies)
+        printWarnings(mrid, Some(confName), notLoaded, dependencies)
         val (requirements, excludeRules) = extractRequirementsAndExcludes(thisVariantId, confName, currentIvyNode, loaded)
 
         val (artifactInfos, newErrors) = extractArtifactInfosAndErrors(mrid, ivyConfiguration, confName)
