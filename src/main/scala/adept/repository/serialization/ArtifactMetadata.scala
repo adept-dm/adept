@@ -16,7 +16,7 @@ case class ArtifactMetadata(size: Long, locations: Set[String]) {
   lazy val jsonString = Json.prettyPrint(Json.toJson(this))
 
   def write(hash: ArtifactHash, repository: Repository): File = {
-    val file = repository.getArtifactFile(hash)
+    val file = repository.ensureArtifactFile(hash)
     MetadataContent.write(jsonString, file)
   }
 }

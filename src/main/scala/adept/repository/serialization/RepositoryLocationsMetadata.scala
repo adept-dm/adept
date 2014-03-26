@@ -18,7 +18,7 @@ case class RepositoryLocationsMetadata(uris: Seq[String]) {
   lazy val jsonString = Json.prettyPrint(Json.toJson(uris.sorted))
 
   def write(name: RepositoryName, repository: Repository): File = { //name: the name of the repository where the uris are pointing. repository represents the directory where you are storing this information
-    val file = repository.getRepositoryLocationsFile(name)
+    val file = repository.ensureRepositoryLocationsFile(name)
     MetadataContent.write(jsonString, file)
   }
 }

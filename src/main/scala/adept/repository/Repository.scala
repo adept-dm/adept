@@ -105,11 +105,19 @@ private[adept] class Repository(val baseDir: File, val name: RepositoryName) {
   }
 
   def getVariantFile(id: Id, hash: VariantHash) = {
-    ensureParentDirs(new File(getVariantHashDir(id, hash), VariantMetadataFileName))
+    new File(getVariantHashDir(id, hash), VariantMetadataFileName)
+  }
+
+  def ensureVariantFile(id: Id, hash: VariantHash) = {
+    ensureParentDirs(getVariantFile(id, hash))
   }
 
   def getResolutionResultsFile(id: Id, hash: VariantHash) = {
-    ensureParentDirs(new File(getVariantHashDir(id, hash), ResolutionResultsFileName))
+    new File(getVariantHashDir(id, hash), ResolutionResultsFileName)
+  }
+
+  def ensureResolutionResultsFile(id: Id, hash: VariantHash) = {
+    ensureParentDirs(getResolutionResultsFile(id, hash))
   }
 
   def getArtifactFile(hash: ArtifactHash) = {
@@ -118,17 +126,29 @@ private[adept] class Repository(val baseDir: File, val name: RepositoryName) {
     else {
       val level1 = new File(artifactsMetadataDir, hash.value.slice(0, Level1Length))
       val level2 = new File(level1, hash.value.slice(Level1Length, Level1Length + Level2Length))
-      ensureParentDirs(new File(level2, hash.value.slice(Level2Length, Level3Length)))
+      new File(level2, hash.value.slice(Level2Length, Level3Length))
     }
+  }
+
+  def ensureArtifactFile(hash: ArtifactHash) = {
+    ensureParentDirs(getArtifactFile(hash))
   }
 
   def getRankingFile(id: Id, rankId: RankId): File = {
     val orderDir = getIdFile(variantsMetadataDir, id)
-    ensureParentDirs(new File(orderDir, RankingFileNamePrefix + rankId.value))
+    new File(orderDir, RankingFileNamePrefix + rankId.value)
+  }
+
+  def ensureRankingFile(id: Id, rankId: RankId): File = {
+    ensureParentDirs(getRankingFile(id, rankId))
   }
 
   def getRepositoryLocationsFile(name: RepositoryName): File = {
     val repositoryLocationsDir = new File(repositoryLocationsMetadataDir, name.value)
-    ensureParentDirs(new File(repositoryLocationsDir, RepositoryLocationsFileName))
+    new File(repositoryLocationsDir, RepositoryLocationsFileName)
+  }
+
+  def ensureRepositoryLocationsFile(name: RepositoryName): File = {
+    ensureParentDirs(getRepositoryLocationsFile(name))
   }
 }

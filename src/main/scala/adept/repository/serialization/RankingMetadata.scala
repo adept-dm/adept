@@ -16,7 +16,7 @@ case class RankingMetadata(variants: Seq[VariantHash]) { //Evaluate whether is s
   }
 
   def write(id: Id, rankId: RankId, repository: Repository): File = {
-    val file = repository.getRankingFile(id, rankId)
+    val file = repository.ensureRankingFile(id, rankId)
     MetadataContent.write(variants.map(_.value).mkString("\n"), file)
   }
 }

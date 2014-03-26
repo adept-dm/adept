@@ -15,7 +15,7 @@ case class ResolutionResultsMetadata(values: Seq[ResolutionResult]) {
   lazy val jsonString = Json.prettyPrint(Json.toJson(values.sorted))
 
   def write(id: Id, hash: VariantHash, repository: Repository): File = {
-    val file = repository.getResolutionResultsFile(id, hash)
+    val file = repository.ensureResolutionResultsFile(id, hash)
     MetadataContent.write(jsonString, file)
   }
 }
