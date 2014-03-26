@@ -78,7 +78,7 @@ class GitLoaderTest extends FunSuite with Matchers {
         requirements = Set(idB -> Set(Constraint(binaryVersion, Set("2.0"))))), repoA)
       val hashB = addVariant(Variant(idB, Set(version -> Set("2.0.1"), binaryVersion -> Set("2.0")), requirements = Set.empty), repoB)
       val commitB = repoB.commit("Adding B baby!")
-      val (addFiles1, rmFiles1) = VersionRank.useDefaultVersionRanking(idB, repoB, commitB) 
+      val (addFiles1, rmFiles1) = VersionRank.useSemanticVersionRanking(idB, repoB, commitB) 
       repoB.add(addFiles1)
       repoB.rm(rmFiles1)
       repoB.commit("The B(order)")
@@ -86,7 +86,7 @@ class GitLoaderTest extends FunSuite with Matchers {
       //adding one more variant to verify that hashes work across commits:
       val hashB2 = addVariant(Variant(idB, Set(version -> Set("1.0.1"), binaryVersion -> Set("1.0")), requirements = Set.empty), repoB)
       val commitB2 = repoB.commit("Adding B baby!")
-      val (addFiles2, rmFiles2) = VersionRank.useDefaultVersionRanking(idB, repoB, commitB2)
+      val (addFiles2, rmFiles2) = VersionRank.useSemanticVersionRanking(idB, repoB, commitB2)
       repoB.add(addFiles2)
       repoB.add(rmFiles2)
       val commitB3 = repoB.commit("The B(order) 2")
@@ -99,7 +99,7 @@ class GitLoaderTest extends FunSuite with Matchers {
       repoA.add(
         RepositoryLocationsMetadata(locationsA.toSeq).write(repoA.name, repoA))
       val commitA = repoA.commit("Adding aaaaa A")
-      val (addFiles3, rmFiles3) = VersionRank.useDefaultVersionRanking(idA, repoA, commitA)
+      val (addFiles3, rmFiles3) = VersionRank.useSemanticVersionRanking(idA, repoA, commitA)
       repoA.add(addFiles3)
       repoA.rm(rmFiles3)
       repoA.commit("Order in a A")

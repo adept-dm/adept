@@ -13,6 +13,8 @@ import adept.repository.models.ResolutionResult
 import adept.repository.GitLoader
 import adept.resolution.models.Constraint
 import adept.resolution.models.Attribute
+import adept.repository.serialization.RankingMetadata
+import adept.repository.RankLogic
 
 class UpgradeTest extends FunSuite with Matchers {
   import adept.test.FileUtils._
@@ -39,7 +41,7 @@ class UpgradeTest extends FunSuite with Matchers {
         VariantMetadata.fromVariant(variant2).write(id, repository),
         VariantMetadata.fromVariant(variant3).write(id, repository))
       val variantCommit = repository.commit("Adding some variants")
-      val (addFiles, rmFiles) = VersionRank.useDefaultVersionRanking(id, repository, variantCommit)
+      val (addFiles, rmFiles) = VersionRank.useSemanticVersionRanking(id, repository, variantCommit)
       repository.add(addFiles)
       repository.rm(rmFiles)
       val commit = repository.commit("With rankings")
@@ -79,7 +81,7 @@ class UpgradeTest extends FunSuite with Matchers {
         VariantMetadata.fromVariant(variant2).write(id, repository),
         VariantMetadata.fromVariant(variant3).write(id, repository))
       val variantCommit = repository.commit("Adding some variants")
-      val (addFiles, rmFiles) = VersionRank.useDefaultVersionRanking(id, repository, variantCommit)
+      val (addFiles, rmFiles) = VersionRank.useSemanticVersionRanking(id, repository, variantCommit, excludes = Set(".*".r)) //do not create binary versions for anything!
       repository.add(addFiles)
       repository.rm(rmFiles)
       val commit = repository.commit("With rankings")

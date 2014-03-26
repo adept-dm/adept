@@ -22,7 +22,7 @@ object IvyImportResultInserter extends Logging {
    *  @returns files that must be added and files that removed
    */
   protected def useDefaultVersionRanking(id: Id, repository: GitRepository, commit: Commit): (Set[File], Set[File]) = {
-    VersionRank.useDefaultVersionRanking(id, repository, commit)
+    VersionRank.useSemanticVersionRanking(id, repository, commit, excludes = Set(".*".r)) //use versions only
   }
 
   def getExistingResolutionResult(baseDir: File, ivyImportResult: IvyImportResult): Option[Set[ResolutionResult]] = {

@@ -125,7 +125,7 @@ object VersionRank extends Logging {
   }
 
   /** Creates new order files (and deletes the contents of old) according to 1) binary versions and 2) versions */
-  def useDefaultVersionRanking(id: Id, repository: GitRepository, commit: Commit): (Set[File], Set[File]) = {
+  def useSemanticVersionRanking(id: Id, repository: GitRepository, commit: Commit, excludes: Set[Regex] = Set.empty, useVersionAsBinary: Set[Regex] = Set.empty): (Set[File], Set[File]) = {
 
     //1) Get variants
     val variants = VariantMetadata.listVariants(id, repository, commit).map { hash =>
@@ -135,19 +135,52 @@ object VersionRank extends Logging {
       }
     }
 
-    //2) Find binary versions
+    //2) Find binary versions or add new variant with binary versions
+    var newVariants = Set.empty[File]
+    var newResolutionResults = Set.empty[File]
     var allBinaryVersions = Map.empty[String, Seq[Variant]]
+
     val NoBinaryVersion = ""
     variants.foreach { variant =>
       val binaryVersions = variant.attribute(BinaryVersionAttribute).values
       if (binaryVersions.nonEmpty) {
         binaryVersions.foreach { binaryVersion =>
           val parsedVariants = allBinaryVersions.getOrElse(binaryVersion, Seq.empty)
-          allBinaryVersions += binaryVersion -> (variant +: parsedVariants)
+          allBinaryVersions += binaryVersion -> (parsedVariants :+ variant)
         }
-      } else if (binaryVersions.isEmpty) {
-        val parsedVariants = allBinaryVersions.getOrElse(NoBinaryVersion, Seq.empty)
-        allBinaryVersions += NoBinaryVersion -> (variant +: parsedVariants)
+      } else {
+        val versions = variant.attribute(VersionAttribute).values
+        if (versions.size == 1) { //found a version but no binaryVersion, we add a binary version
+          val version = Version(versions.head)
+          val exclude = excludes.exists { pattern =>
+            pattern.findFirstIn(version.value).isDefined
+          }
+          if (exclude) {
+            val parsedVariants = allBinaryVersions.getOrElse(NoBinaryVersion, Seq.empty)
+            allBinaryVersions += NoBinaryVersion -> (parsedVariants :+ variant)
+          } else {
+            val useVersionAsBinaryHere = useVersionAsBinary.exists { pattern =>
+              pattern.findFirstIn(version.value).isDefined
+            }
+            val binaryVersion = if (useVersionAsBinaryHere) {
+              version.value
+            } else {
+              version.asBinaryVersion
+            }
+
+            val newVariant = variant.copy(attributes = variant.attributes + Attribute(BinaryVersionAttribute, Set(binaryVersion)))
+            val newVariantMetadata = VariantMetadata.fromVariant(newVariant)
+            newVariants += newVariantMetadata.write(id, repository)
+            newResolutionResults ++= ResolutionResultsMetadata.read(id, VariantMetadata.fromVariant(variant).hash, repository, commit).map {
+              _.write(id, newVariantMetadata.hash, repository)
+            }
+            val parsedVariants = allBinaryVersions.getOrElse(binaryVersion, Seq.empty)
+            allBinaryVersions += binaryVersion -> (parsedVariants :+ variant :+ newVariant) //add new variant first (last, it will be reversed), but also old variant so it can be located later
+          }
+        } else if (binaryVersions.isEmpty) {
+          val parsedVariants = allBinaryVersions.getOrElse(NoBinaryVersion, Seq.empty)
+          allBinaryVersions += NoBinaryVersion -> (parsedVariants :+ variant)
+        }
       }
     }
 
@@ -166,46 +199,10 @@ object VersionRank extends Logging {
     val rankingFiles = allBinaryVersions.toSeq.sortBy { case (binaryVersion, _) => Version(binaryVersion) }.zipWithIndex.map {
       case ((binaryVersion, variants), index) =>
         val rankId = RankId(newRankIds(index))
-        val sortedVariants = getSortedByVersions(variants)
+        val sortedVariants = getSortedByVersions(variants).distinct
         RankingMetadata(sortedVariants).write(id, rankId, repository)
     }
-    (rankingFiles.toSet, oldRankingFiles.toSet)
-  }
-
-  /** Updates a variant with binary version. Useful for variants that are "semantic versioned" */
-  def useSemanticVersions(id: Id, hash: VariantHash, repository: GitRepository, commit: Commit, excludes: Set[Regex] = Set.empty, useVersionAsBinary: Set[Regex] = Set.empty): Set[File] = {
-    val variantMetadata = VariantMetadata.read(id, hash, repository, commit)
-      .getOrElse(throw new Exception("Could not find variant: " + id + " hash: " + hash + " in " + repository.dir.getAbsolutePath + " for " + commit))
-    val variant = variantMetadata.toVariant(id)
-    val versions = variant.attribute(AttributeDefaults.VersionAttribute).values
-    val existingBinaryVersions = variant.attribute(AttributeDefaults.BinaryVersionAttribute).values
-    if (versions.size == 1 && existingBinaryVersions.isEmpty) {
-      val version = versions.head
-      val exclude = excludes.exists { pattern =>
-        pattern.findFirstIn(version).isDefined
-      }
-      if (exclude) {
-        Set.empty
-      } else {
-        val useVersionAsBinaryHere = useVersionAsBinary.exists { pattern =>
-          pattern.findFirstIn(version).isDefined
-        }
-        val binaryVersion = if (useVersionAsBinaryHere) {
-          version
-        } else {
-          Version(version).asBinaryVersion
-        }
-        val attributes = variant.attributes + Attribute(AttributeDefaults.BinaryVersionAttribute, Set(binaryVersion))
-        val changedFiles = replaceVariant(variant, variant.copy(attributes = attributes), repository, commit)
-        changedFiles
-      }
-    } else {
-      if (versions.size != 1)
-        logger.debug("Skipping semantic version on " + id + " hash: " + hash + " in " + repository.dir.getAbsolutePath + " for " + commit + " because more than 1 version exists: " + versions)
-      else if (existingBinaryVersions.nonEmpty)
-        logger.debug("Skipping semantic version on " + id + " hash: " + hash + " in " + repository.dir.getAbsolutePath + " for " + commit + " because it already has a binary version: " + existingBinaryVersions)
-      Set.empty
-    }
+    (newVariants ++ newResolutionResults ++ rankingFiles.toSet, oldRankingFiles.toSet)
   }
 
   private def replaceVariant(currentVariant: Variant, newVariant: Variant, repository: GitRepository, commit: Commit) = {

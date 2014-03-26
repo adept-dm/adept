@@ -42,7 +42,7 @@ class VariantRenameTest extends FunSuite with Matchers {
         VariantMetadata.fromVariant(oldVariant2).write(sourceId, sourceRepository),
         VariantMetadata.fromVariant(oldVariant3).write(sourceId, sourceRepository))
       val oldVariantCommit = sourceRepository.commit("Adding some variants")
-      val (addFiles, rmFiles) = VersionRank.useDefaultVersionRanking(sourceId, sourceRepository, oldVariantCommit)
+      val (addFiles, rmFiles) = VersionRank.useSemanticVersionRanking(sourceId, sourceRepository, oldVariantCommit)
       sourceRepository.add(addFiles)
       sourceRepository.rm(rmFiles)
       val sourceCommit = sourceRepository.commit("Ordered")

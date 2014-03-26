@@ -23,30 +23,6 @@ import adept.repository.models.RankId
 import adept.logging.Logging
 
 object VariantRename extends Logging {
-  private case class VariantAssociations(variant: VariantMetadata, resolutionResults: Set[ResolutionResult], repositoryLocations: Set[RepositoryLocations], artifactLocations: Set[Artifact])
-  private def getAllVariantAssociations(id: Id, variant: VariantHash, repository: GitRepository, commit: Commit): Option[VariantAssociations] = {
-    for {
-      variantMetadata <- VariantMetadata.read(id, variant, repository, commit)
-      resolutionResultsMetadata = ResolutionResultsMetadata.read(id, variant, repository, commit).getOrElse(ResolutionResultsMetadata(Seq()))
-      repositoryLocations = {
-        resolutionResultsMetadata.values.flatMap { resolutionResult =>
-          val name = resolutionResult.repository
-          RepositoryLocationsMetadata.read(name, repository, commit).map(_.toRepositoryLocations(name))
-        }
-      }
-      artifactLocations = {
-        variantMetadata.artifacts.flatMap { artifactRef =>
-          ArtifactMetadata.read(artifactRef.hash, repository, commit).map(_.toArtifact(artifactRef.hash))
-        }
-      }
-    } yield {
-      VariantAssociations(
-        variant = variantMetadata,
-        resolutionResults = resolutionResultsMetadata.values.toSet,
-        repositoryLocations = repositoryLocations.toSet,
-        artifactLocations = artifactLocations.toSet)
-    }
-  }
 
   private[adept] val RedirectAttributeName = "redirect"
   private[adept] def getRedirectAttribute(sourceId: Id, sourceName: RepositoryName, destId: Id, destName: RepositoryName) = {
@@ -99,7 +75,7 @@ object VariantRename extends Logging {
 
         sourceHashes.foreach { sourceHash =>
           val VariantAssociations(variant, resolutionResults, repositoryLocations, artifactLocations) =
-            getAllVariantAssociations(sourceId, sourceHash, sourceRepository, sourceCommit)
+            VariantAssociations.getAllVariantAssociations(sourceId, sourceHash, sourceRepository, sourceCommit)
               .getOrElse(throw new Exception("Could not find associated data for: " + sourceHash + " in " + sourceId + " in repo: " + sourceRepository.dir.getAbsolutePath + " for " + sourceCommit))
           val newSourceVariant = variant.copy(attributes = variant.attributes :+ redirectAttribute, requirements = variant.requirements.filter(_.id != destId) :+ conflictRequirement)
           destFiles += newSourceVariant.write(destId, destRepository)
