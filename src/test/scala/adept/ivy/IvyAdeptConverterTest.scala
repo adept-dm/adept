@@ -388,11 +388,6 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
               ivyConverter.verifyConversion(confName, ivyModule, resolvedResult)
             }
             assert(verificationResult.isRight, "Verification of " + confName + " failed:\n" + verificationResult)
-            
-            val lockfile = Lockfile.create(tmpDir, requirements(confName), resolutionResults, result, cacheManager)
-            import scala.concurrent.duration._
-            Lockfile.download(tmpDir, lockfile, 1.minute, progress)
-            
           case _ =>
             assert(false, "Expected to be able to resolve Adept for " + confName + ". Got result:\n" + result)
         }
