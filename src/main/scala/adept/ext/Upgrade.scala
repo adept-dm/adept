@@ -18,7 +18,7 @@ object Upgrade extends Logging {
     toLatestRanking(baseDir, requirements, AttributeDefaults.BinaryVersionAttribute)
   }
 
-  /** `sameAttribute` is the the name of the attribute which we are upgrading on  */
+  /** @param sameAttribute is the the name of the attribute which we are upgrading on  */
   private[adept] def toLatestRanking(baseDir: File, requirements: Set[LockfileRequirement], sameAttributeName: String): Set[LockfileRequirement] = {
     requirements.map { lockfileReq =>
       val ResolutionResult(id, name, commit, variant) = lockfileReq.toResolutionResult
