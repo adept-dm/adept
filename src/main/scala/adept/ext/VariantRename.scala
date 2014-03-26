@@ -52,7 +52,7 @@ object VariantRename extends Logging {
     logger.warn("Renaming is EXPERIMENTAL")
     val sourceRepository = new GitRepository(baseDir, sourceName)
     val destRepository = new GitRepository(baseDir, destName)
-    if (!destRepository.exists) throw new Exception("Could not rename to " + destName + " because repository: " + destRepository.exists + " is not initialized")
+    if (!destRepository.exists) throw new Exception("Could not rename to " + destName + " because repository: " + destRepository.dir.getAbsolutePath + " is not initialized")
 
     val allSourceVariantsRankIds = RankingMetadata.listRankIds(sourceId, sourceRepository, sourceCommit).toSeq.flatMap { rankId =>
       RankingMetadata.read(sourceId, rankId, sourceRepository, sourceCommit).toSeq

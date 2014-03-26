@@ -34,26 +34,8 @@ import adept.repository.GitRepository
 import adept.repository.models.ResolutionResult
 import adept.repository.serialization.RepositoryLocationsMetadata
 import adept.repository.Repository
+import adept.repository.models.VariantHash
 
-case class LockfileRepositoryLocation(value: String)
-
-case class LockfileRequirement(id: Id, constraints: Seq[Constraint], exclusions: Seq[Id], repository: RepositoryName, locations: Seq[LockfileRepositoryLocation], commit: Commit) {
-  def toRequirement: (Requirement, RepositoryName, Seq[LockfileRepositoryLocation], Commit) = {
-    (Requirement(id, constraints.toSet, exclusions.toSet), repository, locations, commit)
-  }
-}
-
-case class LockfileArtifact(hash: ArtifactHash, size: Long, locations: Seq[String], attributes: Seq[ArtifactAttribute], filename: Option[String]) {
-  def toArtifact = Artifact(hash, size, locations.toSet)
-  def toArtifactRef = ArtifactRef(hash, attributes.toSet, filename)
-}
-
-object LockfileRequirement {
-
-  def fromRequirement(requirement: Requirement, repository: RepositoryName, locations: RepositoryLocations, commit: Commit) = {
-    LockfileRequirement(requirement.id, requirement.constraints.toSeq.sorted, requirement.exclusions.toSeq.sortBy(_.value), repository, locations.uris.toSeq.map(LockfileRepositoryLocation(_)), commit)
-  }
-}
 
 case class Lockfile(requirements: Seq[LockfileRequirement], artifacts: Seq[LockfileArtifact]) {
 
@@ -65,51 +47,6 @@ case class Lockfile(requirements: Seq[LockfileRequirement], artifacts: Seq[Lockf
 }
 
 object Lockfile extends Logging {
-
-  private[adept] implicit val formatLockfileRequirement: Format[LockfileRequirement] = {
-    (
-      (__ \ "id").format[String] and
-      (__ \ "constraints").format[Map[String, Set[String]]] and
-      (__ \ "exclusions").format[Seq[String]] and
-      (__ \ "repository").format[String] and
-      (__ \ "locations").format[Seq[String]] and
-      (__ \ "commit").format[String])({
-        case (id, constraints, exclusions, repository, locations, commit) =>
-          LockfileRequirement(
-            Id(id),
-            constraints.map { case (name, values) => Constraint(name, values) }.toSeq,
-            exclusions.map(Id(_)).toSeq,
-            RepositoryName(repository),
-            locations.map(LockfileRepositoryLocation(_)).toSeq,
-            Commit(commit))
-      },
-        unlift({ r: LockfileRequirement =>
-          val LockfileRequirement(id, constraints, exlusions, repository, locations, commit) = r
-          Some((
-            id.value,
-            constraints.toSeq.sorted.map(c => c.name -> c.values).toMap,
-            exlusions.toSeq.map(_.value).sorted,
-            repository.value,
-            locations.toSeq.map(_.value).sorted,
-            commit.value))
-        }))
-  }
-
-  private[adept] implicit val formatLockfileArtifact: Format[LockfileArtifact] = {
-    (
-      (__ \ "hash").format[String] and
-      (__ \ "size").format[Long] and
-      (__ \ "locations").format[Seq[String]] and
-      (__ \ "attributes").format[Map[String, Set[String]]] and
-      (__ \ "filename").format[Option[String]])({
-        case (hash, size, locations, attributes, filename) =>
-          LockfileArtifact(ArtifactHash(hash), size, locations, attributes.map { case (name, values) => ArtifactAttribute(name, values) }.toSeq, filename)
-      }, unlift({ a: LockfileArtifact =>
-        val LockfileArtifact(hash, size, locations, attributes, filename) = a
-        Some((hash.value, size, locations, attributes.map(a => a.name -> a.values).toMap, filename))
-      }))
-  }
-
   private[adept] implicit val formatLockfile: Format[Lockfile] = Json.format[Lockfile]
 
   private val downloader = {
@@ -145,12 +82,12 @@ object Lockfile extends Logging {
     val resolutionById = resolutionResults.groupBy(_.id)
     val preciseReqs = requirements.flatMap{ requirement => 
       val resolutionResults = resolutionById.getOrElse(requirement.id, throw new Exception("Cannot find resolution result for: " + requirement))
-      resolutionResults.map(r => (r.repository, requirement, r.commit) )
+      resolutionResults.map(r => (requirement, r.repository, r.commit, r.variant) )
     }
     createPrecise(baseDir, preciseReqs, resolutionResults, result, cacheManager)
   }
   
-  private def createPrecise(baseDir: File, requirements: Set[(RepositoryName, Requirement, Commit)], resolutionResults: Set[ResolutionResult], result: ResolveResult, cacheManager: CacheManager) = {
+  private def createPrecise(baseDir: File, requirements: Set[(Requirement, RepositoryName, Commit, VariantHash)], resolutionResults: Set[ResolutionResult], result: ResolveResult, cacheManager: CacheManager) = {
     val reposInfo = resolutionResults.map { result => result.repository -> result.commit }
     val lockfileArtifacts = result.state.resolvedVariants.flatMap {
       case (_, variant) =>
@@ -168,10 +105,10 @@ object Lockfile extends Logging {
         lockfileArtifacts
     }
     val lockfileRequirements =
-      requirements.map { case (name, requirement, commit) =>
+      requirements.map { case (requirement, name, commit, variant) =>
         val repository = new GitRepository(baseDir, name)
         val locations = repository.getRemoteUri(GitRepository.DefaultRemote).toSeq
-        LockfileRequirement(requirement.id, requirement.constraints.toSeq, requirement.exclusions.toSeq, name, locations.map(LockfileRepositoryLocation(_)), commit)
+        LockfileRequirement(requirement.id, requirement.constraints.toSeq, requirement.exclusions.toSeq, name, locations.map(LockfileRepositoryLocation(_)), commit, variant)
       }
     
     Lockfile(lockfileRequirements.toSeq, lockfileArtifacts.toSeq)
@@ -184,8 +121,8 @@ object Lockfile extends Logging {
     val max = if (totalBytes > Int.MaxValue) {
       logger.warn("Wow, you are really downloading a lot here! While downloading lockfile got total bytes higher than " + Int.MaxValue + " (" + totalBytes + "). Lockfile:\n" + lockfile.jsonString)
       0
-    } else totalBytes.toInt //<- toInt
-    progress.beginTask("Downloading artifacts (kb)", max/1024)
+    } else totalBytes.toInt/1024 //<- toInt
+    progress.beginTask("Downloading artifacts (kb)", max)
     val futures = lockfile.artifacts.map { artifact =>
       val currentCachedFile = ArtifactCache.getOrCreateExistingCacheFile(baseDir, artifact.hash, artifact.filename.getOrElse(artifact.hash.value)).map { file =>
         future(artifact.toArtifact -> file)
@@ -194,10 +131,10 @@ object Lockfile extends Logging {
         downloader.download(artifact.toArtifact)
       }
       result.onComplete {
-        case Success((a, _)) =>
-          progress.update(a.size.toInt/1024) //<- watch out for the toInt here! we are logging this though
-        case Failure(e) =>
-          logger.error("Failed to download (" + e.getCause + ") artifacts: " + lockfile.artifacts.map(_.filename).mkString(","))
+        case Success((artifact, _)) =>
+          progress.update(artifact.size.toInt/1024) //<- watch out for the toInt here! we are logging this though
+        case Failure(exception) =>
+          logger.error("Failed to download (" + exception.getCause + ") artifacts: " + lockfile.artifacts.map(_.filename).mkString(","))
       }
       result
     }
