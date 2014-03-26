@@ -1,4 +1,4 @@
-package adept.repository
+package adept.utils
 
 import net.sf.ehcache.Ehcache
 import net.sf.ehcache.Element

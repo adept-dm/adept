@@ -50,14 +50,17 @@ object ArtifactCache {
   }
 
   /** Get current cache file if exists. Creates a new one if there are other cached files with the same hash, but different file names */
-  def getOrCreateExistingCacheFile(baseDir: File, hash: ArtifactHash, filename: String): Option[File] = {
+  def getOrCreateExistingCacheFile(baseDir: File, hash: ArtifactHash, filename: String, verify: Boolean = true): Option[File] = {
     val currentCacheFile = getCacheFile(baseDir, hash, filename)
 
-    if (currentCacheFile.isFile) Some(currentCacheFile)
+    if (currentCacheFile.isFile) {
+      if (verify) assert(hashFile(currentCacheFile) == hash.value, "Expected " + filename + " to have hash " + hash + " but file: " + currentCacheFile.getAbsolutePath() + " has a different hash!")
+      Some(currentCacheFile)
+    }
     else {
       val parentDir = createParentDir(currentCacheFile)
       val foundFile = parentDir.listFiles().find { f =>
-        hashFile(f) == hash.value
+        !verify || hashFile(f) == hash.value
       }
       foundFile.map { f =>
         copy(f, currentCacheFile)

@@ -16,6 +16,7 @@ import adept.repository.serialization.VariantMetadata
 import adept.utils.Hasher
 import net.sf.ehcache.CacheManager
 import org.eclipse.jgit.lib.TextProgressMonitor
+import adept.lockfile.Lockfile
 import adept.artifact.models.Artifact
 import adept.artifact.models.ArtifactHash
 import adept.resolution.models.Variant
@@ -378,6 +379,7 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
       }
 
       for (confName <- requirements.keys) {
+        println(confName)
         val result = benchmark(Resolved, requirements(confName) && loader) {
           resolve(requirements(confName), loader)
         }
@@ -387,6 +389,12 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
               ivyConverter.verifyConversion(confName, ivyModule, resolvedResult)
             }
             assert(verificationResult.isRight, "Verification of " + confName + " failed:\n" + verificationResult)
+            
+            val lockfile = Lockfile.create(tmpDir, requirements(confName), resolutionResults, result, cacheManager)
+            println(lockfile.jsonString)
+            import scala.concurrent.duration._
+            Lockfile.download(tmpDir, lockfile, 1.minute, progress)
+            
           case _ =>
             assert(false, "Expected to be able to resolve Adept for " + confName + ". Got result:\n" + result)
         }

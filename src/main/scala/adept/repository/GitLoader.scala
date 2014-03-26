@@ -9,7 +9,6 @@ import adept.utils.Hasher
 import net.sf.ehcache.Ehcache
 import org.eclipse.jgit.lib.ProgressMonitor
 import adept.repository.serialization.ResolutionResultsMetadata
-import CacheHelpers._
 import adept.logging.Logging
 import adept.repository.serialization.RepositoryLocationsMetadata
 import adept.repository.serialization.RankingMetadata
@@ -45,6 +44,8 @@ object GitLoader extends Logging {
     getResolutionResults(baseDir, currentRequirements, progress, cacheManager)
   }
 
+  import adept.utils.CacheHelpers.usingCache
+
   def getResolutionResults(baseDir: File, requirements: Set[(RepositoryName, Requirement, Commit)], progress: ProgressMonitor, cacheManager: CacheManager): Set[(ResolutionResult, Option[RepositoryLocations])] = {
     usingCache(key = "getResolutionResults" + hash(requirements), getCache(cacheManager)) {
       val latestRequirements = requirements.groupBy { case (name, requirement, _) => requirement.id -> name }.map {
@@ -70,7 +71,7 @@ object GitLoader extends Logging {
         }
         metadata <- {
           val maybeMetadata = VariantMetadata.read(id, hash, repository, commit)
-          if (!maybeMetadata.isDefined) logger.warn("Could not find variant metadata: " + hash + " for id: " +  id + " in dir " + repository.dir.getAbsolutePath + " for " + commit)
+          if (!maybeMetadata.isDefined) logger.warn("Could not find variant metadata: " + hash + " for id: " + id + " in dir " + repository.dir.getAbsolutePath + " for " + commit)
           maybeMetadata
         }
       } { //<-- Notice (no yield)
@@ -132,6 +133,8 @@ object GitLoader extends Logging {
 
 class GitLoader(baseDir: File, private[adept] val results: Set[ResolutionResult], progress: ProgressMonitor, cacheManager: CacheManager) extends VariantsLoader {
   import GitLoader._
+  import adept.utils.CacheHelpers.usingCache
+  
   private val thisUniqueId = Hasher.hash(results.map { resolution => resolution.id.value + "-" + resolution.repository.value + "-" + resolution.variant.value + "-" + resolution.commit.value }.toSeq.sorted.mkString("#").getBytes)
 
   private val cache: Ehcache = getCache(cacheManager)
