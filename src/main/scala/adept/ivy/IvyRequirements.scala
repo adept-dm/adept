@@ -6,6 +6,7 @@ import adept.resolution.models.Requirement
 import org.apache.ivy.core.module.id.ModuleRevisionId
 import adept.resolution.models.Variant
 import org.apache.ivy.core.module.descriptor.ExcludeRule
+import org.apache.ivy.core.module.descriptor.Configuration
 
 object IvyRequirements {
   import IvyConstants._
@@ -76,7 +77,12 @@ object IvyRequirements {
   private def getAllConfigurations(module: ModuleDescriptor, confName: String): Set[String] = {
     def getAllConfigurations(module: ModuleDescriptor, existing: Set[String]): Set[String] = {
       existing.flatMap { confName =>
-        val newConfs = (module.getConfiguration(confName).getExtends().toSet) + confName
+        val newConfs = (for {
+          conf <- Option(module.getConfiguration(confName)).toSet[Configuration]
+          extending <- Option(conf.getExtends).getOrElse(Array.empty).toSet[String]
+        } yield {
+          extending
+        }) + confName
         getAllConfigurations(module, newConfs.diff(existing)) ++ newConfs
       }
     }

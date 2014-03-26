@@ -158,10 +158,12 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, skippableConf: Optio
 
   private def ivySingleImport(org: String, name: String, version: String, progress: ProgressMonitor): Either[Set[IvyImportError], Set[IvyImportResult]] = {
     val mrid = ModuleRevisionId.newInstance(org, name, version)
-    progress.beginTask("Importing " + mrid, dependencyTree.get(workingNode.getId).map(_.size).getOrElse(ProgressMonitor.UNKNOWN))
+    progress.beginTask("Ivy resolving " + mrid, ProgressMonitor.UNKNOWN)
     val resolveReport = ivy.resolve(mrid, resolveOptions(), changing)
+    progress.endTask()
     val dependencyTree = createDependencyTree(mrid)(resolveReport)
     val workingNode = dependencyTree(ModuleRevisionId.newInstance(org, name + "-caller", "working")).head
+    progress.beginTask("Importing " + mrid, dependencyTree.get(workingNode.getId).map(_.size).getOrElse(ProgressMonitor.UNKNOWN))
     val allResults = results(workingNode, Set.empty, progress, progressIndicatorRoot = true)(dependencyTree)
     progress.endTask()
     allResults
@@ -181,8 +183,9 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, skippableConf: Optio
     printWarnings(mrid, None, notLoaded, dependencies)
     loaded.filter(!visited(_)).foreach { childNode =>
       val childId = childNode.getId
+//      if (childId.getName() == )
       val dependencyTree = createDependencyTree(childId)(ivy.resolve(childId, resolveOptions(), changing))
-      val newResults = results(childNode, visited ++ children + currentIvyNode, progress, progressIndicatorRoot = false)(dependencies ++ dependencyTree)
+      val newResults = results(childNode, visited ++ loaded + currentIvyNode, progress, progressIndicatorRoot = false)(dependencies ++ dependencyTree)
       if (progressIndicatorRoot) progress.update(1)
       allResults ++= newResults.right.getOrElse(Set.empty[IvyImportResult])
       errors ++= newResults.left.getOrElse(Set.empty[IvyImportError])
@@ -203,7 +206,10 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, skippableConf: Optio
           logger.debug(mrid + " evicts " + ivyNode + " so it was not loaded.")
         } else if (ivyNode.getDescriptor() != null && ivyNode.getDescriptor().canExclude()) {
           logger.debug(mrid + " required" + ivyNode + " which can be excluded.")
+        } else if (ivyNode.isCompletelyEvicted() || ivyNode.isCompletelyBlacklisted()){
+          logger.debug(mrid + " required " + ivyNode + " and it was evicted or blacklisted, so it is not loaded and will not be imported.")
         } else {
+          //TODO: make this logger.error, but do not log if we are coming from something which is provided. It is currently debug to avoid the noise
           logger.debug(mrid + " required " + ivyNode + ", but is was not loaded (nor evicted) so cannot import. This is potentially a problem") //TODO: is this acceptable? if not find a way to load ivy nodes...
         }
       } else throw new Exception("Could not load " + ivyNode + "declared in: " + mrid)
@@ -296,7 +302,7 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, skippableConf: Optio
     val dependencyReport = ivy.resolve(mrid, resolveOptions(), changing)
     val moduleDescriptor = dependencyReport.getModuleDescriptor()
     val parentNode = getParentNode(dependencyReport)
-    if (!parentNode.isLoaded) throw new Exception("Cannot load: " + parentNode + " - it might not have been resolved. Errors:\n"+ dependencyReport.getAllProblemMessages().asScala.distinct.mkString("\n")) 
+    if (!parentNode.isLoaded) throw new Exception("Cannot load: " + parentNode + " - it might not have been resolved. Errors:\n"+ dependencyReport.getAllProblemMessages().asScala.distinct.mkString("\n"))
     val mergableResults = dependencyReport.getConfigurations()
       .map(c => parentNode.getConfiguration(c)) //careful here. you could think: moduleDescriptor.getConfigurations is the same but it is not (you get bogus configurations back) 
       .filter(_.getVisibility() == Visibility.PUBLIC) //we cannot get dependencies for private configurations so we just skip them all together
