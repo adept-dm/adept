@@ -185,7 +185,7 @@ object Lockfile extends Logging {
       logger.warn("Wow, you are really downloading a lot here! While downloading lockfile got total bytes higher than " + Int.MaxValue + " (" + totalBytes + "). Lockfile:\n" + lockfile.jsonString)
       0
     } else totalBytes.toInt //<- toInt
-    progress.beginTask("Downloading artifacts", max)
+    progress.beginTask("Downloading artifacts (kb)", max/1024)
     val futures = lockfile.artifacts.map { artifact =>
       val currentCachedFile = ArtifactCache.getOrCreateExistingCacheFile(baseDir, artifact.hash, artifact.filename.getOrElse(artifact.hash.value)).map { file =>
         future(artifact.toArtifact -> file)
@@ -195,7 +195,7 @@ object Lockfile extends Logging {
       }
       result.onComplete {
         case Success((a, _)) =>
-          progress.update(a.size.toInt) //<- watch out for the toInt here! we are logging this though
+          progress.update(a.size.toInt/1024) //<- watch out for the toInt here! we are logging this though
         case Failure(e) =>
           logger.error("Failed to download (" + e.getCause + ") artifacts: " + lockfile.artifacts.map(_.filename).mkString(","))
       }
