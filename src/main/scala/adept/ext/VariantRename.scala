@@ -48,6 +48,11 @@ object VariantRename extends Logging {
     }
   }
 
+  private[adept] val RedirectAttributeName = "redirect"
+  private[adept] def getRedirectAttribute(sourceId: Id, sourceName: RepositoryName, destId: Id, destName: RepositoryName) = {
+    Attribute(RedirectAttributeName, Set(sourceName.value + Repository.IdDirSep + sourceId.value + ":" + destName.value + Repository.IdDirSep + destId.value))
+  }
+
   def rename(baseDir: File, sourceId: Id, sourceName: RepositoryName, sourceCommit: Commit, destId: Id, destName: RepositoryName): (Commit, Commit) = { //source, dest
     logger.warn("Renaming is EXPERIMENTAL")
     val sourceRepository = new GitRepository(baseDir, sourceName)
@@ -67,7 +72,7 @@ object VariantRename extends Logging {
     var destFiles = Set.empty[File]
     var newDestHashes = Set.empty[VariantHash]
 
-    val redirectAttribute = Attribute("redirect", Set(sourceName.value + Repository.IdDirSep + sourceId.value + ":" + destName.value + Repository.IdDirSep + destId.value))
+    val redirectAttribute = getRedirectAttribute(sourceId, sourceName, destId, destName)
     val redirectRequirement = Requirement(destId, constraints = Set.empty, Set.empty)
     val redirectMetadata = VariantMetadata(
       attributes = Seq(redirectAttribute),
@@ -138,7 +143,7 @@ object VariantRename extends Logging {
       sourceRepository.add(sourceFiles)
       val createdSourceCommit = sourceRepository.commit("Renamed to " + sourceRepository.name.value + " " + sourceId.value + " to " + destRepository.name.value + " " + destId.value)
       createdSourceCommit -> createdDestCommit
-      
+
     } else {
       sourceRepository.getHead -> prevCommit
     }

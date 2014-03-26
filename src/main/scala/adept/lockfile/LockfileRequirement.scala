@@ -8,6 +8,8 @@ import adept.repository.models.VariantHash
 import adept.repository.models.Commit
 import adept.repository.models.ResolutionResult
 import adept.repository.models.RepositoryLocations
+import play.api.libs.json._
+import play.api.libs.functional.syntax._
 
 case class LockfileRepositoryLocation(value: String)
 
@@ -22,8 +24,8 @@ case class LockfileRequirement(id: Id, constraints: Seq[Constraint], exclusions:
 }
 
 object LockfileRequirement {
-  def fromRequirement(requirement: Requirement, repository: RepositoryName, locations: RepositoryLocations, commit: Commit, variant: VariantHash) = {
-    LockfileRequirement(requirement.id, requirement.constraints.toSeq.sorted, requirement.exclusions.toSeq.sortBy(_.value), repository, locations.uris.toSeq.map(LockfileRepositoryLocation(_)), commit, variant)
+  def create(requirement: Requirement, resolutionResult: ResolutionResult, locations: RepositoryLocations) = {
+    LockfileRequirement(requirement.id, requirement.constraints.toSeq.sorted, requirement.exclusions.toSeq.sortBy(_.value), resolutionResult.repository, locations.uris.toSeq.map(LockfileRepositoryLocation(_)), resolutionResult.commit, resolutionResult.variant)
   }
 
   private[adept] implicit val formatLockfileRequirement: Format[LockfileRequirement] = {

@@ -36,7 +36,6 @@ import adept.repository.serialization.RepositoryLocationsMetadata
 import adept.repository.Repository
 import adept.repository.models.VariantHash
 
-
 case class Lockfile(requirements: Seq[LockfileRequirement], artifacts: Seq[LockfileArtifact]) {
 
   lazy val jsonString = Json.prettyPrint(Json.toJson(this))
@@ -80,13 +79,13 @@ object Lockfile extends Logging {
 
   def create(baseDir: File, requirements: Set[Requirement], resolutionResults: Set[ResolutionResult], result: ResolveResult, cacheManager: CacheManager) = {
     val resolutionById = resolutionResults.groupBy(_.id)
-    val preciseReqs = requirements.flatMap{ requirement => 
+    val preciseReqs = requirements.flatMap { requirement =>
       val resolutionResults = resolutionById.getOrElse(requirement.id, throw new Exception("Cannot find resolution result for: " + requirement))
-      resolutionResults.map(r => (requirement, r.repository, r.commit, r.variant) )
+      resolutionResults.map(r => (requirement, r.repository, r.commit, r.variant))
     }
     createPrecise(baseDir, preciseReqs, resolutionResults, result, cacheManager)
   }
-  
+
   private def createPrecise(baseDir: File, requirements: Set[(Requirement, RepositoryName, Commit, VariantHash)], resolutionResults: Set[ResolutionResult], result: ResolveResult, cacheManager: CacheManager) = {
     val reposInfo = resolutionResults.map { result => result.repository -> result.commit }
     val lockfileArtifacts = result.state.resolvedVariants.flatMap {
@@ -105,26 +104,37 @@ object Lockfile extends Logging {
         lockfileArtifacts
     }
     val lockfileRequirements =
-      requirements.map { case (requirement, name, commit, variant) =>
-        val repository = new GitRepository(baseDir, name)
-        val locations = repository.getRemoteUri(GitRepository.DefaultRemote).toSeq
-        LockfileRequirement(requirement.id, requirement.constraints.toSeq, requirement.exclusions.toSeq, name, locations.map(LockfileRepositoryLocation(_)), commit, variant)
+      requirements.map {
+        case (requirement, name, commit, variant) =>
+          val repository = new GitRepository(baseDir, name)
+          val locations = repository.getRemoteUri(GitRepository.DefaultRemote).toSeq
+          LockfileRequirement(requirement.id, requirement.constraints.toSeq, requirement.exclusions.toSeq, name, locations.map(LockfileRepositoryLocation(_)), commit, variant)
       }
-    
+
     Lockfile(lockfileRequirements.toSeq, lockfileArtifacts.toSeq)
   }
 
   protected implicit val executionContext = scala.concurrent.ExecutionContext.global
 
   def download(baseDir: File, lockfile: Lockfile, timeout: FiniteDuration, progress: ProgressMonitor) = {
-    val totalBytes = lockfile.artifacts.foldLeft(0L)(_ + _.size)
-    val max = if (totalBytes > Int.MaxValue) {
-      logger.warn("Wow, you are really downloading a lot here! While downloading lockfile got total bytes higher than " + Int.MaxValue + " (" + totalBytes + "). Lockfile:\n" + lockfile.jsonString)
-      0
-    } else totalBytes.toInt/1024 //<- toInt
-    progress.beginTask("Downloading artifacts (kb)", max)
+    val allCurrentCachedFiles = lockfile.artifacts.map { artifact =>
+      artifact -> ArtifactCache.getOrCreateExistingCacheFile(baseDir, artifact.hash, artifact.filename.getOrElse(artifact.hash.value))
+    }.toMap
+
+    val downloadProgress = allCurrentCachedFiles.exists { case (_, cacheFile) => cacheFile.isEmpty }
+
+    if (downloadProgress) {
+      val totalBytes = allCurrentCachedFiles.filter{ case (_, cacheFile) => cacheFile.isEmpty } .foldLeft(0L)(_ + _._1.size)
+      val max = if (totalBytes > Int.MaxValue) {
+        logger.warn("Wow, you are really downloading a lot here! Found more bytes than " + Int.MaxValue + " (" + totalBytes + "). Progress monitoring will not work as expected")
+        0
+      } else totalBytes.toInt / 1024 //<- toInt
+
+      progress.beginTask("Downloading artifacts (kb)", max)
+    }
+
     val futures = lockfile.artifacts.map { artifact =>
-      val currentCachedFile = ArtifactCache.getOrCreateExistingCacheFile(baseDir, artifact.hash, artifact.filename.getOrElse(artifact.hash.value)).map { file =>
+      val currentCachedFile = allCurrentCachedFiles(artifact).map { file =>
         future(artifact.toArtifact -> file)
       }
       val result = currentCachedFile.getOrElse {
@@ -132,14 +142,14 @@ object Lockfile extends Logging {
       }
       result.onComplete {
         case Success((artifact, _)) =>
-          progress.update(artifact.size.toInt/1024) //<- watch out for the toInt here! we are logging this though
+          if (downloadProgress) progress.update(artifact.size.toInt / 1024) //<- watch out for the toInt here! we are logging this though
         case Failure(exception) =>
           logger.error("Failed to download (" + exception.getCause + ") artifacts: " + lockfile.artifacts.map(_.filename).mkString(","))
       }
       result
     }
-    val allDownloaded = Await.result(Future.sequence(futures), timeout)
-    progress.endTask()
-    allDownloaded
+    val all = Await.result(Future.sequence(futures), timeout)
+    if (downloadProgress) progress.endTask()
+    all
   }
 }
