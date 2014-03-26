@@ -369,7 +369,11 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
       val resolutionResults = benchmark(Inserted, results) {
         IvyImportResultInserter.insertAsResolutionResults(tmpDir, results, progress)
       }
-
+      val resolutionResults2 = benchmark(InsertAfterInserted, results) {
+        IvyImportResultInserter.insertAsResolutionResults(tmpDir, results, progress)
+      }
+      resolutionResults shouldEqual resolutionResults2
+      
       val requirements = benchmark(Converted, ivyModule && results) {
         IvyRequirements.convertIvyAsRequirements(ivyModule, results)
       }

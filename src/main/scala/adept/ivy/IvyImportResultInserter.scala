@@ -17,8 +17,34 @@ object IvyImportResultInserter extends Logging {
   import IvyUtils._
 
   /**
+   * Defaults to ranking per version
+   *
+   *  @returns files that must be added and files that removed
+   */
+  protected def useDefaultVersionRanking(id: Id, repository: GitRepository, commit: Commit): (Set[File], Set[File]) = {
+    VersionRank.useDefaultVersionRanking(id, repository, commit)
+  }
+
+  def getExistingResolutionResult(baseDir: File, ivyImportResult: IvyImportResult): Option[Set[ResolutionResult]] = {
+    val repository = new GitRepository(baseDir, ivyImportResult.repository)
+    if (repository.exists) {
+      val id = ivyImportResult.variant.id
+      val commit = repository.getHead
+      val hash = VariantMetadata.fromVariant(ivyImportResult.variant).hash
+      for {
+        _ <- VariantMetadata.read(id, hash, repository, commit, checkHash = true)
+        resolutionResultsMetadata <- ResolutionResultsMetadata.read(id, hash, repository, commit)
+      } yield {
+        resolutionResultsMetadata.values.toSet
+      }
+    } else {
+      None //no repository => result does not exist
+    }
+  }
+
+  /**
    *  Insert Ivy Import results (variants, resolution results, ...) into corresponding Adept repositories.
-   *  Automatically orders variants according to versions.
+   *  Automatically ranks variants according to useDefaultVersionRanking.
    */
   def insertAsResolutionResults(baseDir: File, results: Set[IvyImportResult], progress: ProgressMonitor): Set[ResolutionResult] = {
     progress.beginTask("Applying exclusion(s)", results.size * 2)
@@ -64,7 +90,15 @@ object IvyImportResultInserter extends Logging {
     }
     progress.endTask()
 
-    val grouped = included.groupBy(_.repository) //grouping to avoid multiple parallel operations on same repo
+    val previousResolutionResults = included.flatMap{ result=> 
+      getExistingResolutionResult(baseDir, result).map(result -> _)
+    }.toMap
+    
+    val (existingResults, newImports) = included.partition { result =>
+      previousResolutionResults.contains(result)  
+    }
+
+    val grouped = newImports.groupBy(_.repository) //grouping to avoid multiple parallel operations on same repo
     progress.beginTask("Writing Ivy results to repo(s)", grouped.size)
     grouped.par.foreach { //NOTICE .par TODO: replace with something more optimized for IO not for CPU
       case (_, results) =>
@@ -79,10 +113,10 @@ object IvyImportResultInserter extends Logging {
             repository.add(ArtifactMetadata.fromArtifact(artifact).write(artifact.hash, repository))
           }
           val commit = repository.commit("Ivy Import of " + variant.id) //TODO: We could remove this commit, and I suspect things will go a bit faster
-          val (addFiles, rmFiles) = VersionRank.useDefaultVersionRanking(id, repository, commit)
+          val (addFiles, rmFiles) = useDefaultVersionRanking(id, repository, commit)
           repository.add(addFiles)
           repository.rm(rmFiles)
-          repository.commit("Ordered Ivy Import of " + variant.id)
+          repository.commit("Ranked Ivy Import of " + variant.id)
         }
         progress.update(1)
     }
@@ -110,7 +144,7 @@ object IvyImportResultInserter extends Logging {
         }
         progress.update(1)
         completedResults
-    }
+    } ++ existingResults.flatMap(previousResolutionResults)
     progress.endTask()
 
     progress.beginTask("GCing new Ivy repo(s)", grouped.size)
@@ -121,7 +155,7 @@ object IvyImportResultInserter extends Logging {
         progress.update(1)
     }
     progress.endTask()
-    
+
     progress.beginTask("Copying files to Adept cache", grouped.size)
     grouped.par.foreach { //NOTICE .par TODO: same as above (IO vs CPU)
       case (_, results) =>

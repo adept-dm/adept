@@ -21,6 +21,7 @@ case class BenchmarkName(value: String)
 
 object BenchmarkUtils {
   val Inserted = BenchmarkName("Inserted")
+  val InsertAfterInserted = BenchmarkName("InsertAfterInserted")
   val IvyImport = BenchmarkName("Ivy-import")
   val Converted = BenchmarkName("Converted")
   val Loaded = BenchmarkName("Loaded")
