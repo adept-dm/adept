@@ -379,7 +379,6 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
       }
 
       for (confName <- requirements.keys) {
-        println(confName)
         val result = benchmark(Resolved, requirements(confName) && loader) {
           resolve(requirements(confName), loader)
         }
@@ -391,7 +390,6 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
             assert(verificationResult.isRight, "Verification of " + confName + " failed:\n" + verificationResult)
             
             val lockfile = Lockfile.create(tmpDir, requirements(confName), resolutionResults, result, cacheManager)
-            println(lockfile.jsonString)
             import scala.concurrent.duration._
             Lockfile.download(tmpDir, lockfile, 1.minute, progress)
             
