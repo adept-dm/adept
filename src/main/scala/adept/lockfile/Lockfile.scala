@@ -36,6 +36,7 @@ import adept.repository.serialization.RepositoryLocationsMetadata
 import adept.repository.Repository
 import adept.repository.models.VariantHash
 import adept.repository.GitHelpers
+import java.io.FileInputStream
 
 case class Lockfile(requirements: Seq[LockfileRequirement], artifacts: Seq[LockfileArtifact]) {
 
@@ -76,6 +77,19 @@ object Lockfile extends Logging {
   private def getCache(cacheManager: CacheManager) = {
     cacheManager.addCacheIfAbsent(CacheName)
     cacheManager.getEhcache(CacheName)
+  }
+
+  def read(file: File): Option[Lockfile] = {
+    val is = new FileInputStream(file)
+    try {
+      val json = Json.parse(io.Source.fromInputStream(is).getLines.mkString("\n"))
+      Json.fromJson[Lockfile](json) match {
+        case JsSuccess(value, _) => Some(value)
+        case JsError(errors) => throw new Exception("Could parse lockfile: " + file + ". Got: " + errors)
+      }
+    } finally {
+      is.close()
+    }
   }
 
   def create(baseDir: File, requirements: Set[Requirement], resolutionResults: Set[ResolutionResult], result: ResolveResult, cacheManager: CacheManager) = {
