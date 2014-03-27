@@ -25,6 +25,7 @@ import adept.artifact.models.ArtifactRef
 import adept.resolution.models.Constraint
 import adept.artifact.models.ArtifactAttribute
 import adept.resolution.models.Variant
+import adept.repository.models.ResolutionResult
 
 class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[String]] = Some(Set("javadoc", "sources"))) extends Logging {
   import adept.ext.AttributeDefaults.VersionAttribute
@@ -43,7 +44,7 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, skippableConf: Optio
    *
    * To verify that the requirements and the conversion was correct @see [[adept.ivy.IvyAdeptConverter.verifyConversion]]
    */
-  def loadAsIvyImportResults(module: ModuleDescriptor, progress: ProgressMonitor): Either[Set[IvyImportError], Set[IvyImportResult]] = {
+  def loadAsIvyImportResults(module: ModuleDescriptor, progress: ProgressMonitor): Either[Set[IvyImportError], (Set[IvyImportResult], Set[(RepositoryName, Id, Version)])] = {
     ivy.synchronized { //ivy is not thread safe
       val mrid = module.getModuleRevisionId()
       progress.beginTask("Resolving Ivy module(s)", module.getDependencies().size)
@@ -56,14 +57,18 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, skippableConf: Optio
           var allResults = Set.empty[IvyImportResult]
           var errors = Set.empty[IvyImportError]
 
-          module.getDependencies().foreach { directDependency =>
-            val drid = directDependency.getDependencyRevisionId()
-            val newResults = ivySingleImport(drid.getOrganisation(), drid.getName(), drid.getRevision(), progress)
+          val versionInfo = dependencyTree(mrid).map{ ivyNode =>
+            val currentIvyId = ivyNode.getId()
+            (ivyIdAsRepositoryName(currentIvyId.getModuleId), ivyIdAsId(currentIvyId.getModuleId), Version(currentIvyId.getRevision()))
+          }
+          dependencyTree(mrid).foreach { ivyNode =>
+            val currentIvyId = ivyNode.getId()
+            val newResults = ivySingleImport(currentIvyId.getOrganisation(), currentIvyId.getName(), currentIvyId.getRevision(), progress)
             allResults ++= newResults.right.getOrElse(Set.empty[IvyImportResult])
             errors ++= newResults.left.getOrElse(Set.empty[IvyImportError])
           }
           if (errors.nonEmpty) Left(errors)
-          else Right(allResults)
+          else Right(allResults -> versionInfo)
         case Left(error) => throw new Exception(error)
       }
     }
@@ -88,7 +93,6 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, skippableConf: Optio
         val configurationReport = resolveReport.getConfigurationReport(confName)
         configurationReport.getAllArtifactsReports().foreach { artifactReport =>
           val ivyArtifact = artifactReport.getArtifact()
-
           val ivyArtifactHash = {
             val fis = new FileInputStream(artifactReport.getLocalFile())
             try {
@@ -156,15 +160,19 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, skippableConf: Optio
     }
   }
 
+  private def getCaller(org: String, name: String) = ModuleRevisionId.newInstance(org, name + "-caller", "working")
+  
   private def ivySingleImport(org: String, name: String, version: String, progress: ProgressMonitor): Either[Set[IvyImportError], Set[IvyImportResult]] = {
     val mrid = ModuleRevisionId.newInstance(org, name, version)
     progress.beginTask("Ivy resolving " + mrid, ProgressMonitor.UNKNOWN)
     val resolveReport = ivy.resolve(mrid, resolveOptions(), changing)
     progress.endTask()
     val dependencyTree = createDependencyTree(mrid)(resolveReport)
-    val workingNode = dependencyTree(ModuleRevisionId.newInstance(org, name + "-caller", "working")).head
-    progress.beginTask("Importing " + mrid, dependencyTree.get(workingNode.getId).map(_.size).getOrElse(ProgressMonitor.UNKNOWN))
+    println("singeimport: " + dependencyTree)
+    val workingNode = dependencyTree(getCaller(org, name)).head
+    progress.beginTask("Importing " + mrid, dependencyTree.get(workingNode.getId).map(_.size).getOrElse(0) + 1)
     val allResults = results(workingNode, Set.empty, progress, progressIndicatorRoot = true)(dependencyTree)
+    progress.update(1)
     progress.endTask()
     allResults
   }
@@ -182,6 +190,7 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, skippableConf: Optio
 
     printWarnings(mrid, None, notLoaded, dependencies)
     loaded.filter(!visited(_)).foreach { childNode =>
+      println("loaded: " + childNode)
       val childId = childNode.getId
 //      if (childId.getName() == )
       val dependencyTree = createDependencyTree(childId)(ivy.resolve(childId, resolveOptions(), changing))
@@ -197,6 +206,7 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, skippableConf: Optio
 
   private def printWarnings(mrid: ModuleRevisionId, confName: Option[String], notLoaded: Set[IvyNode], dependencies: Map[ModuleRevisionId, Set[IvyNode]]): Unit = {
     notLoaded.foreach { ivyNode => //TODO: I am not a 100% certain that we do not really need them? Where do these deps come from, somebody wanted them originally?
+      println("notloaded: " + ivyNode)
       if (!dependencies.isDefinedAt(ivyNode.getId)) {
         logger.debug(mrid + " has a node " + ivyNode + " which was not loaded, but it is not required in upper-call tree so we ignore")
 

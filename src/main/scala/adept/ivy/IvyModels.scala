@@ -21,21 +21,21 @@ case class ArtifactLocationError(location: String, file: File) extends IvyImport
 case class IvyVerificationError(mismatchOnHash: ArtifactHash, variant: Variant, matchingHashes: Set[ArtifactHash])
 case class IvyVerificationErrorReport(msg: String, adeptExtraArtifacts: Map[ArtifactHash, Variant], ivyExtraArtifacts: Map[ArtifactHash, ModuleRevisionId], nonMatching: Set[IvyVerificationError]) {
   override def toString = {
-    msg + "\n" +
-      (if (ivyExtraArtifacts.nonEmpty) {
-        "artifacts found in Adept, but not in Ivy:\n" + adeptExtraArtifacts.map {
+    msg + ".\n" +
+      (if (adeptExtraArtifacts.nonEmpty) {
+        "Artifacts found in Adept, but not in Ivy:\n" + adeptExtraArtifacts.map {
           case (hash, variant) =>
             "\t" + hash + " in " + variant
-        }.mkString("\n")
-      } else "") +
+        }.mkString("", "\n", "\n")
+      } else "\n") +
       (if (ivyExtraArtifacts.nonEmpty) {
-        "artifacts found in Ivy, but not in Adept:\n" + ivyExtraArtifacts.map {
+        "Artifacts found in Ivy, but not in Adept:\n" + ivyExtraArtifacts.map {
           case (hash, mrid) =>
             "\t" + hash + " in " + mrid
-        }.mkString("\n")
-      } else "") +
+        }.mkString("", "\n", "\n")
+      } else "\n") +
       (if (nonMatching.nonEmpty) {
-        "\nfound a variant for the artifact, but not the right artfact(s):\n" + nonMatching.map {
+        "Found a variant for the artifact, but not the right artifact(s):\n" + nonMatching.map {
           case IvyVerificationError(hash, variant, matchingHashes) =>
             "\t" + hash + " in " + variant + (if (matchingHashes.nonEmpty) " found matching hashes:\n" +
               "\t\t" + matchingHashes.mkString(",")
@@ -44,6 +44,6 @@ case class IvyVerificationErrorReport(msg: String, adeptExtraArtifacts: Map[Arti
                 "\t\t" + variant.artifacts.mkString(",")
               else " NO variant artifacts!")
         }.mkString("\n")
-      } else "")
+      } else "\n")
   }
 }

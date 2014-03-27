@@ -51,9 +51,10 @@ object IvyImportResultInserter extends Logging {
     val included = results.flatMap { result =>
       var requirementModifications = Map.empty[Id, Set[Variant]]
       var currentExcluded = false
+      progress.update(2)
 
       for {
-        otherResult <- results
+        otherResult <-results
         ((variantId, requirementId), excludeRules) <- result.excludeRules
         excludeRule <- excludeRules
         if (matchesExcludeRule(excludeRule, otherResult.variant))
@@ -90,13 +91,17 @@ object IvyImportResultInserter extends Logging {
     }
     progress.endTask()
 
-    val previousResolutionResults = included.flatMap{ result=> 
+    progress.beginTask("Checking for new imports", included.size*2)
+    val previousResolutionResults = included.flatMap { result =>
+      progress.update(1)
       getExistingResolutionResult(baseDir, result).map(result -> _)
     }.toMap
-    
+
     val (existingResults, newImports) = included.partition { result =>
-      previousResolutionResults.contains(result)  
+      progress.update(1)
+      previousResolutionResults.contains(result)
     }
+    progress.endTask()
 
     val grouped = newImports.groupBy(_.repository) //grouping to avoid multiple parallel operations on same repo
     progress.beginTask("Writing Ivy results to repo(s)", grouped.size)

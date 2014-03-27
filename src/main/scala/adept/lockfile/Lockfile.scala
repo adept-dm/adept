@@ -35,6 +35,7 @@ import adept.repository.models.ResolutionResult
 import adept.repository.serialization.RepositoryLocationsMetadata
 import adept.repository.Repository
 import adept.repository.models.VariantHash
+import adept.repository.GitHelpers
 
 case class Lockfile(requirements: Seq[LockfileRequirement], artifacts: Seq[LockfileArtifact]) {
 
@@ -78,7 +79,7 @@ object Lockfile extends Logging {
   }
 
   def create(baseDir: File, requirements: Set[Requirement], resolutionResults: Set[ResolutionResult], result: ResolveResult, cacheManager: CacheManager) = {
-    val resolutionById = resolutionResults.groupBy(_.id)
+    val resolutionById = getLatestResolutionResults(baseDir, resolutionResults).groupBy(_.id)
     val preciseReqs = requirements.flatMap { requirement =>
       val resolutionResults = resolutionById.getOrElse(requirement.id, throw new Exception("Cannot find resolution result for: " + requirement))
       resolutionResults.map(r => (requirement, r.repository, r.commit, r.variant))
@@ -86,8 +87,18 @@ object Lockfile extends Logging {
     createPrecise(baseDir, preciseReqs, resolutionResults, result, cacheManager)
   }
 
+  private def getLatestResolutionResults(baseDir: File, resolutionResults: Set[ResolutionResult]) = {
+    resolutionResults.groupBy(result => (result.id, result.repository, result.variant)).map {
+      case ((id, name, variant), results) =>
+        val repository = new GitRepository(baseDir, name)
+        val commits = results.map(_.commit)
+        val latestCommit = GitHelpers.lastestCommit(repository, commits).getOrElse(throw new Exception("Could not find one commit which is defined as the latest in: " + (id, name, variant) + " among: " + commits))
+        ResolutionResult(id, name, latestCommit, variant)
+    }.toSet
+  }
+
   private def createPrecise(baseDir: File, requirements: Set[(Requirement, RepositoryName, Commit, VariantHash)], resolutionResults: Set[ResolutionResult], result: ResolveResult, cacheManager: CacheManager) = {
-    val reposInfo = resolutionResults.map { result => result.repository -> result.commit }
+    val reposInfo = getLatestResolutionResults(baseDir, resolutionResults).map { result => result.repository -> result.commit }
     val lockfileArtifacts = result.state.resolvedVariants.flatMap {
       case (_, variant) =>
         val lockfileArtifacts = variant.artifacts.map { artifactRef =>
@@ -124,7 +135,7 @@ object Lockfile extends Logging {
     val downloadProgress = allCurrentCachedFiles.exists { case (_, cacheFile) => cacheFile.isEmpty }
 
     if (downloadProgress) {
-      val totalBytes = allCurrentCachedFiles.filter{ case (_, cacheFile) => cacheFile.isEmpty } .foldLeft(0L)(_ + _._1.size)
+      val totalBytes = allCurrentCachedFiles.filter { case (_, cacheFile) => cacheFile.isEmpty }.foldLeft(0L)(_ + _._1.size)
       val max = if (totalBytes > Int.MaxValue) {
         logger.warn("Wow, you are really downloading a lot here! Found more bytes than " + Int.MaxValue + " (" + totalBytes + "). Progress monitoring will not work as expected")
         0
