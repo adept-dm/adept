@@ -175,7 +175,7 @@ class GitLoader(baseDir: File, private[adept] val results: Set[ResolutionResult]
   }
 
   private def locateAllIdentifiers(id: Id): Set[(VariantHash, GitRepository, Commit)] = {
-    byId(id)
+    byId.getOrElse(id, throw new Exception("Cannot resolve because there is no " + id  + " in loaded repositories: " + results.map(_.repository.value).mkString(",")))
   }
 
   def loadVariants(id: Id, constraints: Set[Constraint]): Set[Variant] = {
