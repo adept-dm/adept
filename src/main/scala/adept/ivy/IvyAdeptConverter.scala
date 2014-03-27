@@ -44,7 +44,7 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, skippableConf: Optio
    *
    * To verify that the requirements and the conversion was correct @see [[adept.ivy.IvyAdeptConverter.verifyConversion]]
    */
-  def loadAsIvyImportResults(module: ModuleDescriptor, progress: ProgressMonitor): Either[Set[IvyImportError], (Set[IvyImportResult], Set[(RepositoryName, Id, Version)])] = {
+  def loadAsIvyImportResults(module: ModuleDescriptor, progress: ProgressMonitor): Either[Set[IvyImportError], (Set[IvyImportResult], Map[String, Set[(RepositoryName, Id, Version)]])] = {
     ivy.synchronized { //ivy is not thread safe
       val mrid = module.getModuleRevisionId()
       progress.beginTask("Resolving Ivy module(s)", module.getDependencies().size)
@@ -52,26 +52,73 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, skippableConf: Optio
         case Right(resolveReport) =>
           progress.update(module.getDependencies().size)
           progress.endTask()
-          val dependencyTree = createDependencyTree(mrid)(resolveReport)
+          val configDependencyTree = createConfigDependencyTree(module)(resolveReport)
           progress.start(module.getDependencies().size)
           var allResults = Set.empty[IvyImportResult]
           var errors = Set.empty[IvyImportError]
 
-          val versionInfo = dependencyTree(mrid).map{ ivyNode =>
-            val currentIvyId = ivyNode.getId()
-            (ivyIdAsRepositoryName(currentIvyId.getModuleId), ivyIdAsId(currentIvyId.getModuleId), Version(currentIvyId.getRevision()))
-          }
+          val dependencyTree = createDependencyTree(mrid)(resolveReport)
           dependencyTree(mrid).foreach { ivyNode =>
             val currentIvyId = ivyNode.getId()
             val newResults = ivySingleImport(currentIvyId.getOrganisation(), currentIvyId.getName(), currentIvyId.getRevision(), progress)
             allResults ++= newResults.right.getOrElse(Set.empty[IvyImportResult])
             errors ++= newResults.left.getOrElse(Set.empty[IvyImportError])
           }
+          
+          //TODO: this part of the code doesn't feel right, but we need it to match the exact versions that ivy produces
+          val allIds = allResults.map(_.variant.id)
+          val versionInfo = configDependencyTree.keys.map { confName =>
+            val depdendencyTree = configDependencyTree(confName)
+            confName -> depdendencyTree(mrid).flatMap { ivyNode =>
+              val currentIvyId = ivyNode.getId()
+              val currentAdeptId = ivyIdAsId(currentIvyId.getModuleId)
+              val foundIds = allIds.collect{
+                case id if id.value.startsWith(currentAdeptId.value + Id.Sep + IdConfig) => id
+              } + currentAdeptId
+              foundIds.map{ id =>
+                (ivyIdAsRepositoryName(currentIvyId.getModuleId), id, Version(currentIvyId.getRevision()))
+              }
+            }
+          }.toMap
+          
           if (errors.nonEmpty) Left(errors)
           else Right(allResults -> versionInfo)
         case Left(error) => throw new Exception(error)
       }
     }
+  }
+
+  //TODO: merge or replace createDependencyTree with this? feels non DRY that is for sure
+  private def createConfigDependencyTree(module: ModuleDescriptor)(resolveReport: ResolveReport) = { //TODO: rename to requirement? or perhaps not?
+    val mrid = module.getModuleRevisionId
+    val confNames = module.getConfigurationsNames()
+    confNames.map { confName =>
+      val report = resolveReport.getConfigurationReport(confName)
+      if (report.getUnresolvedDependencies().nonEmpty) throw new Exception(module.getModuleRevisionId() + " has unresolved dependencies:\n" + report.getUnresolvedDependencies().toList.mkString("\n"))
+      var dependencies = Map.empty[ModuleRevisionId, Set[IvyNode]]
+      def addDependency(mrid: ModuleRevisionId, ivyNode: IvyNode) = {
+        val current = dependencies.getOrElse(mrid, Set.empty) + ivyNode
+        dependencies += mrid -> current
+      }
+
+      report.getModuleRevisionIds.asScala.foreach {
+        case currentMrid: ModuleRevisionId =>
+          if (mrid != currentMrid) addDependency(mrid, report.getDependency(currentMrid))
+      }
+
+      val currentCallers = report.getModuleRevisionIds().asScala.foreach {
+        case currentMrid: ModuleRevisionId =>
+          val ivyNode = report.getDependency(currentMrid)
+          ivyNode.getAllCallers.map { caller =>
+            if (caller.getModuleRevisionId != ivyNode.getId) addDependency(caller.getModuleRevisionId, ivyNode)
+          }
+          dependencies
+      }
+      confName -> {
+        if (dependencies.isEmpty) Map(mrid -> Set.empty)
+        else dependencies
+      }
+    }.toMap
   }
 
   /** Checks whether resolving the module yields the same result as an Adept resolved result */
@@ -161,14 +208,13 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, skippableConf: Optio
   }
 
   private def getCaller(org: String, name: String) = ModuleRevisionId.newInstance(org, name + "-caller", "working")
-  
+
   private def ivySingleImport(org: String, name: String, version: String, progress: ProgressMonitor): Either[Set[IvyImportError], Set[IvyImportResult]] = {
     val mrid = ModuleRevisionId.newInstance(org, name, version)
     progress.beginTask("Ivy resolving " + mrid, ProgressMonitor.UNKNOWN)
     val resolveReport = ivy.resolve(mrid, resolveOptions(), changing)
     progress.endTask()
     val dependencyTree = createDependencyTree(mrid)(resolveReport)
-    println("singeimport: " + dependencyTree)
     val workingNode = dependencyTree(getCaller(org, name)).head
     progress.beginTask("Importing " + mrid, dependencyTree.get(workingNode.getId).map(_.size).getOrElse(0) + 1)
     val allResults = results(workingNode, Set.empty, progress, progressIndicatorRoot = true)(dependencyTree)
@@ -190,9 +236,7 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, skippableConf: Optio
 
     printWarnings(mrid, None, notLoaded, dependencies)
     loaded.filter(!visited(_)).foreach { childNode =>
-      println("loaded: " + childNode)
       val childId = childNode.getId
-//      if (childId.getName() == )
       val dependencyTree = createDependencyTree(childId)(ivy.resolve(childId, resolveOptions(), changing))
       val newResults = results(childNode, visited ++ loaded + currentIvyNode, progress, progressIndicatorRoot = false)(dependencies ++ dependencyTree)
       if (progressIndicatorRoot) progress.update(1)
@@ -206,7 +250,6 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, skippableConf: Optio
 
   private def printWarnings(mrid: ModuleRevisionId, confName: Option[String], notLoaded: Set[IvyNode], dependencies: Map[ModuleRevisionId, Set[IvyNode]]): Unit = {
     notLoaded.foreach { ivyNode => //TODO: I am not a 100% certain that we do not really need them? Where do these deps come from, somebody wanted them originally?
-      println("notloaded: " + ivyNode)
       if (!dependencies.isDefinedAt(ivyNode.getId)) {
         logger.debug(mrid + " has a node " + ivyNode + " which was not loaded, but it is not required in upper-call tree so we ignore")
 
@@ -216,7 +259,7 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, skippableConf: Optio
           logger.debug(mrid + " evicts " + ivyNode + " so it was not loaded.")
         } else if (ivyNode.getDescriptor() != null && ivyNode.getDescriptor().canExclude()) {
           logger.debug(mrid + " required" + ivyNode + " which can be excluded.")
-        } else if (ivyNode.isCompletelyEvicted() || ivyNode.isCompletelyBlacklisted()){
+        } else if (ivyNode.isCompletelyEvicted() || ivyNode.isCompletelyBlacklisted()) {
           logger.debug(mrid + " required " + ivyNode + " and it was evicted or blacklisted, so it is not loaded and will not be imported.")
         } else {
           //TODO: make this logger.error, but do not log if we are coming from something which is provided. It is currently debug to avoid the noise
@@ -312,7 +355,7 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, skippableConf: Optio
     val dependencyReport = ivy.resolve(mrid, resolveOptions(), changing)
     val moduleDescriptor = dependencyReport.getModuleDescriptor()
     val parentNode = getParentNode(dependencyReport)
-    if (!parentNode.isLoaded) throw new Exception("Cannot load: " + parentNode + " - it might not have been resolved. Errors:\n"+ dependencyReport.getAllProblemMessages().asScala.distinct.mkString("\n"))
+    if (!parentNode.isLoaded) throw new Exception("Cannot load: " + parentNode + " - it might not have been resolved. Errors:\n" + dependencyReport.getAllProblemMessages().asScala.distinct.mkString("\n"))
     val mergableResults = dependencyReport.getConfigurations()
       .map(c => parentNode.getConfiguration(c)) //careful here. you could think: moduleDescriptor.getConfigurations is the same but it is not (you get bogus configurations back) 
       .filter(_.getVisibility() == Visibility.PUBLIC) //we cannot get dependencies for private configurations so we just skip them all together
