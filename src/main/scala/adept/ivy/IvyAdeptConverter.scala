@@ -227,17 +227,17 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, skippableConf: Optio
     val dependencyTree = createDependencyTree(mrid)(resolveReport)
     val workingNode = dependencyTree(getCaller(org, name)).head
     progress.beginTask("Importing " + mrid, dependencyTree.get(workingNode.getId).map(_.size).getOrElse(0) + 1)
-    val allResults = results(workingNode, resolveReport, Set.empty, progress, progressIndicatorRoot = true)(dependencyTree)
+    val allResults = results(workingNode, Set.empty, progress, progressIndicatorRoot = true)(dependencyTree)
     progress.update(1)
     progress.endTask()
     allResults
   }
 
-  private def results(currentIvyNode: IvyNode, resolveReport: ResolveReport, visited: Set[IvyNode], progress: ProgressMonitor, progressIndicatorRoot: Boolean)(dependencies: Map[ModuleRevisionId, Set[IvyNode]]): Either[Set[IvyImportError], Set[IvyImportResult]] = {
+  private def results(currentIvyNode: IvyNode, visited: Set[IvyNode], progress: ProgressMonitor, progressIndicatorRoot: Boolean)(dependencies: Map[ModuleRevisionId, Set[IvyNode]]): Either[Set[IvyImportError], Set[IvyImportResult]] = {
     val mrid = currentIvyNode.getId
     val children = dependencies.getOrElse(mrid, Set.empty)
 
-    val currentResults = createIvyResult(currentIvyNode, children, dependencies, resolveReport)
+    val currentResults = createIvyResult(currentIvyNode, dependencies)
     var allResults = currentResults.right.getOrElse(Set.empty[IvyImportResult])
     var errors = currentResults.left.getOrElse(Set.empty[IvyImportError])
 
@@ -248,7 +248,7 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, skippableConf: Optio
     loaded.filter(!visited(_)).foreach { childNode =>
       val childId = childNode.getId
       val dependencyTree = createDependencyTree(childId)(ivy.resolve(childId, resolveOptions(), changing))
-      val newResults = results(childNode, resolveReport, visited ++ loaded + currentIvyNode, progress, progressIndicatorRoot = false)(dependencies ++ dependencyTree)
+      val newResults = results(childNode, visited ++ loaded + currentIvyNode, progress, progressIndicatorRoot = false)(dependencies ++ dependencyTree)
       if (progressIndicatorRoot) progress.update(1)
       allResults ++= newResults.right.getOrElse(Set.empty[IvyImportResult])
       errors ++= newResults.left.getOrElse(Set.empty[IvyImportError])
@@ -378,7 +378,7 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, skippableConf: Optio
     }
   }
 
-  private def createIvyResult(currentIvyNode: IvyNode, unloadedChildren: Set[IvyNode], dependencies: Map[ModuleRevisionId, Set[IvyNode]], resolveReport: ResolveReport): Either[Set[IvyImportError], Set[IvyImportResult]] = {
+  private def createIvyResult(currentIvyNode: IvyNode, dependencies: Map[ModuleRevisionId, Set[IvyNode]]): Either[Set[IvyImportError], Set[IvyImportResult]] = {
     var errors = Set.empty[IvyImportError]
 
     val mrid = currentIvyNode.getId
@@ -402,18 +402,16 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, skippableConf: Optio
         val thisVariantId = ivyIdAsId(mrid.getModuleId, confName)
 
         val (loaded, notLoaded) = {
-          val children = Option(resolveReport.getConfigurationReport(confName)).map {
-            _.getModuleRevisionIds().asScala.flatMap { //we cannot use unloadedChildren directly, because they might not be loaded (if they are provided/evicted)
+          val children = Option(ivy.resolve(mrid, resolveOptions(confName), changing).getConfigurationReport(confName)).map { configReport =>
+            val childrenWithoutCurrentNode = configReport.getModuleRevisionIds().asScala.tail //avoid depending on yourself
+            childrenWithoutCurrentNode.map {
               case childMrid: ModuleRevisionId =>
-                unloadedChildren.find { child =>
-                  child.getId == childMrid
-                }
+                configReport.getDependency(childMrid)
             }.toSet
           }.getOrElse {
             logger.warn("Could not get configuration report for: " + confName + " " + mrid)
             Set.empty[IvyNode]
           }
-
           children.partition(_.isLoaded)
         }
 
