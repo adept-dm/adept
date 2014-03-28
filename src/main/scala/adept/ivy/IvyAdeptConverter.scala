@@ -424,7 +424,6 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, excludedConfs: Set[S
           requirements = requirements ++ configurationRequirements)
 
         val targetVersionInfo = extractTargetVersionInfo(confName, loaded)
-
         IvyImportResult(
           variant = variant,
           artifacts = artifacts,

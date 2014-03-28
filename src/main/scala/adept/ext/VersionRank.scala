@@ -85,6 +85,8 @@ import adept.repository.RankLogic
 //}
 
 case class BinaryVersionUpdateException(msg: String) extends Exception(msg)
+case class VersionNotFoundException(targetName: RepositoryName, targetId: Id, targetVersion: Version) extends Exception("Could not find version: " + targetVersion + " for id: " + targetId + " in repository:" + targetName)
+case class RepositoryNotFoundException(targetName: RepositoryName, targetId: Id, targetVersion: Version) extends Exception("Could not find repository: " + targetName + " for id: " + targetId + " and version: " +  targetVersion)
 
 object VersionRank extends Logging {
   import adept.ext.AttributeDefaults._
@@ -93,13 +95,15 @@ object VersionRank extends Logging {
     val results = versionInfo.map {
       case (targetName, targetId, targetVersion) =>
         val repository = new GitRepository(baseDir, targetName)
-        val commit = repository.getHead
-        VersionScanner.findVersion(targetId, targetVersion, repository, commit) match {
-          case Some(targetHash) =>
-            val result = ResolutionResult(targetId, targetName, commit, targetHash)
-            result
-          case None => throw new Exception("Could not find: " + targetVersion + " for " + targetId + " in " + targetName + "")
-        }
+        if (repository.exists) {
+          val commit = repository.getHead
+          VersionScanner.findVersion(targetId, targetVersion, repository, commit) match {
+            case Some(targetHash) =>
+              val result = ResolutionResult(targetId, targetName, commit, targetHash)
+              result
+            case None => throw VersionNotFoundException(targetName, targetId, targetVersion)
+          }
+        } else throw RepositoryNotFoundException(targetName, targetId, targetVersion)
     }
     results
   }

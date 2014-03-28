@@ -54,7 +54,7 @@ object IvyImportResultInserter extends Logging {
       progress.update(2)
 
       for {
-        otherResult <-results
+        otherResult <- results
         ((variantId, requirementId), excludeRules) <- result.excludeRules
         excludeRule <- excludeRules
         if (matchesExcludeRule(excludeRule, otherResult.variant))
@@ -91,7 +91,7 @@ object IvyImportResultInserter extends Logging {
     }
     progress.endTask()
 
-    progress.beginTask("Checking for new imports", included.size*2)
+    progress.beginTask("Checking for new imports", included.size * 2)
     val previousResolutionResults = included.flatMap { result =>
       progress.update(1)
       getExistingResolutionResult(baseDir, result).map(result -> _)
@@ -139,13 +139,22 @@ object IvyImportResultInserter extends Logging {
 
           val includedVersionInfo = result.versionInfo
 
-          val currentResults = VersionRank.createResolutionResults(baseDir, includedVersionInfo) ++
-            Set(ResolutionResult(id, repository.name, repository.getHead, variantMetadata.hash))
+          try {
+            val currentResults = VersionRank.createResolutionResults(baseDir, includedVersionInfo) ++
+              Set(ResolutionResult(id, repository.name, repository.getHead, variantMetadata.hash))
 
-          val resolutionResultsMetadata = ResolutionResultsMetadata(currentResults.toSeq)
-          repository.add(resolutionResultsMetadata.write(id, variantMetadata.hash, repository))
-          repository.commit("Resolution results of " + variant.id)
-          currentResults
+            val resolutionResultsMetadata = ResolutionResultsMetadata(currentResults.toSeq)
+            repository.add(resolutionResultsMetadata.write(id, variantMetadata.hash, repository))
+            repository.commit("Resolution results of " + variant.id)
+            currentResults
+          } catch {
+            case RepositoryNotFoundException(targetName, targetId, targetVersion) => 
+              logger.warn("In: " + result.variant.id + " tried to find " + targetId + " version: " + targetVersion + " in repository: " + targetName + " but the repository was not there. Assuming it is an override")
+              Set.empty[ResolutionResult]
+            case VersionNotFoundException(targetName, targetId, targetVersion) =>
+              logger.warn("In: " + result.variant.id + " tried to find " + targetId + " version: " + targetVersion + " in repository: " + targetName + " but that version was not there. Assuming it is an override")
+              Set.empty[ResolutionResult]
+          }
         }
         progress.update(1)
         completedResults
