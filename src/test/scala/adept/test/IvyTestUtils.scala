@@ -17,11 +17,11 @@ object IvyTestUtils {
   import adept.test.EitherUtils._
   import adept.test.ResolverUtils._
   import adept.test.CacheUtils._
-  
+
   def ivy = this.synchronized { //avoid parallel test messing up Ivy imports
     IvyUtils.load()
   }
-  
+
   def verify(tmpDir: File, ivy: Ivy, ivyModule: ModuleDescriptor)(implicit testDetails: TestDetails) = {
 
     val ivyConverter = new IvyAdeptConverter(ivy)
@@ -29,6 +29,7 @@ object IvyTestUtils {
     val (results, configuredVersionInfo) = benchmark(IvyImport, ivyModule) {
       ivyConverter.loadAsIvyImportResults(ivyModule, progress).failOnLeft
     }
+
     val resolutionResults = benchmark(Inserted, results) {
       IvyImportResultInserter.insertAsResolutionResults(tmpDir, results, progress)
     }
