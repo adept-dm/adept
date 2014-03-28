@@ -36,7 +36,7 @@ import java.io.File
 import scala.xml.XML
 import adept.artifact.ArtifactCache
 
-class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, skippableConf: Option[Set[String]] = Some(Set("javadoc", "sources"))) extends Logging {
+class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, excludedConfs: Set[String] = Set("optional"), skippableConf: Option[Set[String]] = Some(Set("javadoc", "sources"))) extends Logging {
   import adept.ext.AttributeDefaults.VersionAttribute
   import IvyUtils._
   import IvyConstants._
@@ -62,7 +62,7 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, skippableConf: Optio
         case Right(resolveReport) =>
           progress.update(module.getDependencies().size)
           progress.endTask()
-          val configDependencyTree = createConfigDependencyTree(module, resolveReport.getConfigurations().toSet){ confName =>
+          val configDependencyTree = createConfigDependencyTree(module, resolveReport.getConfigurations().toSet) { confName =>
             resolveReport
           }
           progress.start(module.getDependencies().size)
@@ -367,7 +367,10 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, skippableConf: Optio
     val moduleDescriptor = dependencyReport.getModuleDescriptor()
     val parentNode = getParentNode(dependencyReport)
     if (!parentNode.isLoaded) throw new Exception("Cannot load: " + parentNode + " - it might not have been resolved. Errors:\n" + dependencyReport.getAllProblemMessages().asScala.distinct.mkString("\n"))
+    logger.debug("Excluding confs in " + mrid + ": " + dependencyReport.getConfigurations()
+      .filter(c => excludedConfs(c)).toList)
     val mergableResults = dependencyReport.getConfigurations()
+      .filter(c => !excludedConfs(c))
       .map(c => parentNode.getConfiguration(c)) //careful here. you could think: moduleDescriptor.getConfigurations is the same but it is not (you get bogus configurations back) 
       .filter(_.getVisibility() == Visibility.PUBLIC) //we cannot get dependencies for private configurations so we just skip them all together
       .map { ivyConfiguration =>
@@ -458,7 +461,8 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, skippableConf: Optio
   private def createConfigDependencyTree(module: ModuleDescriptor, configNames: Set[String])(resolveReport: String => ResolveReport) = {
     val mrid = module.getModuleRevisionId
     val confNames = module.getConfigurationsNames()
-    confNames.map { confName =>
+    logger.debug("Excluding confs: " + confNames.filter(excludedConfs.contains(_)).toList)
+    confNames.filter(!excludedConfs.contains(_)).map { confName =>
       val report = resolveReport(confName).getConfigurationReport(confName)
       //      if (report.getUnresolvedDependencies().nonEmpty &&
       //        report.getUnresolvedDependencies().map(d => (d.getId.getOrganisation, d.getId.getName, d.getId.getRevision)).toList !=

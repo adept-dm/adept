@@ -61,7 +61,7 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
   val akkaTransitiveIdsExpectedIds =
     (for {
       id <- akkaTransitiveIds
-      confName <- Set("optional", "runtime", "provided", "javadoc", "system", "default", "sources", "compile")
+      confName <- Set("runtime", "provided", "javadoc", "system", "default", "sources", "compile") //optional is excluded
     } yield {
       withConfiguration(id, confName)
     }) ++ akkaTransitiveIds
