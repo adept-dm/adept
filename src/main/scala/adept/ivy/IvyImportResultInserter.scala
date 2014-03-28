@@ -170,10 +170,7 @@ object IvyImportResultInserter extends Logging {
           (expectedHash, file) <- result.localFiles
           if artifact.hash == expectedHash
         } { //<- NOTICE
-          ArtifactCache.cache(baseDir, file, expectedHash, artifact.filename.getOrElse(file.getName)) match {
-            case Left(error) => logger.error("While copying artifacts for: " + result.variant.id + " got: " + error + ". Variant: " + result.variant + " (src file: " + file.getAbsolutePath + ")")
-            case _ => //we do not check if we got the right amount of artifacts, because it can always be downloaded later. Caching is done as a convenience if we are going to use the Ivy import directly. 
-          }
+          ArtifactCache.cache(baseDir, file, expectedHash, artifact.filename.getOrElse(file.getName))
         }
         progress.update(1)
     }
