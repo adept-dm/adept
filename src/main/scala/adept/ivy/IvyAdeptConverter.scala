@@ -309,9 +309,9 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, skippableConf: Optio
     requirements -> excludeRules
   }
 
-  private def extractArtifactInfosAndErrors(mrid: ModuleRevisionId, ivyConfiguration: Configuration, confName: String) = { //TODO: what is the difference on confName and ivyConfiguration.getName?
+  private def extractArtifactInfosAndErrors(mrid: ModuleRevisionId, confName: String) = {
     var errors = Set.empty[ArtifactLocationError]
-    val resolveReport = ivy.resolve(mrid, resolveOptions(ivyConfiguration.getName), changing)
+    val resolveReport = ivy.resolve(mrid, resolveOptions(confName), changing)
     resolveReport.getArtifactsReports(mrid).flatMap { artifactReport =>
       def getResult(file: File) = {
         val hash = {
@@ -331,7 +331,7 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, skippableConf: Optio
         val file = artifactReport.getLocalFile
         if (file != null) {
           getResult(file)
-        } else if (file == null && skippableConf.isDefined && skippableConf.get(ivyConfiguration.getName())) {
+        } else if (file == null && skippableConf.isDefined && skippableConf.get(confName)) {
           None
         } else {
           throw new Exception("Could not download: " + mrid + " in " + confName)
@@ -339,7 +339,7 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, skippableConf: Optio
       } else {
         if (artifactReport.getArtifact().getConfigurations().toList.isEmpty) {
           logger.debug("Ivy has an issue where sometimes configurations are not read. Reading them manually for: " + mrid + " conf: " + confName)
-          //WORKAROUND :(  there is an issue in ivy where it sometimes leaves out the confs for artifacts (I think this happens for modules that do not have depdendencies)
+          //WORKAROUND :(  there is an issue in ivy where it sometimes leaves out the confs for artifacts (I think this happens for modules that do not have dependencies)
           val foundArtifact = for {
             file <- Option(artifactReport.getLocalFile()).toSeq
             cacheIvyDescriptorDir = new File(file.getAbsolutePath().replace("jars" + File.separator + file.getName, ""))
@@ -420,7 +420,7 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, skippableConf: Optio
         printWarnings(mrid, Some(confName), notLoaded, dependencies)
         val (requirements, excludeRules) = extractRequirementsAndExcludes(thisVariantId, confName, currentIvyNode, loaded)
 
-        val (artifactInfos, newErrors) = extractArtifactInfosAndErrors(mrid, ivyConfiguration, confName)
+        val (artifactInfos, newErrors) = extractArtifactInfosAndErrors(mrid, confName)
         errors ++= newErrors //MUTATE!
 
         //TODO: skipping empty configurations? if (artifactInfos.nonEmpty || dependencies.nonEmpty)... 
