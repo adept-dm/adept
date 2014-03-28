@@ -313,7 +313,7 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, skippableConf: Optio
     var errors = Set.empty[ArtifactLocationError]
     val resolveReport = ivy.resolve(mrid, resolveOptions(ivyConfiguration.getName), changing)
     resolveReport.getArtifactsReports(mrid).flatMap { artifactReport =>
-      def extract(file: File) = {
+      def getResult(file: File) = {
         val hash = {
           val is = new FileInputStream(file)
           try {
@@ -330,7 +330,7 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, skippableConf: Optio
       if (artifactReport.getArtifact().getConfigurations().toList.contains(confName)) {
         val file = artifactReport.getLocalFile
         if (file != null) {
-          extract(file)
+          getResult(file)
         } else if (file == null && skippableConf.isDefined && skippableConf.get(ivyConfiguration.getName())) {
           None
         } else {
@@ -352,13 +352,11 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, skippableConf: Optio
             currentConf <- confs
             if currentConf == confName
           } yield {
-            extract(file)
+            getResult(file)
           }
           assert(foundArtifact.size < 2)
           foundArtifact.flatten
         } else {
-          println("--> nonempty:" + mrid + " VS " +  artifactReport.getArtifact().getModuleRevisionId()  + " conf " + confName + "->" + artifactReport.getArtifact().getConfigurations().toList)
-
           None
         }
       }
