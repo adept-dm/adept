@@ -7,6 +7,8 @@ import org.apache.ivy.core.module.id.ModuleRevisionId
 import adept.resolution.models.Variant
 import org.apache.ivy.core.module.descriptor.ExcludeRule
 import org.apache.ivy.core.module.descriptor.Configuration
+import adept.resolution.models.Id
+import adept.repository.models.RepositoryName
 
 object IvyRequirements {
   import IvyConstants._
@@ -14,7 +16,20 @@ object IvyRequirements {
   import adept.ext.AttributeDefaults._
 
   val unsupportedStrings = Set("%", "!", "[", "]", "@", "#")
-  
+
+  def matchIdWithConfiguration(moduleForConfiguration: ModuleDescriptor, confName: String, ids: Set[Id]) = {
+    for {
+      ivyConf <- getAllConfigurations(moduleForConfiguration, confName)
+      id <- ids
+      matchingId <- id.value match { 
+        case ConfigRegex(base, idConf) if idConf == ivyConf => Some(id)
+        case _ => None
+      } 
+    } yield {
+      matchingId
+    }
+  }
+
   /** Transform the dependencies in a Ivy Module to Adept requirements */
   def convertIvyAsRequirements(module: ModuleDescriptor, allIvyImportResults: Set[IvyImportResult]): Map[String, Set[Requirement]] = {
     var requirements = Map.empty[String, Set[Requirement]]
@@ -49,7 +64,7 @@ object IvyRequirements {
     }
     requirements
   }
-  
+
   private def findFallback(confExpr: String): (String, Option[String]) = {
     val FallbackExpr = """(.*?)\((.*?)\)$""".r
     confExpr.trim match {
@@ -72,7 +87,6 @@ object IvyRequirements {
       variant.attribute(IvyOrgAttribute).values == Set(moduleId.getOrganisation()) &&
       variant.attribute(VersionAttribute).values == Set(mrid.getRevision())
   }
-
 
   private def getAllConfigurations(module: ModuleDescriptor, confName: String): Set[String] = {
     def getAllConfigurations(module: ModuleDescriptor, existing: Set[String]): Set[String] = {

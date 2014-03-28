@@ -23,7 +23,7 @@ import org.apache.ivy.core.cache.ResolutionCacheManager
 private[adept] object IvyUtils extends Logging {
   import IvyConstants._
   import collection.JavaConverters._
-  
+
   /** As in sbt */
   private[ivy] def cleanModule(mrid: ModuleRevisionId, resolveId: String, manager: ResolutionCacheManager) {
     val files =
@@ -36,7 +36,7 @@ private[adept] object IvyUtils extends Logging {
       (new Directory(file)).deleteRecursively() //TODO: I hope this works on files and on directories? Perhaps use something else? 
     }
   }
-  
+
   def getExcludeRules(parentNode: IvyNode, ivyNode: IvyNode) = {
     for { //handle nulls
       parentNode <- Option(parentNode).toSet[IvyNode]
@@ -52,7 +52,7 @@ private[adept] object IvyUtils extends Logging {
       excludeRule
     }
   }
-  
+
   def getParentNode(resolveReport: ResolveReport) = {
     resolveReport.getDependencies().asScala.map { case i: IvyNode => i }.head //Feels a bit scary?
   }
@@ -79,6 +79,8 @@ private[adept] object IvyUtils extends Logging {
     loadedIvy.setSettings(settings)
     loadedIvy
   }
+  
+  val ConfigRegex = "^(.*)/config/(.*?)$".r //useful to extract configurations
 
   def resolveOptions(confs: String*) = {
     val resolveOptions = new ResolveOptions()

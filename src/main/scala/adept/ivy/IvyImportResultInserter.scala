@@ -149,10 +149,10 @@ object IvyImportResultInserter extends Logging {
             currentResults
           } catch {
             case RepositoryNotFoundException(targetName, targetId, targetVersion) => 
-              logger.warn("In: " + result.variant.id + " tried to find " + targetId + " version: " + targetVersion + " in repository: " + targetName + " but the repository was not there. Assuming it is an override")
+              logger.warn("In: " + result.variant.id + " tried to find " + targetId + " version: " + targetVersion + " in repository: " + targetName + " but the repository was not there. Assuming it is an UNAPPLIED override (i.e. an override of a module which the source module does not actually depend on) so ignoring...")
               Set.empty[ResolutionResult]
             case VersionNotFoundException(targetName, targetId, targetVersion) =>
-              logger.warn("In: " + result.variant.id + " tried to find " + targetId + " version: " + targetVersion + " in repository: " + targetName + " but that version was not there. Assuming it is an override")
+              logger.warn("In: " + result.variant.id + " tried to find " + targetId + " version: " + targetVersion + " in repository: " + targetName + " but that version was not there. Assuming it is an UNAPPLIED override (i.e. an override of a module which the source module does not actually depend on) so ignoring...")
               Set.empty[ResolutionResult]
           }
         }
@@ -179,7 +179,8 @@ object IvyImportResultInserter extends Logging {
           (expectedHash, file) <- result.localFiles
           if artifact.hash == expectedHash
         } { //<- NOTICE
-          ArtifactCache.cache(baseDir, file, expectedHash, artifact.filename.getOrElse(file.getName))
+          if (file.isFile) //sometimes Ivy removes the files for an very unknown reason. We do not care though, we can always download it again....
+            ArtifactCache.cache(baseDir, file, expectedHash, artifact.filename.getOrElse(file.getName))
         }
         progress.update(1)
     }
