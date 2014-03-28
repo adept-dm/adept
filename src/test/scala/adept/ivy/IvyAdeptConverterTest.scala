@@ -48,14 +48,11 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
   import adept.test.OutputUtils._
   import adept.test.EitherUtils._
   import adept.test.ArtifactUtils._
+  import adept.test.IvyTestUtils.ivy
 
   import IvyConstants._
   import IvyUtils.withConfiguration
   import adept.ext.AttributeDefaults._
-
-  def ivy = this.synchronized { //avoid parallel test messing up Ivy imports
-    IvyUtils.load()
-  }
 
   val akkaTransitiveIds: Set[Id] = Set(
     "com.typesafe.akka/akka-actor_2.10",
@@ -347,99 +344,4 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
       Requirement(Id("scalatest_2.10/config/compile"), Set.empty, Set.empty),
       Requirement(Id("scalatest_2.10/config/runtime"), Set.empty, Set.empty))
   }
-
-  test("Ivy end-to-end: import, insert, resolution, verification") {
-    implicit val testDetails = TestDetails("End-to-end (akka-remote & scalatest)")
-    usingTmpDir { tmpDir =>
-      ivy.configure(new File("src/test/resources/typesafe-ivy-settings.xml"))
-
-      val ivyConverter = new IvyAdeptConverter(ivy)
-      val ivyModule = getAkkaRemoteTestIvyModule
-
-      val (results, configuredVersionInfo) = benchmark(IvyImport, ivyModule) {
-        ivyConverter.loadAsIvyImportResults(ivyModule, progress).failOnLeft
-      }
-      val resolutionResults = benchmark(Inserted, results) {
-        IvyImportResultInserter.insertAsResolutionResults(tmpDir, results, progress)
-      }
-      val resolutionResults2 = benchmark(InsertAfterInserted, results) {
-        IvyImportResultInserter.insertAsResolutionResults(tmpDir, results, progress)
-      }
-      resolutionResults shouldEqual resolutionResults2
-
-      val requirements = benchmark(Converted, ivyModule && results) {
-        IvyRequirements.convertIvyAsRequirements(ivyModule, results)
-      }
-
-      for (confName <- requirements.keys) {
-        val resolutionResults =
-          VersionRank.createResolutionResults(tmpDir, configuredVersionInfo(confName))
-
-        val loader = benchmark(Loaded, resolutionResults) {
-          new GitLoader(tmpDir, resolutionResults, progress, cacheManager)
-        }
-
-        val result = benchmark(Resolved, requirements(confName) && loader) {
-          resolve(requirements(confName), loader)
-        }
-        result match {
-          case resolvedResult: ResolvedResult =>
-            val verificationResult = benchmark(Verified, resolvedResult && ivyModule) {
-              ivyConverter.verifyConversion(confName, ivyModule, resolvedResult)
-            }
-            assert(verificationResult.isRight, "Verification of " + confName + " failed:\n" + verificationResult)
-          case _ =>
-            assert(false, "Expected to be able to resolve Adept for " + confName + ". Got result:\n" + result)
-        }
-      }
-    }
-  }
-
-  //  test("Ivy end-to-end: sbt plugin") {
-  //    implicit val testDetails = TestDetails("End-to-end (play sbt plugin)")
-  //    usingTmpDir { tmpDir =>
-  //      val  ivy = IvyUtils.load(ivyLogger = IvyConstants.warnIvyLogger)
-  //
-  //      ivy.configure(new File("src/test/resources/sbt-plugin-ivy-settings.xml"))
-  //      
-  //      val ivyConverter = new IvyAdeptConverter(ivy)
-  //
-  //      val transitive = true
-  //      val changing = true
-  //      val force = true
-  //      val ivyModule = DefaultModuleDescriptor.newBasicInstance(ModuleRevisionId.newInstance("com.adepthub", "test", "1.0"), new java.util.Date(1395315115209L))
-  //      ivyModule.addConfiguration(new IvyConfiguration("default", IvyConfiguration.Visibility.PUBLIC, "", Array("master", "runtime"), true, ""))
-  //      ivyModule.addConfiguration(new IvyConfiguration("master", IvyConfiguration.Visibility.PUBLIC, "", Array.empty, true, ""))
-  //      ivyModule.addConfiguration(new IvyConfiguration("runtime", IvyConfiguration.Visibility.PUBLIC, "", Array("compile"), true, ""))
-  //      ivyModule.addConfiguration(new IvyConfiguration("compile", IvyConfiguration.Visibility.PUBLIC, "", Array.empty, true, ""))
-  //      ivyModule.addConfiguration(new IvyConfiguration("test", IvyConfiguration.Visibility.PRIVATE, "", Array("runtime"), true, ""))
-  //
-  //      val playSbtDep = new DefaultDependencyDescriptor(ivyModule,
-  //        ModuleRevisionId.newInstance("com.typesafe.play", "sbt-plugin", "2.2.2"), force, changing, transitive)
-  //      playSbtDep.addDependencyConfiguration("runtime", "default(runtime)")
-  //      ivyModule.addDependency(playSbtDep)
-  //
-  //      val results = benchmark(IvyImport, ivyModule) {
-  //        ivyConverter.loadAsIvyImportResults(ivyModule, progress).failOnLeft
-  //      }
-  //      val resolutionResults = benchmark(Inserted, results) {
-  //        IvyImportResultInserter.insertAsResolutionResults(tmpDir, results, progress)
-  //      }
-  //
-  //      val requirements = benchmark(Converted, ivyModule && results) {
-  //        IvyRequirements.convertIvyAsRequirements(ivyModule, results)
-  //      }
-  //
-  //      val loader = benchmark(Loaded, resolutionResults) {
-  //        new GitLoader(tmpDir, resolutionResults, progress, cacheManager)
-  //      }
-  //
-  //      for (confName <- requirements.keys) {
-  //        val result = benchmark(Resolved, requirements(confName) && loader) {
-  //          resolve(requirements(confName), loader)
-  //        }
-  //        println(result)
-  //      }
-  //    }
-  //  }
 }

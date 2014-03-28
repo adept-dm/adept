@@ -312,7 +312,7 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, skippableConf: Optio
   private def extractArtifactInfosAndErrors(mrid: ModuleRevisionId, ivyConfiguration: Configuration, confName: String) = { //TODO: what is the difference on confName and ivyConfiguration.getName?
     var errors = Set.empty[ArtifactLocationError]
     val resolveReport = ivy.resolve(mrid, resolveOptions(ivyConfiguration.getName), changing)
-    resolveReport.getAllArtifactsReports.flatMap { artifactReport =>
+    resolveReport.getArtifactsReports(mrid).flatMap { artifactReport =>
       def extract(file: File) = {
         val hash = {
           val is = new FileInputStream(file)
@@ -327,7 +327,7 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, skippableConf: Optio
         Some((location, artifactReport.getArtifact().getConfigurations(), file, hash, file.getName))
       }
 
-      if (artifactReport.getArtifact().getModuleRevisionId() == mrid && artifactReport.getArtifact().getConfigurations().toList.contains(confName)) {
+      if (artifactReport.getArtifact().getConfigurations().toList.contains(confName)) {
         val file = artifactReport.getLocalFile
         if (file != null) {
           extract(file)
@@ -338,7 +338,7 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, skippableConf: Optio
         }
       } else {
         if (artifactReport.getArtifact().getConfigurations().toList.isEmpty) {
-          logger.debug("Ivy has an issue where sometimes configurations are not read. Reading them manually!")
+          logger.debug("Ivy has an issue where sometimes configurations are not read. Reading them manually for: " + mrid + " conf: " + confName)
           //WORKAROUND :(  there is an issue in ivy where it sometimes leaves out the confs for artifacts (I think this happens for modules that do not have depdendencies)
           val foundArtifact = for {
             file <- Option(artifactReport.getLocalFile()).toSeq
@@ -356,7 +356,11 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, skippableConf: Optio
           }
           assert(foundArtifact.size < 2)
           foundArtifact.flatten
-        } else None
+        } else {
+          println("--> nonempty:" + mrid + " VS " +  artifactReport.getArtifact().getModuleRevisionId()  + " conf " + confName + "->" + artifactReport.getArtifact().getConfigurations().toList)
+
+          None
+        }
       }
     }.toSet -> errors
   }
@@ -407,7 +411,7 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, skippableConf: Optio
                   child.getId == childMrid
                 }
             }.toSet
-          }.getOrElse{
+          }.getOrElse {
             logger.warn("Could not get configuration report for: " + confName + " " + mrid)
             Set.empty[IvyNode]
           }

@@ -20,12 +20,12 @@ import adept.logging.Logging
 import org.apache.ivy.core.module.descriptor.ModuleDescriptor
 import org.apache.ivy.core.cache.ResolutionCacheManager
 
-private[ivy] object IvyUtils extends Logging {
+private[adept] object IvyUtils extends Logging {
   import IvyConstants._
   import collection.JavaConverters._
   
   /** As in sbt */
-  private[adept] def cleanModule(mrid: ModuleRevisionId, resolveId: String, manager: ResolutionCacheManager) {
+  private[ivy] def cleanModule(mrid: ModuleRevisionId, resolveId: String, manager: ResolutionCacheManager) {
     val files =
       Option(manager.getResolvedIvyPropertiesInCache(mrid)).toList :::
         Option(manager.getResolvedIvyFileInCache(mrid)).toList :::
