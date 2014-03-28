@@ -149,11 +149,11 @@ object Lockfile extends Logging {
     val downloadProgress = allCurrentCachedFiles.exists { case (_, cacheFile) => cacheFile.isEmpty }
 
     if (downloadProgress) {
-      val totalBytes = allCurrentCachedFiles.filter { case (_, cacheFile) => cacheFile.isEmpty }.foldLeft(0L)(_ + _._1.size)
-      val max = if (totalBytes > Int.MaxValue) {
-        logger.warn("Wow, you are really downloading a lot here! Found more bytes than " + Int.MaxValue + " (" + totalBytes + "). Progress monitoring will not work as expected")
+      val totalKBytes = allCurrentCachedFiles.foldLeft(0)(_ + _._1.size.toInt / 1024)
+      val max = if (totalKBytes  >= Int.MaxValue/1024) {
+        logger.warn("Wow, you are really downloading a lot here! Found more kbytes than " + Int.MaxValue/1024 + " (" + totalKBytes + "). Progress monitoring will not work as expected")
         0
-      } else totalBytes.toInt / 1024 //<- toInt
+      } else totalKBytes
 
       progress.beginTask("Downloading artifacts (kb)", max)
     }
@@ -169,7 +169,7 @@ object Lockfile extends Logging {
         case Success((artifact, _)) =>
           if (downloadProgress) progress.update(artifact.size.toInt / 1024) //<- watch out for the toInt here! we are logging this though
         case Failure(exception) =>
-          logger.error("Failed to download (" + exception.getCause + ") artifacts: " + lockfile.artifacts.map(_.filename).mkString(","))
+          logger.error("Failed to get (" + exception.getCause + ") artifacts: " + lockfile.artifacts.map(_.filename).mkString(","))
       }
       result.map{ case (a, tmpFile) =>
         a -> ArtifactCache.cache(baseDir, tmpFile, artifact.hash, artifact.filename.getOrElse(artifact.hash.value))
