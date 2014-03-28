@@ -171,7 +171,9 @@ object Lockfile extends Logging {
         case Failure(exception) =>
           logger.error("Failed to download (" + exception.getCause + ") artifacts: " + lockfile.artifacts.map(_.filename).mkString(","))
       }
-      result
+      result.map{ case (a, tmpFile) =>
+        a -> ArtifactCache.cache(baseDir, tmpFile, artifact.hash, artifact.filename.getOrElse(artifact.hash.value))
+      }
     }
     val all = Await.result(Future.sequence(futures), timeout)
     if (downloadProgress) progress.endTask()

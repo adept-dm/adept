@@ -56,8 +56,7 @@ object ArtifactCache {
     if (currentCacheFile.isFile) {
       if (verify) assert(hashFile(currentCacheFile) == hash.value, "Expected " + filename + " to have hash " + hash + " but file: " + currentCacheFile.getAbsolutePath() + " has a different hash!")
       Some(currentCacheFile)
-    }
-    else {
+    } else {
       val parentDir = createParentDir(currentCacheFile)
       val foundFile = parentDir.listFiles().find { f =>
         !verify || hashFile(f) == hash.value
@@ -69,15 +68,15 @@ object ArtifactCache {
     }
   }
 
-  def cache(baseDir: File, srcFile: File, expectedHash: ArtifactHash, filename: String): Either[String, File] = {
+  def cache(baseDir: File, srcFile: File, expectedHash: ArtifactHash, filename: String): File = {
     val actualHash = hashFile(srcFile)
-    if (actualHash != expectedHash.value) throw new Exception("Expected file: " + srcFile.getAbsolutePath + " (with new name: " + filename + ") to have hash: " + expectedHash.value + " but it was: " + actualHash) 
-    else 
-      Right(getOrCreateExistingCacheFile(baseDir, expectedHash, filename).getOrElse {
+    if (actualHash != expectedHash.value) throw new Exception("Expected file: " + srcFile.getAbsolutePath + " (with new name: " + filename + ") to have hash: " + expectedHash.value + " but it was: " + actualHash)
+    else
+      getOrCreateExistingCacheFile(baseDir, expectedHash, filename).getOrElse {
         val newCacheFile = getCacheFile(baseDir, expectedHash, filename)
         copy(srcFile, newCacheFile)
         newCacheFile
-      })
+      }
   }
 
 }

@@ -400,12 +400,17 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, skippableConf: Optio
         val thisVariantId = ivyIdAsId(mrid.getModuleId, confName)
 
         val (loaded, notLoaded) = {
-          val children = resolveReport.getConfigurationReport(confName).getModuleRevisionIds().asScala.flatMap { //we cannot use unloadedChildren directly, because they might not be loaded (if they are provided/evicted)
-            case childMrid: ModuleRevisionId =>
-              unloadedChildren.find { child =>
-                child.getId == childMrid
-              }
-          }.toSet
+          val children = Option(resolveReport.getConfigurationReport(confName)).map {
+            _.getModuleRevisionIds().asScala.flatMap { //we cannot use unloadedChildren directly, because they might not be loaded (if they are provided/evicted)
+              case childMrid: ModuleRevisionId =>
+                unloadedChildren.find { child =>
+                  child.getId == childMrid
+                }
+            }.toSet
+          }.getOrElse{
+            logger.warn("Could not get configuration report for: " + confName + " " + mrid)
+            Set.empty[IvyNode]
+          }
 
           children.partition(_.isLoaded)
         }
