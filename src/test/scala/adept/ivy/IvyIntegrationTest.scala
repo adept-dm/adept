@@ -78,7 +78,22 @@ class IvyIntegrationTest extends FunSuite with Matchers {
         ModuleRevisionId.newInstance("org.scala-lang", "scala-library", "2.10.3"), force, changing, transitive)
       scalaLibDep.addDependencyConfiguration("compile", "default(compile)")
       ivyModule.addDependency(scalaLibDep)
-      
+
+      IvyTestUtils.verify(tmpDir, ivy, ivyModule)
+    }
+  }
+
+  test("Ivy end-to-end: adepts own (many different)") {
+    implicit val testDetails = TestDetails("End-to-end (adepts own (many different))")
+    usingTmpDir { tmpDir =>
+      val ivy = IvyTestUtils.ivy
+      val ivyModule = getDefaultAdeptModule
+
+      val scalaLibDep = new DefaultDependencyDescriptor(ivyModule,
+        ModuleRevisionId.newInstance("org.scala-lang", "scala-library", "2.10.3"), force, changing, transitive)
+      scalaLibDep.addDependencyConfiguration("compile", "default(compile)")
+      ivyModule.addDependency(scalaLibDep)
+
       IvyTestUtils.verify(tmpDir, ivy, ivyModule)
     }
   }
