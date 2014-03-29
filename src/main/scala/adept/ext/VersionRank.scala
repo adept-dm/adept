@@ -4,12 +4,12 @@ import adept.resolution.models._
 import adept.repository.models._
 import adept.repository.GitRepository
 import java.io.File
-import adept.repository.serialization.VariantMetadata
+import adept.repository.metadata.VariantMetadata
 import adept.logging.Logging
 import java.io.FileWriter
-import adept.repository.serialization.ResolutionResultsMetadata
+import adept.repository.metadata.ResolutionResultsMetadata
 import scala.util.matching.Regex
-import adept.repository.serialization.RankingMetadata
+import adept.repository.metadata.RankingMetadata
 import adept.repository.RankLogic
 
 //import adept.logging.Logging

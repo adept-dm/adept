@@ -1,6 +1,6 @@
 package adept.ext
 
-import adept.repository.serialization.VariantMetadata
+import adept.repository.metadata.VariantMetadata
 import adept.repository.models.ResolutionResult
 import adept.repository.models.RepositoryLocations
 import adept.artifact.models.Artifact
@@ -8,9 +8,9 @@ import adept.resolution.models.Id
 import adept.repository.models.VariantHash
 import adept.repository.GitRepository
 import adept.repository.models.Commit
-import adept.repository.serialization.ResolutionResultsMetadata
-import adept.repository.serialization.RepositoryLocationsMetadata
-import adept.repository.serialization.ArtifactMetadata
+import adept.repository.metadata.ResolutionResultsMetadata
+import adept.repository.metadata.RepositoryLocationsMetadata
+import adept.repository.metadata.ArtifactMetadata
 
 private[ext] case class VariantAssociations(variant: VariantMetadata, resolutionResults: Set[ResolutionResult], repositoryLocations: Set[RepositoryLocations], artifactLocations: Set[Artifact])
 

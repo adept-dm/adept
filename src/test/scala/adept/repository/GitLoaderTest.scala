@@ -10,11 +10,11 @@ import java.io.File
 import adept.ext.Version
 import org.scalatest.OptionValues._
 import adept.ext.AttributeDefaults
-import adept.repository.serialization.VariantMetadata
-import adept.repository.serialization.ResolutionResultsMetadata
-import adept.repository.serialization.RepositoryLocationsMetadata
+import adept.repository.metadata.VariantMetadata
+import adept.repository.metadata.ResolutionResultsMetadata
+import adept.repository.metadata.RepositoryLocationsMetadata
 import adept.ext.VersionRank
-import adept.repository.serialization.RankingMetadata
+import adept.repository.metadata.RankingMetadata
 
 class GitLoaderTest extends FunSuite with Matchers {
   import adept.test.FileUtils._

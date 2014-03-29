@@ -1,4 +1,4 @@
-package adept.repository.serialization
+package adept.repository.metadata
 
 import adept.repository.models.RepositoryName
 import adept.repository.models.RepositoryLocations

@@ -3,7 +3,7 @@ package adept.ext
 import org.scalatest.FunSpec
 import org.scalatest.Matchers
 import adept.repository.models._
-import adept.repository.serialization._
+import adept.repository.metadata._
 import adept.repository._
 import adept.resolution.models._
 import net.sf.ehcache.CacheManager

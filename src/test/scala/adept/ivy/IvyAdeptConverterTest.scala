@@ -8,11 +8,11 @@ import adept.repository.models.RepositoryName
 import adept.repository.models.ResolutionResult
 import adept.repository.models.Commit
 import adept.repository.models.VariantHash
-import adept.repository.serialization.ResolutionResultsMetadata
+import adept.repository.metadata.ResolutionResultsMetadata
 import java.io.File
 import adept.repository.GitRepository
 import adept.repository.GitLoader
-import adept.repository.serialization.VariantMetadata
+import adept.repository.metadata.VariantMetadata
 import adept.utils.Hasher
 import net.sf.ehcache.CacheManager
 import org.eclipse.jgit.lib.TextProgressMonitor

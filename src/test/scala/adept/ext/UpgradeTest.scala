@@ -6,14 +6,14 @@ import adept.resolution.models.Id
 import adept.repository.GitRepository
 import adept.repository.models.RepositoryName
 import adept.resolution.models.Variant
-import adept.repository.serialization.VariantMetadata
+import adept.repository.metadata.VariantMetadata
 import adept.lockfile.Lockfile
 import adept.resolution.models.Requirement
 import adept.repository.models.ResolutionResult
 import adept.repository.GitLoader
 import adept.resolution.models.Constraint
 import adept.resolution.models.Attribute
-import adept.repository.serialization.RankingMetadata
+import adept.repository.metadata.RankingMetadata
 import adept.repository.RankLogic
 
 class UpgradeTest extends FunSuite with Matchers {

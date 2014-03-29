@@ -1,4 +1,4 @@
-package adept.repository.serialization
+package adept.repository.metadata
 
 import java.io.File
 import java.io.FileWriter

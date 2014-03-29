@@ -9,7 +9,7 @@ import adept.resolution.models.Requirement
 import java.io.File
 import play.api.libs.json._
 import play.api.libs.functional.syntax._
-import adept.repository.serialization.MetadataContent
+import adept.repository.metadata.MetadataContent
 import adept.artifact.models.ArtifactHash
 import adept.artifact.models.ArtifactRef
 import adept.artifact.models.ArtifactAttribute
@@ -24,7 +24,7 @@ import scala.concurrent.Future
 import scala.concurrent.Await
 import scala.concurrent.duration.FiniteDuration
 import adept.resolution.resolver.models.ResolveResult
-import adept.repository.serialization.ArtifactMetadata
+import adept.repository.metadata.ArtifactMetadata
 import adept.repository.models.RepositoryName
 import net.sf.ehcache.CacheManager
 import adept.utils.CacheHelpers
@@ -32,7 +32,7 @@ import adept.utils.Hasher
 import net.sf.ehcache.Ehcache
 import adept.repository.GitRepository
 import adept.repository.models.ResolutionResult
-import adept.repository.serialization.RepositoryLocationsMetadata
+import adept.repository.metadata.RepositoryLocationsMetadata
 import adept.repository.Repository
 import adept.repository.models.VariantHash
 import adept.repository.GitHelpers

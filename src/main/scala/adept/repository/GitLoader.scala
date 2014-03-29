@@ -2,16 +2,16 @@ package adept.repository
 
 import adept.resolution.models._
 import adept.repository.models._
-import adept.repository.serialization.VariantMetadata
+import adept.repository.metadata.VariantMetadata
 import java.io.File
 import net.sf.ehcache.CacheManager
 import adept.utils.Hasher
 import net.sf.ehcache.Ehcache
 import org.eclipse.jgit.lib.ProgressMonitor
-import adept.repository.serialization.ResolutionResultsMetadata
+import adept.repository.metadata.ResolutionResultsMetadata
 import adept.logging.Logging
-import adept.repository.serialization.RepositoryLocationsMetadata
-import adept.repository.serialization.RankingMetadata
+import adept.repository.metadata.RepositoryLocationsMetadata
+import adept.repository.metadata.RankingMetadata
 
 object GitLoader extends Logging {
 

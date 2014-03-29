@@ -4,7 +4,7 @@ import adept.repository.models.Ranking
 import adept.resolution.models.Id
 import adept.repository.models.VariantHash
 import adept.repository.models.Commit
-import adept.repository.serialization.RankingMetadata
+import adept.repository.metadata.RankingMetadata
 import adept.repository.models.RankId
 
 object RankLogic {

@@ -3,7 +3,7 @@ package adept.ext
 import adept.resolution.models._
 import adept.repository.models._
 import adept.repository._
-import adept.repository.serialization._
+import adept.repository.metadata._
 
 object VersionScanner {
   def findVersion(id: Id, version: Version, repository: GitRepository, commit: Commit): Option[VariantHash] = {

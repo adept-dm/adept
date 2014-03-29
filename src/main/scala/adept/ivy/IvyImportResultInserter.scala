@@ -5,7 +5,7 @@ import org.apache.ivy.core.module.descriptor.DependencyDescriptor
 import org.eclipse.jgit.lib.ProgressMonitor
 import adept.ext._
 import adept.repository.GitRepository
-import adept.repository.serialization._
+import adept.repository.metadata._
 import adept.repository.models._
 import adept.resolution.models._
 import adept.artifact.ArtifactCache

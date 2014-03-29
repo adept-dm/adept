@@ -1,4 +1,4 @@
-package adept.repository.serialization
+package adept.repository.metadata
 
 import adept.repository.models.Commit
 import adept.repository.models.RankId

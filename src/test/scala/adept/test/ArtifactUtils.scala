@@ -5,7 +5,7 @@ import adept.repository.models.RepositoryName
 import adept.repository.models.Commit
 import adept.artifact.models.ArtifactHash
 import adept.repository.GitRepository
-import adept.repository.serialization.ArtifactMetadata
+import adept.repository.metadata.ArtifactMetadata
 import adept.artifact.models.Artifact
 import org.scalatest.Matchers
 import adept.resolution.models.Variant

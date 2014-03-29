@@ -5,9 +5,9 @@ import org.scalatest.Matchers
 import adept.repository.GitRepository
 import java.io.File
 import adept.repository.models.RepositoryName
-import adept.repository.serialization.VariantMetadata
+import adept.repository.metadata.VariantMetadata
 import adept.repository.models.RepositoryLocations
-import adept.repository.serialization.RepositoryLocationsMetadata
+import adept.repository.metadata.RepositoryLocationsMetadata
 import org.eclipse.jgit.api.Git
 import org.eclipse.jgit.lib.ConfigConstants
 import adept.resolution.models.Variant

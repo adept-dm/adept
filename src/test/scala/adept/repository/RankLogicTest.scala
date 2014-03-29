@@ -8,7 +8,7 @@ import adept.repository.models.Commit
 import org.scalatest.OptionValues._
 import adept.repository.models.RepositoryName
 import adept.repository.models.RankId
-import adept.repository.serialization.RankingMetadata
+import adept.repository.metadata.RankingMetadata
 import adept.test.FileUtils.usingTmpDir
 import adept.test.HashUtils.asHash
 import scala.Option.option2Iterable

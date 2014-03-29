@@ -6,12 +6,12 @@ import adept.repository.models.Commit
 import java.io.File
 import adept.repository.GitRepository
 import adept.lockfile.LockfileRequirement
-import adept.repository.serialization.RankingMetadata
+import adept.repository.metadata.RankingMetadata
 import adept.repository.models.ResolutionResult
 import adept.logging.Logging
 import adept.repository.AttributeConstraintFilter
-import adept.repository.serialization.VariantMetadata
-import adept.repository.serialization.ResolutionResultsMetadata
+import adept.repository.metadata.VariantMetadata
+import adept.repository.metadata.ResolutionResultsMetadata
 
 object Upgrade extends Logging {
   def toLatestBinaryCompatible(baseDir: File, requirements: Set[LockfileRequirement]): Set[LockfileRequirement] = {

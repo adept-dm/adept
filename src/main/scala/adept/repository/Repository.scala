@@ -4,7 +4,7 @@ import java.io.File
 import org.eclipse.jgit.lib.Constants
 import adept.repository.models._
 import adept.resolution.models._
-import adept.repository.serialization.VariantMetadata
+import adept.repository.metadata.VariantMetadata
 import adept.artifact.models.ArtifactHash
 import java.io.InputStream
 import org.apache.ivy.plugins.repository.file.FileRepository

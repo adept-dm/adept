@@ -1,4 +1,4 @@
-package adept.repository.serialization
+package adept.repository.metadata
 
 import org.scalatest.FunSuite
 import org.scalatest.Matchers
