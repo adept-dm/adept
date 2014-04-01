@@ -128,13 +128,13 @@ object IvyImportResultInserter extends Logging {
     progress.endTask()
     progress.beginTask("Converting Ivy version in repo(s)", grouped.size)
     val all = Set() ++ grouped.par.flatMap { //NOTICE .par TODO: same as above (IO vs CPU)
-      case (_, results) =>
+      case (name, results) =>
+        val repository = new GitRepository(baseDir, name)
+        if (!repository.exists) repository.init()
         val completedResults = results.flatMap { result =>
           val variant = result.variant
           val id = variant.id
 
-          val repository = new GitRepository(baseDir, result.repository)
-          if (!repository.exists) repository.init()
           val variantMetadata = VariantMetadata.fromVariant(variant)
 
           val includedVersionInfo = result.versionInfo
@@ -145,10 +145,9 @@ object IvyImportResultInserter extends Logging {
 
             val resolutionResultsMetadata = ResolutionResultsMetadata(currentResults.toSeq)
             repository.add(resolutionResultsMetadata.write(id, variantMetadata.hash, repository))
-            repository.commit("Resolution results of " + variant.id)
             currentResults
           } catch {
-            case RepositoryNotFoundException(targetName, targetId, targetVersion) => 
+            case RepositoryNotFoundException(targetName, targetId, targetVersion) =>
               logger.warn("In: " + result.variant.id + " tried to find " + targetId + " version: " + targetVersion + " in repository: " + targetName + " but the repository was not there. Assuming it is an UNAPPLIED override (i.e. an override of a module which the source module does not actually depend on) so ignoring...")
               Set.empty[ResolutionResult]
             case VersionNotFoundException(targetName, targetId, targetVersion) =>
@@ -156,6 +155,7 @@ object IvyImportResultInserter extends Logging {
               Set.empty[ResolutionResult]
           }
         }
+        repository.commit("Updated resolution results")
         progress.update(1)
         completedResults
     } ++ existingResults.flatMap(previousResolutionResults)
