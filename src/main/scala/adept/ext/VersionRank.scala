@@ -86,7 +86,7 @@ import adept.repository.RankLogic
 
 case class BinaryVersionUpdateException(msg: String) extends Exception(msg)
 case class VersionNotFoundException(targetName: RepositoryName, targetId: Id, targetVersion: Version) extends Exception("Could not find version: " + targetVersion + " for id: " + targetId + " in repository:" + targetName)
-case class RepositoryNotFoundException(targetName: RepositoryName, targetId: Id, targetVersion: Version) extends Exception("Could not find repository: " + targetName + " for id: " + targetId + " and version: " +  targetVersion)
+case class RepositoryNotFoundException(targetName: RepositoryName, targetId: Id, targetVersion: Version) extends Exception("Could not find repository: " + targetName + " for id: " + targetId + " and version: " + targetVersion)
 
 object VersionRank extends Logging {
   import adept.ext.AttributeDefaults._
@@ -209,20 +209,23 @@ object VersionRank extends Logging {
     (newVariants ++ newResolutionResults ++ rankingFiles.toSet, oldRankingFiles.toSet)
   }
 
-  private def replaceVariant(currentVariant: Variant, newVariant: Variant, repository: GitRepository, commit: Commit) = {
-    val newMetadata = VariantMetadata.fromVariant(newVariant)
+  private def replaceVariant(currentVariant: Variant, newVariant: Variant, otherCommit: Commit, repository: GitRepository, commit: Commit) = {
+    val newVariantMetadata = VariantMetadata.fromVariant(newVariant)
     val oldHash = VariantMetadata.fromVariant(currentVariant).hash
+    val oldResolutionMetadata = ResolutionResultsMetadata.read(currentVariant.id, oldHash, repository, otherCommit)
     val id = currentVariant.id
     val changedFiles = RankingMetadata.listRankIds(id, repository, commit).flatMap { rankId =>
       RankingMetadata.read(id, rankId, repository, commit).flatMap { rankings =>
         if (rankings.variants.contains(oldHash)) {
           val (before, after) = rankings.variants.span(_ != oldHash)
-          Some(RankingMetadata((before :+ newMetadata.hash) ++ after).write(id, rankId, repository))
+          Some(RankingMetadata((before :+ newVariantMetadata.hash) ++ after).write(id, rankId, repository))
         } else None
       }
     }
 
-    changedFiles + newMetadata.write(newVariant.id, repository)
+    changedFiles +
+      newVariantMetadata.write(newVariant.id, repository) ++
+      oldResolutionMetadata.map(_.write(newVariant.id, newVariantMetadata.hash, repository))
   }
 
   /** For variants that have binary-versions set in (id and repository), find all variants that requires it (in inRepositories) and lock the requirements to this binary-version */
@@ -262,15 +265,17 @@ object VersionRank extends Logging {
         val variants = RankLogic.getActiveVariants(otherId, otherRepo, otherCommit)
         variants.flatMap { otherHash =>
           val otherVariant = {
-            val metadata = VariantMetadata.read(otherId, otherHash, otherRepo, otherCommit).getOrElse(throw new Exception("Could not update binary version for: " + id + " in " + otherId + " because we could not find a variant for hash: " + otherHash + " in " + otherRepo + " and commit " + commit))
+            val metadata = VariantMetadata.read(otherId, otherHash, otherRepo, otherCommit).getOrElse(throw new Exception("Could not update binary version for: " + id + " in " + otherId + " because we could not find a variant for hash: " + otherHash + " in " + otherRepo + " and commit " + otherCommit))
             metadata.toVariant(otherId)
           }
-          val resolutionResults = ResolutionResultsMetadata.read(otherId, otherHash, otherRepo, otherCommit).getOrElse(throw new Exception("Could not update binary version for: " + id + " in " + otherId + " because we could not find a repository info for: " + otherHash + " in repo " + otherRepo.dir.getAbsolutePath + " commit " + otherCommit))
+          val resolutionResults = ResolutionResultsMetadata.read(otherId, otherHash, otherRepo, otherCommit).getOrElse {
+            ResolutionResultsMetadata(Seq(ResolutionResult(otherId, otherRepo.name, otherCommit, otherHash)))
+          }
           val (fixedRequirements, untouchedRequirements) = getBinaryVersionRequirements(otherVariant, resolutionResults)
 
           if (fixedRequirements.nonEmpty) {
             val newVariant = otherVariant.copy(requirements = untouchedRequirements ++ fixedRequirements)
-            replaceVariant(otherVariant, newVariant, otherRepo, otherCommit).map(otherRepo -> _)
+            replaceVariant(otherVariant, newVariant, commit, otherRepo, otherCommit).map(otherRepo -> _)
           } else Set.empty[(GitRepository, File)]
         }
       }

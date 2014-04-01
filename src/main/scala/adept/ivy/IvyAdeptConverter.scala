@@ -188,7 +188,7 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, excludedConfs: Set[S
 
   private def getCaller(org: String, name: String) = ModuleRevisionId.newInstance(org, name + "-caller", "working")
 
-  private def ivySingleImport(org: String, name: String, version: String, progress: ProgressMonitor): Either[Set[IvyImportError], Set[IvyImportResult]] = {
+  def ivySingleImport(org: String, name: String, version: String, progress: ProgressMonitor): Either[Set[IvyImportError], Set[IvyImportResult]] = {
     val mrid = ModuleRevisionId.newInstance(org, name, version)
     progress.beginTask("Ivy resolving " + mrid, ProgressMonitor.UNKNOWN)
     val resolveReport = ivy.resolve(mrid, resolveOptions(), changing)
