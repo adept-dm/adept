@@ -129,7 +129,7 @@ object VersionRank extends Logging {
   }
 
   /** Creates new order files (and deletes the contents of old) according to 1) binary versions and 2) versions */
-  def useSemanticVersionRanking(id: Id, repository: GitRepository, commit: Commit, excludes: Set[Regex] = Set.empty, useVersionAsBinary: Set[Regex] = Set.empty): (Set[File], Set[File]) = {
+  def useSemanticVersionRanking(id: Id, repository: GitRepository, commit: Commit, includes: Set[Regex] = Set.empty, excludes: Set[Regex] = Set.empty, useVersionAsBinary: Set[Regex] = Set.empty): (Set[File], Set[File]) = {
 
     //1) Get variants
     val variants = VariantMetadata.listVariants(id, repository, commit).map { hash =>
@@ -159,7 +159,10 @@ object VersionRank extends Logging {
           val exclude = excludes.exists { pattern =>
             pattern.findFirstIn(version.value).isDefined
           }
-          if (exclude) {
+          val include = includes.exists { pattern =>
+            pattern.findFirstIn(version.value).isDefined
+          }
+          if (!include && exclude) {
             val parsedVariants = allBinaryVersions.getOrElse(NoBinaryVersion, Seq.empty)
             allBinaryVersions += NoBinaryVersion -> (parsedVariants :+ variant)
           } else {
@@ -209,10 +212,10 @@ object VersionRank extends Logging {
     (newVariants ++ newResolutionResults ++ rankingFiles.toSet, oldRankingFiles.toSet)
   }
 
-  private def replaceVariant(currentVariant: Variant, newVariant: Variant, otherCommit: Commit, repository: GitRepository, commit: Commit) = {
+  private def replaceVariant(currentVariant: Variant, newVariant: Variant, otherRepository: GitRepository, otherCommit: Commit, repository: GitRepository, commit: Commit) = {
     val newVariantMetadata = VariantMetadata.fromVariant(newVariant)
     val oldHash = VariantMetadata.fromVariant(currentVariant).hash
-    val oldResolutionMetadata = ResolutionResultsMetadata.read(currentVariant.id, oldHash, repository, otherCommit)
+    val oldResolutionMetadata = ResolutionResultsMetadata.read(currentVariant.id, oldHash, otherRepository, otherCommit)
     val id = currentVariant.id
     val changedFiles = RankingMetadata.listRankIds(id, repository, commit).flatMap { rankId =>
       RankingMetadata.read(id, rankId, repository, commit).flatMap { rankings =>
@@ -275,7 +278,7 @@ object VersionRank extends Logging {
 
           if (fixedRequirements.nonEmpty) {
             val newVariant = otherVariant.copy(requirements = untouchedRequirements ++ fixedRequirements)
-            replaceVariant(otherVariant, newVariant, commit, otherRepo, otherCommit).map(otherRepo -> _)
+            replaceVariant(otherVariant, newVariant, otherRepo, otherCommit, repository, commit).map(otherRepo -> _)
           } else Set.empty[(GitRepository, File)]
         }
       }
