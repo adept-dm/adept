@@ -131,23 +131,40 @@ object VersionRank extends Logging {
   /** Creates new order files (and deletes the contents of old) according to 1) binary versions and 2) versions */
   def useSemanticVersionRanking(id: Id, repository: GitRepository, commit: Commit, includes: Set[Regex] = Set.empty, excludes: Set[Regex] = Set.empty, useVersionAsBinary: Set[Regex] = Set.empty): (Set[File], Set[File]) = {
 
-    //1) Get variants
-    val variants = VariantMetadata.listVariants(id, repository, commit).map { hash =>
+    //- Get variants
+    val allHashes = VariantMetadata.listVariants(id, repository, commit)
+    val variants = allHashes.map { hash =>
       VariantMetadata.read(id, hash, repository, commit) match {
         case Some(variantMetadata) => variantMetadata.toVariant(id)
         case _ => throw new Exception("Unexpectly could not read variant: " + hash + " in  " + repository.dir.getAbsolutePath)
       }
     }
 
-    //2) Find binary versions or add new variant with binary versions
+    //- Find which variants exists with a binary version
+    val existsWithBinaryVersion = variants.flatMap { variant =>
+      val noBinaryVersionAttributes = variant.attributes.filter(_.name != AttributeDefaults.BinaryVersionAttribute)
+      if (noBinaryVersionAttributes != variant.attributes) { //only look at the ones that actually has a binary version
+        val noBinaryVersionVariant = variant.copy(attributes = noBinaryVersionAttributes)
+        Some(VariantMetadata.fromVariant(noBinaryVersionVariant).hash)
+      } else None
+    }
+    val defaultRankId = RankingMetadata.defaultRankId(id, repository)
+    val currentDefaultHashes = RankingMetadata.read(id, defaultRankId, repository, commit).toSet[RankingMetadata].flatMap(_.variants)
+
+    //- Find binary versions or add new variant with binary versions
     var newVariants = Set.empty[File]
     var newResolutionResults = Set.empty[File]
     var allBinaryVersions = Map.empty[String, Seq[Variant]]
+    var removeDefaults = Set.empty[VariantHash]
 
     val NoBinaryVersion = ""
     variants.foreach { variant =>
       val binaryVersions = variant.attribute(BinaryVersionAttribute).values
-      if (binaryVersions.nonEmpty) {
+      val hash = VariantMetadata.fromVariant(variant).hash
+      if (existsWithBinaryVersion(hash)) {
+        //this variant is the same as a variant with a binary version so we remove it 
+        removeDefaults += hash
+      } else if (binaryVersions.nonEmpty) {
         binaryVersions.foreach { binaryVersion =>
           val parsedVariants = allBinaryVersions.getOrElse(binaryVersion, Seq.empty)
           allBinaryVersions += binaryVersion -> (parsedVariants :+ variant)
@@ -162,19 +179,18 @@ object VersionRank extends Logging {
           val include = includes.exists { pattern =>
             pattern.findFirstIn(version.value).isDefined
           }
-          if (!include && exclude) {
+          val useVersionAsBinaryHere = useVersionAsBinary.exists { pattern =>
+            pattern.findFirstIn(version.value).isDefined
+          }
+          if (!useVersionAsBinaryHere && !include && exclude) {
             val parsedVariants = allBinaryVersions.getOrElse(NoBinaryVersion, Seq.empty)
             allBinaryVersions += NoBinaryVersion -> (parsedVariants :+ variant)
           } else {
-            val useVersionAsBinaryHere = useVersionAsBinary.exists { pattern =>
-              pattern.findFirstIn(version.value).isDefined
-            }
             val binaryVersion = if (useVersionAsBinaryHere) {
               version.value
             } else {
               version.asBinaryVersion
             }
-
             val newVariant = variant.copy(attributes = variant.attributes + Attribute(BinaryVersionAttribute, Set(binaryVersion)))
             val newVariantMetadata = VariantMetadata.fromVariant(newVariant)
             newVariants += newVariantMetadata.write(id, repository)
@@ -183,6 +199,8 @@ object VersionRank extends Logging {
             }
             val parsedVariants = allBinaryVersions.getOrElse(binaryVersion, Seq.empty)
             allBinaryVersions += binaryVersion -> (parsedVariants :+ variant :+ newVariant) //add new variant first (last, it will be reversed), but also old variant so it can be located later
+
+            if (currentDefaultHashes(hash)) removeDefaults += hash //remove from default because we are adding it to binary version ranking to be upgradable
           }
         } else if (binaryVersions.isEmpty) {
           val parsedVariants = allBinaryVersions.getOrElse(NoBinaryVersion, Seq.empty)
@@ -191,25 +209,43 @@ object VersionRank extends Logging {
       }
     }
 
-    //3) Get rankings
-    val rankingSize = allBinaryVersions.size
-    val rankings = RankingMetadata.getXRankId(id, repository, 0, rankingSize) //overwrites former files
-    assert(rankings.size == rankingSize)
-    val newRankIds = {
-      ((0 to rankings.size) zip rankings.toSeq.map(_.value).sorted).toMap
-    }
-    val oldRankingFiles = {
-      RankingMetadata.listRankIds(id, repository, commit).diff(rankings).map(rankId => repository.getRankingFile(id, rankId))
-    }
+    //- Get rankings
+    val (noBinaryVersions, binaryVersions) = allBinaryVersions.partition { case (binaryVersion, _) => binaryVersion == NoBinaryVersion }
+    val rankingSize = binaryVersions.size
 
-    //4) Write variants to ranking files 
-    val rankingFiles = allBinaryVersions.toSeq.sortBy { case (binaryVersion, _) => Version(binaryVersion) }.zipWithIndex.map {
-      case ((binaryVersion, variants), index) =>
-        val rankId = RankId(newRankIds(index))
+    // - Write default rankings
+    val defaultAddFiles = noBinaryVersions.map {
+      case (_, variants) =>
         val sortedVariants = getSortedByVersions(variants).distinct
-        RankingMetadata(sortedVariants).write(id, rankId, repository)
+        RankingMetadata(sortedVariants).write(id, defaultRankId, repository)
+    }.toSet
+
+    val defaultRmFiles = if (removeDefaults.nonEmpty && noBinaryVersions.isEmpty) { //there is hashes to remove in defaults file and we do not overwrite it with something with no binary versions so we should delete the default file 
+      Set(repository.getRankingFile(id, defaultRankId))
+    } else Set.empty[File]
+
+    if (rankingSize == 0) {
+      (defaultAddFiles, defaultRmFiles)
+    } else {
+      val rankings = RankingMetadata.getXRankId(id, repository, 1, rankingSize) //overwrites former files, offset with one for NO binary versions
+      assert(rankings.size == rankingSize)
+      val newRankIds = {
+        ((0 to rankings.size) zip rankings.toSeq.map(_.value).sorted).toMap
+      }
+      val oldRankingFiles = {
+        RankingMetadata.listRankIds(id, repository, commit).diff(rankings + defaultRankId).map(rankId => repository.getRankingFile(id, rankId))
+      }
+
+      //- Write variants to ranking files 
+
+      val rankingFiles = binaryVersions.toSeq.sortBy { case (binaryVersion, _) => Version(binaryVersion) }.zipWithIndex.map {
+        case ((binaryVersion, variants), index) =>
+          val rankId = RankId(newRankIds(index))
+          val sortedVariants = getSortedByVersions(variants).distinct
+          RankingMetadata(sortedVariants).write(id, rankId, repository)
+      } ++ defaultAddFiles
+      (newVariants ++ newResolutionResults ++ rankingFiles.toSet, oldRankingFiles.toSet ++ defaultRmFiles)
     }
-    (newVariants ++ newResolutionResults ++ rankingFiles.toSet, oldRankingFiles.toSet)
   }
 
   private def replaceVariant(currentVariant: Variant, newVariant: Variant, otherRepository: GitRepository, otherCommit: Commit, repository: GitRepository, commit: Commit) = {
