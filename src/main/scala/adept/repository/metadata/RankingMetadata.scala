@@ -42,13 +42,19 @@ object RankingMetadata {
   import GitRepository._
   import Repository._
 
+  def defaultRankId(id: Id, repository: GitRepository): RankId = {
+    getXRankId(id, repository, 0, 1).headOption.getOrElse { throw new Exception("Could not find a default rank id for: " + (id, repository.name)) }
+  }
+
   def listRankIds(id: Id, repository: GitRepository, commit: Commit): Set[RankId] = {
     val rankPath = s"""$VariantsMetadataDirName$GitPathSep${id.value}"""
     val RankIdExtractionRegEx = s"""$rankPath$GitPathSep$RankingFileNamePrefix(.*?)""".r
     val rankIds = repository.usePath[RankId](Some(rankPath), commit) { path =>
       path match {
-        case RankIdExtractionRegEx(id) => Some(RankId(id))
-        case _ => None
+        case RankIdExtractionRegEx(id) =>
+          Some(RankId(id))
+        case f =>
+          None
       }
     }
     rankIds
