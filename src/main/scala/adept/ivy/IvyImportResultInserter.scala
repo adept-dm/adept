@@ -21,8 +21,14 @@ object IvyImportResultInserter extends Logging {
    *
    *  @returns files that must be added and files that removed
    */
-  protected def useDefaultVersionRanking(id: Id, repository: GitRepository, commit: Commit): (Set[File], Set[File]) = {
-    VersionRank.useSemanticVersionRanking(id, repository, commit, excludes = Set(".*".r)) //use versions only
+  protected def useDefaultVersionRanking(id: Id, variant: VariantHash, repository: GitRepository, commit: Commit): (Set[File], Set[File]) = {
+    val rankId = RankingMetadata.defaultRankId(id, repository)
+    val hashes = RankingMetadata.read(id, rankId, repository, commit).toSeq.flatMap(_.variants)
+    val variants = (hashes :+ variant).flatMap{ hash =>
+      VariantMetadata.read(id, hash, repository, commit).map(_.toVariant(id))
+    }
+    val sortedVariants = VersionRank.getSortedByVersions(variants)
+    Set(RankingMetadata(sortedVariants).write(id, rankId, repository)) -> Set.empty[File]
   }
 
   def getExistingResolutionResult(baseDir: File, ivyImportResult: IvyImportResult): Option[Set[ResolutionResult]] = {
@@ -118,7 +124,7 @@ object IvyImportResultInserter extends Logging {
             repository.add(ArtifactMetadata.fromArtifact(artifact).write(artifact.hash, repository))
           }
           val commit = repository.commit("Ivy Import of " + variant.id) //TODO: We could remove this commit, and I suspect things will go a bit faster
-          val (addFiles, rmFiles) = useDefaultVersionRanking(id, repository, commit)
+          val (addFiles, rmFiles) = useDefaultVersionRanking(id, VariantMetadata.fromVariant(variant).hash, repository, commit)
           repository.add(addFiles)
           repository.rm(rmFiles)
           repository.commit("Ranked Ivy Import of " + variant.id)
