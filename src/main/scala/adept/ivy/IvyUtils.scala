@@ -19,6 +19,11 @@ import org.apache.ivy.core.module.descriptor.DependencyDescriptor
 import adept.logging.Logging
 import org.apache.ivy.core.module.descriptor.ModuleDescriptor
 import org.apache.ivy.core.cache.ResolutionCacheManager
+import org.apache.ivy.core.search.OrganisationEntry
+import org.apache.ivy.core.search.ModuleEntry
+import org.apache.ivy.plugins.resolver.URLResolver
+import org.apache.ivy.core.search.RevisionEntry
+import org.eclipse.jgit.lib.ProgressMonitor
 
 private[adept] object IvyUtils extends Logging {
   import IvyConstants._
@@ -79,7 +84,7 @@ private[adept] object IvyUtils extends Logging {
     loadedIvy.setSettings(settings)
     loadedIvy
   }
-  
+
   val ConfigRegex = "^(.*)/config/(.*?)$".r //useful to extract configurations
 
   def resolveOptions(confs: String*) = {
@@ -90,6 +95,49 @@ private[adept] object IvyUtils extends Logging {
     resolveOptions.setDownload(true)
     resolveOptions.setOutputReport(false) //TODO: to true?
     resolveOptions
+  }
+
+  private def getUrlResolvers(ivy: Ivy) = {
+    val settings = ivy.getSettings
+    val urlResolvers = settings.getResolverNames().asScala.toList.flatMap {
+      case name: String => //names must be strings (at least I think so...)
+        settings.getResolver(name) match {
+          case urlResolver: URLResolver => Some(urlResolver)
+          case _ => None
+        }
+    }
+    urlResolvers
+  }
+
+  def list(ivy: Ivy, org: String, progress: ProgressMonitor): Set[(String, String, String)] = {
+    progress.beginTask("Listing " + org, ProgressMonitor.UNKNOWN)
+    val all = getUrlResolvers(ivy).flatMap { dependencyResolver =>
+      progress.update(1)
+      dependencyResolver.listModules(new OrganisationEntry(dependencyResolver, org)).flatMap { moduleEntry =>
+        progress.update(1)
+        dependencyResolver.listRevisions(moduleEntry).map { revisionEntry =>
+          progress.update(1)
+          (revisionEntry.getOrganisation, revisionEntry.getModule, revisionEntry.getRevision)
+        }
+      }
+    }.toSet
+    progress.endTask()
+    all
+  }
+
+  def list(ivy: Ivy, org: String, module: String, progress: ProgressMonitor): Set[(String, String, String)] = {
+    progress.beginTask("Listing " + org + "#" + module, ProgressMonitor.UNKNOWN)
+    val all = getUrlResolvers(ivy).flatMap { dependencyResolver =>
+      val orgEntry = new OrganisationEntry(dependencyResolver, org)
+      val moduleEntry = new ModuleEntry(orgEntry, module)
+      progress.update(1)
+      dependencyResolver.listRevisions(moduleEntry).map { revisionEntry =>
+        progress.update(1)
+        (revisionEntry.getOrganisation, revisionEntry.getModule, revisionEntry.getRevision)
+      }
+    }.toSet
+    progress.endTask()
+    all
   }
 
   def ivyIdAsId(moduleId: ModuleId): Id = {
