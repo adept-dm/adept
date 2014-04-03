@@ -12,6 +12,10 @@ import org.apache.ivy.core.module.descriptor.{ Configuration => IvyConfiguration
 import org.apache.ivy.core.module.id.ArtifactId
 import org.apache.ivy.core.module.id.ModuleId
 import org.apache.ivy.plugins.matcher.ExactPatternMatcher
+import adept.ext.VersionRank
+import adept.resolution.models.Id
+import adept.repository.models.RepositoryName
+import adept.repository.GitRepository
 
 class IvyIntegrationTest extends FunSuite with Matchers {
   import adept.test.FileUtils._
@@ -84,17 +88,62 @@ class IvyIntegrationTest extends FunSuite with Matchers {
   }
 
   test("Ivy end-to-end: adepts own (many different)") {
-    implicit val testDetails = TestDetails("End-to-end (adepts own (many different))")
+    pending
+  }
+
+  test("Ivy end-to-end: scala & akka & versioning") {
+    implicit val testDetails = TestDetails("End-to-end (scala & akka & versioning)")
     usingTmpDir { tmpDir =>
       val ivy = IvyTestUtils.ivy
-      val ivyModule = getDefaultAdeptModule
 
-      val scalaLibDep = new DefaultDependencyDescriptor(ivyModule,
-        ModuleRevisionId.newInstance("org.scala-lang", "scala-library", "2.10.3"), force, changing, transitive)
-      scalaLibDep.addDependencyConfiguration("compile", "default(compile)")
-      ivyModule.addDependency(scalaLibDep)
+      {
+        val ivyModule = getDefaultAdeptModule
 
-      IvyTestUtils.verify(tmpDir, ivy, ivyModule)
+        val scalaLibDep = new DefaultDependencyDescriptor(ivyModule,
+          ModuleRevisionId.newInstance("org.scala-lang", "scala-library", "2.9.3"), force, changing, transitive)
+        scalaLibDep.addDependencyConfiguration("compile", "default(compile)")
+        ivyModule.addDependency(scalaLibDep)
+
+        IvyTestUtils.verify(tmpDir, ivy, ivyModule)
+      }
+
+      {
+        val ivyModule = getDefaultAdeptModule
+
+        val scalaLibDep = new DefaultDependencyDescriptor(ivyModule,
+          ModuleRevisionId.newInstance("org.scala-lang", "scala-library", "2.10.1"), force, changing, transitive)
+        scalaLibDep.addDependencyConfiguration("compile", "default(compile)")
+        ivyModule.addDependency(scalaLibDep)
+
+        IvyTestUtils.verify(tmpDir, ivy, ivyModule)
+      }
+
+      {
+        val scalaId = Id("org.scala-lang/scala-library")
+        val scalaRepoName = RepositoryName("org.scala-lang")
+        val scalaRepo = new GitRepository(tmpDir, scalaRepoName)
+        val scalaCommit = scalaRepo.getHead
+        val (addFiles, rmFiles) = VersionRank.useSemanticVersionRanking(scalaId, scalaRepo, scalaCommit, includes = Set("2\\.10.*".r), excludes = Set(".*".r), useVersionAsBinary = Set("2\\.9.*".r))
+        scalaRepo.add(addFiles)
+        scalaRepo.rm(rmFiles)
+        scalaRepo.commit("Scala version")
+      }
+
+      {
+        val ivyModule = getDefaultAdeptModule
+
+        val akkaDep = new DefaultDependencyDescriptor(ivyModule,
+          ModuleRevisionId.newInstance("com.typesafe.akka", "akka-remote_2.10", "2.2.1"), force, changing, transitive)
+        akkaDep.addExcludeRule("compile", new DefaultExcludeRule(new ArtifactId(new ModuleId("com.google.protobuf", "protobuf-java"), "*", "*", "*"), ExactPatternMatcher.INSTANCE, new java.util.HashMap()))
+        akkaDep.addDependencyConfiguration("compile", "default(compile)")
+        ivyModule.addDependency(akkaDep)
+        val scalaTestDep = new DefaultDependencyDescriptor(ivyModule,
+          ModuleRevisionId.newInstance("org.scalatest", "scalatest_2.10", "1.9.1"), force, changing, transitive)
+        scalaTestDep.addDependencyConfiguration("test", "default(compile)")
+        ivyModule.addDependency(scalaTestDep)
+
+        IvyTestUtils.verify(tmpDir, ivy, ivyModule)
+      }
     }
   }
 

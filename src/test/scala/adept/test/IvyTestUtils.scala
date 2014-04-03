@@ -10,6 +10,9 @@ import adept.resolution.resolver.models.ResolvedResult
 import java.io.File
 import adept.repository.GitLoader
 import org.apache.ivy.Ivy
+import adept.ivy.scala.ScalaBinaryVersionConverter
+import adept.repository.models.RepositoryName
+import adept.resolution.models.Id
 
 object IvyTestUtils {
   import adept.test.BenchmarkUtils._
@@ -26,8 +29,16 @@ object IvyTestUtils {
 
     val ivyConverter = new IvyAdeptConverter(ivy)
 
+    val exists = { (_: RepositoryName, _: Id) => true } //TODO:
+
     val (results, configuredVersionInfo) = benchmark(IvyImport, ivyModule) {
-      ivyConverter.loadAsIvyImportResults(ivyModule, progress).failOnLeft
+      val (results, configuredVersionInfo) = ivyConverter.loadAsIvyImportResults(ivyModule, progress).failOnLeft
+      val newConfiguredVersionInfo = configuredVersionInfo.map {
+        case (conf, versionInfo) =>
+          conf -> ScalaBinaryVersionConverter.convertVersionInfoWithScalaBinaryVersion(versionInfo, exists)
+      }
+      val newResults = results.map(ScalaBinaryVersionConverter.convertResultWithScalaBinaryVersion(_, exists))
+      newResults -> newConfiguredVersionInfo
     }
 
     val resolutionResults = benchmark(Inserted, results) {
@@ -58,6 +69,7 @@ object IvyTestUtils {
           val verificationResult = benchmark(Verified, resolvedResult && ivyModule) {
             ivyConverter.verifyConversion(confName, ivyModule, resolvedResult)
           }
+          println(result)
           assert(verificationResult.isRight, "Verification of " + confName + " failed:\n" + verificationResult)
         case _ =>
           assert(false, "Expected to be able to resolve Adept for " + confName + ". Got result:\n" + result)

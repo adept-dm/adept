@@ -85,8 +85,7 @@ object GitLoader extends Logging {
       val resolutionResults = for {
         (id, (vrs, constraints)) <- allVariants.toSet
         (variant, repository, commit) <- vrs
-        matchingVariant <- AttributeConstraintFilter.filter(id, Set(variant), constraints)
-        hash = VariantMetadata.fromVariant(matchingVariant).hash
+        hash = VariantMetadata.fromVariant(variant).hash
         resolutionResult <- {
           val transitiveResolutionResults = ResolutionResultsMetadata.read(id, hash, repository, commit).map { metadata =>
             metadata.values
@@ -175,7 +174,7 @@ class GitLoader(baseDir: File, private[adept] val results: Set[ResolutionResult]
   }
 
   private def locateAllIdentifiers(id: Id): Set[(VariantHash, GitRepository, Commit)] = {
-    byId.getOrElse(id, throw new Exception("Cannot resolve because there is no " + id  + " in loaded repositories: " + results.map(_.repository.value).mkString(",")))
+    byId.getOrElse(id, throw new Exception("Cannot resolve because there is no matching " + id  + " in loaded repositories: " + results.map(_.repository.value).mkString(",")))
   }
 
   def loadVariants(id: Id, constraints: Set[Constraint]): Set[Variant] = {
