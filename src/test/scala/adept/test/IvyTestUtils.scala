@@ -10,7 +10,7 @@ import adept.resolution.resolver.models.ResolvedResult
 import java.io.File
 import adept.repository.GitLoader
 import org.apache.ivy.Ivy
-import adept.ivy.scala.ScalaBinaryVersionConverter
+import adept.ivy.scalaspecific.ScalaBinaryVersionConverter
 import adept.repository.models.RepositoryName
 import adept.resolution.models.Id
 
