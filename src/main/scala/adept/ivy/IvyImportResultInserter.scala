@@ -24,7 +24,7 @@ object IvyImportResultInserter extends Logging {
   protected def useDefaultVersionRanking(id: Id, variant: VariantHash, repository: GitRepository, commit: Commit): (Set[File], Set[File]) = {
     val rankId = RankingMetadata.defaultRankId(id, repository)
     val hashes = RankingMetadata.read(id, rankId, repository, commit).toSeq.flatMap(_.variants)
-    val variants = (hashes :+ variant).flatMap{ hash =>
+    val variants = (hashes :+ variant).flatMap { hash =>
       VariantMetadata.read(id, hash, repository, commit).map(_.toVariant(id))
     }
     val sortedVariants = VersionRank.getSortedByVersions(variants)
@@ -146,8 +146,27 @@ object IvyImportResultInserter extends Logging {
           val includedVersionInfo = result.versionInfo
 
           try {
+            val commit = repository.getHead
+            val configurationBaseIdResult = { //TODO: this is a workaround! It would be nice to have some better way of adding a resolution result to its own configuration base
+              id.value match {
+                case IvyUtils.ConfigRegex(baseIdString, rest) =>
+                  if (rest != null) { // means we have a base 
+                    val baseId = Id(baseIdString)
+                    val configAttribute = variantMetadata.attributes.find(_.name == IvyConstants.ConfigurationHashAttribute).get //fail if it is not here
+                    val found = VariantMetadata.listVariants(baseId, repository, commit).flatMap { hash =>
+                      VariantMetadata.read(baseId, hash, repository, commit).find(_.attributes.contains(configAttribute))
+                    }
+                    if (found.size == 1) {
+                      val hash = found.head.hash
+                      Some(ResolutionResult(baseId, repository.name, commit, hash))
+                    } else throw new Exception("Could not find a configuration hash: " + configAttribute + " for " + baseId + " the base of " + id)
+                  } else None
+                case _ => None
+              }
+            }
+
             val currentResults = VersionRank.createResolutionResults(baseDir, includedVersionInfo) ++
-              Set(ResolutionResult(id, repository.name, repository.getHead, variantMetadata.hash))
+              Set(ResolutionResult(id, repository.name, commit, variantMetadata.hash)) //We cannot use this because we cannot link back to the configuration because it makes it impossible to upgrade ++ configurationBaseIdResult
 
             val resolutionResultsMetadata = ResolutionResultsMetadata(currentResults.toSeq)
             repository.add(resolutionResultsMetadata.write(id, variantMetadata.hash, repository))

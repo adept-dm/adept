@@ -69,7 +69,6 @@ object Upgrade extends Logging {
           }
           lockfileReq.copy(variant = newVariant)
         }
-
       }
     }
   }

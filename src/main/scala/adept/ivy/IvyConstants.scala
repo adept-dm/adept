@@ -5,7 +5,7 @@ object IvyConstants {
   val IvyNameAttribute = "ivy-name"
   val IvyOrgAttribute = "ivy-organisation"
 
-  val ConfigurationHashAttribute = "configuration-hash"
+  val ConfigurationHashAttribute = "configuration-hash" //TODO: delete this
   val ConfigurationAttribute = "configuration"
   val ArtifactConfAttribute = "configurations"
   val IdConfig = "config"

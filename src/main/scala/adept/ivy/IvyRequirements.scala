@@ -21,10 +21,10 @@ object IvyRequirements {
     for {
       ivyConf <- getAllConfigurations(moduleForConfiguration, confName)
       id <- ids
-      matchingId <- id.value match { 
-        case ConfigRegex(base, idConf) if idConf == ivyConf => Some(id)
-        case _ => None
-      } 
+      matchingId <- (id.value match {
+        case ConfigRegex(base, idConf) if idConf == ivyConf => Set(Id(base), id)
+        case _ => Set.empty[Id]
+      })
     } yield {
       matchingId
     }
