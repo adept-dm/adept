@@ -9,7 +9,7 @@ import adept.ext.Version
 import org.apache.ivy.core.module.descriptor.ExcludeRule
 
 //Contains everything needed to be able to import from Ivy to Adept
-case class IvyImportResult(variant: Variant, artifacts: Set[Artifact], localFiles: Map[ArtifactHash, File], repository: RepositoryName, versionInfo: Set[(RepositoryName, Id, Version)], excludeRules: Map[(Id, Id), Set[ExcludeRule]])
+case class IvyImportResult(variant: Variant, artifacts: Set[Artifact], localFiles: Map[ArtifactHash, File], repository: RepositoryName, versionInfo: Set[(RepositoryName, Id, Version)], excludeRules: Map[(Id, Id), Set[ExcludeRule]], extendsIds: Set[Id])
 
 //Exceptions (thrown by Adept's Ivy import):
 class IvyImportError(msg: String) extends Exception(msg)

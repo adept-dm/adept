@@ -416,6 +416,11 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, excludedConfs: Set[S
         val configurationRequirements = (ivyConfiguration.getExtends().map { targetConf =>
           Requirement(ivyIdAsId(mrid.getModuleId, targetConf), Set(Constraint(ConfigurationHashAttribute, Set(configurationHash))), Set.empty)
         }.toSet) //We cant use this because we cannot upgrade if this is set + Requirement(ivyIdAsId(mrid.getModuleId), Set(Constraint(ConfigurationHashAttribute, Set(configurationHash))), Set.empty)
+
+        val extendsIds = ivyConfiguration.getExtends().map { targetConf =>
+          ivyIdAsId(mrid.getModuleId, targetConf)
+        }.toSet
+        
         val variant = Variant(
           id = thisVariantId,
           attributes = attributes + Attribute(ConfigurationHashAttribute, Set(configurationHash)) + Attribute(ConfigurationAttribute, Set(confName)),
@@ -429,7 +434,8 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, excludedConfs: Set[S
           localFiles = localFiles,
           repository = ivyIdAsRepositoryName(mrid.getModuleId),
           versionInfo = targetVersionInfo,
-          excludeRules = excludeRules)
+          excludeRules = excludeRules,
+          extendsIds = extendsIds)
       }.toSet
 
     if (errors.nonEmpty) Left(errors)
@@ -441,7 +447,8 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, excludedConfs: Set[S
           localFiles = Map.empty,
           repository = ivyIdAsRepositoryName(mrid.getModuleId),
           versionInfo = Set.empty,
-          excludeRules = Map.empty))
+          excludeRules = Map.empty,
+          extendsIds = Set.empty))
   }
 
   private def flattenConfigDependencyTree(tree: Map[String, Map[ModuleRevisionId, Set[IvyNode]]]): Map[ModuleRevisionId, Set[IvyNode]] = {

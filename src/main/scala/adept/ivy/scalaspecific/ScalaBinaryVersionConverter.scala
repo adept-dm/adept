@@ -32,6 +32,10 @@ object ScalaBinaryVersionConverter extends Logging {
     }
   }
 
+  private def convertIdsWithScalaBinaryVersion(name: RepositoryName, ids: Set[Id], exists: (RepositoryName, Id) => Boolean) = {
+    ids.map(extractId(name, _, exists))
+  }
+
   def convertVersionInfoWithScalaBinaryVersion(versionInfo: Set[(RepositoryName, Id, Version)], exists: (RepositoryName, Id) => Boolean): Set[(RepositoryName, Id, Version)] = {
     versionInfo.map {
       case (name, id, version) =>
@@ -72,7 +76,10 @@ object ScalaBinaryVersionConverter extends Logging {
             id = id,
             requirements = newReqs)
           logger.debug("Adding scala library binary version: " + binaryVersion + " on ivy import of: " + ivyImportResult.variant)
-          ivyImportResult.copy(variant = newVariant, versionInfo = convertVersionInfoWithScalaBinaryVersion(ivyImportResult.versionInfo, exists))
+          ivyImportResult.copy(
+            variant = newVariant,
+            extendsIds = convertIdsWithScalaBinaryVersion(ivyImportResult.repository, ivyImportResult.extendsIds, exists),
+            versionInfo = convertVersionInfoWithScalaBinaryVersion(ivyImportResult.versionInfo, exists))
         } else {
           ivyImportResult
         }
@@ -87,7 +94,10 @@ object ScalaBinaryVersionConverter extends Logging {
             }
             requirement.copy(id = newReqId)
           })
-        ivyImportResult.copy(variant = newVariant, versionInfo = convertVersionInfoWithScalaBinaryVersion(ivyImportResult.versionInfo, exists))
+        ivyImportResult.copy(
+          variant = newVariant,
+          extendsIds = convertIdsWithScalaBinaryVersion(ivyImportResult.repository, ivyImportResult.extendsIds, exists),
+          versionInfo = convertVersionInfoWithScalaBinaryVersion(ivyImportResult.versionInfo, exists))
     }
   }
 }
