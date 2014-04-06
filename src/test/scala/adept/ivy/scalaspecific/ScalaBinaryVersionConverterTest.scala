@@ -12,7 +12,7 @@ import adept.ext.AttributeDefaults
 class ScalaBinaryVersionConverterTest extends FunSuite with Matchers {
   val scalaLibCompile = Id("org.scala-lang/scala-library/config/compile")
   val scalaLibMaster = Id("org.scala-lang/scala-library/config/master")
-  
+
   test("Basic tests: converting simple results") {
     import ScalaBinaryVersionConverter._
     val result = convertResultWithScalaBinaryVersion(IvyImportResult(
@@ -26,6 +26,7 @@ class ScalaBinaryVersionConverterTest extends FunSuite with Matchers {
       //we do not care about these:
       localFiles = Map.empty,
       artifacts = Set.empty,
+      extendsIds = Set.empty,
       excludeRules = Map.empty), { (_: RepositoryName, _: Id) => true })
 
     result.variant.id shouldEqual Id("test/thing")
@@ -33,7 +34,7 @@ class ScalaBinaryVersionConverterTest extends FunSuite with Matchers {
   }
 
   test("Basic tests: converting results with configs") {
-import ScalaBinaryVersionConverter._
+    import ScalaBinaryVersionConverter._
     val result = convertResultWithScalaBinaryVersion(IvyImportResult(
       variant = Variant(
         id = Id("test/thing_2.10/config/compile"),
@@ -43,7 +44,8 @@ import ScalaBinaryVersionConverter._
       //we do not care about these:
       localFiles = Map.empty,
       artifacts = Set.empty,
-      excludeRules = Map.empty), { (_: RepositoryName, _: Id) => true })
+      extendsIds = Set.empty, 
+        excludeRules = Map.empty), { (_: RepositoryName, _: Id) => true })
 
     result.variant.id shouldEqual Id("test/thing/config/compile")
     result.variant.requirements shouldEqual Set(Requirement(scalaLibCompile, Set(Constraint(AttributeDefaults.BinaryVersionAttribute, Set("2.10"))), Set.empty), Requirement(Id("foo/config/compile"), Set.empty, Set.empty), Requirement(Id("zoo/config/compile"), Set.empty, Set.empty))

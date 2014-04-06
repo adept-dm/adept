@@ -166,9 +166,7 @@ object IvyImportResultInserter extends Logging {
 //            }
             val extendsResults = result.extendsIds.flatMap{ extendsId =>
               val configAttribute = variantMetadata.attributes.find(_.name == IvyConstants.ConfigurationHashAttribute).get //fail if it is not here
-              println(extendsId + " hash " + VariantMetadata.listVariants(extendsId, repository, commit))
               val found = VariantMetadata.listVariants(extendsId, repository, commit).flatMap { hash =>
-                println(extendsId + " found: " + VariantMetadata.read(extendsId, hash, repository, commit).find(_.attributes.contains(configAttribute)))
                 VariantMetadata.read(extendsId, hash, repository, commit).find(_.attributes.contains(configAttribute))
               }
               if (found.size == 1) {

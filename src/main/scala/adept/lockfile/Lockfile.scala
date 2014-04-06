@@ -113,7 +113,7 @@ object Lockfile extends Logging {
 
   private def createPrecise(baseDir: File, requirements: Set[(Requirement, RepositoryName, Commit, VariantHash)], resolutionResults: Set[ResolutionResult], result: ResolveResult, cacheManager: CacheManager) = {
     val reposInfo = getLatestResolutionResults(baseDir, resolutionResults).map { result => result.repository -> result.commit }
-    val lockfileArtifacts = result.state.resolvedVariants.flatMap {
+    val lockfileArtifacts = (result.state.resolvedVariants ++ result.state.implicitVariants).flatMap {
       case (_, variant) =>
         val lockfileArtifacts = variant.artifacts.map { artifactRef =>
           val artifacts = lookupArtifacts(baseDir, artifactRef.hash, reposInfo, getCache(cacheManager))

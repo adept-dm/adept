@@ -235,7 +235,8 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
             Attribute(IvyOrgAttribute, Set("com.typesafe.akka"))))),
         repository = RepositoryName("com.typesafe.akka"),
         artifacts = Set.empty, localFiles = Map.empty,
-        versionInfo = Set.empty, excludeRules = Map.empty),
+        versionInfo = Set.empty, extendsIds = Set.empty,
+        excludeRules = Map.empty),
       IvyImportResult(
         variant = (Variant(
           id = Id("akka-remote_2.10/config/compile"),
@@ -246,7 +247,8 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
             Attribute(IvyOrgAttribute, Set("com.typesafe.akka"))))),
         repository = RepositoryName("com.typesafe.akka"),
         artifacts = Set.empty, localFiles = Map.empty,
-        versionInfo = Set.empty, excludeRules = Map.empty),
+        versionInfo = Set.empty, extendsIds = Set.empty,
+        excludeRules = Map.empty),
       IvyImportResult(
         variant = (Variant(
           id = Id("akka-remote_2.10/config/runtime"),
@@ -257,7 +259,8 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
             Attribute(IvyOrgAttribute, Set("com.typesafe.akka"))))),
         repository = RepositoryName("com.typesafe.akka"),
         artifacts = Set.empty, localFiles = Map.empty,
-        versionInfo = Set.empty, excludeRules = Map.empty),
+        versionInfo = Set.empty, extendsIds = Set.empty,
+        excludeRules = Map.empty),
       IvyImportResult(
         variant = (Variant(
           id = Id("akka-remote_2.10/config/master"),
@@ -268,7 +271,8 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
             Attribute(IvyOrgAttribute, Set("com.typesafe.akka"))))),
         repository = RepositoryName("com.typesafe.akka"),
         artifacts = Set.empty, localFiles = Map.empty,
-        versionInfo = Set.empty, excludeRules = Map.empty),
+        versionInfo = Set.empty, extendsIds = Set.empty,
+        excludeRules = Map.empty),
       //BOGUS:
       IvyImportResult(
         variant = (Variant(
@@ -280,7 +284,8 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
             Attribute(IvyOrgAttribute, Set("com.typesafe.akka"))))),
         repository = RepositoryName("com.typesafe.akka"),
         artifacts = Set.empty, localFiles = Map.empty,
-        versionInfo = Set.empty, excludeRules = Map.empty),
+        versionInfo = Set.empty, extendsIds = Set.empty,
+        excludeRules = Map.empty),
       //----SCALATEST
       IvyImportResult(
         variant = (Variant(
@@ -292,7 +297,8 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
             Attribute(IvyOrgAttribute, Set("org.scalatest"))))),
         repository = RepositoryName("org.scalatest"),
         artifacts = Set.empty, localFiles = Map.empty,
-        versionInfo = Set.empty, excludeRules = Map.empty),
+        versionInfo = Set.empty, extendsIds = Set.empty, 
+        excludeRules = Map.empty),
       IvyImportResult(
         variant = (Variant(
           id = Id("scalatest_2.10/config/compile"),
@@ -303,7 +309,8 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
             Attribute(IvyOrgAttribute, Set("org.scalatest"))))),
         repository = RepositoryName("org.scalatest"),
         artifacts = Set.empty, localFiles = Map.empty,
-        versionInfo = Set.empty, excludeRules = Map.empty),
+        versionInfo = Set.empty, extendsIds = Set.empty,
+        excludeRules = Map.empty),
       IvyImportResult(
         variant = (Variant(
           id = Id("scalatest_2.10/config/runtime"),
@@ -314,7 +321,8 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
             Attribute(IvyOrgAttribute, Set("org.scalatest"))))),
         repository = RepositoryName("org.scalatest"),
         artifacts = Set.empty, localFiles = Map.empty,
-        versionInfo = Set.empty, excludeRules = Map.empty),
+        versionInfo = Set.empty, extendsIds = Set.empty,
+        excludeRules = Map.empty),
       IvyImportResult(
         variant = (Variant(
           id = Id("scalatest_2.10/config/master"),
@@ -325,7 +333,8 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
             Attribute(IvyOrgAttribute, Set("org.scalatest"))))),
         repository = RepositoryName("org.scalatest"),
         artifacts = Set.empty, localFiles = Map.empty,
-        versionInfo = Set.empty, excludeRules = Map.empty))
+        versionInfo = Set.empty, extendsIds = Set.empty,
+        excludeRules = Map.empty))
 
     val requirements = IvyRequirements.convertIvyAsRequirements(ivyModule, fakeIvyResults)
     requirements("compile") shouldEqual Set(

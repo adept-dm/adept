@@ -42,29 +42,30 @@ object Upgrade extends Logging {
         if (ranking.variants.isEmpty) {
           lockfileReq
         } else {
-          val previousVariantAttribute = {
-            VariantMetadata.read(id, variant, repository, commit) match {
-              case Some(metadata) =>
-                metadata.attributes.find(_.name == sameAttributeName)
-              case None => throw new Exception("Cannot read variant metadata: " + (id, variant, repository.dir.getAbsolutePath, commit))
-            }
-          }
+          //Commented out because we do not really care if the previous variant had this attribute
+//          val previousVariantAttribute = {
+//            VariantMetadata.read(id, variant, repository, commit) match {
+//              case Some(metadata) =>
+//                metadata.attributes.find(_.name == sameAttributeName)
+//              case None => throw new Exception("Cannot read variant metadata: " + (id, variant, repository.dir.getAbsolutePath, commit))
+//            }
+//          }
           val newVariant = {
-            ranking.variants.find {
-              case hash =>
-                //give up when we found our hash
-                hash == variant || { //or: take the first one that matches the constraints and has the same attribute:
-                    VariantMetadata.read(id, hash, repository, commit) match {
-                      case Some(metadata) =>
-                        val currentVariantAttribute = metadata.attributes.find(_.name == sameAttributeName)
-                         currentVariantAttribute.isDefined && //first we have to find the attribute name here, if not we do not upgrade to this 
-                         (previousVariantAttribute.isDefined && previousVariantAttribute == currentVariantAttribute) && //if we found the attribute name earlier as well, well we have to check that it is the same as the one we found
-                          AttributeConstraintFilter.matches(metadata.attributes.toSet, lockfileReq.constraints.toSet)
-                      case None =>
-                        //if you are here it means something unexpected has happened:
-                        throw new Exception("Could not load a variant hash: " + hash + " from " + (id, repository.dir.getAbsolutePath(), commit))
-                    }
-                  }
+            ranking.variants.find { hash =>
+              //give up when we found our hash
+              hash == variant || { //or: take the first one that matches the constraints and has the same attribute:
+                VariantMetadata.read(id, hash, repository, commit) match {
+                  case Some(metadata) =>
+                    println("checking: " + metadata)
+                    val currentVariantAttribute = metadata.attributes.find(_.name == sameAttributeName)
+                    currentVariantAttribute.isDefined && //first we have to find the attribute name here, if not we do not upgrade to this 
+//                      (previousVariantAttribute.isDefined && previousVariantAttribute == currentVariantAttribute) && //if we found the attribute name earlier as well, well we have to check that it is the same as the one we found
+                      AttributeConstraintFilter.matches(metadata.attributes.toSet, lockfileReq.constraints.toSet)
+                  case None =>
+                    //if you are here it means something unexpected has happened:
+                    throw new Exception("Could not load a variant hash: " + hash + " from " + (id, repository.dir.getAbsolutePath(), commit))
+                }
+              }
             }.getOrElse(throw new Exception("Expected to find one (any) hash, but at least: " + variant + " in " + (id, repository.dir.getAbsolutePath(), commit)))
           }
           lockfileReq.copy(variant = newVariant)
