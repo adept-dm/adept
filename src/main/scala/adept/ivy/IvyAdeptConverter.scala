@@ -58,6 +58,7 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, excludedConfs: Set[S
     ivy.synchronized { //ivy is not thread safe
       val mrid = module.getModuleRevisionId()
       progress.beginTask("Resolving Ivy module(s)", module.getDependencies().size)
+      progress.update(0)
       getResolveReport(module, resolveOptions()) match {
         case Right(resolveReport) =>
           progress.update(module.getDependencies().size)
@@ -420,7 +421,7 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, excludedConfs: Set[S
         val extendsIds = ivyConfiguration.getExtends().map { targetConf =>
           ivyIdAsId(mrid.getModuleId, targetConf)
         }.toSet
-        
+
         val variant = Variant(
           id = thisVariantId,
           attributes = attributes + Attribute(ConfigurationHashAttribute, Set(configurationHash)) + Attribute(ConfigurationAttribute, Set(confName)),
