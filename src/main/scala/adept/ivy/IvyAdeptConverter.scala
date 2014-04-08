@@ -191,9 +191,11 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, excludedConfs: Set[S
 
   def ivySingleImport(org: String, name: String, version: String, progress: ProgressMonitor): Either[Set[IvyImportError], Set[IvyImportResult]] = {
     val mrid = ModuleRevisionId.newInstance(org, name, version)
-    progress.beginTask("Ivy resolving " + mrid, ProgressMonitor.UNKNOWN)
+    progress.beginTask("Ivy resolving " + mrid, 1)
+    progress.update(0) //display the indicator
     val resolveReport = ivy.resolve(mrid, resolveOptions(), changing)
     val workingNode = getParentNode(resolveReport)
+    progress.update(1)
     progress.endTask()
     val dependencyTree = flattenConfigDependencyTree(createConfigDependencyTree(workingNode.getDescriptor(), resolveReport.getConfigurations().toSet) {
       confName =>
