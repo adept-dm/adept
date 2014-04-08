@@ -16,13 +16,14 @@ import adept.ext.VersionRank
 import adept.resolution.models.Id
 import adept.repository.models.RepositoryName
 import adept.repository.GitRepository
+import org.apache.ivy.Ivy
 
 class IvyIntegrationTest extends FunSuite with Matchers {
   import adept.test.FileUtils._
   import adept.test.IvyTestUtils
 
   val transitive = true
-  val changing = true
+  val changing = true //This should always be true, except when debugging
   val force = true
 
   def getDefaultAdeptModule = {
@@ -51,24 +52,44 @@ class IvyIntegrationTest extends FunSuite with Matchers {
         ModuleRevisionId.newInstance("org.scalatest", "scalatest_2.10", "1.9.1"), force, changing, transitive)
       scalaTestDep.addDependencyConfiguration("test", "default(compile)")
       ivyModule.addDependency(scalaTestDep)
-
-      IvyTestUtils.verify(tmpDir, ivy, ivyModule)
+      installScalaWithBinaryVersions(tmpDir, ivy, Set("2.10.0", "2.10.2"), changing = changing)
+      IvyTestUtils.verify(tmpDir, ivy, ivyModule, changing = changing)
     }
+  }
+
+  def installScalaWithBinaryVersions(baseDir: File, ivy: Ivy, versions: Set[String], changing: Boolean)(implicit testDetails: TestDetails) = {
+    val ivyModule = getDefaultAdeptModule
+
+    versions.foreach { scalaVersion =>
+      val scalaLibDep = new DefaultDependencyDescriptor(ivyModule,
+        ModuleRevisionId.newInstance("org.scala-lang", "scala-compiler", scalaVersion), force, changing, transitive)
+      scalaLibDep.addDependencyConfiguration("compile", "default(compile)")
+      ivyModule.addDependency(scalaLibDep)
+      IvyTestUtils.verify(baseDir, ivy, ivyModule, changing = changing)
+    }
+
+    val scalaIds = Set("", "/config/compile", "/config/default", "/config/javadoc", "/config/master", "/config/provided", "/config/runtime", "/config/sources", "/config/system").map { confString =>
+      Id("org.scala-lang/scala-library" + confString)
+    }
+    val scalaRepoName = RepositoryName("org.scala-lang")
+    val scalaRepo = new GitRepository(baseDir, scalaRepoName)
+    val scalaCommit = scalaRepo.getHead
+    var (addFiles, rmFiles) = Set.empty[File] -> Set.empty[File]
+    scalaIds.foreach { scalaId =>
+      val (currentAddFiles, currentRmFiles) = VersionRank.useSemanticVersionRanking(scalaId, scalaRepo, scalaCommit, includes = Set("2\\.10.*".r, "2\\.9.*".r), excludes = Set(".*".r), useVersionAsBinary = Set("2\\.8.*".r, "2\\.7.*".r))
+      addFiles ++= currentAddFiles
+      rmFiles ++= currentRmFiles
+    }
+    scalaRepo.add(addFiles)
+    scalaRepo.rm(rmFiles)
+    scalaRepo.commit("Versioned Scala")
   }
 
   test("Ivy end-to-end: scala-compiler 2.10.2 (module with optional deps)") {
     implicit val testDetails = TestDetails("End-to-end (scala-compiler 2.10.2 optional deps)")
     usingTmpDir { tmpDir =>
       val ivy = IvyTestUtils.ivy
-      ivy.configure(new File("src/test/resources/typesafe-ivy-settings.xml"))
-      val ivyModule = getDefaultAdeptModule
-
-      val scalaLibDep = new DefaultDependencyDescriptor(ivyModule,
-        ModuleRevisionId.newInstance("org.scala-lang", "scala-compiler", "2.10.2"), force, changing, transitive)
-      scalaLibDep.addDependencyConfiguration("compile", "default(compile)")
-      ivyModule.addDependency(scalaLibDep)
-
-      IvyTestUtils.verify(tmpDir, ivy, ivyModule)
+      installScalaWithBinaryVersions(tmpDir, ivy, Set("2.10.2"), changing)
     }
   }
 
@@ -76,14 +97,7 @@ class IvyIntegrationTest extends FunSuite with Matchers {
     implicit val testDetails = TestDetails("End-to-end (scala-library 2.10.3 no deps)")
     usingTmpDir { tmpDir =>
       val ivy = IvyTestUtils.ivy
-      val ivyModule = getDefaultAdeptModule
-
-      val scalaLibDep = new DefaultDependencyDescriptor(ivyModule,
-        ModuleRevisionId.newInstance("org.scala-lang", "scala-library", "2.10.3"), force, changing, transitive)
-      scalaLibDep.addDependencyConfiguration("compile", "default(compile)")
-      ivyModule.addDependency(scalaLibDep)
-
-      IvyTestUtils.verify(tmpDir, ivy, ivyModule)
+      installScalaWithBinaryVersions(tmpDir, ivy, Set("2.10.3"), changing)
     }
   }
 
@@ -96,38 +110,7 @@ class IvyIntegrationTest extends FunSuite with Matchers {
     usingTmpDir { tmpDir =>
       val ivy = IvyTestUtils.ivy
 
-      {
-        val ivyModule = getDefaultAdeptModule
-
-        val scalaLibDep = new DefaultDependencyDescriptor(ivyModule,
-          ModuleRevisionId.newInstance("org.scala-lang", "scala-library", "2.9.3"), force, changing, transitive)
-        scalaLibDep.addDependencyConfiguration("compile", "default(compile)")
-        ivyModule.addDependency(scalaLibDep)
-
-        IvyTestUtils.verify(tmpDir, ivy, ivyModule)
-      }
-
-      {
-        val ivyModule = getDefaultAdeptModule
-
-        val scalaLibDep = new DefaultDependencyDescriptor(ivyModule,
-          ModuleRevisionId.newInstance("org.scala-lang", "scala-library", "2.10.1"), force, changing, transitive)
-        scalaLibDep.addDependencyConfiguration("compile", "default(compile)")
-        ivyModule.addDependency(scalaLibDep)
-
-        IvyTestUtils.verify(tmpDir, ivy, ivyModule)
-      }
-
-      {
-        val scalaId = Id("org.scala-lang/scala-library")
-        val scalaRepoName = RepositoryName("org.scala-lang")
-        val scalaRepo = new GitRepository(tmpDir, scalaRepoName)
-        val scalaCommit = scalaRepo.getHead
-        val (addFiles, rmFiles) = VersionRank.useSemanticVersionRanking(scalaId, scalaRepo, scalaCommit, includes = Set("2\\.10.*".r), excludes = Set(".*".r), useVersionAsBinary = Set("2\\.9.*".r))
-        scalaRepo.add(addFiles)
-        scalaRepo.rm(rmFiles)
-        scalaRepo.commit("Scala version")
-      }
+      installScalaWithBinaryVersions(tmpDir, ivy, Set("2.9.3", "2.10.1", "2.10.2"), changing)
 
       {
         val ivyModule = getDefaultAdeptModule
@@ -142,7 +125,7 @@ class IvyIntegrationTest extends FunSuite with Matchers {
         scalaTestDep.addDependencyConfiguration("test", "default(compile)")
         ivyModule.addDependency(scalaTestDep)
 
-        IvyTestUtils.verify(tmpDir, ivy, ivyModule)
+        IvyTestUtils.verify(tmpDir, ivy, ivyModule, changing)
       }
     }
   }
