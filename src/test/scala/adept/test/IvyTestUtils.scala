@@ -25,9 +25,9 @@ object IvyTestUtils {
     IvyUtils.load()
   }
 
-  def verify(tmpDir: File, ivy: Ivy, ivyModule: ModuleDescriptor)(implicit testDetails: TestDetails) = {
+  def verify(tmpDir: File, ivy: Ivy, ivyModule: ModuleDescriptor, changing: Boolean)(implicit testDetails: TestDetails) = {
 
-    val ivyConverter = new IvyAdeptConverter(ivy)
+    val ivyConverter = new IvyAdeptConverter(ivy, changing = changing)
 
     val exists = { (_: RepositoryName, _: Id) => true } //TODO:
 
@@ -56,11 +56,9 @@ object IvyTestUtils {
     for (confName <- requirements.keys) {
       val resolutionResults =
         VersionRank.createResolutionResults(tmpDir, configuredVersionInfo(confName))
-
       val loader = benchmark(Loaded, resolutionResults) {
         new GitLoader(tmpDir, resolutionResults, progress, cacheManager)
       }
-
       val result = benchmark(Resolved, requirements(confName) && loader) {
         resolve(requirements(confName), loader)
       }
@@ -69,7 +67,6 @@ object IvyTestUtils {
           val verificationResult = benchmark(Verified, resolvedResult && ivyModule) {
             ivyConverter.verifyConversion(confName, ivyModule, resolvedResult)
           }
-          println(result)
           assert(verificationResult.isRight, "Verification of " + confName + " failed:\n" + verificationResult)
         case _ =>
           assert(false, "Expected to be able to resolve Adept for " + confName + ". Got result:\n" + result)
