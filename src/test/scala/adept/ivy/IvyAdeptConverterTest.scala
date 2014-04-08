@@ -221,136 +221,164 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
     ivyModule
   }
 
+  private val fakeIvyResults: Set[IvyImportResult] = Set(
+    IvyImportResult(
+      variant = (Variant(
+        id = Id("akka-remote_2.10/config/default"),
+        attributes = Set(
+          Attribute(ConfigurationAttribute, Set("default")),
+          Attribute(IvyNameAttribute, Set("akka-remote_2.10")),
+          Attribute(VersionAttribute, Set("2.2.1")),
+          Attribute(IvyOrgAttribute, Set("com.typesafe.akka"))))),
+      repository = RepositoryName("com.typesafe.akka"),
+      artifacts = Set.empty, localFiles = Map.empty,
+      versionInfo = Set.empty, extendsIds = Set("akka-remote_2.10/config/runtime", "akka-remote_2.10/config/master"),
+      excludeRules = Map.empty),
+    IvyImportResult(
+      variant = (Variant(
+        id = Id("akka-remote_2.10/config/compile"),
+        attributes = Set(
+          Attribute(ConfigurationAttribute, Set("compile")),
+          Attribute(IvyNameAttribute, Set("akka-remote_2.10")),
+          Attribute(VersionAttribute, Set("2.2.1")),
+          Attribute(IvyOrgAttribute, Set("com.typesafe.akka"))))),
+      repository = RepositoryName("com.typesafe.akka"),
+      artifacts = Set.empty, localFiles = Map.empty,
+      versionInfo = Set.empty, extendsIds = Set.empty,
+      excludeRules = Map.empty),
+    IvyImportResult(
+      variant = (Variant(
+        id = Id("akka-remote_2.10/config/runtime"),
+        attributes = Set(
+          Attribute(ConfigurationAttribute, Set("runtime")),
+          Attribute(IvyNameAttribute, Set("akka-remote_2.10")),
+          Attribute(VersionAttribute, Set("2.2.1")),
+          Attribute(IvyOrgAttribute, Set("com.typesafe.akka"))))),
+      repository = RepositoryName("com.typesafe.akka"),
+      artifacts = Set.empty, localFiles = Map.empty,
+      versionInfo = Set.empty, extendsIds = Set("akka-remote_2.10/config/compile"),
+      excludeRules = Map.empty),
+    IvyImportResult(
+      variant = (Variant(
+        id = Id("akka-remote_2.10/config/test"),
+        attributes = Set(
+          Attribute(ConfigurationAttribute, Set("master")),
+          Attribute(IvyNameAttribute, Set("akka-remote_2.10")),
+          Attribute(VersionAttribute, Set("2.2.1")),
+          Attribute(IvyOrgAttribute, Set("com.typesafe.akka"))))),
+      repository = RepositoryName("com.typesafe.akka"),
+      artifacts = Set.empty, localFiles = Map.empty,
+      versionInfo = Set.empty, extendsIds = Set("akka-remote_2.10/config/runtime"),
+      excludeRules = Map.empty),
+    IvyImportResult(
+      variant = (Variant(
+        id = Id("akka-remote_2.10/config/master"),
+        attributes = Set(
+          Attribute(ConfigurationAttribute, Set("master")),
+          Attribute(IvyNameAttribute, Set("akka-remote_2.10")),
+          Attribute(VersionAttribute, Set("2.2.1")),
+          Attribute(IvyOrgAttribute, Set("com.typesafe.akka"))))),
+      repository = RepositoryName("com.typesafe.akka"),
+      artifacts = Set.empty, localFiles = Map.empty,
+      versionInfo = Set.empty, extendsIds = Set.empty,
+      excludeRules = Map.empty),
+    //----SCALATEST
+    IvyImportResult(
+      variant = (Variant(
+        id = Id("scalatest_2.10/config/default"),
+        attributes = Set(
+          Attribute(ConfigurationAttribute, Set("default")),
+          Attribute(IvyNameAttribute, Set("scalatest_2.10")),
+          Attribute(VersionAttribute, Set("1.9.1")),
+          Attribute(IvyOrgAttribute, Set("org.scalatest"))))),
+      repository = RepositoryName("org.scalatest"),
+      artifacts = Set.empty, localFiles = Map.empty,
+      versionInfo = Set.empty, extendsIds = Set("scalatest_2.10/config/runtime", "scalatest_2.10/config/master"),
+      excludeRules = Map.empty),
+    IvyImportResult(
+      variant = (Variant(
+        id = Id("scalatest_2.10/config/compile"),
+        attributes = Set(
+          Attribute(ConfigurationAttribute, Set("compile")),
+          Attribute(IvyNameAttribute, Set("scalatest_2.10")),
+          Attribute(VersionAttribute, Set("1.9.1")),
+          Attribute(IvyOrgAttribute, Set("org.scalatest"))))),
+      repository = RepositoryName("org.scalatest"),
+      artifacts = Set.empty, localFiles = Map.empty,
+      versionInfo = Set.empty, extendsIds = Set.empty,
+      excludeRules = Map.empty),
+    IvyImportResult(
+      variant = (Variant(
+        id = Id("scalatest_2.10/config/runtime"),
+        attributes = Set(
+          Attribute(ConfigurationAttribute, Set("runtime")),
+          Attribute(IvyNameAttribute, Set("scalatest_2.10")),
+          Attribute(VersionAttribute, Set("1.9.1")),
+          Attribute(IvyOrgAttribute, Set("org.scalatest"))))),
+      repository = RepositoryName("org.scalatest"),
+      artifacts = Set.empty, localFiles = Map.empty,
+      versionInfo = Set.empty, extendsIds = Set("scalatest_2.10/config/compile"),
+      excludeRules = Map.empty),
+    IvyImportResult(
+      variant = (Variant(
+        id = Id("scalatest_2.10/config/test"),
+        attributes = Set(
+          Attribute(ConfigurationAttribute, Set("runtime")),
+          Attribute(IvyNameAttribute, Set("scalatest_2.10")),
+          Attribute(VersionAttribute, Set("1.9.1")),
+          Attribute(IvyOrgAttribute, Set("org.scalatest"))))),
+      repository = RepositoryName("org.scalatest"),
+      artifacts = Set.empty, localFiles = Map.empty,
+      versionInfo = Set.empty, extendsIds = Set("scalatest_2.10/config/runtime"),
+      excludeRules = Map.empty),
+    IvyImportResult(
+      variant = (Variant(
+        id = Id("scalatest_2.10/config/master"),
+        attributes = Set(
+          Attribute(ConfigurationAttribute, Set("master")),
+          Attribute(IvyNameAttribute, Set("scalatest_2.10")),
+          Attribute(VersionAttribute, Set("1.9.1")),
+          Attribute(IvyOrgAttribute, Set("org.scalatest"))))),
+      repository = RepositoryName("org.scalatest"),
+      artifacts = Set.empty, localFiles = Map.empty,
+      versionInfo = Set.empty, extendsIds = Set.empty,
+      excludeRules = Map.empty))
+
   test("Ivy requirements conversion") {
     val ivyModule = getAkkaRemoteTestIvyModule
+    val currentFakeIvyResults: Set[IvyImportResult] = (fakeIvyResults + IvyImportResult( //BOGUS: to make test slightly harder to pass
+      variant = (Variant(
+        id = Id("akka-remote_2.10/config/bogus"),
+        attributes = Set(
+          Attribute(ConfigurationAttribute, Set("bogus")),
+          Attribute(IvyNameAttribute, Set("akka-remote_2.10")),
+          Attribute(VersionAttribute, Set("2.2.1")),
+          Attribute(IvyOrgAttribute, Set("com.typesafe.akka"))))),
+      repository = RepositoryName("com.typesafe.akka"),
+      artifacts = Set.empty, localFiles = Map.empty,
+      versionInfo = Set.empty, extendsIds = Set.empty,
+      excludeRules = Map.empty))
 
-    val fakeIvyResults: Set[IvyImportResult] = Set(
-      IvyImportResult(
-        variant = (Variant(
-          id = Id("akka-remote_2.10/config/default"),
-          attributes = Set(
-            Attribute(ConfigurationAttribute, Set("default")),
-            Attribute(IvyNameAttribute, Set("akka-remote_2.10")),
-            Attribute(VersionAttribute, Set("2.2.1")),
-            Attribute(IvyOrgAttribute, Set("com.typesafe.akka"))))),
-        repository = RepositoryName("com.typesafe.akka"),
-        artifacts = Set.empty, localFiles = Map.empty,
-        versionInfo = Set.empty, extendsIds = Set.empty,
-        excludeRules = Map.empty),
-      IvyImportResult(
-        variant = (Variant(
-          id = Id("akka-remote_2.10/config/compile"),
-          attributes = Set(
-            Attribute(ConfigurationAttribute, Set("compile")),
-            Attribute(IvyNameAttribute, Set("akka-remote_2.10")),
-            Attribute(VersionAttribute, Set("2.2.1")),
-            Attribute(IvyOrgAttribute, Set("com.typesafe.akka"))))),
-        repository = RepositoryName("com.typesafe.akka"),
-        artifacts = Set.empty, localFiles = Map.empty,
-        versionInfo = Set.empty, extendsIds = Set.empty,
-        excludeRules = Map.empty),
-      IvyImportResult(
-        variant = (Variant(
-          id = Id("akka-remote_2.10/config/runtime"),
-          attributes = Set(
-            Attribute(ConfigurationAttribute, Set("runtime")),
-            Attribute(IvyNameAttribute, Set("akka-remote_2.10")),
-            Attribute(VersionAttribute, Set("2.2.1")),
-            Attribute(IvyOrgAttribute, Set("com.typesafe.akka"))))),
-        repository = RepositoryName("com.typesafe.akka"),
-        artifacts = Set.empty, localFiles = Map.empty,
-        versionInfo = Set.empty, extendsIds = Set.empty,
-        excludeRules = Map.empty),
-      IvyImportResult(
-        variant = (Variant(
-          id = Id("akka-remote_2.10/config/master"),
-          attributes = Set(
-            Attribute(ConfigurationAttribute, Set("master")),
-            Attribute(IvyNameAttribute, Set("akka-remote_2.10")),
-            Attribute(VersionAttribute, Set("2.2.1")),
-            Attribute(IvyOrgAttribute, Set("com.typesafe.akka"))))),
-        repository = RepositoryName("com.typesafe.akka"),
-        artifacts = Set.empty, localFiles = Map.empty,
-        versionInfo = Set.empty, extendsIds = Set.empty,
-        excludeRules = Map.empty),
-      //BOGUS:
-      IvyImportResult(
-        variant = (Variant(
-          id = Id("akka-remote_2.10/config/bogus"),
-          attributes = Set(
-            Attribute(ConfigurationAttribute, Set("bogus")),
-            Attribute(IvyNameAttribute, Set("akka-remote_2.10")),
-            Attribute(VersionAttribute, Set("2.2.1")),
-            Attribute(IvyOrgAttribute, Set("com.typesafe.akka"))))),
-        repository = RepositoryName("com.typesafe.akka"),
-        artifacts = Set.empty, localFiles = Map.empty,
-        versionInfo = Set.empty, extendsIds = Set.empty,
-        excludeRules = Map.empty),
-      //----SCALATEST
-      IvyImportResult(
-        variant = (Variant(
-          id = Id("scalatest_2.10/config/default"),
-          attributes = Set(
-            Attribute(ConfigurationAttribute, Set("default")),
-            Attribute(IvyNameAttribute, Set("scalatest_2.10")),
-            Attribute(VersionAttribute, Set("1.9.1")),
-            Attribute(IvyOrgAttribute, Set("org.scalatest"))))),
-        repository = RepositoryName("org.scalatest"),
-        artifacts = Set.empty, localFiles = Map.empty,
-        versionInfo = Set.empty, extendsIds = Set.empty, 
-        excludeRules = Map.empty),
-      IvyImportResult(
-        variant = (Variant(
-          id = Id("scalatest_2.10/config/compile"),
-          attributes = Set(
-            Attribute(ConfigurationAttribute, Set("compile")),
-            Attribute(IvyNameAttribute, Set("scalatest_2.10")),
-            Attribute(VersionAttribute, Set("1.9.1")),
-            Attribute(IvyOrgAttribute, Set("org.scalatest"))))),
-        repository = RepositoryName("org.scalatest"),
-        artifacts = Set.empty, localFiles = Map.empty,
-        versionInfo = Set.empty, extendsIds = Set.empty,
-        excludeRules = Map.empty),
-      IvyImportResult(
-        variant = (Variant(
-          id = Id("scalatest_2.10/config/runtime"),
-          attributes = Set(
-            Attribute(ConfigurationAttribute, Set("runtime")),
-            Attribute(IvyNameAttribute, Set("scalatest_2.10")),
-            Attribute(VersionAttribute, Set("1.9.1")),
-            Attribute(IvyOrgAttribute, Set("org.scalatest"))))),
-        repository = RepositoryName("org.scalatest"),
-        artifacts = Set.empty, localFiles = Map.empty,
-        versionInfo = Set.empty, extendsIds = Set.empty,
-        excludeRules = Map.empty),
-      IvyImportResult(
-        variant = (Variant(
-          id = Id("scalatest_2.10/config/master"),
-          attributes = Set(
-            Attribute(ConfigurationAttribute, Set("master")),
-            Attribute(IvyNameAttribute, Set("scalatest_2.10")),
-            Attribute(VersionAttribute, Set("1.9.1")),
-            Attribute(IvyOrgAttribute, Set("org.scalatest"))))),
-        repository = RepositoryName("org.scalatest"),
-        artifacts = Set.empty, localFiles = Map.empty,
-        versionInfo = Set.empty, extendsIds = Set.empty,
-        excludeRules = Map.empty))
+    val requirements = IvyRequirements.convertIvyAsRequirements(ivyModule, currentFakeIvyResults)
 
-    val requirements = IvyRequirements.convertIvyAsRequirements(ivyModule, fakeIvyResults)
     requirements("compile") shouldEqual Set(
       Requirement(Id("akka-remote_2.10/config/default"), Set.empty, Set.empty),
       Requirement(Id("akka-remote_2.10/config/master"), Set.empty, Set.empty),
       Requirement(Id("akka-remote_2.10/config/compile"), Set.empty, Set.empty),
-      Requirement(Id("akka-remote_2.10/config/runtime"), Set.empty, Set.empty))
+      Requirement(Id("akka-remote_2.10/config/runtime"), Set.empty, Set.empty),
+      Requirement(Id("akka-remote_2.10/config/test"), Set.empty, Set.empty))
 
     requirements("test") shouldEqual Set(
       Requirement(Id("akka-remote_2.10/config/default"), Set.empty, Set.empty),
       Requirement(Id("akka-remote_2.10/config/master"), Set.empty, Set.empty),
       Requirement(Id("akka-remote_2.10/config/compile"), Set.empty, Set.empty),
       Requirement(Id("akka-remote_2.10/config/runtime"), Set.empty, Set.empty),
+      Requirement(Id("akka-remote_2.10/config/test"), Set.empty, Set.empty),
       Requirement(Id("scalatest_2.10/config/default"), Set.empty, Set.empty),
       Requirement(Id("scalatest_2.10/config/master"), Set.empty, Set.empty),
       Requirement(Id("scalatest_2.10/config/compile"), Set.empty, Set.empty),
+      Requirement(Id("scalatest_2.10/config/test"), Set.empty, Set.empty),
       Requirement(Id("scalatest_2.10/config/runtime"), Set.empty, Set.empty))
+
   }
 }
