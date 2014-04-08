@@ -63,6 +63,7 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, excludedConfs: Set[S
         case Right(resolveReport) =>
           progress.update(module.getDependencies().size)
           progress.endTask()
+          if (module == null) throw new Exception("Missing module for " + mrid + ". Perhaps Ivy cannot resolve?")
           val configDependencyTree = createConfigDependencyTree(module, resolveReport.getConfigurations().toSet) { confName =>
             resolveReport
           }
@@ -80,6 +81,7 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, excludedConfs: Set[S
 
           //TODO: this part of the code doesn't feel right, but we need it to match the exact versions that ivy produces
           val allIds = allResults.map(_.variant.id)
+
           val versionInfo = configDependencyTree.keys.map { confName =>
             val depdendencyTree = configDependencyTree(confName)
             confName -> depdendencyTree(mrid).flatMap { ivyNode =>
@@ -197,6 +199,7 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, excludedConfs: Set[S
     val workingNode = getParentNode(resolveReport)
     progress.update(1)
     progress.endTask()
+    if (workingNode.getDescriptor() == null) throw new Exception("Missing module for " + mrid + ". Perhaps Ivy cannot resolve?")
     val dependencyTree = flattenConfigDependencyTree(createConfigDependencyTree(workingNode.getDescriptor(), resolveReport.getConfigurations().toSet) {
       confName =>
         ivy.resolve(mrid, resolveOptions(confName), changing)
@@ -221,6 +224,7 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, excludedConfs: Set[S
     loaded.filter(!visited(_)).foreach { childNode =>
       val childId = childNode.getId
       val resolveReport = ivy.resolve(childId, resolveOptions(), changing)
+      if (currentIvyNode.getDescriptor() == null) throw new Exception("Missing module for " + currentIvyNode.getId + ". Perhaps Ivy cannot resolve?")
       val dependencyTree = flattenConfigDependencyTree(createConfigDependencyTree(currentIvyNode.getDescriptor(), resolveReport.getConfigurations().toSet) { confName =>
         ivy.resolve(mrid, resolveOptions(confName), changing)
       })
@@ -472,10 +476,10 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, excludedConfs: Set[S
     logger.debug("Excluding confs: " + confNames.filter(excludedConfs.contains(_)).toList)
     confNames.filter(!excludedConfs.contains(_)).map { confName =>
       val report = resolveReport(confName).getConfigurationReport(confName)
-      //      if (report.getUnresolvedDependencies().nonEmpty &&
-      //        report.getUnresolvedDependencies().map(d => (d.getId.getOrganisation, d.getId.getName, d.getId.getRevision)).toList !=
-      //        List((mrid.getOrganisation(), mrid.getName(), mrid.getRevision())))
-      //        throw new Exception(mrid + " has unresolved dependencies:\n" + report.getUnresolvedDependencies().map(d => (d.getId.getOrganisation, d.getId.getName, d.getId.getRevision)).toList + " VS " + List((mrid.getOrganisation(), mrid.getName(), mrid.getRevision())) + ":"+ report.getUnresolvedDependencies().toList.mkString("\n"))
+      //            if (report.getUnresolvedDependencies().nonEmpty &&
+      //              report.getUnresolvedDependencies().map(d => (d.getId.getOrganisation, d.getId.getName, d.getId.getRevision)).toList !=
+      //              List((mrid.getOrganisation(), mrid.getName(), mrid.getRevision())))
+      //              throw new Exception(mrid + " has unresolved dependencies:\n" + report.getUnresolvedDependencies().map(d => (d.getId.getOrganisation, d.getId.getName, d.getId.getRevision)).toList + " VS " + List((mrid.getOrganisation(), mrid.getName(), mrid.getRevision())) + ":"+ report.getUnresolvedDependencies().toList.mkString("\n"))
       var dependencies = Map.empty[ModuleRevisionId, Set[IvyNode]]
       def addDependency(mrid: ModuleRevisionId, ivyNode: IvyNode) = {
         val current = dependencies.getOrElse(mrid, Set.empty) + ivyNode

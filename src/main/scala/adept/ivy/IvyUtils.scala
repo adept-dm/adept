@@ -163,7 +163,9 @@ private[adept] object IvyUtils extends Logging {
 
   def matchesExcludeRule(excludeRule: ExcludeRule, variant: Variant): Boolean = {
     val moduleId = excludeRule.getId.getModuleId
-    variant.attribute(IvyNameAttribute).values == Set(moduleId.getName()) &&
+    val res = variant.attribute(IvyNameAttribute).values == Set(moduleId.getName()) &&
       variant.attribute(IvyOrgAttribute).values == Set(moduleId.getOrganisation())
+//    if (!res) println(moduleId + " VS name: " + variant.attribute(IvyNameAttribute).values + " AND org: " + variant.attribute(IvyOrgAttribute).values)
+    res
   }
 }

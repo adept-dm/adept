@@ -8,6 +8,7 @@ import adept.ext.Version
 import adept.ext.AttributeDefaults
 import adept.resolution.models.Constraint
 import adept.logging.Logging
+import org.apache.ivy.core.module.descriptor.ExcludeRule
 
 object ScalaBinaryVersionConverter extends Logging {
   val ScalaBinaryVersionRegex = """(.*)_(\d\..*?)(/.*)?""".r
@@ -24,22 +25,33 @@ object ScalaBinaryVersionConverter extends Logging {
     Id("org.scala-lang/scala-library/config/system"),
     Id("org.scala-lang/scala-library"))
 
-  private def extractId(name: RepositoryName, id: Id, exists: (RepositoryName, Id) => Boolean) = {
+  private def extractId(id: Id) = { //TODO: , exists: (RepositoryName, Id) => Boolean
     id.value match {
-      case ScalaBinaryVersionRegex(newId, binaryVersion, rest) if exists(name, id) =>
+      case ScalaBinaryVersionRegex(newId, binaryVersion, rest) => //TODO: if exists(name, id) =>
         Id(newId + Option(rest).getOrElse(""))
       case _ => id
     }
   }
 
   private def convertIdsWithScalaBinaryVersion(name: RepositoryName, ids: Set[Id], exists: (RepositoryName, Id) => Boolean) = {
-    ids.map(extractId(name, _, exists))
+    ids.map{ id =>
+      if (!exists(name, id)) throw new Exception("Currently we do not check for existance and using it is wrong. It should perhaps be removed?")
+      extractId(id)
+    }
   }
 
   def convertVersionInfoWithScalaBinaryVersion(versionInfo: Set[(RepositoryName, Id, Version)], exists: (RepositoryName, Id) => Boolean): Set[(RepositoryName, Id, Version)] = {
     versionInfo.map {
       case (name, id, version) =>
-        (name, extractId(name, id, exists), version)
+        if (!exists(name, id)) throw new Exception("Currently we do not check for existance and using it is wrong. It should perhaps be removed?")
+        (name, extractId(id), version)
+    }
+  }
+
+  private def convertExcludeRulesWithScalaBinaryVersion(excludeRules: Map[(Id, Id), Set[ExcludeRule]]): Map[(Id, Id), Set[ExcludeRule]] = {
+    excludeRules.map {
+      case ((id1, id2), excludes) =>
+        ((extractId(id1), extractId(id2)), excludes)
     }
   }
 
@@ -78,6 +90,7 @@ object ScalaBinaryVersionConverter extends Logging {
           logger.debug("Adding scala library binary version: " + binaryVersion + " on ivy import of: " + ivyImportResult.variant)
           ivyImportResult.copy(
             variant = newVariant,
+            excludeRules = convertExcludeRulesWithScalaBinaryVersion(ivyImportResult.excludeRules),
             extendsIds = convertIdsWithScalaBinaryVersion(ivyImportResult.repository, ivyImportResult.extendsIds, exists),
             versionInfo = convertVersionInfoWithScalaBinaryVersion(ivyImportResult.versionInfo, exists))
         } else {
@@ -92,10 +105,12 @@ object ScalaBinaryVersionConverter extends Logging {
                 Id(newId + Option(rest).getOrElse(""))
               case _ => requirement.id
             }
+            val newExclusions = requirement.exclusions
             requirement.copy(id = newReqId)
           })
         ivyImportResult.copy(
           variant = newVariant,
+          excludeRules = convertExcludeRulesWithScalaBinaryVersion(ivyImportResult.excludeRules),
           extendsIds = convertIdsWithScalaBinaryVersion(ivyImportResult.repository, ivyImportResult.extendsIds, exists),
           versionInfo = convertVersionInfoWithScalaBinaryVersion(ivyImportResult.versionInfo, exists))
     }

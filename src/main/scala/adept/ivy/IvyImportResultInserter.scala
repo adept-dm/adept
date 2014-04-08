@@ -53,11 +53,11 @@ object IvyImportResultInserter extends Logging {
    *  Automatically ranks variants according to useDefaultVersionRanking.
    */
   def insertAsResolutionResults(baseDir: File, results: Set[IvyImportResult], progress: ProgressMonitor): Set[ResolutionResult] = {
-    progress.beginTask("Applying exclusion(s)", results.size * 2)
+    progress.beginTask("Applying exclusion(s)", results.size)
     val included = results.flatMap { result =>
       var requirementModifications = Map.empty[Id, Set[Variant]]
       var currentExcluded = false
-      progress.update(2)
+      progress.update(1)
 
       for {
         otherResult <- results
@@ -66,13 +66,14 @@ object IvyImportResultInserter extends Logging {
         if (matchesExcludeRule(excludeRule, otherResult.variant))
       } { //<-- NOTICE
         if (variantId == result.variant.id) {
-          logger.debug("on variant: " + variantId + " add exclusion for " + requirementId + ":" + excludeRules)
+          logger.debug("Variant: " + variantId + " add exclusion for " + requirementId + ":" + excludeRules)
           val formerlyExcluded = requirementModifications.getOrElse(requirementId, Set.empty[Variant])
           requirementModifications += requirementId -> (formerlyExcluded + otherResult.variant) //MUTATE!
-        }
-        if (requirementId == result.variant.id) {
-          logger.debug("on result: " + result.variant.id + " will be excluded because of: " + excludeRules)
+        } else if (requirementId == result.variant.id) {
+          logger.debug("Requirement will exclude: " + result.variant.id + " will be excluded because of: " + excludeRules)
           currentExcluded = true //MUTATE!
+        } else {
+          logger.debug("Ignoring matching exclusion on: " + result.variant.id + " is " + ((variantId, requirementId), excludeRules))
         }
       }
       val fixedResult = if (requirementModifications.nonEmpty) {
@@ -140,31 +141,12 @@ object IvyImportResultInserter extends Logging {
         val completedResults = results.flatMap { result =>
           val variant = result.variant
           val id = variant.id
-
           val variantMetadata = VariantMetadata.fromVariant(variant)
-
           val includedVersionInfo = result.versionInfo
+          val commit = repository.getHead
 
           try {
-            val commit = repository.getHead
-//            val configurationBaseIdResult = { //TODO: this is a workaround! It would be nice to have some better way of adding a resolution result to its own configuration base
-//              id.value match {
-//                case IvyUtils.ConfigRegex(baseIdString, rest) =>
-//                  if (rest != null) { // means we have a base 
-//                    val baseId = Id(baseIdString)
-//                    val configAttribute = variantMetadata.attributes.find(_.name == IvyConstants.ConfigurationHashAttribute).get //fail if it is not here
-//                    val found = VariantMetadata.listVariants(baseId, repository, commit).flatMap { hash =>
-//                      VariantMetadata.read(baseId, hash, repository, commit).find(_.attributes.contains(configAttribute))
-//                    }
-//                    if (found.size == 1) {
-//                      val hash = found.head.hash
-//                      Some(ResolutionResult(baseId, repository.name, commit, hash))
-//                    } else throw new Exception("Could not find a configuration hash: " + configAttribute + " for " + baseId + " the base of " + id)
-//                  } else None
-//                case _ => None
-//              }
-//            }
-            val extendsResults = result.extendsIds.flatMap{ extendsId =>
+            val extendsResults = result.extendsIds.flatMap { extendsId =>
               val configAttribute = variantMetadata.attributes.find(_.name == IvyConstants.ConfigurationHashAttribute).get //fail if it is not here
               val found = VariantMetadata.listVariants(extendsId, repository, commit).flatMap { hash =>
                 VariantMetadata.read(extendsId, hash, repository, commit).find(_.attributes.contains(configAttribute))
@@ -174,10 +156,11 @@ object IvyImportResultInserter extends Logging {
                 Some(ResolutionResult(extendsId, repository.name, commit, hash))
               } else throw new Exception("Could not find a configuration hash: " + configAttribute + " for " + extendsId + " a configuration extended by: " + id + " in " + repository.name + " for " + commit)
             }
-            
+
             val currentResults = VersionRank.createResolutionResults(baseDir, includedVersionInfo) ++
-              Set(ResolutionResult(id, repository.name, commit, variantMetadata.hash)) ++ //We cannot use this because we cannot link back to the configuration because it makes it impossible to upgrade ++ configurationBaseIdResult
+              Set(ResolutionResult(id, repository.name, commit, variantMetadata.hash)) ++
               extendsResults
+
             val resolutionResultsMetadata = ResolutionResultsMetadata(currentResults.toSeq)
             repository.add(resolutionResultsMetadata.write(id, variantMetadata.hash, repository))
             currentResults
