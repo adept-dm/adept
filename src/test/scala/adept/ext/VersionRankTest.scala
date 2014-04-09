@@ -132,9 +132,13 @@ class VersionRankTest extends FunSpec with Matchers {
         val commitA = addThenCommit(variantA, repoA, Set())
         val hashA = VariantMetadata.fromVariant(variantA).hash
         val resolveResultA = ResolutionResult(idA, repoA.name, commitA, hashA)
-        addThenCommit(Variant(idB, Set(version -> Set("1.0.0"), binaryVersion -> Set("1.0")),
+        val commitB1 = addThenCommit(Variant(idB, Set(version -> Set("1.0.0"), binaryVersion -> Set("1.0")),
           requirements = Set(Requirement(idA, Set.empty, Set.empty))), repoB,
           Set(resolveResultA))
+        val commitB2 = addThenCommit(Variant(idB, Set(version -> Set("1.0.0"), binaryVersion -> Set("1.0")),
+          requirements = Set(Requirement(idA, Set.empty, Set.empty))), repoB,
+          Set(resolveResultA))
+        commitB1 shouldEqual commitB2
         addThenCommit(Variant(idC, Set(version -> Set("1.0.0"), binaryVersion -> Set("1.0")),
           requirements = Set(Requirement(idA, Set.empty, Set.empty))), repoC,
           Set(resolveResultA))
@@ -144,21 +148,20 @@ class VersionRankTest extends FunSpec with Matchers {
             repo.add(file)
             repo.commit("Using binary version for: " + idA.value)
         }
-        pending //TODO: This should work but does not:
-//        val activeBs = RankLogic.getActiveVariants(idB, repoB, repoB.getHead)
-//        activeBs should have size (1)
-//        activeBs.map { hash =>
-//          val newVariant = VariantMetadata.read(idB, hash, repoB, repoB.getHead).value
-//          val requirements = newVariant.requirements.find(_.id == idA).value
-//          requirements.constraint(AttributeDefaults.BinaryVersionAttribute).values shouldEqual Set("1.0")
-//        }
-//        val activeCs = RankLogic.getActiveVariants(idC, repoC, repoC.getHead)
-//        activeCs should have size (1)
-//        activeCs.map { hash =>
-//          val newVariant = VariantMetadata.read(idC, hash, repoC, repoC.getHead).value
-//          val requirements = newVariant.requirements.find(_.id == idA).value
-//          requirements.constraint(AttributeDefaults.BinaryVersionAttribute).values shouldEqual Set("1.0")
-//        }
+        val activeBs = RankLogic.getActiveVariants(idB, repoB, repoB.getHead)
+        activeBs should have size (1)
+        activeBs.foreach { hash =>
+          val newVariant = VariantMetadata.read(idB, hash, repoB, repoB.getHead).value
+          val requirements = newVariant.requirements.find(_.id == idA).value
+          requirements.constraint(AttributeDefaults.BinaryVersionAttribute).values shouldEqual Set("1.0")
+        }
+        val activeCs = RankLogic.getActiveVariants(idC, repoC, repoC.getHead)
+        activeCs should have size (1)
+        activeCs.foreach { hash =>
+          val newVariant = VariantMetadata.read(idC, hash, repoC, repoC.getHead).value
+          val requirements = newVariant.requirements.find(_.id == idA).value
+          requirements.constraint(AttributeDefaults.BinaryVersionAttribute).values shouldEqual Set("1.0")
+        }
       }
     }
   }
@@ -190,6 +193,12 @@ class VersionRankTest extends FunSpec with Matchers {
           version
         }) shouldEqual Seq("1.0.1")
 
+        {
+          val (tmpAddFiles, tmpRmFiles) = VersionRank.useSemanticVersionRanking(id, repository, commit2)
+          repository.add(tmpAddFiles)
+          repository.rm(tmpRmFiles)
+          commit2 shouldEqual repository.commit("And some order") //no reason things should change
+        }
         repository.add(VariantMetadata.fromVariant(variant102).write(id, repository))
         val commit4 = repository.commit("Add some data...")
 

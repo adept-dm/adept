@@ -238,11 +238,16 @@ object VersionRank extends Logging {
 
       //- Write variants to ranking files 
 
-      val rankingFiles = binaryVersions.toSeq.sortBy { case (binaryVersion, _) => Version(binaryVersion) }.zipWithIndex.map {
+      val rankingFiles = binaryVersions.toSeq.sortBy { case (binaryVersion, _) => Version(binaryVersion) }.zipWithIndex.flatMap {
         case ((binaryVersion, variants), index) =>
           val rankId = RankId(newRankIds(index))
+          val rankingVariants = RankingMetadata.read(id, rankId, repository, commit).toSeq.flatMap(_.variants)
           val sortedVariants = getSortedByVersions(variants).distinct
-          RankingMetadata(sortedVariants).write(id, rankId, repository)
+          val newVariants = sortedVariants.filter { current =>
+            !rankingVariants.contains(current)
+          }
+          if (newVariants.nonEmpty) Some(RankingMetadata(sortedVariants).write(id, rankId, repository))
+          else None
       } ++ defaultAddFiles
       (newVariants ++ newResolutionResults ++ rankingFiles.toSet, oldRankingFiles.toSet ++ defaultRmFiles)
     }
