@@ -56,7 +56,6 @@ object Upgrade extends Logging {
               hash == variant || { //or: take the first one that matches the constraints and has the same attribute:
                 VariantMetadata.read(id, hash, repository, commit) match {
                   case Some(metadata) =>
-                    println("checking: " + metadata)
                     val currentVariantAttribute = metadata.attributes.find(_.name == sameAttributeName)
                     currentVariantAttribute.isDefined && //first we have to find the attribute name here, if not we do not upgrade to this 
 //                      (previousVariantAttribute.isDefined && previousVariantAttribute == currentVariantAttribute) && //if we found the attribute name earlier as well, well we have to check that it is the same as the one we found
