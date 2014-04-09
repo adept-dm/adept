@@ -15,13 +15,4 @@ scalacOptions += "-feature"
 
 scalacOptions += "-deprecation"
 
-libraryDependencies ++= Seq(
-	//replace json4s with once released: "org.scala-lang" %% "scala-pickling" % "0.8.0-SNAPSHOT"
-  	// using: resolvers += Resolver.sonatypeRepo("snapshots") // needed by scala-pickling
-  "org.eclipse.jgit" % "org.eclipse.jgit" % 	"3.1.0.201310021548-r",
-  "net.sf.ehcache" % "ehcache-core" % "2.6.6", //needed by adept.repository.RepositoryEnginec
-  "javax.transaction" % "jta" % "1.1", //needed by ehcache?
-  "ch.qos.logback" % "logback-classic" % "1.0.13",
-  "com.typesafe.play" %% "play-json" % "2.2.1", //REMOVE!
-  "org.apache.ivy"  % "ivy" % "2.3.0" % "compile",
-  "org.scalatest" %% "scalatest" % "2.0" % "test")
+adept.sbt.AdeptPlugin.adeptSettings
