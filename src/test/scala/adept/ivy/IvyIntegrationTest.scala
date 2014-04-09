@@ -23,7 +23,7 @@ class IvyIntegrationTest extends FunSuite with Matchers {
   import adept.test.IvyTestUtils
 
   val transitive = true
-  val changing = true //This should always be true, except when debugging
+  val changing = false //This should always be true, except when debugging
   val force = true
 
   def getDefaultAdeptModule = {
@@ -76,7 +76,7 @@ class IvyIntegrationTest extends FunSuite with Matchers {
     val scalaCommit = scalaRepo.getHead
     var (addFiles, rmFiles) = Set.empty[File] -> Set.empty[File]
     scalaIds.foreach { scalaId =>
-      val (currentAddFiles, currentRmFiles) = VersionRank.useSemanticVersionRanking(scalaId, scalaRepo, scalaCommit, includes = Set("2\\.10.*".r, "2\\.9.*".r), excludes = Set(".*".r), useVersionAsBinary = Set("2\\.8.*".r, "2\\.7.*".r))
+      val (currentAddFiles, currentRmFiles) = VersionRank.useSemanticVersionRanking(scalaId, scalaRepo, scalaCommit, includes = Set("2\\.11.\\d+".r, "2\\.10.*".r, "2\\.9.*".r), excludes = Set(".*".r), useVersionAsBinary = Set("2\\.8.*".r, "2\\.7.*".r, "2\\.6.*".r, "2\\.5.*".r, "2\\.4.*".r, "2\\.3.*".r))
       addFiles ++= currentAddFiles
       rmFiles ++= currentRmFiles
     }
