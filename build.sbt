@@ -1,6 +1,8 @@
 name := "adept-core"
 
-version := "mark-2"
+organization := "com.adept"
+
+version := "0.9.0-SNAPSHOT"
 
 resolvers += "Typesafe Repository" at "http://repo.typesafe.com/typesafe/releases/"
 
