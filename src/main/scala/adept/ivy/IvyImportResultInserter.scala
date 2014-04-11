@@ -62,8 +62,8 @@ object IvyImportResultInserter extends Logging {
       for {
         otherResult <- results
         ((variantId, requirementId), excludeRules) <- result.excludeRules
-        excludeRule <- excludeRules
-        if (matchesExcludeRule(excludeRule, otherResult.variant))
+        (excludeRuleOrg, excludeRuleName) <- excludeRules
+        if (matchesExcludeRule(excludeRuleOrg, excludeRuleName, otherResult.variant))
       } { //<-- NOTICE
         if (variantId == result.variant.id) {
           logger.debug("Variant: " + variantId + " add exclusion for " + requirementId + ":" + excludeRules)

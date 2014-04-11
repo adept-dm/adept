@@ -269,7 +269,7 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, excludedConfs: Set[S
   }
 
   private def extractRequirementsAndExcludes(thisVariantId: Id, confName: String, currentIvyNode: IvyNode, loaded: Set[IvyNode]) = {
-    var excludeRules = Map.empty[(Id, Id), Set[ExcludeRule]]
+    var excludeRules = Map.empty[(Id, Id), Set[(String, String)]]
 
     val requirements = loaded.flatMap { ivyNode =>
       val currentExcludeRules = getExcludeRules(currentIvyNode, ivyNode)

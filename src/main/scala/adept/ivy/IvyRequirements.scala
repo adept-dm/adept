@@ -114,7 +114,9 @@ object IvyRequirements {
               val exclusions = for {
                 otherResult <- allIvyImportResults
                 excludeRule <- descriptor.getAllExcludeRules()
-                if matchesExcludeRule(excludeRule, otherResult.variant)
+                excludeRuleOrg = excludeRule.getId().getModuleId().getOrganisation() 
+                excludeRuleName = excludeRule.getId().getModuleId().getName() 
+                if matchesExcludeRule(excludeRuleOrg, excludeRuleName, otherResult.variant)
               } yield {
                 otherResult.variant.id
               }

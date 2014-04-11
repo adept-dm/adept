@@ -54,7 +54,8 @@ private[adept] object IvyUtils extends Logging {
         dependencyDescriptor.getAllExcludeRules()
       }
     } yield {
-      excludeRule
+      val moduleId = excludeRule.getId.getModuleId
+      moduleId.getOrganisation -> moduleId.getName
     }
   }
 
@@ -161,10 +162,9 @@ private[adept] object IvyUtils extends Logging {
     Version(mrid.getRevision)
   }
 
-  def matchesExcludeRule(excludeRule: ExcludeRule, variant: Variant): Boolean = {
-    val moduleId = excludeRule.getId.getModuleId
-    val res = variant.attribute(IvyNameAttribute).values == Set(moduleId.getName()) &&
-      variant.attribute(IvyOrgAttribute).values == Set(moduleId.getOrganisation())
+  def matchesExcludeRule(excludeOrg: String, excludeName: String, variant: Variant): Boolean = {
+    val res = variant.attribute(IvyNameAttribute).values == Set(excludeName) &&
+      variant.attribute(IvyOrgAttribute).values == Set(excludeOrg)
 //    if (!res) println(moduleId + " VS name: " + variant.attribute(IvyNameAttribute).values + " AND org: " + variant.attribute(IvyOrgAttribute).values)
     res
   }

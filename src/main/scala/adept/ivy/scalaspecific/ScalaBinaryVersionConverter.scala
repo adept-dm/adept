@@ -46,7 +46,7 @@ object ScalaBinaryVersionConverter extends Logging {
     }
   }
 
-  private def convertExcludeRulesWithScalaBinaryVersion(excludeRules: Map[(Id, Id), Set[ExcludeRule]]): Map[(Id, Id), Set[ExcludeRule]] = {
+  private def convertExcludeRulesWithScalaBinaryVersion(excludeRules: Map[(Id, Id), Set[(String, String)]]): Map[(Id, Id), Set[(String, String)]] = {
     excludeRules.map {
       case ((id1, id2), excludes) =>
         ((extractId(id1), extractId(id2)), excludes)
