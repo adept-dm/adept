@@ -39,9 +39,6 @@ object GitLoader extends Logging {
     val currentRequirements = requirements.map {
       case (name, requirement) =>
         val repository = new GitRepository(baseDir, name)
-        if (requirement.id.value == "org.scala-lang/scala-library") {
-          println("latesst resolution result: "  + repository.getHead + " -> " + requirement) 
-        }
         (name, requirement, repository.getHead)
     }
     getResolutionResults(baseDir, currentRequirements, progress, cacheManager)
@@ -93,7 +90,6 @@ object GitLoader extends Logging {
           val transitiveResolutionResults = ResolutionResultsMetadata.read(id, hash, repository, commit).map { metadata =>
             metadata.values
           }.getOrElse(Seq.empty[ResolutionResult])
-          println("id " + id + " has " + transitiveResolutionResults)
           transitiveResolutionResults :+
             ResolutionResult(id, repository.name, commit, hash)
         }
@@ -158,11 +154,6 @@ class GitLoader(baseDir: File, private[adept] val results: Set[ResolutionResult]
                 val rankings = rankIds.flatMap { rankId =>
                   RankingMetadata.read(id, rankId, repository, commit).map(_.toRanking(id, rankId))
                 }
-                if (id.value == "org.scala-lang/scala-library") {
-                  println("cacheById: variants: " + variants)
-                  println("cachedById: rankIds: for:" + commit + " from: " + results.map(_.commit) + ": " + rankIds)
-                  println("cachedById: rankings: " + rankings)
-                }
                 RankLogic.chosenVariants(variants, rankings)
               }
               chosenVariants.map { variant => (variant, repositoryName, commit) }
@@ -195,9 +186,7 @@ class GitLoader(baseDir: File, private[adept] val results: Set[ResolutionResult]
             VariantMetadata.read(id, hash, repository, commit).map(_.toVariant(id))
         }
       }
-      val res = AttributeConstraintFilter.filter(id, allVariants, constraints)
-      if (id.value == "org.scala-lang/scala-library") println("loadvariants:" + locateAllIdentifiers(id))
-      res
+      AttributeConstraintFilter.filter(id, allVariants, constraints)
     }
   }
 
