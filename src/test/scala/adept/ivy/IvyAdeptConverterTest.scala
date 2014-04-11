@@ -39,6 +39,11 @@ import adept.resolution.resolver.models.ResolvedResult
 import adept.resolution.models.Attribute
 import adept.test.TestDetails
 import adept.ext.VersionRank
+import adept.ivy.scalaspecific.ScalaBinaryVersionConverter
+import adept.repository.metadata.RankingMetadata
+import adept.repository.RankLogic
+import adept.ext.MetadataUpdate
+import adept.resolution.resolver.models.UnderconstrainedResult
 
 class IvyAdeptConverterTest extends FunSuite with Matchers {
   import adept.test.ResolverUtils._
@@ -221,128 +226,7 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
     ivyModule
   }
 
-  private val fakeIvyResults: Set[IvyImportResult] = Set(
-    IvyImportResult(
-      variant = (Variant(
-        id = Id("akka-remote_2.10/config/default"),
-        attributes = Set(
-          Attribute(ConfigurationAttribute, Set("default")),
-          Attribute(IvyNameAttribute, Set("akka-remote_2.10")),
-          Attribute(VersionAttribute, Set("2.2.1")),
-          Attribute(IvyOrgAttribute, Set("com.typesafe.akka"))))),
-      repository = RepositoryName("com.typesafe.akka"),
-      artifacts = Set.empty, localFiles = Map.empty,
-      versionInfo = Set.empty, extendsIds = Set("akka-remote_2.10/config/runtime", "akka-remote_2.10/config/master"),
-      excludeRules = Map.empty),
-    IvyImportResult(
-      variant = (Variant(
-        id = Id("akka-remote_2.10/config/compile"),
-        attributes = Set(
-          Attribute(ConfigurationAttribute, Set("compile")),
-          Attribute(IvyNameAttribute, Set("akka-remote_2.10")),
-          Attribute(VersionAttribute, Set("2.2.1")),
-          Attribute(IvyOrgAttribute, Set("com.typesafe.akka"))))),
-      repository = RepositoryName("com.typesafe.akka"),
-      artifacts = Set.empty, localFiles = Map.empty,
-      versionInfo = Set.empty, extendsIds = Set.empty,
-      excludeRules = Map.empty),
-    IvyImportResult(
-      variant = (Variant(
-        id = Id("akka-remote_2.10/config/runtime"),
-        attributes = Set(
-          Attribute(ConfigurationAttribute, Set("runtime")),
-          Attribute(IvyNameAttribute, Set("akka-remote_2.10")),
-          Attribute(VersionAttribute, Set("2.2.1")),
-          Attribute(IvyOrgAttribute, Set("com.typesafe.akka"))))),
-      repository = RepositoryName("com.typesafe.akka"),
-      artifacts = Set.empty, localFiles = Map.empty,
-      versionInfo = Set.empty, extendsIds = Set("akka-remote_2.10/config/compile"),
-      excludeRules = Map.empty),
-    IvyImportResult(
-      variant = (Variant(
-        id = Id("akka-remote_2.10/config/test"),
-        attributes = Set(
-          Attribute(ConfigurationAttribute, Set("master")),
-          Attribute(IvyNameAttribute, Set("akka-remote_2.10")),
-          Attribute(VersionAttribute, Set("2.2.1")),
-          Attribute(IvyOrgAttribute, Set("com.typesafe.akka"))))),
-      repository = RepositoryName("com.typesafe.akka"),
-      artifacts = Set.empty, localFiles = Map.empty,
-      versionInfo = Set.empty, extendsIds = Set("akka-remote_2.10/config/runtime"),
-      excludeRules = Map.empty),
-    IvyImportResult(
-      variant = (Variant(
-        id = Id("akka-remote_2.10/config/master"),
-        attributes = Set(
-          Attribute(ConfigurationAttribute, Set("master")),
-          Attribute(IvyNameAttribute, Set("akka-remote_2.10")),
-          Attribute(VersionAttribute, Set("2.2.1")),
-          Attribute(IvyOrgAttribute, Set("com.typesafe.akka"))))),
-      repository = RepositoryName("com.typesafe.akka"),
-      artifacts = Set.empty, localFiles = Map.empty,
-      versionInfo = Set.empty, extendsIds = Set.empty,
-      excludeRules = Map.empty),
-    //----SCALATEST
-    IvyImportResult(
-      variant = (Variant(
-        id = Id("scalatest_2.10/config/default"),
-        attributes = Set(
-          Attribute(ConfigurationAttribute, Set("default")),
-          Attribute(IvyNameAttribute, Set("scalatest_2.10")),
-          Attribute(VersionAttribute, Set("1.9.1")),
-          Attribute(IvyOrgAttribute, Set("org.scalatest"))))),
-      repository = RepositoryName("org.scalatest"),
-      artifacts = Set.empty, localFiles = Map.empty,
-      versionInfo = Set.empty, extendsIds = Set("scalatest_2.10/config/runtime", "scalatest_2.10/config/master"),
-      excludeRules = Map.empty),
-    IvyImportResult(
-      variant = (Variant(
-        id = Id("scalatest_2.10/config/compile"),
-        attributes = Set(
-          Attribute(ConfigurationAttribute, Set("compile")),
-          Attribute(IvyNameAttribute, Set("scalatest_2.10")),
-          Attribute(VersionAttribute, Set("1.9.1")),
-          Attribute(IvyOrgAttribute, Set("org.scalatest"))))),
-      repository = RepositoryName("org.scalatest"),
-      artifacts = Set.empty, localFiles = Map.empty,
-      versionInfo = Set.empty, extendsIds = Set.empty,
-      excludeRules = Map.empty),
-    IvyImportResult(
-      variant = (Variant(
-        id = Id("scalatest_2.10/config/runtime"),
-        attributes = Set(
-          Attribute(ConfigurationAttribute, Set("runtime")),
-          Attribute(IvyNameAttribute, Set("scalatest_2.10")),
-          Attribute(VersionAttribute, Set("1.9.1")),
-          Attribute(IvyOrgAttribute, Set("org.scalatest"))))),
-      repository = RepositoryName("org.scalatest"),
-      artifacts = Set.empty, localFiles = Map.empty,
-      versionInfo = Set.empty, extendsIds = Set("scalatest_2.10/config/compile"),
-      excludeRules = Map.empty),
-    IvyImportResult(
-      variant = (Variant(
-        id = Id("scalatest_2.10/config/test"),
-        attributes = Set(
-          Attribute(ConfigurationAttribute, Set("runtime")),
-          Attribute(IvyNameAttribute, Set("scalatest_2.10")),
-          Attribute(VersionAttribute, Set("1.9.1")),
-          Attribute(IvyOrgAttribute, Set("org.scalatest"))))),
-      repository = RepositoryName("org.scalatest"),
-      artifacts = Set.empty, localFiles = Map.empty,
-      versionInfo = Set.empty, extendsIds = Set("scalatest_2.10/config/runtime"),
-      excludeRules = Map.empty),
-    IvyImportResult(
-      variant = (Variant(
-        id = Id("scalatest_2.10/config/master"),
-        attributes = Set(
-          Attribute(ConfigurationAttribute, Set("master")),
-          Attribute(IvyNameAttribute, Set("scalatest_2.10")),
-          Attribute(VersionAttribute, Set("1.9.1")),
-          Attribute(IvyOrgAttribute, Set("org.scalatest"))))),
-      repository = RepositoryName("org.scalatest"),
-      artifacts = Set.empty, localFiles = Map.empty,
-      versionInfo = Set.empty, extendsIds = Set.empty,
-      excludeRules = Map.empty))
+  private val fakeIvyResults: Set[IvyImportResult] = generateFakeIvyResults("com.typesafe.akka", "akka-remote_2.10", "2.2.1", Set.empty) ++ generateFakeIvyResults("org.scalatest", "scalatest_2.10", "1.9.1", Set.empty)
 
   test("Ivy requirements conversion") {
     val ivyModule = getAkkaRemoteTestIvyModule
@@ -362,23 +246,284 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
     val requirements = IvyRequirements.convertIvyAsRequirements(ivyModule, currentFakeIvyResults)
 
     requirements("compile") shouldEqual Set(
-      Requirement(Id("akka-remote_2.10/config/default"), Set.empty, Set.empty),
-      Requirement(Id("akka-remote_2.10/config/master"), Set.empty, Set.empty),
-      Requirement(Id("akka-remote_2.10/config/compile"), Set.empty, Set.empty),
-      Requirement(Id("akka-remote_2.10/config/runtime"), Set.empty, Set.empty),
-      Requirement(Id("akka-remote_2.10/config/test"), Set.empty, Set.empty))
+      Requirement(Id("com.typesafe.akka/akka-remote_2.10/config/default"), Set.empty, Set.empty),
+      Requirement(Id("com.typesafe.akka/akka-remote_2.10/config/master"), Set.empty, Set.empty),
+      Requirement(Id("com.typesafe.akka/akka-remote_2.10/config/compile"), Set.empty, Set.empty),
+      Requirement(Id("com.typesafe.akka/akka-remote_2.10/config/runtime"), Set.empty, Set.empty),
+      Requirement(Id("com.typesafe.akka/akka-remote_2.10/config/test"), Set.empty, Set.empty))
 
     requirements("test") shouldEqual Set(
-      Requirement(Id("akka-remote_2.10/config/default"), Set.empty, Set.empty),
-      Requirement(Id("akka-remote_2.10/config/master"), Set.empty, Set.empty),
-      Requirement(Id("akka-remote_2.10/config/compile"), Set.empty, Set.empty),
-      Requirement(Id("akka-remote_2.10/config/runtime"), Set.empty, Set.empty),
-      Requirement(Id("akka-remote_2.10/config/test"), Set.empty, Set.empty),
-      Requirement(Id("scalatest_2.10/config/default"), Set.empty, Set.empty),
-      Requirement(Id("scalatest_2.10/config/master"), Set.empty, Set.empty),
-      Requirement(Id("scalatest_2.10/config/compile"), Set.empty, Set.empty),
-      Requirement(Id("scalatest_2.10/config/test"), Set.empty, Set.empty),
-      Requirement(Id("scalatest_2.10/config/runtime"), Set.empty, Set.empty))
+      Requirement(Id("com.typesafe.akka/akka-remote_2.10/config/default"), Set.empty, Set.empty),
+      Requirement(Id("com.typesafe.akka/akka-remote_2.10/config/master"), Set.empty, Set.empty),
+      Requirement(Id("com.typesafe.akka/akka-remote_2.10/config/compile"), Set.empty, Set.empty),
+      Requirement(Id("com.typesafe.akka/akka-remote_2.10/config/runtime"), Set.empty, Set.empty),
+      Requirement(Id("com.typesafe.akka/akka-remote_2.10/config/test"), Set.empty, Set.empty),
+      Requirement(Id("org.scalatest/scalatest_2.10/config/default"), Set.empty, Set.empty),
+      Requirement(Id("org.scalatest/scalatest_2.10/config/master"), Set.empty, Set.empty),
+      Requirement(Id("org.scalatest/scalatest_2.10/config/compile"), Set.empty, Set.empty),
+      Requirement(Id("org.scalatest/scalatest_2.10/config/test"), Set.empty, Set.empty),
+      Requirement(Id("org.scalatest/scalatest_2.10/config/runtime"), Set.empty, Set.empty))
 
   }
+
+  def generateFakeIvyResults(org: String, name: String, version: String, dependencies: Set[(RepositoryName, Id, String, String)]) = {
+    val compileVersionInfo = dependencies.map {
+      case (name, id, binaryVersion, version) =>
+        (name, id, Version(version))
+    }
+    val compileRequirements = dependencies.map {
+      case (name, id, binaryVersion, version) =>
+        Requirement(id, Set(Constraint(BinaryVersionAttribute, Set(binaryVersion))), Set.empty)
+    }
+    val baseId = org + "/" + name
+    val configurationHash = Hasher.hash((org + name + version).getBytes)
+    val configurationRequirements = Set(Requirement(Id(baseId), Set(Constraint(ConfigurationHashAttribute, Set(configurationHash))), Set.empty))
+    Set(
+      IvyImportResult(
+        variant = (Variant(
+          id = Id(baseId),
+          attributes = Set(
+            Attribute(ConfigurationHashAttribute, Set(configurationHash)),
+            Attribute(IvyNameAttribute, Set(name)),
+            Attribute(VersionAttribute, Set(version)),
+            Attribute(IvyOrgAttribute, Set(org))))),
+        repository = RepositoryName(org),
+        artifacts = Set.empty, localFiles = Map.empty,
+        versionInfo = Set.empty, extendsIds = Set.empty,
+        excludeRules = Map.empty),
+      IvyImportResult(
+        variant = (Variant(
+          id = withConfiguration(baseId, "default"),
+          requirements = configurationRequirements,
+          attributes = Set(
+            Attribute(ConfigurationHashAttribute, Set(configurationHash)),
+            Attribute(ConfigurationAttribute, Set("default")),
+            Attribute(IvyNameAttribute, Set(name)),
+            Attribute(VersionAttribute, Set(version)),
+            Attribute(IvyOrgAttribute, Set(org))))),
+        repository = RepositoryName(org),
+        artifacts = Set.empty, localFiles = Map.empty,
+        versionInfo = Set.empty, extendsIds = Set(baseId, withConfiguration(baseId, "runtime"), withConfiguration(baseId, "master")),
+        excludeRules = Map.empty),
+      IvyImportResult(
+        variant = (Variant(
+          id = withConfiguration(baseId, "compile"),
+          requirements = compileRequirements ++ configurationRequirements,
+          attributes = Set(
+            Attribute(ConfigurationHashAttribute, Set(configurationHash)),
+            Attribute(ConfigurationAttribute, Set("compile")),
+            Attribute(IvyNameAttribute, Set(name)),
+            Attribute(VersionAttribute, Set(version)),
+            Attribute(IvyOrgAttribute, Set(org))))),
+        repository = RepositoryName(org),
+        artifacts = Set.empty, localFiles = Map.empty,
+        versionInfo = compileVersionInfo, extendsIds = Set(baseId),
+        excludeRules = Map.empty),
+      IvyImportResult(
+        variant = (Variant(
+          id = withConfiguration(baseId, "runtime"),
+          requirements = configurationRequirements,
+          attributes = Set(
+            Attribute(ConfigurationHashAttribute, Set(configurationHash)),
+            Attribute(ConfigurationAttribute, Set("runtime")),
+            Attribute(IvyNameAttribute, Set(name)),
+            Attribute(VersionAttribute, Set(version)),
+            Attribute(IvyOrgAttribute, Set(org))))),
+        repository = RepositoryName(org),
+        artifacts = Set.empty, localFiles = Map.empty,
+        versionInfo = Set.empty, extendsIds = Set(baseId, withConfiguration(baseId, "compile")),
+        excludeRules = Map.empty),
+      IvyImportResult(
+        variant = (Variant(
+          id = withConfiguration(baseId, "test"),
+          requirements = configurationRequirements,
+          attributes = Set(
+            Attribute(ConfigurationHashAttribute, Set(configurationHash)),
+            Attribute(ConfigurationAttribute, Set("master")),
+            Attribute(IvyNameAttribute, Set(name)),
+            Attribute(VersionAttribute, Set(version)),
+            Attribute(IvyOrgAttribute, Set(org))))),
+        repository = RepositoryName(org),
+        artifacts = Set.empty, localFiles = Map.empty,
+        versionInfo = Set.empty, extendsIds = Set(baseId, withConfiguration(baseId, "runtime")),
+        excludeRules = Map.empty),
+      IvyImportResult(
+        variant = (Variant(
+          id = withConfiguration(baseId, "master"),
+          requirements = configurationRequirements,
+          attributes = Set(
+            Attribute(ConfigurationHashAttribute, Set(configurationHash)),
+            Attribute(ConfigurationAttribute, Set("master")),
+            Attribute(IvyNameAttribute, Set(name)),
+            Attribute(VersionAttribute, Set(version)),
+            Attribute(IvyOrgAttribute, Set(org))))),
+        repository = RepositoryName(org),
+        artifacts = Set.empty, localFiles = Map.empty,
+        versionInfo = Set.empty, extendsIds = Set(baseId),
+        excludeRules = Map.empty))
+  }
+
+  test("End-to-end: Resolution with generated Ivy results (to verify resolution engine correctness on Ivy results)") {
+    implicit val testDetails = TestDetails("Resolution with generated Ivy results (to verify resolution engine correctness on Ivy results)")
+
+    usingTmpDir { tmpDir =>
+      def semver(name: String, baseId: String) = {
+        val repository = new GitRepository(tmpDir, RepositoryName(name))
+        Set("", "master", "runtime", "provided", "javadoc", "system", "default", "sources", "compile").foreach { conf =>
+          val id = if (conf.nonEmpty) withConfiguration(baseId, conf) else Id(baseId)
+          val (addFiles, rmFiles) = VersionRank.useSemanticVersionRanking(id, repository, repository.getHead, includes = Set.empty, excludes = Set.empty, useVersionAsBinary = Set.empty)
+          repository.add(addFiles)
+          repository.rm(rmFiles)
+        }
+        repository.commit("Semver")
+      }
+
+      val scalaResults = generateFakeIvyResults("org.scala-lang", "scala-library", "2.10.2", Set.empty) ++
+        generateFakeIvyResults("org.scala-lang", "scala-library", "2.9.2", Set.empty)
+      benchmark(Inserted, scalaResults) {
+        IvyImportResultInserter.insertAsResolutionResults(tmpDir, scalaResults, progress)
+      }
+
+      semver("org.scala-lang", "org.scala-lang/scala-library")
+
+      val results1 =
+        generateFakeIvyResults("com.typesafe.akka", "akka-actor", "2.0.5", Set.empty)
+
+      val results2 =
+        generateFakeIvyResults("com.typesafe.akka", "akka-actor", "2.2.1", Set(
+          (RepositoryName("org.scala-lang"), withConfiguration("org.scala-lang/scala-library", "compile"), "2.10", "2.10.2"),
+          (RepositoryName("org.scala-lang"), withConfiguration("org.scala-lang/scala-library", "master"), "2.10", "2.10.2")))
+
+      benchmark(Inserted, results1) {
+        IvyImportResultInserter.insertAsResolutionResults(tmpDir, results1, progress)
+      }
+      benchmark(Inserted, results2) {
+        IvyImportResultInserter.insertAsResolutionResults(tmpDir, results2, progress)
+      }
+
+      semver("com.typesafe.akka", "com.typesafe.akka/akka-actor")
+
+      val akkaRepo = new GitRepository(tmpDir, RepositoryName("com.typesafe.akka"))
+      akkaRepo.add(MetadataUpdate.updateRepositoryResolutionResults(akkaRepo))
+      akkaRepo.commit("Self update")
+
+      val scalaRepo = new GitRepository(tmpDir, RepositoryName("org.scala-lang"))
+      scalaRepo.add(MetadataUpdate.updateRepositoryResolutionResults(scalaRepo))
+      scalaRepo.commit("Self update")
+
+      withClue("Should resolve because scala lib is set to 2.9 and there is a akka-actor version that does not care about scala vesions so 2.9 is fine") {
+        val requirementsWithResults = Set(
+          RepositoryName("org.scala-lang") -> Requirement(withConfiguration("org.scala-lang/scala-library", "compile"), Set(BinaryVersionAttribute -> Set("2.9")), Set.empty),
+          RepositoryName("org.scala-lang") -> Requirement(withConfiguration("org.scala-lang/scala-library", "master"), Set(BinaryVersionAttribute -> Set("2.9")), Set.empty),
+          RepositoryName("com.typesafe.akka") -> Requirement(withConfiguration("com.typesafe.akka/akka-actor", "compile"), Set.empty, Set.empty),
+          RepositoryName("com.typesafe.akka") -> Requirement(withConfiguration("com.typesafe.akka/akka-actor", "master"), Set.empty, Set.empty))
+
+        val requirements = requirementsWithResults.map(_._2)
+
+        val resultsWithLocations = GitLoader.getLatestResolutionResults(tmpDir, requirementsWithResults, progress, cacheManager)
+        val results = resultsWithLocations.map(_._1)
+        val loader = benchmark(IvyImport, results) {
+          new GitLoader(tmpDir, results, progress, cacheManager)
+        }
+        val result = benchmark(Resolved, requirements && loader) {
+          resolve(requirements, loader)
+        }
+        checkResolved(result, Set[Id](
+          "com.typesafe.akka/akka-actor",
+          "com.typesafe.akka/akka-actor/config/compile",
+          "com.typesafe.akka/akka-actor/config/master",
+          "org.scala-lang/scala-library",
+          "org.scala-lang/scala-library/config/compile",
+          "org.scala-lang/scala-library/config/master"))
+        checkAttributeVariants(result, "com.typesafe.akka/akka-actor", "version" -> Set("2.0.5"))
+        checkAttributeVariants(result, "org.scala-lang/scala-library", "version" -> Set("2.9.2"))
+      }
+
+      withClue("Cannot resolve because both akka-actor 2.0.5 and 2.2.1 accepts 2.10 as a result") {
+        val requirementsWithResults = Set(
+          RepositoryName("org.scala-lang") -> Requirement(withConfiguration("org.scala-lang/scala-library", "compile"), Set(BinaryVersionAttribute -> Set("2.10")), Set.empty),
+          RepositoryName("org.scala-lang") -> Requirement(withConfiguration("org.scala-lang/scala-library", "master"), Set(BinaryVersionAttribute -> Set("2.10")), Set.empty),
+          RepositoryName("com.typesafe.akka") -> Requirement(withConfiguration("com.typesafe.akka/akka-actor", "compile"), Set.empty, Set.empty),
+          RepositoryName("com.typesafe.akka") -> Requirement(withConfiguration("com.typesafe.akka/akka-actor", "master"), Set.empty, Set.empty))
+
+        val requirements = requirementsWithResults.map(_._2)
+
+        val resultsWithLocations = GitLoader.getLatestResolutionResults(tmpDir, requirementsWithResults, progress, cacheManager)
+        val results = resultsWithLocations.map(_._1)
+        val loader = benchmark(IvyImport, results) {
+          new GitLoader(tmpDir, results, progress, cacheManager)
+        }
+        val result = benchmark(Resolved, requirements && loader) {
+          resolve(requirements, loader)
+        }
+        result.asInstanceOf[UnderconstrainedResult].optimalStates should have size (2)
+        checkUnresolved(result, Set[Id](
+          "com.typesafe.akka/akka-actor/config/compile",
+          "com.typesafe.akka/akka-actor/config/master"))
+        checkResolved(result, Set[Id](
+          "org.scala-lang/scala-library",
+          "org.scala-lang/scala-library/config/compile",
+          "org.scala-lang/scala-library/config/master"))
+      }
+
+      withClue("Resolves fine because akka-actor 2.2 is constrained to scala library 2.10") {
+        val requirementsWithResults = Set(
+          RepositoryName("com.typesafe.akka") -> Requirement(withConfiguration("com.typesafe.akka/akka-actor", "compile"), Set(BinaryVersionAttribute -> Set("2.2")), Set.empty),
+          RepositoryName("com.typesafe.akka") -> Requirement(withConfiguration("com.typesafe.akka/akka-actor", "master"), Set(BinaryVersionAttribute -> Set("2.2")), Set.empty))
+
+        val requirements = requirementsWithResults.map(_._2)
+
+        val resultsWithLocations = GitLoader.getLatestResolutionResults(tmpDir, requirementsWithResults, progress, cacheManager)
+        val results = resultsWithLocations.map(_._1)
+        val loader = benchmark(IvyImport, results) {
+          new GitLoader(tmpDir, results, progress, cacheManager)
+        }
+        val result = benchmark(Resolved, requirements && loader) {
+          resolve(requirements, loader)
+        }
+        checkResolved(result, Set[Id](
+          "com.typesafe.akka/akka-actor",
+          "com.typesafe.akka/akka-actor/config/compile",
+          "com.typesafe.akka/akka-actor/config/master",
+          "org.scala-lang/scala-library",
+          "org.scala-lang/scala-library/config/compile",
+          "org.scala-lang/scala-library/config/master"))
+        checkAttributeVariants(result, "com.typesafe.akka/akka-actor", "version" -> Set("2.2.1"))
+        checkAttributeVariants(result, "org.scala-lang/scala-library", "version" -> Set("2.10.2"))
+      }
+      
+      withClue("Resolves fine because akka-actor 2.2 is already! constrained to scala library 2.10") {
+        val requirementsWithResults = Set(
+          RepositoryName("org.scala-lang") -> Requirement(withConfiguration("org.scala-lang/scala-library", "compile"), Set(BinaryVersionAttribute -> Set("2.10")), Set.empty),
+          RepositoryName("org.scala-lang") -> Requirement(withConfiguration("org.scala-lang/scala-library", "master"), Set(BinaryVersionAttribute -> Set("2.10")), Set.empty),
+          RepositoryName("com.typesafe.akka") -> Requirement(withConfiguration("com.typesafe.akka/akka-actor", "compile"), Set(BinaryVersionAttribute -> Set("2.2")), Set.empty),
+          RepositoryName("com.typesafe.akka") -> Requirement(withConfiguration("com.typesafe.akka/akka-actor", "master"), Set(BinaryVersionAttribute -> Set("2.2")), Set.empty))
+
+        val requirements = requirementsWithResults.map(_._2)
+
+        val resultsWithLocations = GitLoader.getLatestResolutionResults(tmpDir, requirementsWithResults, progress, cacheManager)
+        val results = resultsWithLocations.map(_._1)
+        val loader = benchmark(IvyImport, results) {
+          new GitLoader(tmpDir, results, progress, cacheManager)
+        }
+        val result = benchmark(Resolved, requirements && loader) {
+          resolve(requirements, loader)
+        }
+        checkResolved(result, Set[Id](
+          "com.typesafe.akka/akka-actor",
+          "com.typesafe.akka/akka-actor/config/compile",
+          "com.typesafe.akka/akka-actor/config/master",
+          "org.scala-lang/scala-library",
+          "org.scala-lang/scala-library/config/compile",
+          "org.scala-lang/scala-library/config/master"))
+        checkAttributeVariants(result, "com.typesafe.akka/akka-actor", "version" -> Set("2.2.1"))
+        checkAttributeVariants(result, "org.scala-lang/scala-library", "version" -> Set("2.10.2"))
+      }
+    }
+  }
+
+  test("That conversions of Ivy results yields what we expect") {
+    pending
+  }
+
 }

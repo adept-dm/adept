@@ -39,6 +39,9 @@ object GitLoader extends Logging {
     val currentRequirements = requirements.map {
       case (name, requirement) =>
         val repository = new GitRepository(baseDir, name)
+        if (requirement.id.value == "org.scala-lang/scala-library") {
+          println("latesst resolution result: "  + repository.getHead + " -> " + requirement) 
+        }
         (name, requirement, repository.getHead)
     }
     getResolutionResults(baseDir, currentRequirements, progress, cacheManager)
@@ -90,7 +93,7 @@ object GitLoader extends Logging {
           val transitiveResolutionResults = ResolutionResultsMetadata.read(id, hash, repository, commit).map { metadata =>
             metadata.values
           }.getOrElse(Seq.empty[ResolutionResult])
-
+          println("id " + id + " has " + transitiveResolutionResults)
           transitiveResolutionResults :+
             ResolutionResult(id, repository.name, commit, hash)
         }
@@ -133,7 +136,7 @@ object GitLoader extends Logging {
 class GitLoader(baseDir: File, private[adept] val results: Set[ResolutionResult], progress: ProgressMonitor, cacheManager: CacheManager) extends VariantsLoader {
   import GitLoader._
   import adept.utils.CacheHelpers.usingCache
-  
+
   private val thisUniqueId = Hasher.hash(results.map { resolution => resolution.id.value + "-" + resolution.repository.value + "-" + resolution.variant.value + "-" + resolution.commit.value }.toSeq.sorted.mkString("#").getBytes)
 
   private val cache: Ehcache = getCache(cacheManager)
@@ -146,6 +149,7 @@ class GitLoader(baseDir: File, private[adept] val results: Set[ResolutionResult]
             val repository = new GitRepository(baseDir, repositoryName)
             //use only latest commit:
             val maybeLatestCommit = GitHelpers.lastestCommit(repository, results.map(_.commit))
+            
             maybeLatestCommit.toSet.flatMap { commit: Commit =>
               val variants = results.map(_.variant)
               //use only the very best variants for any given commit:
@@ -153,6 +157,11 @@ class GitLoader(baseDir: File, private[adept] val results: Set[ResolutionResult]
                 val rankIds = RankingMetadata.listRankIds(id, repository, commit)
                 val rankings = rankIds.flatMap { rankId =>
                   RankingMetadata.read(id, rankId, repository, commit).map(_.toRanking(id, rankId))
+                }
+                if (id.value == "org.scala-lang/scala-library") {
+                  println("cacheById: variants: " + variants)
+                  println("cachedById: rankIds: for:" + commit + " from: " + results.map(_.commit) + ": " + rankIds)
+                  println("cachedById: rankings: " + rankings)
                 }
                 RankLogic.chosenVariants(variants, rankings)
               }
@@ -174,7 +183,7 @@ class GitLoader(baseDir: File, private[adept] val results: Set[ResolutionResult]
   }
 
   private def locateAllIdentifiers(id: Id): Set[(VariantHash, GitRepository, Commit)] = {
-    byId.getOrElse(id, throw new Exception("Cannot resolve because there is no matching " + id  + " in loaded repositories: " + results.map(_.repository.value).mkString(",")))
+    byId.getOrElse(id, throw new Exception("Missing resolution results? Cannot resolve because there is no matching id: " + id + " in loaded repositories:\n" + results.map(r => "id:" + r.id + ", " + "repository: " + r.repository.value + ", commit: " + r.commit.value + ", variant: " + r.variant.value).map("{"+_+"}").mkString("\n")))
   }
 
   def loadVariants(id: Id, constraints: Set[Constraint]): Set[Variant] = {
@@ -186,7 +195,9 @@ class GitLoader(baseDir: File, private[adept] val results: Set[ResolutionResult]
             VariantMetadata.read(id, hash, repository, commit).map(_.toVariant(id))
         }
       }
-      AttributeConstraintFilter.filter(id, allVariants, constraints)
+      val res = AttributeConstraintFilter.filter(id, allVariants, constraints)
+      if (id.value == "org.scala-lang/scala-library") println("loadvariants:" + locateAllIdentifiers(id))
+      res
     }
   }
 

@@ -426,7 +426,7 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, excludedConfs: Set[S
 
         val extendsIds = ivyConfiguration.getExtends().map { targetConf =>
           ivyIdAsId(mrid.getModuleId, targetConf)
-        }.toSet
+        }.toSet // + ivyIdAsId(mrid.getModuleId)
 
         val variant = Variant(
           id = thisVariantId,

@@ -92,7 +92,7 @@ object VersionRank extends Logging {
   import adept.ext.AttributeDefaults._
 
   def createResolutionResults(baseDir: File, versionInfo: Set[(RepositoryName, Id, Version)]): Set[ResolutionResult] = {
-    val results = versionInfo.map {
+    val results = versionInfo.flatMap {
       case (targetName, targetId, targetVersion) =>
         val repository = new GitRepository(baseDir, targetName)
         if (repository.exists) {
@@ -100,7 +100,8 @@ object VersionRank extends Logging {
           VersionScanner.findVersion(targetId, targetVersion, repository, commit) match {
             case Some(targetHash) =>
               val result = ResolutionResult(targetId, targetName, commit, targetHash)
-              result
+              val transitive = ResolutionResultsMetadata.read(targetId, targetHash, repository, commit).toSeq.flatMap(_.values)
+              transitive.toSet + result
             case None => throw VersionNotFoundException(targetName, targetId, targetVersion)
           }
         } else throw RepositoryNotFoundException(targetName, targetId, targetVersion)

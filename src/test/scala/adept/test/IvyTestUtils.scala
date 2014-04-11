@@ -35,9 +35,9 @@ object IvyTestUtils {
       val (results, configuredVersionInfo) = ivyConverter.loadAsIvyImportResults(ivyModule, progress).failOnLeft
       val newConfiguredVersionInfo = configuredVersionInfo.map {
         case (conf, versionInfo) =>
-          conf -> ScalaBinaryVersionConverter.convertVersionInfoWithScalaBinaryVersion(versionInfo, exists)
+          conf -> ScalaBinaryVersionConverter.convertVersionInfoWithScalaBinaryVersion(versionInfo)
       }
-      val newResults = results.map(ScalaBinaryVersionConverter.convertResultWithScalaBinaryVersion(_, exists))
+      val newResults = results.map(ScalaBinaryVersionConverter.convertResultWithScalaBinaryVersion(_))
       newResults -> newConfiguredVersionInfo
     }
 

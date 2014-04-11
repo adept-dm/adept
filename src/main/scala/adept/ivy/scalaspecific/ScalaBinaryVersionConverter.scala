@@ -33,17 +33,15 @@ object ScalaBinaryVersionConverter extends Logging {
     }
   }
 
-  private def convertIdsWithScalaBinaryVersion(name: RepositoryName, ids: Set[Id], exists: (RepositoryName, Id) => Boolean) = {
+  private def convertIdsWithScalaBinaryVersion(name: RepositoryName, ids: Set[Id]) = {
     ids.map{ id =>
-      if (!exists(name, id)) throw new Exception("Currently we do not check for existance and using it is wrong. It should perhaps be removed?")
       extractId(id)
     }
   }
 
-  def convertVersionInfoWithScalaBinaryVersion(versionInfo: Set[(RepositoryName, Id, Version)], exists: (RepositoryName, Id) => Boolean): Set[(RepositoryName, Id, Version)] = {
+  def convertVersionInfoWithScalaBinaryVersion(versionInfo: Set[(RepositoryName, Id, Version)]): Set[(RepositoryName, Id, Version)] = {
     versionInfo.map {
       case (name, id, version) =>
-        if (!exists(name, id)) throw new Exception("Currently we do not check for existance and using it is wrong. It should perhaps be removed?")
         (name, extractId(id), version)
     }
   }
@@ -55,7 +53,7 @@ object ScalaBinaryVersionConverter extends Logging {
     }
   }
 
-  def convertResultWithScalaBinaryVersion(ivyImportResult: IvyImportResult, exists: (RepositoryName, Id) => Boolean): IvyImportResult = {
+  def convertResultWithScalaBinaryVersion(ivyImportResult: IvyImportResult): IvyImportResult = {
     val (id, maybeBinaryVersion) = ivyImportResult.variant.id.value match {
       case ScalaBinaryVersionRegex(newId, binaryVersion, rest) =>
         Id(newId + Option(rest).getOrElse("")) -> Some(binaryVersion) //rest is null if nothing matches
@@ -91,8 +89,8 @@ object ScalaBinaryVersionConverter extends Logging {
           ivyImportResult.copy(
             variant = newVariant,
             excludeRules = convertExcludeRulesWithScalaBinaryVersion(ivyImportResult.excludeRules),
-            extendsIds = convertIdsWithScalaBinaryVersion(ivyImportResult.repository, ivyImportResult.extendsIds, exists),
-            versionInfo = convertVersionInfoWithScalaBinaryVersion(ivyImportResult.versionInfo, exists))
+            extendsIds = convertIdsWithScalaBinaryVersion(ivyImportResult.repository, ivyImportResult.extendsIds),
+            versionInfo = convertVersionInfoWithScalaBinaryVersion(ivyImportResult.versionInfo))
         } else {
           ivyImportResult
         }
@@ -111,8 +109,8 @@ object ScalaBinaryVersionConverter extends Logging {
         ivyImportResult.copy(
           variant = newVariant,
           excludeRules = convertExcludeRulesWithScalaBinaryVersion(ivyImportResult.excludeRules),
-          extendsIds = convertIdsWithScalaBinaryVersion(ivyImportResult.repository, ivyImportResult.extendsIds, exists),
-          versionInfo = convertVersionInfoWithScalaBinaryVersion(ivyImportResult.versionInfo, exists))
+          extendsIds = convertIdsWithScalaBinaryVersion(ivyImportResult.repository, ivyImportResult.extendsIds),
+          versionInfo = convertVersionInfoWithScalaBinaryVersion(ivyImportResult.versionInfo))
     }
   }
 }

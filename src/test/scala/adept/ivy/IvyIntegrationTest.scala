@@ -17,13 +17,16 @@ import adept.resolution.models.Id
 import adept.repository.models.RepositoryName
 import adept.repository.GitRepository
 import org.apache.ivy.Ivy
+import adept.resolution.models.Variant
+import adept.resolution.models.Attribute
+import adept.resolution.models.Requirement
 
 class IvyIntegrationTest extends FunSuite with Matchers {
   import adept.test.FileUtils._
   import adept.test.IvyTestUtils
 
   val transitive = true
-  val changing = false //This should always be true, except when debugging
+  val changing = true //This should always be true, except when debugging
   val force = true
 
   def getDefaultAdeptModule = {
