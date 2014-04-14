@@ -103,11 +103,11 @@ object GitLoader extends Logging {
     }
   }
 
-  def fetchLocations(repository: GitRepository, repositoryLocations: RepositoryLocations, progress: ProgressMonitor, passphrase: Option[String]) = {
+  def pullLocations(repository: GitRepository, repositoryLocations: RepositoryLocations, progress: ProgressMonitor, passphrase: Option[String]) = {
     repositoryLocations.uris.map { uri =>
-      repository.fetchRemote(uri, passphrase, progress)
-      repository.checkout(repository.getHead.value) //TODO: this is not needed - but it is nice for the user (because you can actually see some files) but I am not sure?
+      repository.addRemoteUri(GitRepository.DefaultRemote, uri)
     }
+    repository.pull(passphrase, progress)
   }
 
   def loadRepositories(baseDir: File, repositories: Set[(ResolutionResult, RepositoryLocations)], progress: ProgressMonitor, passphrase: Option[String]): Set[Commit] = {
@@ -119,7 +119,7 @@ object GitLoader extends Logging {
         }
 
         if (!repository.hasCommit(resolutionResult.commit)) {
-          fetchLocations(repository, repositoryLocations, progress, passphrase)
+          pullLocations(repository, repositoryLocations, progress, passphrase)
           if (!repository.hasCommit(resolutionResult.commit)) {
             throw new Exception("Could not fetch commit: " + resolutionResult.commit.value + " for " + repository.dir.getAbsolutePath)
           }
@@ -145,7 +145,7 @@ class GitLoader(baseDir: File, private[adept] val results: Set[ResolutionResult]
             val repository = new GitRepository(baseDir, repositoryName)
             //use only latest commit:
             val maybeLatestCommit = GitHelpers.lastestCommit(repository, results.map(_.commit))
-            
+
             maybeLatestCommit.toSet.flatMap { commit: Commit =>
               val variants = results.map(_.variant)
               //use only the very best variants for any given commit:
@@ -174,7 +174,7 @@ class GitLoader(baseDir: File, private[adept] val results: Set[ResolutionResult]
   }
 
   private def locateAllIdentifiers(id: Id): Set[(VariantHash, GitRepository, Commit)] = {
-    byId.getOrElse(id, throw new Exception("Missing resolution results? Cannot resolve because there is no matching id: " + id + " in loaded repositories:\n" + results.map(r => "id:" + r.id + ", " + "repository: " + r.repository.value + ", commit: " + r.commit.value + ", variant: " + r.variant.value).map("{"+_+"}").mkString("\n")))
+    byId.getOrElse(id, throw new Exception("Missing resolution results? Cannot resolve because there is no matching id: " + id + " in loaded repositories:\n" + results.map(r => "id:" + r.id + ", " + "repository: " + r.repository.value + ", commit: " + r.commit.value + ", variant: " + r.variant.value).map("{" + _ + "}").mkString("\n")))
   }
 
   def loadVariants(id: Id, constraints: Set[Constraint]): Set[Variant] = {

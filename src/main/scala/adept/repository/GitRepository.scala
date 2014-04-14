@@ -50,9 +50,20 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
       ConfigConstants.CONFIG_KEY_URL))
   }
 
-  def fetchRemote(uri: String, passphrase: Option[String], progress: ProgressMonitor = NullProgressMonitor.INSTANCE) = {
+  def addRemoteUri(remoteName: String, uri: String) = {
+    if (remoteName != GitRepository.DefaultRemote) throw new Exception("Cannot get " + remoteName + " remote uri because we only support: " + DefaultRemote + ".") //TODO: support other names
+    val repoConfig = git.getRepository().getConfig()
+    repoConfig.setString(ConfigConstants.CONFIG_REMOTE_SECTION, GitRepository.DefaultRemote, ConfigConstants.CONFIG_KEY_URL, uri)
+  }
+
+  def pull(passphrase: Option[String] = None, progress: ProgressMonitor = NullProgressMonitor.INSTANCE) = {
     GitHelpers.withGitSshCredentials(passphrase) {
-      git.fetch().setRemote(uri).setProgressMonitor(progress).call()
+      val pullResults = git.pull().setProgressMonitor(progress).call()
+      if (pullResults.isSuccessful())
+        getHead //TODO: is this right?
+      else {
+        throw new Exception("Could not pull successfully in: " + dir.getAbsolutePath + " (and we do not support this yet): " + pullResults) //TODO: <--
+      }
     }
   }
 
