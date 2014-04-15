@@ -202,9 +202,9 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, excludedConfs: Set[S
     if (workingNode.getDescriptor() == null) throw new Exception("Missing module for " + mrid + ". Perhaps Ivy cannot resolve?")
     val dependencyTree = flattenConfigDependencyTree(createConfigDependencyTree(workingNode.getDescriptor(), resolveReport.getConfigurations().toSet) {
       confName =>
-        ivy.resolve(mrid, resolveOptions(confName), changing)
+        ivy.resolve(workingNode.getDescriptor.getModuleRevisionId, resolveOptions(confName), changing)
     })
-    progress.beginTask("Importing " + mrid, dependencyTree.get(workingNode.getId).map(_.size).getOrElse(0) + 1)
+    progress.beginTask("Importing " + mrid, dependencyTree.get(workingNode.getDescriptor().getModuleRevisionId()).map(_.size).getOrElse(0) + 1)
     val allResults = results(workingNode, Set.empty, progress, progressIndicatorRoot = true)(dependencyTree)
     progress.update(1)
     progress.endTask()
@@ -212,12 +212,11 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, excludedConfs: Set[S
   }
 
   private def results(currentIvyNode: IvyNode, visited: Set[IvyNode], progress: ProgressMonitor, progressIndicatorRoot: Boolean)(dependencies: Map[ModuleRevisionId, Set[IvyNode]]): Either[Set[IvyImportError], Set[IvyImportResult]] = {
-    val mrid = currentIvyNode.getId
+    val mrid = currentIvyNode.getDescriptor().getModuleRevisionId()
     val children = dependencies.getOrElse(mrid, Set.empty)
     val currentResults = createIvyResult(currentIvyNode, dependencies)
     var allResults = currentResults.right.getOrElse(Set.empty[IvyImportResult])
     var errors = currentResults.left.getOrElse(Set.empty[IvyImportError])
-
     val (loaded, notLoaded) = children.partition(_.isLoaded)
     if (progressIndicatorRoot) progress.update(notLoaded.size)
     printWarnings(mrid, None, notLoaded, dependencies)
