@@ -67,6 +67,16 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
     }
   }
 
+  def clone(uri: String, passphrase: Option[String] = None, progress: ProgressMonitor = NullProgressMonitor.INSTANCE) = {
+    GitHelpers.withGitSshCredentials(passphrase) {
+      Git.cloneRepository()
+        .setURI(uri)
+        .setDirectory(dir)
+        .setProgressMonitor(progress)
+        .call()
+    }
+  }
+
   def checkout(branch: String) = { //TODO: REMOVE this one and manage remote uris properly
     git.checkout().setName(branch).call()
   }
@@ -107,11 +117,9 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
   }
 
   def isClean: Boolean = {
+    import collection.JavaConverters._
+//    println(name + " status: " + git.status.call().getModified().asScala)
     git.status().call().isClean()
-  }
-
-  def update(remoteName: String, uri: String) = {
-    ???
   }
 
   def publish(remoteName: String, uri: String) = {

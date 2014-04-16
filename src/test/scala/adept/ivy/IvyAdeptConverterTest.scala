@@ -44,6 +44,7 @@ import adept.repository.metadata.RankingMetadata
 import adept.repository.RankLogic
 import adept.ext.MetadataUpdate
 import adept.resolution.resolver.models.UnderconstrainedResult
+import adept.test.IvyTestUtils
 
 class IvyAdeptConverterTest extends FunSuite with Matchers {
   import adept.test.ResolverUtils._
@@ -71,16 +72,51 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
       withConfiguration(id, confName)
     }) ++ akkaTransitiveIds
 
-  def getAkka210TestIvyModule = {
-    val transitive = true
-    val changing = true
-    val force = true
+  def defaultEmptyModule = {
     val ivyModule = DefaultModuleDescriptor.newBasicInstance(ModuleRevisionId.newInstance("com.adepthub", "test", "1.0"), new java.util.Date(1395315115209L))
     ivyModule.addConfiguration(new IvyConfiguration("default", IvyConfiguration.Visibility.PUBLIC, "", Array("master", "runtime"), true, ""))
     ivyModule.addConfiguration(new IvyConfiguration("master", IvyConfiguration.Visibility.PUBLIC, "", Array.empty, true, ""))
     ivyModule.addConfiguration(new IvyConfiguration("runtime", IvyConfiguration.Visibility.PUBLIC, "", Array("compile"), true, ""))
     ivyModule.addConfiguration(new IvyConfiguration("compile", IvyConfiguration.Visibility.PUBLIC, "", Array.empty, true, ""))
     ivyModule.addConfiguration(new IvyConfiguration("test", IvyConfiguration.Visibility.PRIVATE, "", Array("runtime"), true, ""))
+    ivyModule
+  }
+
+  val transitive = true
+  val changing = true
+  val force = true
+
+  def getAkka205TestIvyModule = {
+    val ivyModule = defaultEmptyModule
+    val akkaDep = new DefaultDependencyDescriptor(ivyModule,
+      ModuleRevisionId.newInstance("com.typesafe.akka", "akka-actor", "2.0.5"), force, changing, transitive)
+    akkaDep.addDependencyConfiguration("compile", "default(compile)")
+    ivyModule.addDependency(akkaDep)
+    ivyModule
+  }
+
+  def getScala292TestIvyModule = {
+    val ivyModule = defaultEmptyModule
+
+    val dep = new DefaultDependencyDescriptor(ivyModule,
+      ModuleRevisionId.newInstance("org.scala-lang", "scala-library", "2.9.2"), force, changing, transitive)
+    dep.addDependencyConfiguration("compile", "default(compile)")
+    ivyModule.addDependency(dep)
+    ivyModule
+  }
+
+  def getScala2102TestIvyModule = {
+    val ivyModule = defaultEmptyModule
+
+    val dep = new DefaultDependencyDescriptor(ivyModule,
+      ModuleRevisionId.newInstance("org.scala-lang", "scala-library", "2.10.2"), force, changing, transitive)
+    dep.addDependencyConfiguration("compile", "default(compile)")
+    ivyModule.addDependency(dep)
+    ivyModule
+  }
+
+  def getAkka210TestIvyModule = {
+    val ivyModule = defaultEmptyModule
 
     val akkaDep = new DefaultDependencyDescriptor(ivyModule,
       ModuleRevisionId.newInstance("com.typesafe.akka", "akka-actor_2.10", "2.1.0"), force, changing, transitive)
@@ -90,15 +126,7 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
   }
 
   def getAkka221TestIvyModule = {
-    val transitive = true
-    val changing = true
-    val force = true
-    val ivyModule = DefaultModuleDescriptor.newBasicInstance(ModuleRevisionId.newInstance("com.adepthub", "test", "1.0"), new java.util.Date(1395315115209L))
-    ivyModule.addConfiguration(new IvyConfiguration("default", IvyConfiguration.Visibility.PUBLIC, "", Array("master", "runtime"), true, ""))
-    ivyModule.addConfiguration(new IvyConfiguration("master", IvyConfiguration.Visibility.PUBLIC, "", Array.empty, true, ""))
-    ivyModule.addConfiguration(new IvyConfiguration("runtime", IvyConfiguration.Visibility.PUBLIC, "", Array("compile"), true, ""))
-    ivyModule.addConfiguration(new IvyConfiguration("compile", IvyConfiguration.Visibility.PUBLIC, "", Array.empty, true, ""))
-    ivyModule.addConfiguration(new IvyConfiguration("test", IvyConfiguration.Visibility.PRIVATE, "", Array("runtime"), true, ""))
+    val ivyModule = defaultEmptyModule
 
     val akkaDep = new DefaultDependencyDescriptor(ivyModule,
       ModuleRevisionId.newInstance("com.typesafe.akka", "akka-actor_2.10", "2.2.1"), force, changing, transitive)
@@ -117,7 +145,6 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
   }
 
   test("IvyImport basics: import of akka should yield correct results") {
-
     implicit val testDetails = TestDetails("Basic import akka 2.1.0")
     val ivyConverter = new IvyAdeptConverter(ivy)
     val ivyModule = getAkka210TestIvyModule
@@ -491,7 +518,7 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
         checkAttributeVariants(result, "com.typesafe.akka/akka-actor", "version" -> Set("2.2.1"))
         checkAttributeVariants(result, "org.scala-lang/scala-library", "version" -> Set("2.10.2"))
       }
-      
+
       withClue("Resolves fine because akka-actor 2.2 is already! constrained to scala library 2.10") {
         val requirementsWithResults = Set(
           RepositoryName("org.scala-lang") -> Requirement(withConfiguration("org.scala-lang/scala-library", "compile"), Set(BinaryVersionAttribute -> Set("2.10")), Set.empty),
@@ -522,8 +549,89 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
     }
   }
 
-  test("That conversions of Ivy results yields what we expect") {
-    pending
+  test("Conversions of Ivy results yields what we expect") {
+    implicit val testDetails = TestDetails("Conversions of Ivy results yields what we expect")
+    usingTmpDir { tmpDir =>
+      val ivy = IvyTestUtils.ivy
+      ivy.configure(new File("src/test/resources/typesafe-ivy-settings.xml"))
+
+      def insertIvyModule(ivyModule: ModuleDescriptor) = {
+        val ivyConverter = new IvyAdeptConverter(ivy)
+
+        val (results, _) = benchmark(IvyImport, ivyModule) {
+          ivyConverter.loadAsIvyImportResults(ivyModule, progress).failOnLeft
+        }
+        val insertedResults = benchmark(Inserted, results) {
+          IvyImportResultInserter.insertAsResolutionResults(tmpDir, results, progress)
+        }
+        insertedResults.map { r =>
+          r.repository -> r.id
+        }
+      }
+      def semverScalaAkka(idsAndRepos: Set[(RepositoryName, Id)]) = {
+        val semverResults = idsAndRepos
+          .filter { case (_, id) => id.value.contains("org.scala-lang") || id.value.contains("com.typesafe.akka") }
+
+        semverResults.foreach {
+          case (name, id) =>
+            val repository = new GitRepository(tmpDir, name)
+            val commit = repository.getHead
+            val (addFiles, rmFiles) = VersionRank.useSemanticVersionRanking(id, repository, commit, includes = Set(".*".r), excludes = Set.empty, useVersionAsBinary = Set.empty)
+            repository.add(addFiles)
+            repository.rm(rmFiles)
+        }
+        semverResults.map(_._1).foreach { name =>
+          val repository = new GitRepository(tmpDir, name)
+          repository.commit("Semver")
+        }
+      }
+      semverScalaAkka(insertIvyModule(getScala292TestIvyModule) ++
+          insertIvyModule(getScala2102TestIvyModule))
+
+      semverScalaAkka(insertIvyModule(getAkka205TestIvyModule) ++
+          insertIvyModule(getAkka221TestIvyModule))
+
+      val requirementsWithResults = Set(
+        RepositoryName("org.scala-lang") -> Requirement(withConfiguration("org.scala-lang/scala-library", "compile"), Set(BinaryVersionAttribute -> Set("2.10")), Set.empty),
+        RepositoryName("org.scala-lang") -> Requirement(withConfiguration("org.scala-lang/scala-library", "master"), Set(BinaryVersionAttribute -> Set("2.10")), Set.empty),
+        RepositoryName("com.typesafe.akka") -> Requirement(withConfiguration("com.typesafe.akka/akka-actor", "compile"), Set(BinaryVersionAttribute -> Set("2.1")), Set.empty),
+        RepositoryName("com.typesafe.akka") -> Requirement(withConfiguration("com.typesafe.akka/akka-actor", "master"), Set(BinaryVersionAttribute -> Set("2.1")), Set.empty))
+
+      val resultsWithLocations = GitLoader.getLatestResolutionResults(tmpDir, requirementsWithResults, progress, cacheManager)
+      println(resultsWithLocations)
+
+      withClue("Should resolve because scala lib is set to 2.9 and there is a akka-actor version that does not care about scala vesions so 2.9 is fine") {
+        val requirementsWithResults = Set(
+          RepositoryName("org.scala-lang") -> Requirement(withConfiguration("org.scala-lang/scala-library", "compile"), Set(BinaryVersionAttribute -> Set("2.9")), Set.empty),
+          RepositoryName("org.scala-lang") -> Requirement(withConfiguration("org.scala-lang/scala-library", "master"), Set(BinaryVersionAttribute -> Set("2.9")), Set.empty),
+          RepositoryName("com.typesafe.akka") -> Requirement(withConfiguration("com.typesafe.akka/akka-actor", "compile"), Set.empty, Set.empty),
+          RepositoryName("com.typesafe.akka") -> Requirement(withConfiguration("com.typesafe.akka/akka-actor", "master"), Set.empty, Set.empty))
+
+        val requirements = requirementsWithResults.map(_._2)
+
+        val resultsWithLocations = GitLoader.getLatestResolutionResults(tmpDir, requirementsWithResults, progress, cacheManager)
+        val results = resultsWithLocations.map(_._1)
+        val loader = benchmark(IvyImport, results) {
+          new GitLoader(tmpDir, results, progress, cacheManager)
+        }
+        val result = benchmark(Resolved, requirements && loader) {
+          resolve(requirements, loader)
+        }
+        println(result)
+        checkResolved(result, Set[Id](
+          "com.typesafe.akka/akka-actor",
+          "com.typesafe.akka/akka-actor/config/compile",
+          "com.typesafe.akka/akka-actor/config/master",
+          "com.typesafe/config",
+          "com.typesafe/config/config/compile",
+          "com.typesafe/config/config/master",
+          "org.scala-lang/scala-library",
+          "org.scala-lang/scala-library/config/compile",
+          "org.scala-lang/scala-library/config/master"))
+        checkAttributeVariants(result, "com.typesafe.akka/akka-actor", "version" -> Set("2.0.5"))
+        checkAttributeVariants(result, "org.scala-lang/scala-library", "version" -> Set("2.9.2"))
+      }
+    }
   }
 
 }

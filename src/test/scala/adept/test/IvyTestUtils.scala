@@ -13,6 +13,7 @@ import org.apache.ivy.Ivy
 import adept.ivy.scalaspecific.ScalaBinaryVersionConverter
 import adept.repository.models.RepositoryName
 import adept.resolution.models.Id
+import adept.ivy.IvyConstants
 
 object IvyTestUtils {
   import adept.test.BenchmarkUtils._
@@ -22,7 +23,7 @@ object IvyTestUtils {
   import adept.test.CacheUtils._
 
   def ivy = this.synchronized { //avoid parallel test messing up Ivy imports
-    IvyUtils.load()
+    IvyUtils.load( ivyLogger = IvyConstants.warnIvyLogger )
   }
 
   def verify(tmpDir: File, ivy: Ivy, ivyModule: ModuleDescriptor, changing: Boolean)(implicit testDetails: TestDetails) = {

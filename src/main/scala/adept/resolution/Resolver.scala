@@ -100,7 +100,7 @@ class Resolver(loader: VariantsLoader, skipImplicitResolve: Boolean = false) {
     }
     val (excludedRequirements, includedRequirements) = newRequirements.partition(r => exclusions.contains(r.id))
     val lastStateWithExclusions = lastState.copy(excluded = lastState.excluded ++ excludedRequirements.map(_.id))
-    
+
     //TODO: evaluate whether breadth-first is normally faster than depth-first (used now) or find an heuristic that is good at _finding constraints_ that are _likely_ to be used: I believe this is what it is all about 
     includedRequirements.foldLeft(lastStateWithExclusions) { (state, requirement) => //collapse all requirements that can be found into one
       resolveVariant(requirement, state) match {
@@ -172,7 +172,7 @@ class Resolver(loader: VariantsLoader, skipImplicitResolve: Boolean = false) {
       val ignoredIds = (state.implicitVariants.values.map { variant => //ignore id of implicit variants
         variant.id
       } ++ previouslyUnderconstrained).toSet //ignore ids which are under-constrained already
-
+      
       //try out the different combinations till we find a unique combination that resolves
       val testedStatesCombinations = combinations(state.underconstrained, ignoredIds, state.constraints).map { combinations =>
         //TODO: .par to improve speed? Risk to have threading issues because of optimalUnderconstrainedStates which is mutable.
@@ -180,13 +180,13 @@ class Resolver(loader: VariantsLoader, skipImplicitResolve: Boolean = false) {
           val implicitVariants = combination.map { variant =>
             variant.id -> variant
           }.toMap
-
           val implicitState = state.copy(
             underconstrained = state.underconstrained -- combination.map(_.id), //we are no longer under-constrained on the implicitVariants
             implicitVariants = state.implicitVariants ++ implicitVariants)
           implicitResolve(nonImplicitRequirements, implicitState, ignoredIds ++ state.underconstrained, optimalUnderconstrainedStates) //ignore ids that are already under-constrained at this level
         }.collect {
-          case Right(state) => state
+          case Right(state) =>
+            state
         }.toList //TODO: is there a way to avoid this toList? We need to use this iterator to find *then* extract the state, which is why toList is there now.
       }
       testedStatesCombinations find (_.size > 0) match {

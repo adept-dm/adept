@@ -421,11 +421,11 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, excludedConfs: Set[S
 
         val configurationRequirements = (ivyConfiguration.getExtends().map { targetConf =>
           Requirement(ivyIdAsId(mrid.getModuleId, targetConf), Set.empty, Set.empty)
-        }.toSet) //We cant use this because we cannot upgrade if this is set + Requirement(ivyIdAsId(mrid.getModuleId), Set(Constraint(ConfigurationHashAttribute, Set(configurationHash))), Set.empty)
+        }.toSet) + Requirement(ivyIdAsId(mrid.getModuleId), Set(Constraint(ConfigurationHashAttribute, Set(configurationHash))), Set.empty)
 
         val extendsIds = ivyConfiguration.getExtends().map { targetConf =>
           ivyIdAsId(mrid.getModuleId, targetConf)
-        }.toSet // + ivyIdAsId(mrid.getModuleId)
+        }.toSet + ivyIdAsId(mrid.getModuleId)
 
         val variant = Variant(
           id = thisVariantId,
