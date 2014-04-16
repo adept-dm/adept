@@ -38,3 +38,6 @@ build
 
 # Test tmp files:
 tmp
+
+# Test ivy tmp files:
+.ivy2-adept

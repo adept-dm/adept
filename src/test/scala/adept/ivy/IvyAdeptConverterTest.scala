@@ -54,7 +54,6 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
   import adept.test.OutputUtils._
   import adept.test.EitherUtils._
   import adept.test.ArtifactUtils._
-  import adept.test.IvyTestUtils.ivy
 
   import IvyConstants._
   import IvyUtils.withConfiguration
@@ -146,6 +145,9 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
 
   test("IvyImport basics: import of akka should yield correct results") {
     implicit val testDetails = TestDetails("Basic import akka 2.1.0")
+    val ivy = IvyTestUtils.ivy
+    ivy.configure(new File("src/test/resources/typesafe-ivy-settings.xml"))
+
     val ivyConverter = new IvyAdeptConverter(ivy)
     val ivyModule = getAkka210TestIvyModule
     val (results, _) = benchmark(IvyImport, ivyModule) {
@@ -179,6 +181,9 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
   test("IvyImport end-to-end: import of akka should resolve correctly") {
     implicit val testDetails = TestDetails("End-to-end (akka-remote & scalatest)")
     usingTmpDir { tmpDir =>
+      val ivy = IvyTestUtils.ivy
+      ivy.configure(new File("src/test/resources/typesafe-ivy-settings.xml"))
+
       val ivyConverter = new IvyAdeptConverter(ivy)
       val ivyModule = getAkka210TestIvyModule
       val (results, versionInfos) = benchmark(IvyImport, ivyModule) {
@@ -586,10 +591,10 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
         }
       }
       semverScalaAkka(insertIvyModule(getScala292TestIvyModule) ++
-          insertIvyModule(getScala2102TestIvyModule))
+        insertIvyModule(getScala2102TestIvyModule))
 
       semverScalaAkka(insertIvyModule(getAkka205TestIvyModule) ++
-          insertIvyModule(getAkka221TestIvyModule))
+        insertIvyModule(getAkka221TestIvyModule))
 
       val requirementsWithResults = Set(
         RepositoryName("org.scala-lang") -> Requirement(withConfiguration("org.scala-lang/scala-library", "compile"), Set(BinaryVersionAttribute -> Set("2.10")), Set.empty),

@@ -92,6 +92,7 @@ class IvyIntegrationTest extends FunSuite with Matchers {
     implicit val testDetails = TestDetails("End-to-end (scala-compiler 2.10.2 optional deps)")
     usingTmpDir { tmpDir =>
       val ivy = IvyTestUtils.ivy
+      ivy.configure(new File("src/test/resources/typesafe-ivy-settings.xml"))
       installScalaWithBinaryVersions(tmpDir, ivy, Set("2.10.2"), changing)
     }
   }
@@ -100,6 +101,7 @@ class IvyIntegrationTest extends FunSuite with Matchers {
     implicit val testDetails = TestDetails("End-to-end (scala-library 2.10.3 no deps)")
     usingTmpDir { tmpDir =>
       val ivy = IvyTestUtils.ivy
+      ivy.configure(new File("src/test/resources/typesafe-ivy-settings.xml"))
       installScalaWithBinaryVersions(tmpDir, ivy, Set("2.10.3"), changing)
     }
   }
@@ -112,7 +114,7 @@ class IvyIntegrationTest extends FunSuite with Matchers {
     implicit val testDetails = TestDetails("End-to-end (scala & akka & versioning)")
     usingTmpDir { tmpDir =>
       val ivy = IvyTestUtils.ivy
-
+      ivy.configure(new File("src/test/resources/typesafe-ivy-settings.xml"))
       installScalaWithBinaryVersions(tmpDir, ivy, Set("2.9.3", "2.10.1", "2.10.2"), changing)
 
       {

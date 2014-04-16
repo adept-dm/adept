@@ -1,4 +1,8 @@
 <ivysettings>
+	<property name="ivy.dir" value="${user.dir}/.ivy2-adept" />
+	<property name="env.EXECUTOR_NUMBER" value="0" override="false" />
+	<caches defaultCacheDir="${ivy.default.ivy.user.dir}/cache-${env.EXECUTOR_NUMBER}"
+		resolutionCacheDir="${ivy.dir}/ivy.cache" />
 	<settings defaultResolver="sbt-chain" />
 	<resolvers>
 		<chain name="sbt-chain">
