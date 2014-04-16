@@ -167,7 +167,7 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
         }
         //
         if (result.variant.id == withConfiguration("com.typesafe.akka/akka-actor_2.10", "compile")) {
-          result.variant.requirements.map(_.id) shouldEqual Set(Id("org.scala-lang/scala-library"), withConfiguration("org.scala-lang/scala-library", "compile"), withConfiguration("org.scala-lang/scala-library", "master"), Id("com.typesafe/config"), withConfiguration("com.typesafe/config", "compile"), withConfiguration("com.typesafe/config", "master"))
+          result.variant.requirements.map(_.id) shouldEqual Set(Id("com.typesafe.akka/akka-actor_2.10"), Id("org.scala-lang/scala-library"), withConfiguration("org.scala-lang/scala-library", "compile"), withConfiguration("org.scala-lang/scala-library", "master"), Id("com.typesafe/config"), withConfiguration("com.typesafe/config", "compile"), withConfiguration("com.typesafe/config", "master"))
           result.repository shouldEqual RepositoryName("com.typesafe.akka")
           result.versionInfo.map { case (name, _, version) => name -> version } shouldEqual Set(
             (RepositoryName("org.scala-lang"), Version("2.10.0")),
