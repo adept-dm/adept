@@ -158,7 +158,6 @@ object IvyImportResultInserter extends Logging {
             }
 
             val currentResults = VersionRank.createResolutionResults(baseDir, includedVersionInfo) ++
-              Set(ResolutionResult(id, repository.name, commit, variantMetadata.hash)) ++
               extendsResults
 
             val resolutionResultsMetadata = ResolutionResultsMetadata(currentResults.toSeq)
