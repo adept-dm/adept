@@ -25,3 +25,5 @@ libraryDependencies ++= Seq(
   "com.typesafe.play" %% "play-json" % "2.2.1", //REMOVE!
   "org.apache.ivy"  % "ivy" % "2.3.0" % "compile",
   "org.scalatest" %% "scalatest" % "2.0" % "test")
+
+incOptions := incOptions.value.withNameHashing(true)
