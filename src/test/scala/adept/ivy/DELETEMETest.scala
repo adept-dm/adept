@@ -151,7 +151,7 @@ class DELETEMETest extends FunSuite with Matchers {
     }
     val tmpDir = new File("/Users/freekh/Projects/adepthub/adepthub")
     val ivy = IvyTestUtils.ivy
-        ivy.configure(new File("src/test/resources/delete-sbt-plugin-ivy-settings.xml"))
+    ivy.configure(new File("src/test/resources/delete-sbt-plugin-ivy-settings.xml"))
 
     val ivyConverter = new IvyAdeptConverter(ivy, changing = false)
     val repoName = "com.typesafe.play"
