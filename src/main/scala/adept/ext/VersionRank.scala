@@ -85,14 +85,18 @@ import adept.repository.RankLogic
 //}
 
 case class BinaryVersionUpdateException(msg: String) extends Exception(msg)
-case class VersionNotFoundException(targetName: RepositoryName, targetId: Id, targetVersion: Version) extends Exception("Could not find version: " + targetVersion + " for id: " + targetId + " in repository:" + targetName)
-case class RepositoryNotFoundException(targetName: RepositoryName, targetId: Id, targetVersion: Version) extends Exception("Could not find repository: " + targetName + " for id: " + targetId + " and version: " + targetVersion)
+
+trait RecoverableError
+case class VersionNotFoundException(targetName: RepositoryName, targetId: Id, targetVersion: Version) extends Exception("Could not find version: " + targetVersion + " for id: " + targetId + " in repository:" + targetName) with RecoverableError
+case class RepositoryNotFoundException(targetName: RepositoryName, targetId: Id, targetVersion: Version) extends Exception("Could not find repository: " + targetName + " for id: " + targetId + " and version: " + targetVersion) with RecoverableError
 
 object VersionRank extends Logging {
   import adept.ext.AttributeDefaults._
 
-  def createResolutionResults(baseDir: File, versionInfo: Set[(RepositoryName, Id, Version)]): Set[ResolutionResult] = {
-    val results = versionInfo.flatMap {
+  def createResolutionResults(baseDir: File, versionInfo: Set[(RepositoryName, Id, Version)]): (Set[RecoverableError], Set[ResolutionResult]) = {
+    var results = Set.empty[ResolutionResult]
+    var errors = Set.empty[RecoverableError]
+    versionInfo.foreach {
       case (targetName, targetId, targetVersion) =>
         val repository = new GitRepository(baseDir, targetName)
         if (repository.exists) {
@@ -101,12 +105,15 @@ object VersionRank extends Logging {
             case Some(targetHash) =>
               val result = ResolutionResult(targetId, targetName, commit, targetHash)
               val transitive = ResolutionResultsMetadata.read(targetId, targetHash, repository, commit).toSeq.flatMap(_.values)
-              transitive.toSet + result
-            case None => throw VersionNotFoundException(targetName, targetId, targetVersion)
+              results ++= transitive.toSet + result
+            case None =>
+              errors += VersionNotFoundException(targetName, targetId, targetVersion)
           }
-        } else throw RepositoryNotFoundException(targetName, targetId, targetVersion)
+        } else {
+          errors += RepositoryNotFoundException(targetName, targetId, targetVersion)
+        }
     }
-    results
+    errors -> results
   }
 
   def getVersion(variant: Variant) = {

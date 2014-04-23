@@ -91,6 +91,7 @@ private[adept] object IvyUtils extends Logging {
   def resolveOptions(confs: String*) = {
     val resolveOptions = new ResolveOptions()
     if (confs.nonEmpty) resolveOptions.setConfs(confs.toArray)
+    else resolveOptions.setConfs(Array("*(public)"))
     resolveOptions.setCheckIfChanged(true)
     resolveOptions.setRefresh(true)
     resolveOptions.setDownload(true)
@@ -165,7 +166,6 @@ private[adept] object IvyUtils extends Logging {
   def matchesExcludeRule(excludeOrg: String, excludeName: String, variant: Variant): Boolean = {
     val res = variant.attribute(IvyNameAttribute).values == Set(excludeName) &&
       variant.attribute(IvyOrgAttribute).values == Set(excludeOrg)
-//    if (!res) println(moduleId + " VS name: " + variant.attribute(IvyNameAttribute).values + " AND org: " + variant.attribute(IvyOrgAttribute).values)
     res
   }
 }

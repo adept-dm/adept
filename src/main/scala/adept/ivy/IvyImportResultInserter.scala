@@ -54,7 +54,8 @@ object IvyImportResultInserter extends Logging {
    */
   def insertAsResolutionResults(baseDir: File, results: Set[IvyImportResult], progress: ProgressMonitor): Set[ResolutionResult] = {
     progress.beginTask("Applying exclusion(s)", results.size)
-    val included = results.flatMap { result =>
+    var included = Set.empty[IvyImportResult]
+    results.foreach { result =>
       var requirementModifications = Map.empty[Id, Set[Variant]]
       var currentExcluded = false
       progress.update(1)
@@ -90,10 +91,8 @@ object IvyImportResultInserter extends Logging {
         result
       }
 
-      if (currentExcluded) {
-        None
-      } else {
-        Some(fixedResult)
+      if (!currentExcluded) {
+        included += fixedResult
       }
     }
     progress.endTask()
@@ -142,28 +141,24 @@ object IvyImportResultInserter extends Logging {
           val variant = result.variant
           val id = variant.id
           val variantMetadata = VariantMetadata.fromVariant(variant)
-          val includedVersionInfo = result.versionInfo
+          val includedVersionInfo = result.versionInfo //ivy will exclude what should be excluded anyways so we can just use it directly here
           val commit = repository.getHead
 
-          try {
-            val extendsResults = result.extendsIds.flatMap { extendsId =>
-              val configAttribute = variantMetadata.attributes.find(_.name == IvyConstants.ConfigurationHashAttribute).getOrElse(throw new Exception("Cannot find " + IvyConstants.ConfigurationHashAttribute + " on " + variantMetadata)) //fail if it is not here
-              val found = VariantMetadata.listVariants(extendsId, repository, commit).flatMap { hash =>
-                VariantMetadata.read(extendsId, hash, repository, commit).find(_.attributes.contains(configAttribute))
-              }
-              if (found.size == 1) {
-                val hash = found.head.hash
-                Some(ResolutionResult(extendsId, repository.name, commit, hash))
-              } else throw new Exception("Could not find a configuration hash: " + configAttribute + " for " + extendsId + " a configuration extended by: " + id + " in " + repository.name + " for " + commit)
+          val extendsResults = result.extendsIds.flatMap { extendsId =>
+            val configAttribute = variantMetadata.attributes.find(_.name == IvyConstants.ConfigurationHashAttribute).getOrElse(throw new Exception("Cannot find " + IvyConstants.ConfigurationHashAttribute + " on " + variantMetadata)) //fail if it is not here
+            val found = VariantMetadata.listVariants(extendsId, repository, commit).flatMap { hash =>
+              VariantMetadata.read(extendsId, hash, repository, commit).find(_.attributes.contains(configAttribute))
             }
+            if (found.size == 1) {
+              val hash = found.head.hash
+              Some(ResolutionResult(extendsId, repository.name, commit, hash))
+            } else throw new Exception("Could not find a configuration hash: " + configAttribute + " for " + extendsId + " a configuration extended by: " + id + " in " + repository.name + " for " + commit)
+          }
 
-            val currentResults = VersionRank.createResolutionResults(baseDir, includedVersionInfo) ++
-              extendsResults
+          val (foundVersionErrors, allFoundVersionResults) = VersionRank.createResolutionResults(baseDir, includedVersionInfo)
 
-            val resolutionResultsMetadata = ResolutionResultsMetadata(currentResults.toSeq)
-            repository.add(resolutionResultsMetadata.write(id, variantMetadata.hash, repository))
-            currentResults
-          } catch {
+          //error "handling" aka log some warnings - it might be ok but we cannot really know for sure
+          foundVersionErrors.foreach {
             case RepositoryNotFoundException(targetName, targetId, targetVersion) =>
               logger.warn("In: " + result.variant.id + " tried to find " + targetId + " version: " + targetVersion + " in repository: " + targetName + " but the repository was not there. Assuming it is an UNAPPLIED override (i.e. an override of a module which the source module does not actually depend on) so ignoring...")
               Set.empty[ResolutionResult]
@@ -171,6 +166,19 @@ object IvyImportResultInserter extends Logging {
               logger.warn("In: " + result.variant.id + " tried to find " + targetId + " version: " + targetVersion + " in repository: " + targetName + " but that version was not there. Assuming it is an UNAPPLIED override (i.e. an override of a module which the source module does not actually depend on) so ignoring...")
               Set.empty[ResolutionResult]
           }
+          //
+//          val foundVersionResults = allFoundVersionResults.filter { r =>
+//            val thisVariantExlusions = variantExclusions.getOrElse(id, Set.empty)
+//            val a = !thisVariantExlusions(r.id)
+//            if (!a) println(id + " excludes " + thisVariantExlusions)
+//            a
+//          }
+          val currentResults = allFoundVersionResults ++
+            extendsResults
+
+          val resolutionResultsMetadata = ResolutionResultsMetadata(currentResults.toSeq)
+          repository.add(resolutionResultsMetadata.write(id, variantMetadata.hash, repository))
+          currentResults
         }
         repository.commit("Updated resolution results")
         progress.update(1)

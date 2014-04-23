@@ -55,8 +55,9 @@ object IvyTestUtils {
     }
 
     for (confName <- requirements.keys) {
-      val resolutionResults =
+      val (errors, resolutionResults) =
         VersionRank.createResolutionResults(tmpDir, configuredVersionInfo(confName))
+      errors should have size(0)
       val loader = benchmark(Loaded, resolutionResults) {
         new GitLoader(tmpDir, resolutionResults, progress, cacheManager)
       }

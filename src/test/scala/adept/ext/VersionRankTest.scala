@@ -346,7 +346,8 @@ class VersionRankTest extends FunSpec with Matchers {
         versionInfo.foreach {
           case ((name, id, hash), versionInfo) =>
             val repository = new GitRepository(tmpDir, name)
-            val results = VersionRank.createResolutionResults(tmpDir, versionInfo)
+            val (errors, results) = VersionRank.createResolutionResults(tmpDir, versionInfo)
+            errors should have size(0)
             repository.add(ResolutionResultsMetadata(results.toSeq).write(id, hash, repository))
             repository.commit("Added resolution results from version map")
         }

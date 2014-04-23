@@ -196,7 +196,11 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
 
       val configuredResolutionsResults = versionInfos.map {
         case (conf, versionInfo) =>
-          conf -> VersionRank.createResolutionResults(tmpDir, versionInfo)
+          conf -> {
+            val (errors, results) = VersionRank.createResolutionResults(tmpDir, versionInfo)
+            errors should have size(0)
+            results
+          }
       }
       val allConfiguredResolutionResults = //use default and compile resolution results
         configuredResolutionsResults("master") ++

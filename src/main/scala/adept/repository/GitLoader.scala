@@ -174,7 +174,7 @@ class GitLoader(baseDir: File, private[adept] val results: Set[ResolutionResult]
   }
 
   private def locateAllIdentifiers(id: Id): Set[(VariantHash, GitRepository, Commit)] = {
-    byId.getOrElse(id, throw new Exception("Missing resolution results? Cannot resolve because there is no matching id: " + id + " in loaded repositories:\n" + results.map(r => "id:" + r.id + ", " + "repository: " + r.repository.value + ", commit: " + r.commit.value + ", variant: " + r.variant.value).map("{" + _ + "}").mkString("\n")))
+    byId.getOrElse(id, Set.empty)
   }
 
   def loadVariants(id: Id, constraints: Set[Constraint]): Set[Variant] = {
