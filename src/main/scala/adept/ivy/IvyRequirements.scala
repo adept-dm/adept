@@ -17,12 +17,12 @@ object IvyRequirements {
 
   val unsupportedStrings = Set("%", "!", "[", "]", "@", "#")
 
-  def matchIdWithConfiguration(moduleForConfiguration: ModuleDescriptor, confName: String, ids: Set[Id]) = {
+  def matchIdWithConfiguration(confs: Set[String], confName: String, ids: Set[Id]) = {
     for {
-      ivyConf <- getAllConfigurations(moduleForConfiguration, confName)
+      conf <- confs
       id <- ids
       matchingId <- (id.value match {
-        case ConfigRegex(base, idConf) if idConf == ivyConf => Set(Id(base), id)
+        case ConfigRegex(base, idConf) if idConf == conf => Set(Id(base), id)
         case _ => Set.empty[Id]
       })
     } yield {
@@ -88,7 +88,7 @@ object IvyRequirements {
       variant.attribute(VersionAttribute).values == Set(mrid.getRevision())
   }
 
-  private def getAllConfigurations(module: ModuleDescriptor, confName: String): Set[String] = {
+  def getAllConfigurations(module: ModuleDescriptor, confName: String): Set[String] = {
     def getAllConfigurations(module: ModuleDescriptor, existing: Set[String]): Set[String] = {
       existing.flatMap { confName =>
         val newConfs = (for {
