@@ -168,43 +168,44 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, excludedConfs: Set[S
     }
   }
 
+  private def convertResolveReportToEither(resolveReport: ResolveReport) = {
+    if (resolveReport.hasError) {
+      val onlySourcesAndJavadocsFailed = resolveReport.getFailedArtifactsReports().forall { artifactReport =>
+        val failedType = artifactReport.getType
+        failedType == "source" || failedType == "javadoc"
+      }
+      if (onlySourcesAndJavadocsFailed) {
+        logger.debug("Resolver report has errors, but it was only for artifacts of type source and/or javadoc: " + reportErrorString(resolveReport))
+        Right(resolveReport)
+      } else {
+        Left("Got errors when trying to resolve from Ivy: " + reportErrorString(resolveReport))
+      }
+    } else {
+      Right(resolveReport)
+    }
+  }
+
+  def reportErrorString(resolveReport: ResolveReport) = {
+    val messages = resolveReport.getAllProblemMessages.toArray.map(_.toString).distinct
+    val failed = resolveReport.getUnresolvedDependencies
+    failed.mkString(",") + " failed to resolve. Messages:\n" + messages.mkString("\n")
+  }
+
   private def getResolveReport(module: ModuleDescriptor, initialResolveOptions: ResolveOptions) = {
     val currentResolveOptions = initialResolveOptions
     val resolveId = ResolveOptions.getDefaultResolveId(module)
     currentResolveOptions.setResolveId(resolveId)
     cleanModule(module.getModuleRevisionId, resolveId, ivy.getSettings.getResolutionCacheManager)
 
-    def reportErrorString(resolveReport: ResolveReport) = {
-      val messages = resolveReport.getAllProblemMessages.toArray.map(_.toString).distinct
-      val failed = resolveReport.getUnresolvedDependencies
-      failed.mkString(",") + " failed to resolve. Messages:\n" + messages.mkString("\n")
-    }
-
-    val resolveReport = ivy.resolve(module, currentResolveOptions)
-
-    if (resolveReport.hasError) {
-      Left("Got errors when trying to resolve from Ivy: " + reportErrorString(resolveReport))
-    } else {
-      Right(resolveReport)
-    }
+    convertResolveReportToEither(ivy.resolve(module, currentResolveOptions))
   }
 
-  private def getResolveReport(mrid: ModuleRevisionId, initialResolveOptions: ResolveOptions) = {
-    val currentResolveOptions = initialResolveOptions
-
-    def reportErrorString(resolveReport: ResolveReport) = {
-      val messages = resolveReport.getAllProblemMessages.toArray.map(_.toString).distinct
-      val failed = resolveReport.getUnresolvedDependencies
-      failed.mkString(",") + " failed to resolve. Messages:\n" + messages.mkString("\n")
+  private def getResolveReport(mrid: ModuleRevisionId, resolveOptions: ResolveOptions) = {
+    if (changing) {
+      val resolveId = ResolveOptions.getDefaultResolveId(mrid.getModuleId())
+      cleanModule(mrid, resolveId, ivy.getSettings.getResolutionCacheManager)
     }
-
-    val resolveReport = ivy.resolve(mrid, currentResolveOptions, changing)
-
-    if (resolveReport.hasError) {
-      Left("Got errors when trying to resolve from Ivy: " + reportErrorString(resolveReport))
-    } else {
-      Right(resolveReport)
-    }
+    convertResolveReportToEither(ivy.resolve(mrid, resolveOptions, changing))
   }
 
   private def getCaller(org: String, name: String) = ModuleRevisionId.newInstance(org, name + "-caller", "working")
@@ -278,8 +279,8 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, excludedConfs: Set[S
         val thisAdeptExcluded = excludedConfs.map {
           ivyIdAsId(ivyNode.getId.getModuleId, _)
         }
-        
-        val thisRequirementAdeptExcludedConfigurationIds = excludedConfs.map{ conf =>
+
+        val thisRequirementAdeptExcludedConfigurationIds = excludedConfs.map { conf =>
           ivyIdAsId(ivyNode.getModuleId, conf)
         }
         requirements.filter(r => !thisRequirementAdeptExcludedConfigurationIds(r.id))
@@ -427,10 +428,10 @@ class IvyAdeptConverter(ivy: Ivy, changing: Boolean = true, excludedConfs: Set[S
           ivyIdAsId(mrid.getModuleId, targetConf)
         }.toSet + ivyIdAsId(mrid.getModuleId)
 
-        val thisAdeptExcludedConfigurationIds = excludedConfs.map{ conf =>
-           ivyIdAsId(mrid.getModuleId, conf)
+        val thisAdeptExcludedConfigurationIds = excludedConfs.map { conf =>
+          ivyIdAsId(mrid.getModuleId, conf)
         }
-        
+
         val variant = Variant(
           id = thisVariantId,
           attributes = attributes + Attribute(ConfigurationHashAttribute, Set(configurationHash)) + Attribute(ConfigurationAttribute, Set(confName)),
