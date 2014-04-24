@@ -146,13 +146,23 @@ object IvyImportResultInserter extends Logging {
 
           val extendsResults = result.extendsIds.flatMap { extendsId =>
             val configAttribute = variantMetadata.attributes.find(_.name == IvyConstants.ConfigurationHashAttribute).getOrElse(throw new Exception("Cannot find " + IvyConstants.ConfigurationHashAttribute + " on " + variantMetadata)) //fail if it is not here
-            val found = VariantMetadata.listVariants(extendsId, repository, commit).flatMap { hash =>
-              VariantMetadata.read(extendsId, hash, repository, commit).find(_.attributes.contains(configAttribute))
+
+            var found = RankingMetadata.listRankIds(extendsId, repository, commit).flatMap { rankId =>
+              val firstInCurrentRanking = RankingMetadata.read(extendsId, rankId, repository, commit).flatMap {
+                _.variants.find { hash => //find first hash...
+                  VariantMetadata.read(extendsId, hash, repository, commit).exists(_.attributes.contains(configAttribute)) //...that has this config attribute 
+                }
+              }
+              firstInCurrentRanking.map(_ -> rankId) //rankId used for debug
             }
+
             if (found.size == 1) {
-              val hash = found.head.hash
+              val (hash, _) = found.head
               Some(ResolutionResult(extendsId, repository.name, commit, hash))
-            } else throw new Exception("Could not find a configuration hash: " + configAttribute + " for " + extendsId + " a configuration extended by: " + id + " in " + repository.name + " for " + commit)
+            } else {
+
+              throw new Exception("Could not find EXACTLY one configuration hash: " + configAttribute + " for " + extendsId + " a configuration extended by: " + id + " in " + repository.name + " for " + commit + ". Found: " + found)
+            }
           }
 
           val (foundVersionErrors, allFoundVersionResults) = VersionRank.createResolutionResults(baseDir, includedVersionInfo)
@@ -167,12 +177,12 @@ object IvyImportResultInserter extends Logging {
               Set.empty[ResolutionResult]
           }
           //
-//          val foundVersionResults = allFoundVersionResults.filter { r =>
-//            val thisVariantExlusions = variantExclusions.getOrElse(id, Set.empty)
-//            val a = !thisVariantExlusions(r.id)
-//            if (!a) println(id + " excludes " + thisVariantExlusions)
-//            a
-//          }
+          //          val foundVersionResults = allFoundVersionResults.filter { r =>
+          //            val thisVariantExlusions = variantExclusions.getOrElse(id, Set.empty)
+          //            val a = !thisVariantExlusions(r.id)
+          //            if (!a) println(id + " excludes " + thisVariantExlusions)
+          //            a
+          //          }
           val currentResults = allFoundVersionResults ++
             extendsResults
 
