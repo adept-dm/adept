@@ -13,7 +13,7 @@ import adept.repository.metadata.VariantMetadata
 import adept.repository.metadata.ArtifactMetadata
 
 //Contains everything needed to be able to import from Ivy to Adept
-case class IvyImportResult(variant: Variant, artifacts: Set[Artifact], localFiles: Map[ArtifactHash, File], repository: RepositoryName, versionInfo: Set[(RepositoryName, Id, Version)], excludeRules: Map[(Id, Id), Set[(String, String)]], extendsIds: Set[Id])
+case class IvyImportResult(variant: Variant, artifacts: Set[Artifact], localFiles: Map[ArtifactHash, File], repository: RepositoryName, versionInfo: Set[(RepositoryName, Id, Version)], excludeRules: Map[(Id, Id), Set[(String, String)]], extendsIds: Set[Id], allConfigIds: Set[Id])
 
 case class VersionInfo(name: RepositoryName, id: Id, version: Version) //TODO: use this one in IvyImportResult as well!
 case class AdeptExclude(on: Id, requirement: Id)
@@ -21,7 +21,7 @@ case class IvyExclude(org: String, name: String)
 case class AdeptExcludeMapping(adeptExclude: AdeptExclude, ivyExcludes: Set[IvyExclude])
 
 //TODO: should be private for now!
-case class IvyImportResultMetadata(id: Id, variant: VariantMetadata, artifacts: Set[Artifact], repository: RepositoryName, versionInfo: Set[VersionInfo], excludeRules: Set[AdeptExcludeMapping], extendsIds: Set[Id])
+case class IvyImportResultMetadata(id: Id, variant: VariantMetadata, artifacts: Set[Artifact], repository: RepositoryName, versionInfo: Set[VersionInfo], excludeRules: Set[AdeptExcludeMapping], extendsIds: Set[Id], allConfigIds: Set[Id])
 
 case class IvyImportResultsMetadata(values: Set[IvyImportResultMetadata]) {
   val jsonString = Json.prettyPrint(Json.toJson(this))
@@ -35,7 +35,8 @@ case class IvyImportResultsMetadata(values: Set[IvyImportResultMetadata]) {
         repository = metadata.repository,
         versionInfo = metadata.versionInfo.map { case VersionInfo(name, id, version) => (name, id, version) },
         excludeRules = metadata.excludeRules.map { case AdeptExcludeMapping( AdeptExclude(on, requirement), ivys) => ((on, requirement), ivys.map { case IvyExclude(org, name) => (org, name) } ) }.toMap,
-        extendsIds = metadata.extendsIds)
+        extendsIds = metadata.extendsIds,
+        allConfigIds = metadata.allConfigIds)
     }
   }
 }
@@ -64,7 +65,8 @@ object IvyImportResultsMetadata {
         repository = result.repository,
         versionInfo = result.versionInfo.map { case (name, id, version) => VersionInfo(name, id, version) },
         excludeRules = result.excludeRules.map { case ((on, requirement), ivys) => AdeptExcludeMapping(AdeptExclude(on, requirement), ivys.map { case (org, name) => IvyExclude(org, name) }) }.toSet,
-        extendsIds = result.extendsIds)
+        extendsIds = result.extendsIds,
+        allConfigIds = result.allConfigIds)
     })
   }
 

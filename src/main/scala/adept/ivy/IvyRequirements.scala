@@ -17,7 +17,7 @@ object IvyRequirements {
 
   val unsupportedStrings = Set("%", "!", "[", "]", "@", "#")
 
-  def matchIdWithConfiguration(confs: Set[String], confName: String, ids: Set[Id]) = {
+  def matchIdWithConfiguration(confs: Set[String], ids: Set[Id]) = {
     for {
       conf <- confs
       id <- ids
@@ -26,6 +26,7 @@ object IvyRequirements {
         case _ => Set.empty[Id]
       })
     } yield {
+      println(matchingId + " MATCHES ::: " + conf)
       matchingId
     }
   }

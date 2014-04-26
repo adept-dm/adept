@@ -86,22 +86,22 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
     Commit(revWalk.lookupCommit(resolvedRef).name)
   }
 
-  def add(files: Set[File]): Set[File] = {
+  def add(files: Set[File]): Set[File] = synchronized { //this is synchronized because git locks when it writes and we do not want to try to break that one, feels bad but that is the way it is
     add(files.toSeq: _*)
   }
 
-  def add(files: File*): Set[File] = {
+  def add(files: File*): Set[File] = synchronized { //this is synchronized because git locks when it writes and we do not want to try to break that one, feels bad but that is the way it is
     files.foreach { file =>
       git.add().addFilepattern(asGitPath(file)).call()
     }
     files.toSet
   }
 
-  def rm(files: Set[File]): Set[File] = {
+  def rm(files: Set[File]): Set[File] = synchronized { //this is synchronized because git locks when it writes and we do not want to try to break that one, feels bad but that is the way it is
     rm(files.toSeq: _*)
   }
 
-  def rm(files: File*): Set[File] = {
+  def rm(files: File*): Set[File] = synchronized { //this is synchronized because git locks when it writes and we do not want to try to break that one, feels bad but that is the way it is
     files.foreach { file =>
       git.rm().addFilepattern(asGitPath(file)).call()
     }

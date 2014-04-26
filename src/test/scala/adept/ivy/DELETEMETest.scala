@@ -154,9 +154,11 @@ class DELETEMETest extends FunSuite with Matchers {
     ivy.configure(new File("src/test/resources/delete-sbt-plugin-ivy-settings.xml"))
 
     val ivyConverter = new IvyAdeptConverter(ivy, changing = false)
+//    val repoName = "deletemeorg"
     val repoName = "com.typesafe.play"
     val ivyResults = {
 
+//      val imported = ivyConverter.ivyImport(repoName, "deletemename", "2.2.2", progress)
       val imported = ivyConverter.ivyImport(repoName, "sbt-plugin", "2.2.2", progress)
       if (imported.isLeft) println(imported)
       val ivyResults = imported.right.get

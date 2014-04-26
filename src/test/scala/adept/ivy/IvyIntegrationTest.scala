@@ -26,7 +26,7 @@ class IvyIntegrationTest extends FunSuite with Matchers {
   import adept.test.IvyTestUtils
 
   val transitive = true
-  val changing = true //This should always be true, except when debugging
+  val changing = false //This should always be true, except when debugging
   val force = true
 
   def getDefaultAdeptModule = {

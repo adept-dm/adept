@@ -6,6 +6,8 @@ version := "0.9.1-SNAPSHOT"
 
 resolvers += "Typesafe Repository" at "http://repo.typesafe.com/typesafe/releases/"
 
+resolvers += Resolver.url("Typesafe Repository (non maven compat)",  url("http://repo.typesafe.com/typesafe/releases"))(Resolver.ivyStylePatterns)
+
 //jgit
 resolvers += "Jgit Repository" at "https://repo.eclipse.org/content/groups/releases/"
 
@@ -23,7 +25,7 @@ libraryDependencies ++= Seq(
   "javax.transaction" % "jta" % "1.1", //needed by ehcache?
   "ch.qos.logback" % "logback-classic" % "1.0.13",
   "com.typesafe.play" %% "play-json" % "2.2.1", //REMOVE!
-  "org.apache.ivy"  % "ivy" % "2.3.0" % "compile",
+  "org.scala-sbt.ivy"  % "ivy" % "2.4.0-sbt-d6fca11d63402c92e4167cdf2da91a660d043392" % "compile",
   "org.scalatest" %% "scalatest" % "2.0" % "test")
 
 incOptions := incOptions.value.withNameHashing(true)

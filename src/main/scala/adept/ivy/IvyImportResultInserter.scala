@@ -176,13 +176,7 @@ object IvyImportResultInserter extends Logging {
               logger.warn("In: " + result.variant.id + " tried to find " + targetId + " version: " + targetVersion + " in repository: " + targetName + " but that version was not there. Assuming it is an UNAPPLIED override (i.e. an override of a module which the source module does not actually depend on) so ignoring...")
               Set.empty[ResolutionResult]
           }
-          //
-          //          val foundVersionResults = allFoundVersionResults.filter { r =>
-          //            val thisVariantExlusions = variantExclusions.getOrElse(id, Set.empty)
-          //            val a = !thisVariantExlusions(r.id)
-          //            if (!a) println(id + " excludes " + thisVariantExlusions)
-          //            a
-          //          }
+          
           val currentResults = allFoundVersionResults ++
             extendsResults
 

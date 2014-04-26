@@ -53,7 +53,7 @@ object GitLoader extends Logging {
           val repository = new GitRepository(baseDir, name)
           val commits = values.map { case (_, _, commit: Commit) => commit }
           val constraints = values.flatMap { case (_, requirement: Requirement, _) => requirement.constraints }
-          (id, constraints, repository, GitHelpers.lastestCommit(repository, commits).getOrElse(throw new Exception("Could not find a latest commit between (is empty or cannot compare?): " + commits + " in " + repository.dir.getAbsolutePath)))
+          (id, constraints, repository, GitHelpers.lastestCommit(repository, commits).getOrElse(throw new Exception("Could not find the latest commit between (is empty or cannot compare?): " + commits + " in " + repository.dir.getAbsolutePath + " for " + id + " and constraints: "+ constraints)))
       }
 
       //populate allVariants:

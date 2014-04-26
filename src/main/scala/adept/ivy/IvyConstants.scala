@@ -1,14 +1,15 @@
 package adept.ivy
 import org.apache.ivy.util.Message
+import adept.ext.ConfigurationHelpers
 
 object IvyConstants {
   val IvyNameAttribute = "ivy-name"
   val IvyOrgAttribute = "ivy-organisation"
 
-  val ConfigurationHashAttribute = "ivy-configuration-hash"
-  val ConfigurationAttribute = "ivy-configuration"
-  val ArtifactConfAttribute = "configurations"
-  val IdConfig = "config"
+  val ConfigurationHashAttribute = ConfigurationHelpers.ConfigurationHashAttribute
+  val ConfigurationAttribute = ConfigurationHelpers.ConfigurationAttribute
+  val ArtifactConfAttribute = ConfigurationHelpers.ArtifactConfAttribute
+  val IdConfig = ConfigurationHelpers.IdConfig
 
   lazy val errorIvyLogger = new AdeptIvyMessageLogger(Message.MSG_ERR)
   lazy val warnIvyLogger = new AdeptIvyMessageLogger(Message.MSG_WARN)

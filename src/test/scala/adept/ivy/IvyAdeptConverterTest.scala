@@ -82,7 +82,7 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
   }
 
   val transitive = true
-  val changing = true
+  val changing = false
   val force = true
 
   def getAkka205TestIvyModule = {
@@ -198,7 +198,7 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
         case (conf, versionInfo) =>
           conf -> {
             val (errors, results) = VersionRank.createResolutionResults(tmpDir, versionInfo)
-            errors should have size(0)
+            errors should have size (0)
             results
           }
       }
@@ -277,6 +277,7 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
       repository = RepositoryName("com.typesafe.akka"),
       artifacts = Set.empty, localFiles = Map.empty,
       versionInfo = Set.empty, extendsIds = Set.empty,
+      allConfigIds = Set.empty,
       excludeRules = Map.empty))
 
     val requirements = IvyRequirements.convertIvyAsRequirements(ivyModule, currentFakeIvyResults)
@@ -326,6 +327,7 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
         repository = RepositoryName(org),
         artifacts = Set.empty, localFiles = Map.empty,
         versionInfo = Set.empty, extendsIds = Set.empty,
+        allConfigIds = Set.empty,
         excludeRules = Map.empty),
       IvyImportResult(
         variant = (Variant(
@@ -340,6 +342,7 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
         repository = RepositoryName(org),
         artifacts = Set.empty, localFiles = Map.empty,
         versionInfo = Set.empty, extendsIds = Set(baseId, withConfiguration(baseId, "runtime"), withConfiguration(baseId, "master")),
+        allConfigIds = Set.empty,
         excludeRules = Map.empty),
       IvyImportResult(
         variant = (Variant(
@@ -354,6 +357,7 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
         repository = RepositoryName(org),
         artifacts = Set.empty, localFiles = Map.empty,
         versionInfo = compileVersionInfo, extendsIds = Set(baseId),
+        allConfigIds = Set.empty,
         excludeRules = Map.empty),
       IvyImportResult(
         variant = (Variant(
@@ -368,6 +372,7 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
         repository = RepositoryName(org),
         artifacts = Set.empty, localFiles = Map.empty,
         versionInfo = Set.empty, extendsIds = Set(baseId, withConfiguration(baseId, "compile")),
+        allConfigIds = Set.empty,
         excludeRules = Map.empty),
       IvyImportResult(
         variant = (Variant(
@@ -382,6 +387,7 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
         repository = RepositoryName(org),
         artifacts = Set.empty, localFiles = Map.empty,
         versionInfo = Set.empty, extendsIds = Set(baseId, withConfiguration(baseId, "runtime")),
+        allConfigIds = Set.empty,
         excludeRules = Map.empty),
       IvyImportResult(
         variant = (Variant(
@@ -396,6 +402,7 @@ class IvyAdeptConverterTest extends FunSuite with Matchers {
         repository = RepositoryName(org),
         artifacts = Set.empty, localFiles = Map.empty,
         versionInfo = Set.empty, extendsIds = Set(baseId),
+        allConfigIds = Set.empty,
         excludeRules = Map.empty))
   }
 
