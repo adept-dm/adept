@@ -37,6 +37,7 @@ import adept.repository.Repository
 import adept.repository.models.VariantHash
 import adept.repository.GitHelpers
 import java.io.FileInputStream
+import adept.artifact.ArtifactDownloadException
 
 case class Lockfile(requirements: Seq[LockfileRequirement], artifacts: Seq[LockfileArtifact]) {
 
@@ -168,8 +169,12 @@ object Lockfile extends Logging {
       result.onComplete {
         case Success((artifact, _)) =>
           if (downloadProgress) progress.update(artifact.size.toInt / 1024) //<- watch out for the toInt here! we are logging this though
+        case Failure(artifactDownloadException: ArtifactDownloadException) =>
+          val causeString = if (artifactDownloadException.exception.getCause == null) "" else " "+artifactDownloadException.exception.getCause+"."
+          logger.error("Failed to get artifact from: " + artifactDownloadException.artifact.locations.mkString(",") + "." + causeString )
         case Failure(exception) =>
-          logger.error("Failed to get (" + exception.getCause + ") artifacts: " + lockfile.artifacts.map(_.filename).mkString(","))
+          val causeString = if (exception.getMessage == null) "" else " "+exception.getCause+"."
+          logger.error("Failed to get one or more artifact(s) from lockfile. Artifacts: " + lockfile.artifacts.map(_.filename).mkString(",") + "." + causeString)
       }
       result.map{ case (a, tmpFile) =>
         a -> ArtifactCache.cache(baseDir, tmpFile, artifact.hash, artifact.filename.getOrElse(artifact.hash.value))

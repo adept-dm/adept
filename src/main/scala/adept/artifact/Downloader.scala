@@ -7,22 +7,47 @@ import java.net.URL
 import java.nio.channels.Channels
 import java.io.FileOutputStream
 import adept.artifact.models._
+import java.io.IOException
+import adept.logging.Logging
 
-class Downloader(tmpDir: File) {
-  def download(artifact: Artifact)(implicit executionCtxt: ExecutionContext) = future {
+case class ArtifactDownloadException(artifact: Artifact, exception: Exception) extends Exception
+
+class Downloader(tmpDir: File) extends Logging {
+  val userAgent = "AdeptDownloader/1.0-ALPHA"
+  val defaultMaxRetries = 5
+  
+  def download(artifact: Artifact, maxRetries: Int = defaultMaxRetries)(implicit executionCtxt: ExecutionContext) = future {
     blocking {
       if (artifact.locations.size != 1) throw new Exception("Locations different from 1 is not currently implemented and we got: " + artifact) //TODO: implement!
       val url = new URL(artifact.locations.head)
-      val conn = url.openConnection()
-      
-      //TODO: this is not right, but some parts of maven repo actually requires another user-agent so I picked this random one... I should chose a new one
-      conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 5.1) AppleWebKit/535.11 (KHTML, like Gecko) Chrome/17.0.963.56 Safari/535.11")
+      var result: Option[(Artifact, File)] = None
+      var retries = 0
+      while (!result.isDefined) {
+        try {
+          val tmpFile = File.createTempFile("adept-", "-file", tmpDir)
 
-      val rbc = Channels.newChannel(conn.getInputStream)
-      val tmpFile = File.createTempFile("adept-", "-file", tmpDir)
-      val fos = new FileOutputStream(tmpFile)
-      fos.getChannel().transferFrom(rbc, 0, Long.MaxValue)
-      artifact -> tmpFile
+          if (retries > 0) logger.debug("Retrying....")
+
+          val conn = url.openConnection()
+          conn.setRequestProperty("User-Agent", userAgent)
+          val rbc = Channels.newChannel(conn.getInputStream)
+          val fos = new FileOutputStream(tmpFile)
+          fos.getChannel().transferFrom(rbc, 0, Long.MaxValue)
+
+          result = Some(artifact -> tmpFile)
+        } catch {
+          case ioException: IOException =>
+            logger.debug("Got exception: "  + ioException.getMessage() + " cause: " + ioException.getCause())
+            retries = retries + 1
+            val last = System.currentTimeMillis()
+            logger.debug("Sleeping before retrying...")
+            Thread.sleep(500)
+            if (retries > maxRetries) throw ArtifactDownloadException(artifact, ioException)
+        }
+      }
+      result.getOrElse {
+        throw new ArtifactDownloadException(artifact, new Exception("Could not download for an unknown reason: " + artifact))
+      }
     }
   }
 
