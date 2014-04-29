@@ -5,7 +5,7 @@ import org.scalatest.Matchers
 import java.io.File
 import adept.progress.ProgressMonitor
 import adept.logging.TextLogger
-import adept.progress.TextMonitor
+import adept.progress.TextProgressMonitor
 
 class LockfileTest extends FunSuite with Matchers {
   test("basic lock file CRUD") {
@@ -13,7 +13,7 @@ class LockfileTest extends FunSuite with Matchers {
     val baseDir = new File("deleteme")
     import scala.reflect.io.Directory
     val timeoutSeconds = 5000
-    Lockfile.read(file).download(baseDir, timeoutSeconds, java.util.concurrent.TimeUnit.SECONDS, 5, new TextLogger(TextLogger.INFO), new TextMonitor)
+    Lockfile.read(file).download(baseDir, timeoutSeconds, java.util.concurrent.TimeUnit.SECONDS, 5, new TextLogger(TextLogger.INFO), new TextProgressMonitor)
     //(new Directory(baseDir)).delete()
   }
 }
