@@ -12,6 +12,17 @@ val scalatestDep = "org.scalatest" %% "scalatest" % "2.0" % "test"
 
 incOptions := incOptions.value.withNameHashing(true)
 
+lazy val adeptLockfile = project.in(file("adept-lockfile")).settings(
+  name := "adept-lockfile",
+  autoScalaLibrary in Test := false,
+  crossPaths in Test := false,
+  libraryDependencies ++= Seq(
+    "net.minidev" % "json-smart" % "1.2",
+    scalatestDep
+  )
+)
+
+
 lazy val adeptCore = project.in(file("adept-core")).settings(
   name := "adept-core",
   //jgit
@@ -25,16 +36,4 @@ lazy val adeptCore = project.in(file("adept-core")).settings(
     "javax.transaction" % "jta" % "1.1", //needed by ehcache
     "com.typesafe.play" %% "play-json" % "2.2.1",
     scalatestDep)
-)
-
-lazy val adeptLockfile = project.in(file("adept-lockfile")).settings(
-  name := "adept-lockfile",
-  autoScalaLibrary in Test := false,
-  crossPaths in Test := false,
-  libraryDependencies ++= Seq(
-    "net.minidev" % "json-smart" % "1.2",
-    scalatestDep
-  )
-)
-
-
+).dependsOn(adeptLockfile)

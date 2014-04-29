@@ -3,6 +3,7 @@ package adept.lockfile;
 import java.util.Set;
 
 import adept.artifact.models.Artifact;
+import adept.artifact.models.ArtifactAttribute;
 import adept.artifact.models.ArtifactHash;
 import adept.artifact.models.ArtifactLocation;
 

@@ -1,7 +1,5 @@
 package adept.resolution.models
 
-import adept.artifact.models.ArtifactRef
-
 /**
  * A variant is the "atom" of Adept, in the sense that it
  * is not the smallest unit, but sort of...

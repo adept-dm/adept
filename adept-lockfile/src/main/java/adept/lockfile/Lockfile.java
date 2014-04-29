@@ -17,6 +17,7 @@ import adept.artifact.AdeptCacheException;
 import adept.artifact.ArtifactCache;
 import adept.artifact.ArtifactDownloadResult;
 import adept.artifact.ArtifactDownloader;
+import adept.artifact.models.ArtifactAttribute;
 import adept.artifact.models.ArtifactHash;
 import adept.artifact.models.ArtifactLocation;
 import adept.logging.JavaLogger;

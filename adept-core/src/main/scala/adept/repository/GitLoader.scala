@@ -5,7 +5,7 @@ import adept.repository.models._
 import adept.repository.metadata.VariantMetadata
 import java.io.File
 import net.sf.ehcache.CacheManager
-import adept.utils.Hasher
+import adept.hash.Hasher
 import net.sf.ehcache.Ehcache
 import org.eclipse.jgit.lib.ProgressMonitor
 import adept.repository.metadata.ResolutionResultsMetadata

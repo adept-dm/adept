@@ -8,7 +8,7 @@ import adept.resolution.models.Id
 import adept.repository.Repository
 import adept.repository.GitRepository
 import java.io.File
-import adept.utils.Hasher
+import adept.hash.Hasher
 
 case class RankingMetadata(variants: Seq[VariantHash]) { //Evaluate whether is safe enough to use iterators as a perf improvement
   def toRanking(id: Id, rankId: RankId): Ranking = {

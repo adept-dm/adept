@@ -14,7 +14,7 @@ import org.eclipse.jgit.lib.ProgressMonitor
 import org.eclipse.jgit.lib.NullProgressMonitor
 import java.io.FilenameFilter
 import adept.logging.Logging
-import adept.utils.Hasher
+import adept.hash.Hasher
 import org.eclipse.jgit.revwalk.RevCommit
 import org.eclipse.jgit.revwalk.filter.RevFilter
 import org.eclipse.jgit.lib.ConfigConstants

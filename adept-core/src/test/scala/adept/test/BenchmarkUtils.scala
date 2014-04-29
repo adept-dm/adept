@@ -1,10 +1,8 @@
 package adept.test
 
 import adept.resolution.models.Requirement
-import org.apache.ivy.core.module.descriptor.ModuleDescriptor
 import adept.repository.models.ResolutionResult
-import adept.utils.Hasher
-import adept.ivy.IvyImportResult
+import adept.hash.Hasher
 import adept.resolution.resolver.models.ResolveResult
 import adept.resolution.models.Variant
 import adept.repository.VariantsLoader
@@ -29,15 +27,6 @@ object BenchmarkUtils {
   val Verified = BenchmarkName("Verified")
 
   import scala.language.implicitConversions //it is OK we are in test configuration only
-
-  //TODO: move all Ivy things including this one to some other project?
-  implicit def convertIvyModule(ivyModule: ModuleDescriptor): BenchmarkId = {
-    BenchmarkId(ivyModule.toString)
-  }
-
-  implicit def convertIvyModule(results: Set[IvyImportResult]): BenchmarkId = {
-    BenchmarkId(results.toString)
-  }
 
   implicit def convertRequirements(requirements: Set[Requirement]): BenchmarkId = {
     BenchmarkId(requirements.toString)

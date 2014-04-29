@@ -1,4 +1,8 @@
-package adept.artifact.models
+package adept.resolution.models
+
+import adept.artifact.models._
+import collection.JavaConverters._
+import adept.utils.OrderingHelpers
 
 /**
  * An `ArtifactRef` is a reference (looks up using the `hash`) to an `Artifact`
@@ -8,18 +12,30 @@ package adept.artifact.models
 case class ArtifactRef(hash: ArtifactHash, attributes: Set[ArtifactAttribute], filename: Option[String]) {
   def attribute(name: String) = {
     val values = attributes.collect {
-      case artifact if artifact.name == name => artifact.values
+      case artifact if artifact.name == name => artifact.values.asScala
     }.flatten
-    ArtifactAttribute(name, values)
+    new ArtifactAttribute(name, values.asJava)
   }
 
   override def toString = {
-    hash + (if (filename.isDefined) ":" + filename.get else "") + "; " + attributes.map(a => a.name + "=" + a.values.mkString("(", ",", ")")).mkString("[", ",", "]")
+    hash + (if (filename.isDefined) ":" + filename.get else "") + "; " + attributes.map(a => a.name + "=" + a.values.asScala.mkString("(", ",", ")")).mkString("[", ",", "]")
   }
 }
 
 object ArtifactRef {
-  implicit val ordering: Ordering[ArtifactRef] = new Ordering[ArtifactRef] {
+  implicit val orderingArtifactAttribute: Ordering[ArtifactAttribute] = new Ordering[ArtifactAttribute] {
+    def compare(x: ArtifactAttribute, y: ArtifactAttribute): Int = {
+      if (x.name < y.name)
+        -1
+      else if (x.name > y.name)
+        1
+      else {
+        assert(x.name == y.name)
+        OrderingHelpers.stringSetCompare(Set() ++ x.values.asScala, Set() ++ y.values.asScala)
+      }
+    }
+  }
+  implicit val orderingArtifactRef: Ordering[ArtifactRef] = new Ordering[ArtifactRef] {
     def compare(x: ArtifactRef, y: ArtifactRef): Int = {
       if (x.hash.value < y.hash.value)
         -1
@@ -30,7 +46,7 @@ object ArtifactRef {
         if (x.attributes.size == y.attributes.size) {
           val res = x.attributes.toSeq.sorted.zip(y.attributes.toSeq.sorted).foldLeft(0) {
             case (res, (a, b)) =>
-              if (res == 0) ArtifactAttribute.ordering.compare(a, b)
+              if (res == 0) orderingArtifactAttribute.compare(a, b)
               else res
           }
           if (res == 0) {

@@ -7,10 +7,12 @@ import play.api.libs.functional.syntax._
 import adept.repository.models.Commit
 import adept.repository.GitRepository
 import java.io.File
+import collection.JavaConverters._
+import adept.resolution.models.ArtifactRef
 
-case class ArtifactMetadata(size: Long, locations: Set[String]) {
+case class ArtifactMetadata(size: Long, locations: Set[ArtifactLocation]) {
   def toArtifact(hash: ArtifactHash): Artifact = {
-    Artifact(hash, size, locations)
+    new Artifact(hash, size, locations.asJava)
   }
 
   lazy val jsonString = Json.prettyPrint(Json.toJson(this))
@@ -24,7 +26,7 @@ case class ArtifactMetadata(size: Long, locations: Set[String]) {
 object ArtifactMetadata {
 
   def fromArtifact(artifact: Artifact): ArtifactMetadata = {
-    ArtifactMetadata(artifact.size, artifact.locations)
+    ArtifactMetadata(artifact.size, Set() ++ artifact.locations.asScala)
   }
 
   private[adept] implicit val formatArtifactRef: Format[ArtifactRef] = {
@@ -33,13 +35,14 @@ object ArtifactMetadata {
       (__ \ "attributes").format[Map[String, Set[String]]] and
       (__ \ "filename").format[Option[String]])({
         case (hashString, attributes, filename) =>
-          ArtifactRef(ArtifactHash(hashString),
-            attributes.map { case (name, values) => ArtifactAttribute(name, values) }.toSet,
+          ArtifactRef(new ArtifactHash(hashString),
+            attributes.map { case (name, values) => new ArtifactAttribute(name, values.asJava) }.toSet,
             filename)
       }, unlift({ a: ArtifactRef =>
+        import ArtifactRef.orderingArtifactAttribute
         val ArtifactRef(hash, attributes, filename) = a
         Some((hash.value,
-          attributes.toSeq.sorted.map(o => o.name -> o.values).toMap,
+          attributes.toSeq.sorted.map(o => o.name -> (Set() ++ o.values.asScala)).toMap,
           filename))
       }))
   }
@@ -49,10 +52,10 @@ object ArtifactMetadata {
       (__ \ "size").format[Long] and
       (__ \ "locations").format[Set[String]])({
         case (size, locations) =>
-          ArtifactMetadata(size, locations)
+          ArtifactMetadata(size, locations.map(new ArtifactLocation(_)))
       }, unlift({ a: ArtifactMetadata =>
         val ArtifactMetadata(size, locations) = a
-        Some((size, locations))
+        Some((size, locations.map(_.value)))
       }))
   }
 

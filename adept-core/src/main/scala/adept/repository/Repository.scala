@@ -7,9 +7,9 @@ import adept.resolution.models._
 import adept.repository.metadata.VariantMetadata
 import adept.artifact.models.ArtifactHash
 import java.io.InputStream
-import org.apache.ivy.plugins.repository.file.FileRepository
 import java.io.FileReader
 import java.io.FilenameFilter
+import java.io.IOException
 
 case class InitException(reason: String) extends Exception("Could not initialize: " + reason)
 case class MalformedVariantHashException(repo: Repository, hash: VariantHash) extends Exception("Variant hash: '" + hash.value + "' (size: " + hash.value.length + ") was not well-formed in repository: " + repo.dir.getAbsolutePath)
@@ -45,7 +45,13 @@ object Repository {
   def getRepositoryLocationsMetadataDir(baseDir: File, name: RepositoryName) = new File(getLocationsDir(baseDir, name), RepositoryLocationsMetadataDirName)
   def getVariantsMetadataDir(baseDir: File, name: RepositoryName) = new File(getRepoDir(baseDir, name), VariantsMetadataDirName)
 
-  private[adept] def ensureParentDirs(file: File) = adept.utils.FileUtils.ensureParentDirs(file)
+  private[adept] def ensureParentDirs(file: File): File = { //merge with code in ArtifactCache (createParentDir)
+    val dir = file.getParentFile()
+    if (!(dir.isDirectory() || dir.mkdirs()))
+      throw new IOException("Could not create dir: " + dir.getAbsolutePath())
+    else
+      file;
+  }
 }
 
 /**

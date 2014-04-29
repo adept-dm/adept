@@ -4,14 +4,13 @@ import adept.repository.models._
 import adept.resolution.models._
 import adept.repository.Repository
 import play.api.libs.json.Format
-import adept.artifact.models.ArtifactRef
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import play.api.libs.json._
 import play.api.libs.functional.syntax._
 import java.io.BufferedWriter
 import java.io.FileWriter
-import adept.utils.Hasher
+import adept.hash.Hasher
 import adept.repository.GitRepository
 import java.io.File
 

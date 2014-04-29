@@ -14,6 +14,6 @@ class LockfileTest extends FunSuite with Matchers {
     import scala.reflect.io.Directory
     val timeoutSeconds = 5000
     Lockfile.read(file).download(baseDir, timeoutSeconds, java.util.concurrent.TimeUnit.SECONDS, 5, new TextLogger(TextLogger.INFO), new TextProgressMonitor)
-    //(new Directory(baseDir)).delete()
+    (new Directory(baseDir)).delete()
   }
 }

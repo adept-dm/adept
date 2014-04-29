@@ -3,7 +3,7 @@ package adept.repository.metadata
 import org.scalatest.FunSuite
 import org.scalatest.Matchers
 import adept.resolution.models.Id
-import adept.utils.Hasher
+import adept.hash.Hasher
 import adept.repository.GitRepository
 import adept.repository.models._
 import adept.resolution.models._
@@ -18,9 +18,9 @@ class ArtifactMetadataTest extends FunSuite with Matchers {
       repository.init()
       val id = Id("test/foo")
 
-      val artifactMetadata = ArtifactMetadata(1234L, Set("funfun"))
+      val artifactMetadata = ArtifactMetadata(1234L, Set(new ArtifactLocation("funfun")))
       
-      val hash = ArtifactHash(Hasher.hash("blah".getBytes))
+      val hash = new ArtifactHash(Hasher.hash("blah".getBytes))
       repository.add(artifactMetadata.write(hash, repository))
       repository.commit("Added repository")
       import org.scalatest.OptionValues._

@@ -30,7 +30,7 @@ object ArtifactUtils extends Matchers {
       ArtifactMetadata.read(hash, repository, commit) match {
         case Some(a @ ArtifactMetadata(_, locations)) =>
           locations.foreach { location =>
-            assert(location.endsWith(ending), "Found " + a + " for " + hash + " in repo: " + repository.dir.getAbsolutePath + " for commit: " + commit + " but it does not end with: " + ending)
+            assert(location.value.endsWith(ending), "Found " + a + " for " + hash + " in repo: " + repository.dir.getAbsolutePath + " for commit: " + commit + " but it does not end with: " + ending)
           }
         case None =>
           assert(false, "Could not find an artifact for " + hash + " in repo: " + repository.dir.getAbsolutePath + " for commit: " + commit)

@@ -3,7 +3,7 @@ package adept.repository.metadata
 import org.scalatest.FunSuite
 import org.scalatest.Matchers
 import adept.resolution.models.Id
-import adept.utils.Hasher
+import adept.hash.Hasher
 import adept.repository.GitRepository
 import adept.repository.models._
 import adept.resolution.models._

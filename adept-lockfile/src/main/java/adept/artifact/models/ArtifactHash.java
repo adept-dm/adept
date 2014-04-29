@@ -5,4 +5,21 @@ public class ArtifactHash {
     this.value = value;
   }
   final public String value;
+  
+  @Override
+  public boolean equals(Object other) {
+    if (other instanceof ArtifactHash && other != null) {
+      return this.value.equals(((ArtifactHash) other).value);
+    } else return false;
+  }
+  
+  @Override
+  public int hashCode() {
+    return this.getClass().getName().hashCode() + value.hashCode();
+  }
+
+  @Override
+  public String toString() {
+    return value;
+  }
 }

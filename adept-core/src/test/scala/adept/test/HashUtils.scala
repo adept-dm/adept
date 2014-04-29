@@ -1,7 +1,7 @@
 package adept.test
 
 import adept.repository.models.VariantHash
-import adept.utils.Hasher
+import adept.hash.Hasher
 
 object HashUtils {
   import scala.language.implicitConversions //this is test code

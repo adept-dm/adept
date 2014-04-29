@@ -15,4 +15,6 @@ public class Artifact {
     this.locations = new HashSet<ArtifactLocation>();
     this.locations.addAll(locations); //copying since Java's collections are mutable
   }
+  
+  
 }
