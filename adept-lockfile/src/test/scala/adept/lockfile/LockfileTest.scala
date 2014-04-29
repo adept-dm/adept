@@ -1,0 +1,19 @@
+package adept.lockfile
+
+import org.scalatest.FunSuite
+import org.scalatest.Matchers
+import java.io.File
+import adept.progress.ProgressMonitor
+import adept.logging.TextLogger
+import adept.progress.TextMonitor
+
+class LockfileTest extends FunSuite with Matchers {
+  test("basic lock file CRUD") {
+    val file = new File("/Users/freekh/Projects/adepthub-sbt-plugin-sample-play/project/plugins.adept")
+    val baseDir = new File("deleteme")
+    import scala.reflect.io.Directory
+    val timeoutSeconds = 5000
+    Lockfile.read(file).download(baseDir, timeoutSeconds, java.util.concurrent.TimeUnit.SECONDS, 5, new TextLogger(TextLogger.INFO), new TextMonitor)
+    //(new Directory(baseDir)).delete()
+  }
+}
