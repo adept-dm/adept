@@ -16,5 +16,8 @@ public class Artifact {
     this.locations.addAll(locations); //copying since Java's collections are mutable
   }
   
-  
+//  @Override
+//  public boolean equals(Object other) {
+//    if (other instanceof Artifact)
+//  }
 }
