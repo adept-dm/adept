@@ -1,6 +1,11 @@
 # Adept #
 _- the predictable dependency management system where faith is not required_
 
+
+## Adept is under development
+Adept is still under development so unless you are willing to get stranded with no support, wait till the 20th May for the alpha release.
+
+## Overview
 <img src="https://raw.github.com/wiki/adept-dm/adept/images/adept_logo.png"
  alt="Adept logo" title="Adept" width="205px" height="194px" align="right" />
 
