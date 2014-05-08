@@ -53,7 +53,7 @@ object GitLoader extends Logging {
           val repository = new GitRepository(baseDir, name)
           val commits = values.map { case (_, _, commit: Commit) => commit }
           val constraints = values.flatMap { case (_, requirement: Requirement, _) => requirement.constraints }
-          (id, constraints, repository, GitHelpers.lastestCommit(repository, commits).getOrElse(throw new Exception("Could not find the latest commit between (is empty or cannot compare?): " + commits + " in " + repository.dir.getAbsolutePath + " for " + id + " and constraints: "+ constraints)))
+          (id, constraints, repository, GitHelpers.lastestCommit(repository, commits).getOrElse(throw new Exception("Could not find the latest commit between (is empty or cannot compare?): " + commits + " in " + repository.dir.getAbsolutePath + " for " + id + " and constraints: " + constraints)))
       }
 
       //populate allVariants:
@@ -146,6 +146,7 @@ class GitLoader(baseDir: File, private[adept] val results: Set[ResolutionResult]
             //use only latest commit:
             val maybeLatestCommit = GitHelpers.lastestCommit(repository, results.map(_.commit))
 
+            if (maybeLatestCommit.isEmpty) throw new Exception("Could not find a latest commit for: " + results.map(_.commit)) //TODO: we want this to be more flexible
             maybeLatestCommit.toSet.flatMap { commit: Commit =>
               val variants = results.map(_.variant)
               //use only the very best variants for any given commit:
@@ -154,8 +155,10 @@ class GitLoader(baseDir: File, private[adept] val results: Set[ResolutionResult]
                 val rankings = rankIds.flatMap { rankId =>
                   RankingMetadata.read(id, rankId, repository, commit).map(_.toRanking(id, rankId))
                 }
+                if (variants.nonEmpty && rankings.isEmpty) throw new Exception("Could not find any ranking files for: " + id + " when comparing: " + results)
                 RankLogic.chosenVariants(variants, rankings)
               }
+              if (variants.nonEmpty && chosenVariants.isEmpty) throw new Exception("Could not chose variants for: " + id)
               chosenVariants.map { variant => (variant, repositoryName, commit) }
             }
         }.toSet

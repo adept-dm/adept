@@ -26,7 +26,7 @@ case class RepositoryLocationsMetadata(uris: Seq[String]) {
 
 object RepositoryLocationsMetadata {
   
-  private[adept] def read(name: RepositoryName, repository: GitRepository, commit: Commit): Option[RepositoryLocationsMetadata] = {
+  def read(name: RepositoryName, repository: GitRepository, commit: Commit): Option[RepositoryLocationsMetadata] = {
     repository.usingRepositoryLocationsStream(name, commit) {
       case Right(Some(is)) =>
         val json = Json.parse(io.Source.fromInputStream(is).getLines.mkString("\n"))

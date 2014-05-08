@@ -1,15 +1,13 @@
 <ehcache xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../config/ehcache.xsd" updateCheck="false">
 
     <defaultCache
-            maxElementsInMemory="8000000"
-            eternal="false"
-            timeToIdleSeconds="120"
-            timeToLiveSeconds="120"
-            overflowToDisk="false"
-            maxElementsOnDisk="100000000"
-            diskPersistent="false"
+            maxElementsInMemory="10000"
+            eternal="true"
+            overflowToDisk="true"
+            maxElementsOnDisk="1000000"
+            diskPersistent="true"
             diskExpiryThreadIntervalSeconds="120"
-            memoryStoreEvictionPolicy="LRU"
+            memoryStoreEvictionPolicy="LFU"
     /> 
     
 </ehcache>

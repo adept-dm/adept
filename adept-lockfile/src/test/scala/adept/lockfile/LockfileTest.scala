@@ -3,9 +3,6 @@ package adept.lockfile
 import org.scalatest.FunSuite
 import org.scalatest.Matchers
 import java.io.File
-import adept.progress.ProgressMonitor
-import adept.logging.TextLogger
-import adept.progress.TextProgressMonitor
 
 class LockfileTest extends FunSuite with Matchers {
   test("basic lock file CRUD") {

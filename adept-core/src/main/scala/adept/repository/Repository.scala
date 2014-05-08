@@ -65,13 +65,13 @@ object Repository {
  *   - <repository name>: The actual repository starts here (this is the repository name)
  *     - "variants"
  *       - <id>: is the id and might be more than one sub-directory (foo/bar/zoo has 3 directory levels)
- *         - "info.json" (OPTIONAL): extra information (home page, description, ...) not used for resolution
+ *         TODO: - "info.json" (OPTIONAL): extra information (home page, description, ...) not used for resolution
  *         - "ranking-<rank id>": contains the rank of variants (i.e defines what is the 'best' variant). Typically there is one rank file per list of _compatible_ variants
  *         - <hash>: is the variant hash of the item (SHA-256 of the contents of variant.json) and is split into 2 sub directories (first 4 chars (level 1), next 4 chars (level 2), then the rest (level 3))
  *           - "variant.json": the variant metadata: attributes, requirements and artifacts references
  *           - "resolution-results.json": the exact repository information this variant requires to resolve (commit, name, variant, ..)
  *     - "locations"
- *       - "hosts.properties" (OPTIONAL): hosts that are used and can be overridden in locations and uris TODO: this has not been implemented yet
+ *       TODO: - "hosts.properties" (OPTIONAL): hosts that are used and can be overridden in locations and uris TODO: this has not been implemented yet
  *       - repositories
  *         - <repository name>: the repository name of a repository this one requires
  *           - "repository.json": contains repository locations (e.g. git uris)

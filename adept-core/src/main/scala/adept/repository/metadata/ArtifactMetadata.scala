@@ -59,7 +59,7 @@ object ArtifactMetadata {
       }))
   }
 
-  private[adept] def read(hash: ArtifactHash, repository: GitRepository, commit: Commit): Option[ArtifactMetadata] = {
+  def read(hash: ArtifactHash, repository: GitRepository, commit: Commit): Option[ArtifactMetadata] = {
     repository.usingArtifactInputStream(hash, commit) {
       case Right(Some(is)) =>
         val json = Json.parse(io.Source.fromInputStream(is).getLines.mkString("\n"))

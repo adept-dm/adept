@@ -94,6 +94,7 @@ class Resolver(loader: VariantsLoader, skipImplicitResolve: Boolean = false) {
 
   private[adept] def resolveNodes(requirements: Set[Requirement], state: State) = requirements.flatMap(requirement => state.nodes.get(requirement.id))
 
+  /** The core of the core of Resolution (or the raisin in the sausage as we say in Norway) */
   private[adept] def resolveRequirements(requirements: Set[Requirement], visited: Set[Requirement], exclusions: Set[Id], lastState: State): State = {
     val newRequirements = requirements.filter { requirement =>
       !visited(requirement) //remove requirements we have already visited
@@ -139,7 +140,6 @@ class Resolver(loader: VariantsLoader, skipImplicitResolve: Boolean = false) {
       nodes = Map.empty)
 
     val optimalUnderconstrainedStates = { //TODO: it would be better if we could find an _elegant_ to do this without mutating
-      import adept.resolution.UnexpectedResolutionStateException;
       import collection.JavaConverters._
       java.util.Collections.newSetFromMap(
         new java.util.concurrent.ConcurrentHashMap[State, java.lang.Boolean]()).asScala
@@ -172,7 +172,7 @@ class Resolver(loader: VariantsLoader, skipImplicitResolve: Boolean = false) {
       val ignoredIds = (state.implicitVariants.values.map { variant => //ignore id of implicit variants
         variant.id
       } ++ previouslyUnderconstrained).toSet //ignore ids which are under-constrained already
-      
+
       //try out the different combinations till we find a unique combination that resolves
       val testedStatesCombinations = combinations(state.underconstrained, ignoredIds, state.constraints).map { combinations =>
         //TODO: .par to improve speed? Risk to have threading issues because of optimalUnderconstrainedStates which is mutable.
@@ -213,6 +213,5 @@ class Resolver(loader: VariantsLoader, skipImplicitResolve: Boolean = false) {
     } else {
       throw new UnexpectedResolutionStateException("State is neither resolved, underconstrained nor overconstrained: " + state)
     }
-
   }
 }

@@ -33,8 +33,10 @@ object ResolverUtils extends Matchers {
 
   def checkResolved(result: ResolveResult, ids: Set[Id]) = {
     val state = result.state
+    val found = (state.resolved ++ state.implicitVariants.keys)
+    if (found != ids)
+      println("Assertion will fail.\nFound diff is: " + found.diff(ids) + "\nExpected diff is: " + ids.diff(found))
     (state.resolved ++ state.implicitVariants.keys) shouldEqual (ids)
-
   }
 
   def checkUnresolved(result: ResolveResult, ids: Set[Id]) = {

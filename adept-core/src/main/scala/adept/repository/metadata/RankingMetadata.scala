@@ -17,6 +17,7 @@ case class RankingMetadata(variants: Seq[VariantHash]) { //Evaluate whether is s
 
   def write(id: Id, rankId: RankId, repository: Repository): File = {
     val file = repository.ensureRankingFile(id, rankId)
+    if (variants.distinct != variants) throw new Exception("Cannot write ranking file because there several similar rankids: " + id + " rank id: " + rankId + " in " + repository.dir.getAbsolutePath())
     MetadataContent.write(variants.map(_.value).mkString("\n"), file)
   }
 }

@@ -5,7 +5,7 @@ import adept.resolution.models._
 /**
  * Utility object to filter attributes matching a given set of constraints and id
  */
-private[adept] object AttributeConstraintFilter {
+object AttributeConstraintFilter {
 
   /** Returns true if there is there is a constraint that matches the attributes */
   def matches(attributes: Set[Attribute], constraints: Set[Constraint]): Boolean = {
