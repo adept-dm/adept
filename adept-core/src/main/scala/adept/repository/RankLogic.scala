@@ -9,10 +9,11 @@ import adept.repository.models.RankId
 
 object RankLogic {
 
-  /** Defines rank logic:
+  /**
+   * Defines rank logic:
    *  - if the list of input variants contains 2 or more that is in the same ranking file, select the first one
    *  - if there is no variant hashes found for the input variants in the rankings, select the last one in the ranking file
-   *  
+   *
    *  Also checks that 2 rankings does NOT contain the same hash
    */
   def chosenVariants(variants: Set[VariantHash], rankings: Set[Ranking]): Set[VariantHash] = {
