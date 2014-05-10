@@ -38,7 +38,7 @@ class GitLoaderTest extends FunSuite with Matchers {
         case (v, r) =>
           val metadata = VariantMetadata.fromVariant(v)
           r.add(metadata.write(v.id, r))
-          val rankId = RankingMetadata.getXRankId(v.id, r, 0, 1).headOption.value
+          val rankId = RankingMetadata.DefaultRankId
           r.add(RankingMetadata(Seq(metadata.hash)).write(v.id, rankId, r))
           val commit = r.commit("Adding: " + v.id)
 

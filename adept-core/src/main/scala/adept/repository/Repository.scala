@@ -26,7 +26,7 @@ object Repository {
   val ResolutionResultsFileName = "resolution-results." + JsonFileEnding
   val InfoMetadataFileName = "info." + JsonFileEnding
   val VariantMetadataFileName = "variant." + JsonFileEnding
-  val RankingFileNamePrefix = "ranking-"
+  val RankingFileEnding = "ranking"
   val RepositoryLocationsFileName = "repository." + JsonFileEnding
 
   val IdDirSep = "/" //the character in an ID that indicates a different directory
@@ -66,7 +66,7 @@ object Repository {
  *     - "variants"
  *       - <id>: is the id and might be more than one sub-directory (foo/bar/zoo has 3 directory levels)
  *         TODO: - "info.json" (OPTIONAL): extra information (home page, description, ...) not used for resolution
- *         - "ranking-<rank id>": contains the rank of variants (i.e defines what is the 'best' variant). Typically there is one rank file per list of _compatible_ variants
+ *         - "<rank id>.ranking": contains the rank of variants (i.e defines what is the 'best' variant). Typically there is one rank file per list of _compatible_ variants
  *         - <hash>: is the variant hash of the item (SHA-256 of the contents of variant.json) and is split into 2 sub directories (first 4 chars (level 1), next 4 chars (level 2), then the rest (level 3))
  *           - "variant.json": the variant metadata: attributes, requirements and artifacts references
  *           - "resolution-results.json": the exact repository information this variant requires to resolve (commit, name, variant, ..)
@@ -138,7 +138,7 @@ private[adept] class Repository(val baseDir: File, val name: RepositoryName) {
 
   def getRankingFile(id: Id, rankId: RankId): File = {
     val orderDir = getIdFile(variantsMetadataDir, id)
-    new File(orderDir, RankingFileNamePrefix + rankId.value)
+    new File(orderDir, rankId.value + "." + RankingFileEnding)
   }
 
   def ensureRankingFile(id: Id, rankId: RankId): File = {

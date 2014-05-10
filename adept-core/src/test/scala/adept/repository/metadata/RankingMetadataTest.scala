@@ -22,28 +22,10 @@ class RankingMetadataTest extends FunSuite with Matchers {
       val rankingMetadata = RankingMetadata(
         variants = Seq(VariantHash(Hasher.hash("test1".getBytes)), VariantHash(Hasher.hash("test2".getBytes)), VariantHash(Hasher.hash("test3".getBytes)), VariantHash(Hasher.hash("test4".getBytes))))
 
-      val rankId = RankingMetadata.getXRankId(id, repository, 0, 1).headOption.value
+      val rankId = RankId("test")
       repository.add(rankingMetadata.write(id, rankId, repository))
       repository.commit("Added ranking")
       RankingMetadata.read(id, rankId, repository, repository.getHead).value shouldEqual rankingMetadata
-    }
-  }
-
-  test("Getting rankids is stable") {
-    usingTmpDir { tmpDir =>
-      val repository1 = new GitRepository(tmpDir, RepositoryName("test-repo1"))
-      repository1.init()
-      val id = Id("test/foo")
-      val rankIds1 = RankingMetadata.getXRankId(id, repository1, 0, 5)
-      rankIds1 should have size (5)
-      RankingMetadata.getXRankId(id, repository1, 2, 3) should have size (3)
-
-      val repository2 = new GitRepository(tmpDir, RepositoryName("test-repo1"))
-      val rankIds21 = RankingMetadata.getXRankId(id, repository2, 0, 2)
-      val rankIds22 = RankingMetadata.getXRankId(id, repository2, 2, 2)
-      val rankIds23 = RankingMetadata.getXRankId(id, repository2, 4, 1)
-
-      (rankIds21 ++ rankIds22 ++ rankIds23) shouldEqual rankIds1
     }
   }
 
@@ -52,11 +34,11 @@ class RankingMetadataTest extends FunSuite with Matchers {
       val repository = new GitRepository(tmpDir, RepositoryName("test-repo1"))
       repository.init()
       val id = Id("test/foo")
-      val rankIds1 = RankingMetadata.getXRankId(id, repository, 0, 3)
+      val rankIds1 = Set(RankId("2.1"), RankId("2.1 Scala 2.10"), RankId("2.2"))
       RankingMetadata.listRankIds(id, repository, repository.getHead) should have size(0)
       rankIds1.foreach { rankId =>
         repository.add(RankingMetadata(
-          variants = Seq(VariantHash(Hasher.hash("test1".getBytes))))
+          variants = Seq(VariantHash(Hasher.hash(("test1"+rankId.value).getBytes))))
           .write(id, rankId, repository))
         repository.commit("Adding rankings " + rankId)
       }
