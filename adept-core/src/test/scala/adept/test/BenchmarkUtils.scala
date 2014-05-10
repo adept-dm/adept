@@ -59,6 +59,8 @@ object Benchmarkers {
       System.err.println("Completed task: '" + name.value + "' (" + testDetails.id + ") in " + (timeSpentMillis / 1000.0) + "s")
     }
   }
+  
+  //TODO: file benchmarker so we can compare over time
 }
 
 abstract class Benchmarker {
