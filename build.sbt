@@ -37,15 +37,3 @@ lazy val adeptCore = project.in(file("adept-core")).settings(
     "com.typesafe.play" %% "play-json" % "2.2.1",
     scalatestDep)
 ).dependsOn(adeptLockfile)
-
-lazy val adeptUI = project.in(file("adept-ui")).settings(
-  name := "adept-ui",
-  resolvers += "spray repo" at "http://repo.spray.io", //spray
-  resolvers += "Typesafe Repository" at "http://repo.typesafe.com/typesafe/releases/", //akka
-  libraryDependencies ++= Seq(
-    "io.spray" % "spray-can" % "1.3.1",
-    "com.typesafe.akka" %% "akka-actor" % "2.3.0",
-    "com.typesafe.akka" %% "akka-slf4j" % "2.3.0" % "runtime",
-    "ch.qos.logback" % "logback-classic" % "1.1.1"
-  )
-).dependsOn(adeptCore)
