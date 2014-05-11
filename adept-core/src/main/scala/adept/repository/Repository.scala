@@ -39,6 +39,19 @@ object Repository {
   def getReposDir(baseDir: File) = new File(baseDir, ReposDirName)
   def getRepoDir(baseDir: File, name: RepositoryName) = new File(getReposDir(baseDir), name.value)
 
+  def listRepositories(baseDir: File) = {
+    val filesOrDirs = Option(getReposDir(baseDir).listFiles)
+      .toSet[Array[File]]
+      .flatMap(_.toSet[File])
+    filesOrDirs.flatMap { fileOrDir =>
+      if (fileOrDir.isDirectory) {
+        Some(RepositoryName(fileOrDir.getName))
+      } else {
+        None
+      }
+    }
+  }
+
   private def getLocationsDir(baseDir: File, name: RepositoryName) = new File(getRepoDir(baseDir, name), LocationsDirName)
 
   def getArtifactsMetadataDir(baseDir: File, name: RepositoryName) = new File(getLocationsDir(baseDir, name), ArtifactsMetadataDirName)
