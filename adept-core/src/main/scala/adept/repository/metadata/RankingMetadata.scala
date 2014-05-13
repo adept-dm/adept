@@ -47,7 +47,7 @@ object RankingMetadata {
 
   def listRankIds(id: Id, repository: GitRepository, commit: Commit): Set[RankId] = {
     val rankPath = s"""$VariantsMetadataDirName$GitPathSep${id.value}"""
-    val RankIdExtractionRegEx = s"""^$rankPath$GitPathSep(.*?)\\.$RankingFileEnding$$""".r
+    val RankIdExtractionRegEx = s"""^$rankPath$GitPathSep([^/]*?)\\.$RankingFileEnding$$""".r //do not match on /
     val rankIds = repository.usePath[RankId](Some(rankPath), commit) { path =>
       path match {
         case RankIdExtractionRegEx(id) =>
