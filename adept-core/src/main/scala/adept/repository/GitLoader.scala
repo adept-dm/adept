@@ -129,11 +129,13 @@ object GitLoader extends Logging {
   }
 }
 
-class GitLoader(baseDir: File, private[adept] val results: Set[ResolutionResult], progress: ProgressMonitor, cacheManager: CacheManager) extends VariantsLoader {
+class GitLoader(baseDir: File, private[adept] val results: Set[ResolutionResult], progress: ProgressMonitor, cacheManager: CacheManager, val loadedVariants: Set[Variant] = Set.empty) extends VariantsLoader { //TODO: loadedVariants is at the end because it has a default, but I think it looks uglier: would prefer to have it just after resolutionResults?
   import GitLoader._
   import adept.utils.CacheHelpers.usingCache
 
-  private val thisUniqueId = Hasher.hash(results.map { resolution => resolution.id.value + "-" + resolution.repository.value + "-" + resolution.variant.value + "-" + resolution.commit.value }.toSeq.sorted.mkString("#").getBytes)
+  private val thisUniqueId = Hasher.hash((
+    results.map { resolution => resolution.id.value + "-" + resolution.repository.value + "-" + resolution.variant.value + "-" + resolution.commit.value }.toSeq.sorted.mkString("#") ++
+    loadedVariants.map(variant => VariantMetadata.fromVariant(variant).hash.value).toSeq.sorted.mkString("#")).getBytes)
 
   private val cache: Ehcache = getCache(cacheManager)
 
@@ -176,20 +178,25 @@ class GitLoader(baseDir: File, private[adept] val results: Set[ResolutionResult]
     }
   }
 
-  private def locateAllIdentifiers(id: Id): Set[(VariantHash, GitRepository, Commit)] = {
+  private lazy val preloadedById: Map[Id, Set[Variant]] = {
+    loadedVariants.groupBy(_.id)
+  }
+
+  private def locateGitIdentifiers(id: Id): Set[(VariantHash, GitRepository, Commit)] = {
     byId.getOrElse(id, Set.empty)
   }
 
   def loadVariants(id: Id, constraints: Set[Constraint]): Set[Variant] = {
     val cacheKey = "loadVariants" + hash(id, constraints, thisUniqueId)
     usingCache(cacheKey, cache) {
-      val allVariants: Set[Variant] = {
-        locateAllIdentifiers(id).flatMap {
+      val gitVariants: Set[Variant] = {
+        locateGitIdentifiers(id).flatMap {
           case (hash, repository, commit) =>
             VariantMetadata.read(id, hash, repository, commit).map(_.toVariant(id))
         }
       }
-      AttributeConstraintFilter.filter(id, allVariants, constraints)
+      val preloadedVariants: Set[Variant] = preloadedById.getOrElse(id, Set.empty)
+      AttributeConstraintFilter.filter(id, gitVariants ++ preloadedVariants, constraints)
     }
   }
 
