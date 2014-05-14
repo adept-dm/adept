@@ -21,12 +21,12 @@ case class Variant(id: Id, attributes: Set[Attribute] = Set.empty, artifacts: Se
   }
 
   override lazy val toString = {
-    id + " " + attributes.map(a => a.name + "=" + a.values.mkString("(", ",", ")")).mkString("[", ",", "]")
+    id + " " + attributes.toSeq.sorted.map(a => a.name + "=" + a.values.mkString("(", ",", ")")).mkString("[", ",", "]")
   }
 
   lazy val fullString = {
     toString +
-      (if (requirements.nonEmpty) requirements.mkString("{", ",", "}") else "") +
-      (if (artifacts.nonEmpty) artifacts.mkString("|", ",", "|") else "")
+      (if (requirements.nonEmpty) requirements.toSeq.sorted.mkString("{", ",", "}") else "") +
+      (if (artifacts.nonEmpty) artifacts.toSeq.sorted.mkString("|", ",", "|") else "")
   }
 }

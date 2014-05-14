@@ -21,12 +21,12 @@ sealed trait ResolveResult {
   def graphAsString: String = {
     var printedIds = Set.empty[Id]
 
-    def nodesToString(nodes: Set[Node], level: Int): String = {
+    def nodesToString(nodes: Seq[Node], level: Int): String = {
       nodes.foreach(printedIds += _.id)
-      nodes.map { n =>
+      nodes.toSeq.sortBy(_.id.value).map { n =>
         val (cyclic, nonCyclic) = n.children.partition(n => printedIds(n.id))
         val cyclicString = cyclic.map(n => (" " * (level + 2)) + "- " + n.id + " <defined>").mkString("\n")
-        val nonCyclicString = nodesToString(nonCyclic, level + 2)
+        val nonCyclicString = nodesToString(nonCyclic.toSeq.sortBy(_.id.value), level + 2)
         val variantString = (state.resolvedVariants.get(n.id) orElse state.implicitVariants.get(n.id)).map(v => " - " + v.toString) orElse (state.overconstrained.find(_ == n.id).map(i => " X " + i) orElse state.underconstrained.find(_ == n.id).map(i => " ? " + i))
         variantString.map { variantString =>
           (" " * level) + variantString + (if (cyclicString.isEmpty) "" else "\n" + cyclicString + "") + (if (nonCyclicString.isEmpty) "" else ("\n" + nonCyclicString))
@@ -34,7 +34,7 @@ sealed trait ResolveResult {
       }.mkString("\n")
     }
 
-    nodesToString(graph, 0)
+    nodesToString(graph.toSeq.sortBy(_.id.value), 0)
   }
 
   override def toString = {
