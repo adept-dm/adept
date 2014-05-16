@@ -42,7 +42,7 @@ class GitLoaderTest extends FunSuite with Matchers {
           r.add(RankingMetadata(Seq(metadata.hash)).write(v.id, rankId, r))
           val commit = r.commit("Adding: " + v.id)
 
-          ResolutionResult(v.id, r.name, commit, metadata.hash)
+          ResolutionResult(v.id, r.name, Some(commit), metadata.hash)
       }
       val requirements: Set[Requirement] = Set(
         "A" -> Set(Constraint(binaryVersion, Set("1.0"))))

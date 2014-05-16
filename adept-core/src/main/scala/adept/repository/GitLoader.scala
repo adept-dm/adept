@@ -91,7 +91,7 @@ object GitLoader extends Logging {
             metadata.values
           }.getOrElse(Seq.empty[ResolutionResult])
           transitiveResolutionResults :+
-            ResolutionResult(id, repository.name, commit, hash)
+            ResolutionResult(id, repository.name, Some(commit), hash)
         }
       } yield {
         val locations =
@@ -110,21 +110,23 @@ object GitLoader extends Logging {
     repository.pull(passphrase, progress)
   }
 
-  def loadRepositories(baseDir: File, repositories: Set[(ResolutionResult, RepositoryLocations)], progress: ProgressMonitor, passphrase: Option[String]): Set[Commit] = {
-    Set() ++ repositories.par.map { //<-- NOTICE .par
+  def loadRepositories(baseDir: File, repositories: Set[(ResolutionResult, RepositoryLocations)], progress: ProgressMonitor, passphrase: Option[String]): Set[(GitRepository, Commit)] = {
+    Set() ++ repositories.par.flatMap { //<-- NOTICE .par
       case (resolutionResult, repositoryLocations) =>
         val repository = new GitRepository(baseDir, resolutionResult.repository)
         if (!repository.exists) {
           repository.init()
         }
-
-        if (!repository.hasCommit(resolutionResult.commit)) {
+        val commit = resolutionResult.commit
+        if (commit.isDefined && !repository.hasCommit(commit.get)) {
           pullLocations(repository, repositoryLocations, progress, passphrase)
-          if (!repository.hasCommit(resolutionResult.commit)) {
-            throw new Exception("Could not fetch commit: " + resolutionResult.commit.value + " for " + repository.dir.getAbsolutePath)
+          if (!repository.hasCommit(commit.get)) {
+            throw new Exception("Could not fetch commit: " + commit + " for " + repository.dir.getAbsolutePath)
           }
+          Some(repository -> resolutionResult.commit.get)
+        } else {
+          None
         }
-        resolutionResult.commit
     }
   }
 }
@@ -133,8 +135,19 @@ class GitLoader(baseDir: File, private[adept] val results: Set[ResolutionResult]
   import GitLoader._
   import adept.utils.CacheHelpers.usingCache
 
+  def verifyResolutionResultsAsGit() = {
+    val emptyCommits = results.flatMap { result =>
+      if (result.commit.isEmpty)
+        Some(result)
+      else None
+    }
+    if (emptyCommits.nonEmpty) throw new Exception("Cannot use GitLoader on empty resolution set(s): " + emptyCommits.mkString(","))
+  }
+
+  verifyResolutionResultsAsGit()
+
   private val thisUniqueId = Hasher.hash((
-    results.map { resolution => resolution.id.value + "-" + resolution.repository.value + "-" + resolution.variant.value + "-" + resolution.commit.value }.toSeq.sorted.mkString("#") ++
+    results.map { resolution => resolution.id.value + "-" + resolution.repository.value + "-" + resolution.variant.value + "-" + resolution.commit.get.value }.toSeq.sorted.mkString("#") ++
     loadedVariants.map(variant => VariantMetadata.fromVariant(variant).hash.value).toSeq.sorted.mkString("#")).getBytes)
 
   private val cache: Ehcache = getCache(cacheManager)
@@ -146,9 +159,9 @@ class GitLoader(baseDir: File, private[adept] val results: Set[ResolutionResult]
           case (repositoryName, results) =>
             val repository = new GitRepository(baseDir, repositoryName)
             //use only latest commit:
-            val maybeLatestCommit = GitHelpers.lastestCommit(repository, results.map(_.commit))
+            val maybeLatestCommit = GitHelpers.lastestCommit(repository, results.map(_.commit.get))
 
-            if (maybeLatestCommit.isEmpty) throw new Exception("Could not find a latest commit for: " + results.map(_.commit)) //TODO: we want this to be more flexible
+            if (maybeLatestCommit.isEmpty) throw new Exception("Could not find a latest commit for: " + results.map(_.commit.get)) //TODO: we want this to be more flexible
             maybeLatestCommit.toSet.flatMap { commit: Commit =>
               val variants = results.map(_.variant)
               //use only the very best variants for any given commit:

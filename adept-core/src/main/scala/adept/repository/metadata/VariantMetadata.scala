@@ -13,6 +13,7 @@ import java.io.FileWriter
 import adept.hash.Hasher
 import adept.repository.GitRepository
 import java.io.File
+import java.io.InputStream
 
 case class VariantMetadata(attributes: Seq[Attribute], artifacts: Seq[ArtifactRef], requirements: Seq[Requirement]) {
 
@@ -86,19 +87,34 @@ object VariantMetadata {
         }))
   }
 
+  private def readJson(id: Id, hash: VariantHash, repository: Repository, is: InputStream, checkHash: Boolean) = {
+    val json = Json.parse(io.Source.fromInputStream(is).getLines.mkString("\n"))
+    Json.fromJson[VariantMetadata](json) match {
+      case JsSuccess(value, _) =>
+        if (checkHash) {
+          if (value.hash == hash) {
+            Some(value)
+          } else throw new Exception("Found variant metdata: " + value + " for hash " + hash + " but it has a different hash: " + hash) //TODO: this might be overkill?
+        } else Some(value)
+      case JsError(errors) => throw new Exception("Could parse json: " + hash + " for in dir:  " + repository.dir.getAbsolutePath() + " (" + repository.getVariantFile(id, hash).getAbsolutePath + "). Got errors: " + errors)
+    }
+  }
+
+  def read(id: Id, hash: VariantHash, repository: Repository, checkHash: Boolean): Option[VariantMetadata] = {
+    val file = repository.getVariantFile(id, hash)
+    repository.usingFileInputStream(file) {
+      case Right(Some(is)) =>
+        readJson(id, hash, repository, is, checkHash)
+      case Right(None) => None
+      case Left(error) =>
+        throw new Exception("Could not read file: " + file.getAbsolutePath + " for id: " + id + " hash: " + hash + ". Got error: " + error)
+    }
+  }
+
   def read(id: Id, hash: VariantHash, repository: GitRepository, commit: Commit, checkHash: Boolean = true): Option[VariantMetadata] = {
     repository.usingVariantInputStream(id, hash, commit) {
       case Right(Some(is)) =>
-        val json = Json.parse(io.Source.fromInputStream(is).getLines.mkString("\n"))
-        Json.fromJson[VariantMetadata](json) match {
-          case JsSuccess(value, _) =>
-            if (checkHash) {
-              if (value.hash == hash) {
-                Some(value)
-              } else throw new Exception("Found variant metdata: " + value + " for hash " + hash + " but it has a different hash: " + hash) //TODO: this might be overkill?
-            } else Some(value)
-          case JsError(errors) => throw new Exception("Could parse json: " + hash + " for commit: " + commit + " in dir:  " + repository.dir + " (" + repository.getVariantFile(id, hash).getAbsolutePath + "). Got errors: " + errors)
-        }
+        readJson(id, hash, repository, is, checkHash)
       case Right(None) => None
       case Left(error) =>
         throw new Exception("Could not read: " + hash + " for commit: " + commit + " in dir:  " + repository.dir + ". Got error: " + error)

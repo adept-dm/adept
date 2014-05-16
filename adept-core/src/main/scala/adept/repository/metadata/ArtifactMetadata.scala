@@ -9,6 +9,7 @@ import adept.repository.GitRepository
 import java.io.File
 import collection.JavaConverters._
 import adept.resolution.models.ArtifactRef
+import java.io.InputStream
 
 case class ArtifactMetadata(size: Long, locations: Set[ArtifactLocation]) {
   def toArtifact(hash: ArtifactHash): Artifact = {
@@ -59,14 +60,29 @@ object ArtifactMetadata {
       }))
   }
 
+  def read(hash: ArtifactHash, repository: Repository): Option[ArtifactMetadata] = {
+    val file = repository.getArtifactFile(hash)
+    repository.usingFileInputStream(file) {
+      case Right(Some(is)) =>
+        readJson(hash, repository, is)
+      case Right(None) => None
+      case Left(error) =>
+        throw new Exception("Could not read file: " + file.getAbsolutePath + " for hash: " + hash + ". Got error: " + error)
+    }
+  }
+
+  private def readJson(hash: ArtifactHash, repository: Repository, is: InputStream) = {
+    val json = Json.parse(io.Source.fromInputStream(is).getLines.mkString("\n"))
+    Json.fromJson[ArtifactMetadata](json) match {
+      case JsSuccess(value, _) => Some(value)
+      case JsError(errors) => throw new Exception("Could parse json: " + hash + " in dir:  " + repository.dir + " (" + repository.getArtifactFile(hash).getAbsolutePath + "). Got errors: " + errors)
+    }
+  }
+
   def read(hash: ArtifactHash, repository: GitRepository, commit: Commit): Option[ArtifactMetadata] = {
     repository.usingArtifactInputStream(hash, commit) {
       case Right(Some(is)) =>
-        val json = Json.parse(io.Source.fromInputStream(is).getLines.mkString("\n"))
-        Json.fromJson[ArtifactMetadata](json) match {
-          case JsSuccess(value, _) => Some(value)
-          case JsError(errors) => throw new Exception("Could parse json: " + hash + " for commit: " + commit + " in dir:  " + repository.dir + " (" + repository.getArtifactFile(hash).getAbsolutePath + "). Got errors: " + errors)
-        }
+        readJson(hash, repository, is)
       case Right(None) => None
       case Left(error) =>
         throw new Exception("Could not read: " + hash + " for commit: " + commit + " in dir:  " + repository.dir + ". Got error: " + error)

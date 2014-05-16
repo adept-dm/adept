@@ -7,7 +7,7 @@ import play.api.libs.functional.syntax._
 import adept.utils.OrderingHelpers
 
 /** The resolution result for each Id: answers the who we found (the variant hash) and where we found it (commit and repository) */
-case class ResolutionResult(id: Id, repository: RepositoryName, commit: Commit, variant: VariantHash)
+case class ResolutionResult(id: Id, repository: RepositoryName, commit: Option[Commit], variant: VariantHash)
 
 object ResolutionResult {
   implicit val ordering: Ordering[ResolutionResult] = new Ordering[ResolutionResult] {
@@ -22,18 +22,28 @@ object ResolutionResult {
         else if (x.id.value > y.id.value)
           1
         else {
-          if (x.commit.value < y.commit.value)
-            -1
-          else if (x.commit.value > y.commit.value)
-            1
-          else {
-            if (x.variant.value < y.variant.value)
+          if (x.commit.isDefined && y.commit.isDefined) {
+            val xcommit = x.commit.get
+            val ycommit = y.commit.get
+            if (xcommit.value < ycommit.value)
               -1
-            else if (x.variant.value > y.variant.value)
+            else if (xcommit.value > ycommit.value)
               1
             else {
-              0
+              if (x.variant.value < y.variant.value)
+                -1
+              else if (x.variant.value > y.variant.value)
+                1
+              else {
+                0
+              }
             }
+          } else {
+            if (x.commit.isDefined && !y.commit.isDefined) {
+              1
+            } else {
+              -1
+            } 
           }
         }
       }

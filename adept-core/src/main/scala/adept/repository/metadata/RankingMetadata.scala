@@ -27,6 +27,19 @@ object RankingMetadata {
     RankingMetadata(ranking.variants)
   }
 
+  def read(id: Id, rankId: RankId, repository: Repository): Option[RankingMetadata] = {
+    val file = repository.getRankingFile(id, rankId)
+    repository.usingFileInputStream(file) {
+      case Right(Some(is)) =>
+        Some(RankingMetadata(io.Source.fromInputStream(is).getLines().map { line =>
+          VariantHash(line.trim())
+        }.toSeq))
+      case Right(None) => None
+      case Left(error) =>
+        throw new Exception("Could not read file: " + file.getAbsolutePath + " for id: " + id + " rank id: " + rankId + ". Got error: " + error)
+    }
+  }
+
   def read(id: Id, rankId: RankId, repository: GitRepository, commit: Commit): Option[RankingMetadata] = {
     repository.usingRankingInputStream(id, rankId, commit) {
       case Right(Some(is)) =>
@@ -59,5 +72,4 @@ object RankingMetadata {
     rankIds
   }
 
-  
 }

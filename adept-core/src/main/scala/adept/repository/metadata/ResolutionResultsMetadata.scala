@@ -26,13 +26,13 @@ object ResolutionResultsMetadata {
     (
       (__ \ "id").format[String] and
       (__ \ "repository").format[String] and
-      (__ \ "commit").format[String] and
+      (__ \ "commit").format[Option[String]] and
       (__ \ "variant").format[String])({
         case (id, repository, commit, variant) =>
           ResolutionResult(
             Id(id),
             RepositoryName(repository),
-            Commit(commit),
+            commit.map(Commit(_)),
             VariantHash(variant))
       },
         unlift({ r: ResolutionResult =>
@@ -40,7 +40,7 @@ object ResolutionResultsMetadata {
           Some((
             id.value,
             repository.value,
-            commit.value,
+            commit.map(_.value),
             variant.value))
         }))
   }

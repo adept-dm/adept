@@ -21,7 +21,7 @@ class ResolutionResultsMetadataTest extends FunSuite with Matchers {
       val repositoryMetadata = ResolutionResultsMetadata(Seq(ResolutionResult(
           id = id,
           repository = RepositoryName("test"),
-          commit = Commit("131321321"),
+          commit = Some(Commit("131321321")),
           variant = VariantHash(Hasher.hash("foo".getBytes))
       )))
       
