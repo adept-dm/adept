@@ -7,7 +7,7 @@ class LockfileVariant { //TODO: equals, hashCode
   public final Id id;
   public final RepositoryName repository;
   public final Set<RepositoryLocation> locations;
-  public final Commit commit;
+  public final Commit commit; //can be null
   public final VariantHash hash;
 
   LockfileVariant(String info, Id id, RepositoryName repository, Set<RepositoryLocation> locations, Commit commit, VariantHash hash) {
