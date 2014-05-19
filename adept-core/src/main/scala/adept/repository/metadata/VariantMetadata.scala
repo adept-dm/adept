@@ -14,6 +14,7 @@ import adept.hash.Hasher
 import adept.repository.GitRepository
 import java.io.File
 import java.io.InputStream
+import java.io.FileFilter
 
 case class VariantMetadata(attributes: Seq[Attribute], artifacts: Seq[ArtifactRef], requirements: Seq[Requirement]) {
 
@@ -128,6 +129,45 @@ object VariantMetadata {
     s"""$VariantsMetadataDirName$GitPathSep(.*)$GitPathSep([0-9a-fA-F]{${Repository.Level1Length}})$GitPathSep([0-9a-fA-F]{${Repository.Level2Length}})$GitPathSep([0-9a-fA-F]{${Repository.Level3Length}})$GitPathSep$VariantMetadataFileName""".r
   }
 
+  private[adept] val Level1FileFilter = new FileFilter() {
+    override def accept(file: File) = {
+      file.isDirectory && file.getName.size == Repository.Level1Length
+    }
+  }
+
+  private[adept] val Level2FileFilter = new FileFilter() {
+    override def accept(file: File) = {
+      file.isDirectory && file.getName.size == Repository.Level2Length
+    }
+  }
+
+  private[adept] val Level3FileFilter = new FileFilter() {
+    override def accept(file: File) = {
+      file.isDirectory && file.getName.size == Repository.Level3Length
+    }
+  }
+
+  private[adept] val VariantFileFilter = new FileFilter() {
+    override def accept(file: File) = {
+      file.isFile && file.getName == Repository.VariantMetadataFileName
+    }
+  }
+
+  def listVariants(id: Id, repository: Repository): Set[VariantHash] = {
+    val idDir = new File(Repository.getVariantsMetadataDir(repository.baseDir, repository.name), id.value)
+    idDir.listFiles(Level1FileFilter).flatMap { level1Dir =>
+      level1Dir.listFiles(Level2FileFilter).flatMap { level2Dir =>
+        level2Dir.listFiles(Level3FileFilter).flatMap { level3Dir =>
+          if ((level1Dir.getName + level2Dir.getName + level3Dir.getName).size == Repository.HashLength) {
+            level3Dir.listFiles(VariantFileFilter).flatMap { variantFile =>
+              Some(VariantHash(level1Dir.getName + level2Dir.getName + level3Dir.getName))
+            }
+          } else Array.empty[VariantHash]
+        }
+      }
+    }.toSet
+  }
+
   def listVariants(id: Id, repository: GitRepository, commit: Commit): Set[VariantHash] = {
     repository.usePath[VariantHash](Some(VariantsMetadataDirName), commit) { path =>
       path match {
@@ -136,6 +176,14 @@ object VariantMetadata {
         case _ => None
       }
     }
+  }
+
+  def listIds(repository: Repository): Set[Id] = {
+    RankingMetadata.findRankingFiles(repository).map { rankingFile =>
+      val IdRankingExtractor = (Repository.getVariantsMetadataDir(repository.baseDir, repository.name).getAbsolutePath + "/(.*?)/" + rankingFile.getName).r
+      val IdRankingExtractor(idString) = rankingFile.getAbsolutePath()
+      Id(idString)
+    }.toSet
   }
 
   def listIds(repository: GitRepository, commit: Commit): Set[Id] = {

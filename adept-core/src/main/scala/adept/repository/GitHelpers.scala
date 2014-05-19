@@ -11,16 +11,15 @@ import adept.repository.models.Commit
 import adept.logging.Logging
 
 private[adept] object GitHelpers extends Logging {
-  def lastestCommit(repository: GitRepository, commits: Set[Commit]): Option[Commit] = {
-    if (commits.isEmpty) None
+  def lastestCommits(repository: GitRepository, commits: Set[Commit]): Set[Commit] = {
+    if (commits.isEmpty) Set.empty
     else {
-      val latest = commits.tail.foldLeft(commits.headOption) { (maybeCurrentLatest, current) =>
-        maybeCurrentLatest.flatMap { currentLatest =>
+      val latest = commits.tail.foldLeft(commits) { (allCurrentLatest, current) =>
+        allCurrentLatest.flatMap { currentLatest =>
           repository.compareCommits(currentLatest, current) match {
-            case (Some(first), Some(second)) => Some(first)
+            case (Some(first), Some(second)) => Set(first)
             case commits =>
-              logger.warn("Found a non-comparable commits: " + commits + " in " + commits + " but we do not support it yet") //TODO: fix this
-              None
+              allCurrentLatest + current
           }
         }
       }

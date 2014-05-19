@@ -12,6 +12,7 @@ import adept.repository.metadata.ResolutionResultsMetadata
 import adept.logging.Logging
 import adept.repository.metadata.RepositoryLocationsMetadata
 import adept.repository.metadata.RankingMetadata
+import org.eclipse.jgit.lib.NullProgressMonitor
 
 object GitLoader extends Logging {
 
@@ -35,159 +36,117 @@ object GitLoader extends Logging {
     Hasher.hash(uniqueString.getBytes)
   }
 
-  def getLatestResolutionResults(baseDir: File, requirements: Set[(RepositoryName, Requirement)], progress: ProgressMonitor, cacheManager: CacheManager): Set[(ResolutionResult, Option[RepositoryLocations])] = {
-    val currentRequirements = requirements.map {
-      case (name, requirement) =>
-        val repository = new GitRepository(baseDir, name)
-        (name, requirement, repository.getHead)
-    }
-    getResolutionResults(baseDir, currentRequirements, progress, cacheManager)
-  }
-
-  import adept.utils.CacheHelpers.usingCache
-
-  def getResolutionResults(baseDir: File, requirements: Set[(RepositoryName, Requirement, Commit)], progress: ProgressMonitor, cacheManager: CacheManager): Set[(ResolutionResult, Option[RepositoryLocations])] = {
-    usingCache(key = "getResolutionResults" + hash(requirements), getCache(cacheManager)) {
-      val latestRequirements = requirements.groupBy { case (name, requirement, _) => requirement.id -> name }.map {
-        case ((id, name), values) =>
-          val repository = new GitRepository(baseDir, name)
-          val commits = values.map { case (_, _, commit: Commit) => commit }
-          val constraints = values.flatMap { case (_, requirement: Requirement, _) => requirement.constraints }
-          (id, constraints, repository, GitHelpers.lastestCommit(repository, commits).getOrElse(throw new Exception("Could not find the latest commit between (is empty or cannot compare?): " + commits + " in " + repository.dir.getAbsolutePath + " for " + id + " and constraints: " + constraints)))
+  //TODO: private because I might want to move this to another class? 
+  private[adept] def computeTransitiveContext(baseDir: File, context: Set[ResolutionResult], unversionedBaseDir: Option[File] = None): Set[ResolutionResult] = {
+    context.flatMap { c =>
+      (c.commit, unversionedBaseDir) match {
+        case (Some(commit), _) =>
+          val repository = new GitRepository(baseDir, c.repository)
+          ResolutionResultsMetadata.read(c.id, c.variant, repository, commit)
+            .toSet[ResolutionResultsMetadata].flatMap(_.values)
+        case (None, Some(unversionedBaseDir)) =>
+          val repository = new Repository(unversionedBaseDir, c.repository)
+          ResolutionResultsMetadata.read(c.id, c.variant, repository)
+            .toSet[ResolutionResultsMetadata].flatMap(_.values)
+        case (None, None) =>
+          throw new Exception("Found: " + c + " but both commit and unversioned base dir was None")
       }
-
-      //populate allVariants:
-      var allVariants = Map.empty[Id, (Set[(Variant, GitRepository, Commit)], Set[Constraint])] //easier to read than folding
-      for {
-        (id, constraints, repository, commit) <- latestRequirements
-        hash <- {
-          val rankIds = RankingMetadata.listRankIds(id, repository, commit)
-          val rankings = rankIds.flatMap { rankId =>
-            RankingMetadata.read(id, rankId, repository, commit).map(_.toRanking(id, rankId))
-          }
-          val foundHashes = RankLogic.activeVariants(rankings)
-          if (foundHashes.isEmpty) logger.warn("Could not find any ranking matching: " + id + " in " + repository.dir.getAbsolutePath + " for " + commit)
-          foundHashes
-        }
-        metadata <- {
-          val maybeMetadata = VariantMetadata.read(id, hash, repository, commit)
-          if (!maybeMetadata.isDefined) logger.warn("Could not find variant metadata: " + hash + " for id: " + id + " in dir " + repository.dir.getAbsolutePath + " for " + commit)
-          maybeMetadata
-        }
-      } { //<-- Notice (no yield)
-        val variant = metadata.toVariant(id)
-        val (formerVariants: Set[(Variant, GitRepository, Commit)], formerConstraints: Set[Constraint]) = allVariants.getOrElse(id, (Set.empty[(Variant, GitRepository, Commit)], Set.empty[Constraint]))
-        val allVariantInfo = formerVariants + ((variant, repository, commit))
-        allVariants += id -> (allVariantInfo, (formerConstraints ++ constraints))
-      }
-
-      //find all transitive resolution results and add the ones for each requirement
-      val resolutionResults = for {
-        (id, (vrs, constraints)) <- allVariants.toSet
-        (variant, repository, commit) <- vrs
-        hash = VariantMetadata.fromVariant(variant).hash
-        resolutionResult <- {
-          val transitiveResolutionResults = ResolutionResultsMetadata.read(id, hash, repository, commit).map { metadata =>
-            metadata.values
-          }.getOrElse(Seq.empty[ResolutionResult])
-          transitiveResolutionResults :+
-            ResolutionResult(id, repository.name, Some(commit), hash)
-        }
-      } yield {
-        val locations =
-          RepositoryLocationsMetadata.read(resolutionResult.repository, repository, commit).map(_.toRepositoryLocations(resolutionResult.repository))
-
-        resolutionResult -> locations
-      }
-      resolutionResults
     }
   }
 
-  def pullLocations(repository: GitRepository, repositoryLocations: RepositoryLocations, progress: ProgressMonitor, passphrase: Option[String]) = {
-    repositoryLocations.uris.map { uri =>
-      repository.addRemoteUri(GitRepository.DefaultRemote, uri)
+  //TODO: private because I might want to move this to another class? 
+  private[adept] def applyOverrides(context: Set[ResolutionResult], overrides: Set[ResolutionResult]): Set[ResolutionResult] = {
+    val overridesById = overrides.groupBy(o => (o.repository, o.id))
+    context.flatMap { c =>
+      overridesById.getOrElse(c.repository -> c.id, Set(c))
     }
-    repository.pull(passphrase, progress)
   }
 
-  def loadRepositories(baseDir: File, repositories: Set[(ResolutionResult, RepositoryLocations)], progress: ProgressMonitor, passphrase: Option[String]): Set[(GitRepository, Commit)] = {
-    Set() ++ repositories.par.flatMap { //<-- NOTICE .par
-      case (resolutionResult, repositoryLocations) =>
-        val repository = new GitRepository(baseDir, resolutionResult.repository)
-        if (!repository.exists) {
-          repository.init()
-        }
-        val commit = resolutionResult.commit
-        if (commit.isDefined && !repository.hasCommit(commit.get)) {
-          pullLocations(repository, repositoryLocations, progress, passphrase)
-          if (!repository.hasCommit(commit.get)) {
-            throw new Exception("Could not fetch commit: " + commit + " for " + repository.dir.getAbsolutePath)
-          }
-          Some(repository -> resolutionResult.commit.get)
-        } else {
-          None
-        }
-    }
-  }
 }
 
-class GitLoader(baseDir: File, private[adept] val results: Set[ResolutionResult], progress: ProgressMonitor, cacheManager: CacheManager, val loadedVariants: Set[Variant] = Set.empty) extends VariantsLoader { //TODO: loadedVariants is at the end because it has a default, but I think it looks uglier: would prefer to have it just after resolutionResults?
+private[adept] class GitLoader(baseDir: File, private[adept] val results: Set[ResolutionResult], cacheManager: CacheManager, unversionedBaseDirs: Set[File] = Set.empty, private[adept] val loadedVariants: Set[Variant] = Set.empty, progress: ProgressMonitor = NullProgressMonitor.INSTANCE) extends VariantsLoader with Logging {
   import GitLoader._
   import adept.utils.CacheHelpers.usingCache
 
-  def verifyResolutionResultsAsGit() = {
-    val emptyCommits = results.flatMap { result =>
-      if (result.commit.isEmpty)
-        Some(result)
-      else None
-    }
-    if (emptyCommits.nonEmpty) throw new Exception("Cannot use GitLoader on empty resolution set(s): " + emptyCommits.mkString(","))
-  }
-
-  verifyResolutionResultsAsGit()
-
   private val thisUniqueId = Hasher.hash((
-    results.map { resolution => resolution.id.value + "-" + resolution.repository.value + "-" + resolution.variant.value + "-" + resolution.commit.get.value }.toSeq.sorted.mkString("#") ++
+    results.map { resolution => resolution.id.value + "-" + resolution.repository.value + "-" + resolution.variant.value + "-" + resolution.commit.map(_.value).mkString}.toSeq.sorted.mkString("#") ++
     loadedVariants.map(variant => VariantMetadata.fromVariant(variant).hash.value).toSeq.sorted.mkString("#")).getBytes)
 
   private val cache: Ehcache = getCache(cacheManager)
 
-  private lazy val cachedById = usingCache("byId" + thisUniqueId, cache) { //lazy this might take a while
+  private lazy val cachedById = { //lazy this might take a while
     results.groupBy(_.id).map {
       case (id, results) =>
-        val latestCommitsOnly = results.groupBy(_.repository).flatMap {
+        val variantsLazyLoad = results.groupBy(_.repository).flatMap {
           case (repositoryName, results) =>
-            val repository = new GitRepository(baseDir, repositoryName)
+            val gitRepository = new GitRepository(baseDir, repositoryName)
             //use only latest commit:
-            val maybeLatestCommit = GitHelpers.lastestCommit(repository, results.map(_.commit.get))
+            val allCommits = results.collect {
+              case ResolutionResult(_, _, Some(commit), _) => commit
+            }
+            val onlyLatestCommits = GitHelpers.lastestCommits(gitRepository, allCommits)
+            val allVariants = results.map(_.variant)
 
-            if (maybeLatestCommit.isEmpty) throw new Exception("Could not find a latest commit for: " + results.map(_.commit.get)) //TODO: we want this to be more flexible
-            maybeLatestCommit.toSet.flatMap { commit: Commit =>
-              val variants = results.map(_.variant)
-              //use only the very best variants for any given commit:
-              val chosenVariants = {
-                val rankIds = RankingMetadata.listRankIds(id, repository, commit)
-                val rankings = rankIds.flatMap { rankId =>
-                  RankingMetadata.read(id, rankId, repository, commit).map(_.toRanking(id, rankId))
+            //all rankings
+            val gitRankings = onlyLatestCommits.flatMap { commit =>
+              RankingMetadata
+                .listRankIds(id, gitRepository, commit)
+                .flatMap { rankId =>
+                  RankingMetadata.read(id, rankId, gitRepository, commit).map(_.toRanking(id, rankId))
                 }
-                if (variants.nonEmpty && rankings.isEmpty) throw new Exception("Could not find any ranking files for: " + id + " when comparing: " + results)
-                RankLogic.chosenVariants(variants, rankings)
+            }
+
+            val repositories = unversionedBaseDirs.map {
+              new Repository(_, repositoryName)
+            }
+            val unversionedRankings = repositories.flatMap { repository =>
+              RankingMetadata.listRankIds(id, repository).flatMap { rankId =>
+                RankingMetadata.read(id, rankId, repository).map(_.toRanking(id, rankId))
               }
-              if (variants.nonEmpty && chosenVariants.isEmpty) throw new Exception("Could not chose variants for: " + id)
-              chosenVariants.map { variant => (variant, repositoryName, commit) }
+            }
+            val allRankings = gitRankings ++ unversionedRankings
+            if (allVariants.nonEmpty && allRankings.isEmpty) throw new Exception("Could not find any ranking files for: " + id + " when comparing: " + results)
+
+            //choose variants to use:
+            val chosenVariants = RankLogic.chosenVariants(allVariants, allRankings)
+            if (allVariants.nonEmpty && chosenVariants.isEmpty) throw new Exception("Could not chose variants for: " + id)
+
+            val gitHashes = gitRankings.flatMap(_.variants)
+            val unversionedHashes = unversionedRankings.flatMap(_.variants)
+
+            //return variant lazy loaders for everything (might return None)
+            chosenVariants.flatMap { variant =>
+              if (gitHashes(variant) && !unversionedHashes(variant)) {
+                onlyLatestCommits.map { commit =>
+                  () => {
+                    VariantMetadata.read(id, variant, gitRepository, commit, checkHash = true).map(_.toVariant(id))
+                  }
+                }
+              } else if (unversionedHashes(variant) && !gitHashes(variant)) {
+                logger.warn("Using unversioned (imported?) variant " + variant + " for " + id + " - contribute to git repositories to avoid this warning")
+                repositories.map { repository =>
+                  () => {
+                    VariantMetadata.read(id, variant, repository, checkHash = true).map(_.toVariant(id))
+                  }
+                }
+              } else if (unversionedHashes(variant) && gitHashes(variant)) {
+                logger.warn("Using unversioned (imported?) variant: " + variant + " in " + repositories.map(_.dir.getAbsolutePath).mkString(",") + " and versioned ones from: " + gitRepository.dir.getAbsolutePath())
+                repositories.map { repository =>
+                  () => {
+                    VariantMetadata.read(id, variant, repository, checkHash = true).map(_.toVariant(id))
+                  }
+                } ++ onlyLatestCommits.map { commit =>
+                  () => {
+                    VariantMetadata.read(id, variant, gitRepository, commit, checkHash = true).map(_.toVariant(id))
+                  }
+                }
+              } else {
+                throw new Exception("Expected to hash: " + variant + " to be in a rankig in either: " + repositories.map(_.dir.getAbsolutePath).mkString(",") + " or " + gitRepository.dir.getAbsolutePath() +". Rankings:\n" + allRankings.mkString("\n"))
+              }
+
             }
         }.toSet
-        id -> latestCommitsOnly
-    }
-  }
-
-  private lazy val byId = {
-    cachedById.map {
-      case (id, values) =>
-        id -> values.map {
-          case (variant, repositoryName, commit) =>
-            (variant, new GitRepository(baseDir, repositoryName), commit)
-        }
+        id -> variantsLazyLoad
     }
   }
 
@@ -195,21 +154,20 @@ class GitLoader(baseDir: File, private[adept] val results: Set[ResolutionResult]
     loadedVariants.groupBy(_.id)
   }
 
-  private def locateGitIdentifiers(id: Id): Set[(VariantHash, GitRepository, Commit)] = {
-    byId.getOrElse(id, Set.empty)
+  private def locateRepositoryIdentifiers(id: Id) = {
+    cachedById.getOrElse(id, Set.empty)
   }
 
   def loadVariants(id: Id, constraints: Set[Constraint]): Set[Variant] = {
     val cacheKey = "loadVariants" + hash(id, constraints, thisUniqueId)
     usingCache(cacheKey, cache) {
-      val gitVariants: Set[Variant] = {
-        locateGitIdentifiers(id).flatMap {
-          case (hash, repository, commit) =>
-            VariantMetadata.read(id, hash, repository, commit).map(_.toVariant(id))
-        }
+      val repositoryVariants = locateRepositoryIdentifiers(id).flatMap { variantsLazyLoad =>
+        variantsLazyLoad()
       }
-      val preloadedVariants: Set[Variant] = preloadedById.getOrElse(id, Set.empty)
-      AttributeConstraintFilter.filter(id, gitVariants ++ preloadedVariants, constraints)
+
+      val variants = repositoryVariants ++ preloadedById.getOrElse(id, Set.empty)
+
+      AttributeConstraintFilter.filter(id, variants, constraints)
     }
   }
 

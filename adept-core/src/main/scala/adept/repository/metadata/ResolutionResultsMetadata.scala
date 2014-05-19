@@ -45,6 +45,21 @@ object ResolutionResultsMetadata {
         }))
   }
 
+  def read(id: Id, hash: VariantHash, repository: Repository): Option[ResolutionResultsMetadata] = {
+    val file = repository.getResolutionResultsFile(id, hash)
+    repository.usingFileInputStream(file) {
+      case Right(Some(is)) =>
+        val json = Json.parse(io.Source.fromInputStream(is).getLines.mkString("\n"))
+        Json.fromJson[Seq[ResolutionResult]](json) match {
+          case JsSuccess(values, _) => Some(ResolutionResultsMetadata(values))
+          case JsError(errors) => throw new Exception("Could parse json: " + id + "#" + hash + " in dir:  " + repository.dir + " (" + file.getAbsolutePath() + "). Got errors: " + errors)
+        }
+      case Right(None) => None
+      case Left(error) =>
+        throw new Exception("Could not read: " + id + "#" + hash + " in dir:  " + repository.dir + ". Got error: " + error)
+    }
+  }
+
   def read(id: Id, hash: VariantHash, repository: GitRepository, commit: Commit): Option[ResolutionResultsMetadata] = {
     repository.usingResolutionResultsInputStream(id, hash, commit) {
       case Right(Some(is)) =>
