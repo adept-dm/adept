@@ -26,13 +26,13 @@ object ResolutionResultsMetadata {
     (
       (__ \ "id").format[String] and
       (__ \ "repository").format[String] and
-      (__ \ "commit").format[String] and
+      (__ \ "commit").format[Option[String]] and
       (__ \ "variant").format[String])({
         case (id, repository, commit, variant) =>
           ResolutionResult(
             Id(id),
             RepositoryName(repository),
-            Commit(commit),
+            commit.map(Commit(_)),
             VariantHash(variant))
       },
         unlift({ r: ResolutionResult =>
@@ -40,9 +40,24 @@ object ResolutionResultsMetadata {
           Some((
             id.value,
             repository.value,
-            commit.value,
+            commit.map(_.value),
             variant.value))
         }))
+  }
+
+  def read(id: Id, hash: VariantHash, repository: Repository): Option[ResolutionResultsMetadata] = {
+    val file = repository.getResolutionResultsFile(id, hash)
+    repository.usingFileInputStream(file) {
+      case Right(Some(is)) =>
+        val json = Json.parse(io.Source.fromInputStream(is).getLines.mkString("\n"))
+        Json.fromJson[Seq[ResolutionResult]](json) match {
+          case JsSuccess(values, _) => Some(ResolutionResultsMetadata(values))
+          case JsError(errors) => throw new Exception("Could parse json: " + id + "#" + hash + " in dir:  " + repository.dir + " (" + file.getAbsolutePath() + "). Got errors: " + errors)
+        }
+      case Right(None) => None
+      case Left(error) =>
+        throw new Exception("Could not read: " + id + "#" + hash + " in dir:  " + repository.dir + ". Got error: " + error)
+    }
   }
 
   def read(id: Id, hash: VariantHash, repository: GitRepository, commit: Commit): Option[ResolutionResultsMetadata] = {

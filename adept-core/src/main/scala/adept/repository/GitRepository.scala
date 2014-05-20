@@ -28,8 +28,8 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
   import GitRepository._
   import Repository._
 
-  def exists: Boolean = {
-    new File(dir, ".git").isDirectory
+  override def exists: Boolean = {
+    super.exists && new File(dir, ".git").isDirectory
   }
 
   def gc(): Unit = {
@@ -313,7 +313,7 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
         if (treeWalk.next()) throw new Exception("Found too many files matching path: " + path + " this one was: " + treeWalk.getPathString)
         else res
       } else {
-        block(Left("Could not find file for path: " + path + " in commit: " + commit + " for dir: " + dir.getAbsolutePath))
+        block(Left("Could not create git tree for commit: " + commit + " for dir: " + dir.getAbsolutePath))
       }
     }
   }

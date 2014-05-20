@@ -3,6 +3,7 @@ package adept.repository
 import org.scalatest.FunSuite
 import org.scalatest.Matchers
 import adept.repository.models.RepositoryName
+import adept.repository.models.Commit
 
 class GitHelpersTest extends FunSuite with Matchers {
   import adept.test.FileUtils.usingTmpDir
@@ -14,8 +15,8 @@ class GitHelpersTest extends FunSuite with Matchers {
       val commit1 = repository.commit("Test 1")
       val commit2 = repository.commit("Test 2")
       val commit3 = repository.commit("Test 3")
-      val commits = Set(commit2, commit3, commit1)
-      GitHelpers.lastestCommit(repository, commits) shouldEqual Some(commit3)
+      val commits = Set(commit2, commit3, commit1, Commit("something else"), Commit("something"))
+      GitHelpers.lastestCommits(repository, commits) shouldEqual Set(commit3, Commit("something else"), Commit("something"))
     }
   }
 }

@@ -126,7 +126,11 @@ public class Lockfile {
       Id id = new Id((String) jsonVariant.get("id"));
       Set<RepositoryLocation> locations = deserializeRepositoryLocationSet((JSONArray) jsonVariant.get("locations"));
       RepositoryName repository = new RepositoryName((String) jsonVariant.get("repository"));
-      Commit commit = new Commit((String) jsonVariant.get("commit"));
+      final Commit commit;
+      if (jsonVariant.get("commit") != null)
+        commit = new Commit((String) jsonVariant.get("commit"));
+      else
+        commit = null;
       VariantHash hash = new VariantHash((String) jsonVariant.get("variant"));
       LockfileVariant variant = new LockfileVariant(info, id, repository, locations, commit, hash);
       variants.add(variant);

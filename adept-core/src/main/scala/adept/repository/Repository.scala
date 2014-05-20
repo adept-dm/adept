@@ -10,6 +10,7 @@ import java.io.InputStream
 import java.io.FileReader
 import java.io.FilenameFilter
 import java.io.IOException
+import java.io.FileInputStream
 
 case class InitException(reason: String) extends Exception("Could not initialize: " + reason)
 case class MalformedVariantHashException(repo: Repository, hash: VariantHash) extends Exception("Variant hash: '" + hash.value + "' (size: " + hash.value.length + ") was not well-formed in repository: " + repo.dir.getAbsolutePath)
@@ -102,6 +103,10 @@ private[adept] class Repository(val baseDir: File, val name: RepositoryName) {
   val repositoryLocationsMetadataDir = getRepositoryLocationsMetadataDir(baseDir, name)
   val variantsMetadataDir = getVariantsMetadataDir(baseDir, name)
 
+  def exists: Boolean = {
+    dir.isDirectory
+  }
+
   private def getVariantHashDir(id: Id, hash: VariantHash) = {
     if (hash.value.size != (Level1Length + Level2Length + Level3Length))
       throw MalformedVariantHashException(this, hash)
@@ -165,5 +170,18 @@ private[adept] class Repository(val baseDir: File, val name: RepositoryName) {
 
   def ensureRepositoryLocationsFile(name: RepositoryName): File = {
     ensureParentDirs(getRepositoryLocationsFile(name))
+  }
+
+  private[repository] def usingFileInputStream[A](file: File)(block: Either[String, Option[InputStream]] => A): A = {
+    if (!file.exists()) {
+      block(Right(None))
+    } else {
+      val fis = new FileInputStream(file)
+      try {
+        block(Right(Some(fis)))
+      } finally {
+        fis.close()
+      }
+    }
   }
 }
