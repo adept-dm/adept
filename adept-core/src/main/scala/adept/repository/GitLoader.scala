@@ -56,9 +56,9 @@ object GitLoader extends Logging {
 
   //TODO: private because I might want to move this to another class? 
   private[adept] def applyOverrides(context: Set[ResolutionResult], overrides: Set[ResolutionResult]): Set[ResolutionResult] = {
-    val overridesById = overrides.groupBy(o => (o.repository, o.id))
-    context.flatMap { c =>
-      overridesById.getOrElse(c.repository -> c.id, Set(c))
+    val overridesById = overrides.groupBy(v => (v.repository, v.id))
+    context.flatMap { v =>
+      overridesById.getOrElse(v.repository -> v.id, Set(v))
     }
   }
 

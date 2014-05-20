@@ -2,6 +2,7 @@ package adept.lockfile;
 
 import java.util.Set;
 
+//TODO: rename to LockfileContext
 class LockfileVariant { //TODO: equals, hashCode
   public final String info;
   public final Id id;

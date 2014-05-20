@@ -84,12 +84,4 @@ class GitLoaderTest extends FunSuite with Matchers {
       checkVariants(result, "B", version -> Set("2.0.1"), binaryVersion -> Set("2.0"))
     }
   }
-
-  test("Git loader mixed (unversioned and versioned) get context") {
-    usingTmpDirs { (versionedDir, unversionedDir)=>
-      
-      
-    }
-  }
-
 }
