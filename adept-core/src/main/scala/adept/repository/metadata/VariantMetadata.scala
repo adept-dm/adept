@@ -48,7 +48,7 @@ object VariantMetadata {
 
   import ArtifactMetadata._
 
-  private[adept] implicit val requirementFormat: Format[Requirement] = {
+  implicit val requirementFormat: Format[Requirement] = {
     (
       (__ \ "id").format[String] and
       (__ \ "constraints").format[Map[String, Set[String]]] and
@@ -68,7 +68,7 @@ object VariantMetadata {
         }))
   }
 
-  private[adept] implicit def format: Format[VariantMetadata] = {
+  implicit def format: Format[VariantMetadata] = {
     (
       (__ \ "attributes").format[Map[String, Set[String]]] and
       (__ \ "artifacts").format[Seq[ArtifactRef]] and

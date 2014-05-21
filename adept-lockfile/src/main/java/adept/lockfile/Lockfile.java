@@ -28,7 +28,7 @@ import net.minidev.json.parser.ParseException;
 
 public class Lockfile {
   final Set<LockfileRequirement> requirements;
-  final Set<LockfileVariant> variants;
+  final Set<LockfileContext> variants;
   final Set<LockfileArtifact> artifacts;
 
   protected File getTmpDir() {
@@ -44,7 +44,7 @@ public class Lockfile {
    * Lockfiles gets created by factory read methods or by LockfileManager (in
    * adept-core), only package visibility
    */
-  Lockfile(Set<LockfileRequirement> requirements, Set<LockfileVariant> variants, Set<LockfileArtifact> artifacts) {
+  Lockfile(Set<LockfileRequirement> requirements, Set<LockfileContext> variants, Set<LockfileArtifact> artifacts) {
     // we are in control of the Sets (only we can instaniate) here so even if
     // they are mutable it is OK (yeah! :)
     this.requirements = requirements;
@@ -117,22 +117,22 @@ public class Lockfile {
       requirements.add(requirement);
     }
 
-    JSONArray jsonVariants = (JSONArray) jsonLockfile.get("variants");
-    Set<LockfileVariant> variants = new HashSet<LockfileVariant>(jsonVariants.size());
+    JSONArray jsonContext = (JSONArray) jsonLockfile.get("context");
+    Set<LockfileContext> variants = new HashSet<LockfileContext>(jsonContext.size());
 
-    for (int i = 0; i < jsonVariants.size(); i++) {
-      JSONObject jsonVariant = (JSONObject) jsonVariants.get(i);
-      String info = (String) jsonVariant.get("info");
-      Id id = new Id((String) jsonVariant.get("id"));
-      Set<RepositoryLocation> locations = deserializeRepositoryLocationSet((JSONArray) jsonVariant.get("locations"));
-      RepositoryName repository = new RepositoryName((String) jsonVariant.get("repository"));
+    for (int i = 0; i < jsonContext.size(); i++) {
+      JSONObject jsonContextValue = (JSONObject) jsonContext.get(i);
+      String info = (String) jsonContextValue.get("info");
+      Id id = new Id((String) jsonContextValue.get("id"));
+      Set<RepositoryLocation> locations = deserializeRepositoryLocationSet((JSONArray) jsonContextValue.get("locations"));
+      RepositoryName repository = new RepositoryName((String) jsonContextValue.get("repository"));
       final Commit commit;
-      if (jsonVariant.get("commit") != null)
-        commit = new Commit((String) jsonVariant.get("commit"));
+      if (jsonContextValue.get("commit") != null)
+        commit = new Commit((String) jsonContextValue.get("commit"));
       else
         commit = null;
-      VariantHash hash = new VariantHash((String) jsonVariant.get("variant"));
-      LockfileVariant variant = new LockfileVariant(info, id, repository, locations, commit, hash);
+      VariantHash hash = new VariantHash((String) jsonContextValue.get("variant"));
+      LockfileContext variant = new LockfileContext(info, id, repository, locations, commit, hash);
       variants.add(variant);
     }
 

@@ -51,13 +51,28 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
   }
 
   def addRemoteUri(remoteName: String, uri: String) = {
-    if (remoteName != GitRepository.DefaultRemote) throw new Exception("Cannot get " + remoteName + " remote uri because we only support: " + DefaultRemote + ".") //TODO: support other names
+    if (remoteName != GitRepository.DefaultRemote)
+      throw new Exception("Cannot get " + remoteName + " remote uri because we only support: " + DefaultRemote + ".") //TODO: support other names
     val repoConfig = git.getRepository().getConfig()
     repoConfig.setString(ConfigConstants.CONFIG_REMOTE_SECTION, GitRepository.DefaultRemote, ConfigConstants.CONFIG_KEY_URL, uri)
+    repoConfig.setString(ConfigConstants.CONFIG_REMOTE_SECTION, GitRepository.DefaultRemote, "fetch", "+refs/heads/*:refs/remotes/origin/*")
+    repoConfig.save()
   }
 
-  def pull(passphrase: Option[String] = None, progress: ProgressMonitor = NullProgressMonitor.INSTANCE) = {
+  def push(passphrase: Option[String] = None, progress: ProgressMonitor = NullProgressMonitor.INSTANCE) = {
     GitHelpers.withGitSshCredentials(passphrase) {
+      git.push()
+        .setProgressMonitor(progress)
+        .call()
+    }
+  }
+
+  def pull(remoteName: String, branch: String, passphrase: Option[String] = None, progress: ProgressMonitor = NullProgressMonitor.INSTANCE) = {
+    GitHelpers.withGitSshCredentials(passphrase) {
+      val repoConfig = git.getRepository().getConfig() //
+      repoConfig.setString(ConfigConstants.CONFIG_BRANCH_SECTION, GitRepository.DefaultBranchName, "remote", GitRepository.DefaultRemote)
+      repoConfig.setString(ConfigConstants.CONFIG_BRANCH_SECTION, GitRepository.DefaultBranchName, "merge", "refs/heads/" + GitRepository.DefaultBranchName)
+      repoConfig.save()
       val pullResults = git.pull().setProgressMonitor(progress).call()
       if (pullResults.isSuccessful())
         getHead //TODO: is this right?
@@ -118,12 +133,8 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
 
   def isClean: Boolean = {
     import collection.JavaConverters._
-//    println(name + " status: " + git.status.call().getModified().asScala)
+    //    println(name + " status: " + git.status.call().getModified().asScala)
     git.status().call().isClean()
-  }
-
-  def publish(remoteName: String, uri: String) = {
-    ???
   }
 
   def commit(msg: String): Commit = {
@@ -246,6 +257,10 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
 
   private[repository] def usingArtifactInputStream[A](hash: ArtifactHash, commit: Commit)(block: Either[String, Option[InputStream]] => A): A = {
     usingInputStream(commit, asGitPath(getArtifactFile(hash)))(block)
+  }
+
+  private[repository] def usingInfoInputStream[A](id: Id, hash: VariantHash, commit: Commit)(block: Either[String, Option[InputStream]] => A): A = {
+    usingInputStream(commit, asGitPath(getInfoFile(id, hash)))(block)
   }
 
   private[repository] def usingRankingInputStream[A](id: Id, rankId: RankId, commit: Commit)(block: Either[String, Option[InputStream]] => A): A = {

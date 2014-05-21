@@ -24,9 +24,10 @@ object Repository {
   val ReposDirName = "repos"
 
   val JsonFileEnding = "json"
-  val ResolutionResultsFileName = "resolution-results." + JsonFileEnding
+  val ResolutionResultsFileName = "context." + JsonFileEnding //TODO: change ResolutionResults to Context and ResolutionResult to ContextValue
   val InfoMetadataFileName = "info." + JsonFileEnding
   val VariantMetadataFileName = "variant." + JsonFileEnding
+  val ArtifactMetadataFileName = "artifact." + JsonFileEnding
   val RankingFileEnding = "ranking"
   val RepositoryLocationsFileName = "repository." + JsonFileEnding
 
@@ -79,7 +80,7 @@ object Repository {
  *   - <repository name>: The actual repository starts here (this is the repository name)
  *     - "variants"
  *       - <id>: is the id and might be more than one sub-directory (foo/bar/zoo has 3 directory levels)
- *         TODO: - "info.json" (OPTIONAL): extra information (home page, description, ...) not used for resolution
+ *         - "info.json" (OPTIONAL): extra information (home page, description, ...) not used for resolution
  *         - "<rank id>.ranking": contains the rank of variants (i.e defines what is the 'best' variant). Typically there is one rank file per list of _compatible_ variants
  *         - <hash>: is the variant hash of the item (SHA-256 of the contents of variant.json) and is split into 2 sub directories (first 4 chars (level 1), next 4 chars (level 2), then the rest (level 3))
  *           - "variant.json": the variant metadata: attributes, requirements and artifacts references
@@ -93,7 +94,7 @@ object Repository {
  *         - <hash>: same as variant hash, but for artifacts so this is the actual hash of the file represented by the artifact
  *           - "artifact.json": information about the hashes (file size and locations)
  */
-private[adept] class Repository(val baseDir: File, val name: RepositoryName) {
+class Repository(val baseDir: File, val name: RepositoryName) { //TODO: had to remove private[adept]  but should it be there?
   import Repository._
   require(name.value.nonEmpty, "Cannot create a repository with an empty name")
 
@@ -107,7 +108,7 @@ private[adept] class Repository(val baseDir: File, val name: RepositoryName) {
     dir.isDirectory
   }
 
-  private def getVariantHashDir(id: Id, hash: VariantHash) = {
+  def getVariantHashDir(id: Id, hash: VariantHash) = {
     if (hash.value.size != (Level1Length + Level2Length + Level3Length))
       throw MalformedVariantHashException(this, hash)
     else {
@@ -146,12 +147,22 @@ private[adept] class Repository(val baseDir: File, val name: RepositoryName) {
     else {
       val level1 = new File(artifactsMetadataDir, hash.value.slice(0, Level1Length))
       val level2 = new File(level1, hash.value.slice(Level1Length, Level1Length + Level2Length))
-      new File(level2, hash.value.slice(Level2Length, Level3Length))
+      val level3 = new File(level2, hash.value.slice(Level2Length, Level3Length))
+      new File(level3, ArtifactMetadataFileName)
     }
   }
 
   def ensureArtifactFile(hash: ArtifactHash) = {
     ensureParentDirs(getArtifactFile(hash))
+  }
+
+  def getInfoFile(id: Id, hash: VariantHash): File = {
+    val infoDir = getVariantHashDir(id, hash)
+    new File(infoDir, InfoMetadataFileName)
+  }
+  
+  def ensureInfoFile(id: Id, hash: VariantHash) = {
+    ensureParentDirs(getInfoFile(id, hash))
   }
 
   def getRankingFile(id: Id, rankId: RankId): File = {

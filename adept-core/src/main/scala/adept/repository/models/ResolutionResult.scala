@@ -7,6 +7,7 @@ import play.api.libs.functional.syntax._
 import adept.utils.OrderingHelpers
 
 /** The resolution result for each Id: answers the who we found (the variant hash) and where we found it (commit and repository) */
+@deprecated("ResolutionResult will change name soon") //TODO: change to Context and ContextValues
 case class ResolutionResult(id: Id, repository: RepositoryName, commit: Option[Commit], variant: VariantHash)
 
 object ResolutionResult {
