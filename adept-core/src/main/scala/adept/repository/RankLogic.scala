@@ -19,11 +19,8 @@ object RankLogic {
   def chosenVariants(variants: Set[VariantHash], rankings: Set[Ranking]): Set[VariantHash] = {
     var rankIds = Set.empty[RankId]
     var comparableVariants = variants
-
+    
     rankings.foreach { ranking =>
-      if (rankIds.contains(ranking.rankId)) throw new Exception("Could not chose variants, because there are multiple equal rank ids in rankings: " + rankings.map(_.rankId))
-      rankIds += ranking.rankId
-
       var foundVariantHash: Option[VariantHash] = None
       var first = ranking.variants.headOption
       ranking.variants.foreach { hash =>

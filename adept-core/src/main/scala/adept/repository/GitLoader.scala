@@ -42,6 +42,27 @@ object GitLoader extends Logging {
       (c.commit, unversionedBaseDir) match {
         case (Some(commit), _) =>
           val repository = new GitRepository(baseDir, c.repository)
+          val children = ResolutionResultsMetadata.read(c.id, c.variant, repository, commit).getOrElse(throw new Exception("Could not read context from: " + c))
+          children.values
+        case (None, Some(unversionedBaseDir)) =>
+          val repository = new Repository(unversionedBaseDir, c.repository)
+          val children = ResolutionResultsMetadata.read(c.id, c.variant, repository).getOrElse(throw new Exception("Could not read context from: " + c))
+          children.values
+        case (None, None) =>
+          throw new Exception("Found: " + c + " but both commit and unversioned base dir was None")
+      }
+    }
+  }
+
+  //TODO: private because I might want to move this to another class? 
+  private[adept] def computeTransitiveLocations(baseDir: File, inputContext: Set[ResolutionResult], transitveContext: Set[ResolutionResult], unversionedBaseDir: Option[File] = None): Set[RepositoryLocations] = {
+    //TODO: UGLY code, refactor with computeTransitiveContext
+    val requiredRepositories = transitveContext.map(_.repository)
+    
+    inputContext.flatMap { c =>
+      val values = (c.commit, unversionedBaseDir) match {
+        case (Some(commit), _) =>
+          val repository = new GitRepository(baseDir, c.repository)
           ResolutionResultsMetadata.read(c.id, c.variant, repository, commit)
             .toSet[ResolutionResultsMetadata].flatMap(_.values)
         case (None, Some(unversionedBaseDir)) =>
@@ -50,6 +71,17 @@ object GitLoader extends Logging {
             .toSet[ResolutionResultsMetadata].flatMap(_.values)
         case (None, None) =>
           throw new Exception("Found: " + c + " but both commit and unversioned base dir was None")
+      }
+      values.filter(v => requiredRepositories(v.repository)).flatMap { v =>
+        (c.commit, unversionedBaseDir) match {
+          case (Some(commit), _) =>
+            val repository = new GitRepository(baseDir, c.repository)
+            RepositoryLocationsMetadata.read(v.repository, repository, commit).map(_.toRepositoryLocations(v.repository))
+          case (None, Some(unversionedBaseDir)) =>
+            val repository = new Repository(unversionedBaseDir, c.repository)
+            RepositoryLocationsMetadata.read(v.repository, repository).map(_.toRepositoryLocations(v.repository))
+          case (None, None) => throw new Exception("Found: " + c + " but both commit and unversioned base dir was None")
+        }
       }
     }
   }
@@ -69,7 +101,7 @@ private[adept] class GitLoader(baseDir: File, private[adept] val results: Set[Re
   import adept.utils.CacheHelpers.usingCache
 
   private val thisUniqueId = Hasher.hash((
-    results.map { resolution => resolution.id.value + "-" + resolution.repository.value + "-" + resolution.variant.value + "-" + resolution.commit.map(_.value).mkString}.toSeq.sorted.mkString("#") ++
+    results.map { resolution => resolution.id.value + "-" + resolution.repository.value + "-" + resolution.variant.value + "-" + resolution.commit.map(_.value).mkString }.toSeq.sorted.mkString("#") ++
     loadedVariants.map(variant => VariantMetadata.fromVariant(variant).hash.value).toSeq.sorted.mkString("#")).getBytes)
 
   private val cache: Ehcache = getCache(cacheManager)
@@ -141,7 +173,7 @@ private[adept] class GitLoader(baseDir: File, private[adept] val results: Set[Re
                   }
                 }
               } else {
-                throw new Exception("Expected to hash: " + variant + " to be in a rankig in either: " + repositories.map(_.dir.getAbsolutePath).mkString(",") + " or " + gitRepository.dir.getAbsolutePath() +". Rankings:\n" + allRankings.mkString("\n"))
+                throw new Exception("Expected to hash: " + variant + " to be in a rankig in either: " + repositories.map(_.dir.getAbsolutePath).mkString(",") + " or " + gitRepository.dir.getAbsolutePath() + ". Rankings:\n" + allRankings.mkString("\n"))
               }
 
             }

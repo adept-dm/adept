@@ -26,6 +26,7 @@ class RankLogicTest extends FunSpec with Matchers {
     val hash22: VariantHash = "foobar22"
     val hash31: VariantHash = "foobar31"
     val hash32: VariantHash = "foobar32"
+    val hash33: VariantHash = "foobar33"
 
     val rankId1 = RankId("foo1")
     val rankId2 = RankId("foo2")
@@ -66,6 +67,27 @@ class RankLogicTest extends FunSpec with Matchers {
         Ranking(id, rankId1, Seq(hash1)),
         Ranking(id, rankId2, Seq(hash32, hash31)),
         Ranking(id, rankId3, Seq(hash22, hash21)))) shouldEqual Set(hash1, hash22, hash32)
+    }
+    it("should work with the multiple consecutive (same order but one has more) rankings with the same rankids") {
+      RankLogic.chosenVariants(Set(hash1, hash22, hash21, hash31), Set(
+        Ranking(id, rankId1, Seq(hash1)),
+        Ranking(id, rankId2, Seq(hash32, hash31)), //<-- 32
+        Ranking(id, rankId2, Seq(hash33, hash32, hash31)),
+        Ranking(id, rankId3, Seq(hash22, hash21)))) shouldEqual Set(hash1, hash22, hash31)
+    }
+    it("should work with the multiple dissimilar (with a skipped) rankings with the same rankids") {
+      RankLogic.chosenVariants(Set(hash1, hash22, hash21, hash32), Set(
+        Ranking(id, rankId1, Seq(hash1)),
+        Ranking(id, rankId2, Seq(hash33, hash31)), //<-- 33, skips 32
+        Ranking(id, rankId2, Seq(hash33, hash32, hash31)),
+        Ranking(id, rankId3, Seq(hash22, hash21)))) shouldEqual Set(hash1, hash22, hash32, hash33)
+    }
+    it("should work with the multiple dissimilar (with a new different hash) rankings with the same rankids") {
+      RankLogic.chosenVariants(Set(hash1, hash22,  hash32), Set(
+        Ranking(id, rankId1, Seq(hash1)),
+        Ranking(id, rankId2, Seq(hash21, hash31)), //<-- 21 & 31
+        Ranking(id, rankId2, Seq(hash33, hash32, hash31)),
+        Ranking(id, rankId3, Seq(hash22, hash21)))) shouldEqual Set(hash1, hash21, hash22, hash32)
     }
   }
 
