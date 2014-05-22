@@ -28,7 +28,7 @@ import net.minidev.json.parser.ParseException;
 
 public class Lockfile {
   final Set<LockfileRequirement> requirements;
-  final Set<LockfileContext> variants;
+  final Set<LockfileContext> context;
   final Set<LockfileArtifact> artifacts;
 
   protected File getTmpDir() {
@@ -44,11 +44,11 @@ public class Lockfile {
    * Lockfiles gets created by factory read methods or by LockfileManager (in
    * adept-core), only package visibility
    */
-  Lockfile(Set<LockfileRequirement> requirements, Set<LockfileContext> variants, Set<LockfileArtifact> artifacts) {
+  Lockfile(Set<LockfileRequirement> requirements, Set<LockfileContext> context, Set<LockfileArtifact> artifacts) {
     // we are in control of the Sets (only we can instaniate) here so even if
     // they are mutable it is OK (yeah! :)
     this.requirements = requirements;
-    this.variants = variants;
+    this.context = context;
     this.artifacts = artifacts;
   }
 
@@ -118,7 +118,7 @@ public class Lockfile {
     }
 
     JSONArray jsonContext = (JSONArray) jsonLockfile.get("context");
-    Set<LockfileContext> variants = new HashSet<LockfileContext>(jsonContext.size());
+    Set<LockfileContext> context = new HashSet<LockfileContext>(jsonContext.size());
 
     for (int i = 0; i < jsonContext.size(); i++) {
       JSONObject jsonContextValue = (JSONObject) jsonContext.get(i);
@@ -132,8 +132,8 @@ public class Lockfile {
       else
         commit = null;
       VariantHash hash = new VariantHash((String) jsonContextValue.get("variant"));
-      LockfileContext variant = new LockfileContext(info, id, repository, locations, commit, hash);
-      variants.add(variant);
+      LockfileContext contextValue = new LockfileContext(info, id, repository, locations, commit, hash);
+      context.add(contextValue);
     }
 
     JSONArray jsonArtifacts = (JSONArray) jsonLockfile.get("artifacts");
@@ -145,11 +145,15 @@ public class Lockfile {
       Integer size = (Integer) jsonArtifact.get("size");
       Set<ArtifactLocation> locations = deserializeArtifactLocationSet((JSONArray) jsonArtifact.get("locations"));
       Set<ArtifactAttribute> attributes = deserializeArtifactAttributes((JSONObject) jsonArtifact.get("attributes"));
-      String filename = (String) jsonArtifact.get("filename");
+      final String filename;
+      if (jsonArtifact.get("filename") != null)
+        filename = (String) jsonArtifact.get("filename");
+      else
+        filename = null;
       LockfileArtifact artifact = new LockfileArtifact(hash, size, locations, attributes, filename);
       artifacts.add(artifact);
     }
-    return new Lockfile(requirements, variants, artifacts);
+    return new Lockfile(requirements, context, artifacts);
   }
 
   public static Lockfile read(String data) throws LockfileParseException {

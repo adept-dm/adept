@@ -40,10 +40,10 @@ object RankingMetadata {
           var line = reader.readLine
           var hashes = Seq.empty[VariantHash]
           while (line != null) {
-            hashes +:= VariantHash(line.trim())
+            hashes +:= VariantHash(line.trim()) //prepend
             line = reader.readLine()
           }
-          Some(RankingMetadata(hashes))
+          Some(RankingMetadata(hashes.reverse)) //first one added, is highest ranked
         } finally {
           isReader.close()
           reader.close()

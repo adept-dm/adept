@@ -141,7 +141,7 @@ private[adept] class GitLoader(baseDir: File, private[adept] val results: Set[Re
 
             //choose variants to use:
             val chosenVariants = RankLogic.chosenVariants(allVariants, allRankings)
-            if (allVariants.nonEmpty && chosenVariants.isEmpty) throw new Exception("Could not chose variants for: " + id)
+            if (allVariants.nonEmpty && chosenVariants.isEmpty) throw new Exception("Could not chose variants for: " + id + ". Variants: " + allVariants + "\nRankings: "+ allRankings)
 
             val gitHashes = gitRankings.flatMap(_.variants)
             val unversionedHashes = unversionedRankings.flatMap(_.variants)

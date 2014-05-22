@@ -12,9 +12,10 @@ import adept.artifact.models.ArtifactLocation;
  */
 class LockfileArtifact { //TODO: equals, hashCode
   public final ArtifactHash hash;
-  public final Integer size;  //TODO: we have to make this a Long, because we might hit some strange issues
+  public final Integer size;  //TODO: we have to make this a Long, because we might hit some strange issues but json smart does not support it
   public final Set<ArtifactLocation> locations; //because locations are public we might have concurrency issues, but the likelyhood is rather small
   public final Set<ArtifactAttribute> attributes;
+  /* can be null */
   public final String filename;
   
   LockfileArtifact(ArtifactHash hash, Integer size, Set<ArtifactLocation> locations, Set<ArtifactAttribute> attributes, String filename) {
