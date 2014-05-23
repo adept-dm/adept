@@ -146,8 +146,8 @@ class Repository(val baseDir: File, val name: RepositoryName) { //TODO: had to r
       throw MalformedArtifactHashException(this, hash)
     else {
       val level1 = new File(artifactsMetadataDir, hash.value.slice(0, Level1Length))
-      val level2 = new File(level1, hash.value.slice(Level1Length, Level1Length + Level2Length))
-      val level3 = new File(level2, hash.value.slice(Level2Length, Level3Length))
+      val level2 = new File(level1, hash.value.slice(Level2Length, Level1Length + Level2Length))
+      val level3 = new File(level2, hash.value.slice(Level1Length + Level2Length, Level3Length + Level1Length + Level2Length))
       new File(level3, ArtifactMetadataFileName)
     }
   }
