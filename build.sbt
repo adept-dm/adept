@@ -1,6 +1,6 @@
 organization := "com.adepthub"
 
-version := "0.9.1-SNAPSHOT"
+version := "0.9.2"
 
 scalaVersion := "2.10.3"
 
