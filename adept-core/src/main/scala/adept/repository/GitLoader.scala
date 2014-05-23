@@ -55,20 +55,22 @@ object GitLoader extends Logging {
   }
 
   //TODO: private because I might want to move this to another class? 
-  private[adept] def computeTransitiveLocations(baseDir: File, inputContext: Set[ResolutionResult], transitveContext: Set[ResolutionResult], unversionedBaseDir: Option[File] = None): Set[RepositoryLocations] = {
+  private[adept] def computeTransitiveLocations(baseDir: File, inputContext: Set[ResolutionResult], transitiveContext: Set[ResolutionResult], unversionedBaseDir: Option[File] = None): Set[RepositoryLocations] = {
     //TODO: UGLY code, refactor with computeTransitiveContext
-    val requiredRepositories = transitveContext.map(_.repository)
-    
+    val requiredRepositories = transitiveContext.map(_.repository)
+
     inputContext.flatMap { c =>
       val values = (c.commit, unversionedBaseDir) match {
         case (Some(commit), _) =>
           val repository = new GitRepository(baseDir, c.repository)
-          ResolutionResultsMetadata.read(c.id, c.variant, repository, commit)
-            .toSet[ResolutionResultsMetadata].flatMap(_.values)
+          if (!repository.exists) throw new Exception("Cannot get transitive locations for: " + c)
+          val children = ResolutionResultsMetadata.read(c.id, c.variant, repository, commit).getOrElse(throw new Exception("Could not read locations from: " + c))
+          children.values
         case (None, Some(unversionedBaseDir)) =>
           val repository = new Repository(unversionedBaseDir, c.repository)
-          ResolutionResultsMetadata.read(c.id, c.variant, repository)
-            .toSet[ResolutionResultsMetadata].flatMap(_.values)
+          if (!repository.exists) throw new Exception("Cannot get transitive locations for: " + c)
+          val children = ResolutionResultsMetadata.read(c.id, c.variant, repository).getOrElse(throw new Exception("Could not read locations from: " + c))
+          children.values
         case (None, None) =>
           throw new Exception("Found: " + c + " but both commit and unversioned base dir was None")
       }
@@ -76,10 +78,12 @@ object GitLoader extends Logging {
         (c.commit, unversionedBaseDir) match {
           case (Some(commit), _) =>
             val repository = new GitRepository(baseDir, c.repository)
-            RepositoryLocationsMetadata.read(v.repository, repository, commit).map(_.toRepositoryLocations(v.repository))
+            if (!repository.exists) throw new Exception("Cannot get transitive locations for: " + c)
+            RepositoryLocationsMetadata.read(v.repository, repository, commit).map(_.toRepositoryLocations(v.repository)).toSet +  RepositoryLocations(repository.name, repository.getRemoteUri(GitRepository.DefaultRemote).toSet)
           case (None, Some(unversionedBaseDir)) =>
             val repository = new Repository(unversionedBaseDir, c.repository)
-            RepositoryLocationsMetadata.read(v.repository, repository).map(_.toRepositoryLocations(v.repository))
+            if (!repository.exists) throw new Exception("Cannot get transitive locations for: " + c)
+            RepositoryLocationsMetadata.read(v.repository, repository).map(_.toRepositoryLocations(v.repository)).toSet +  RepositoryLocations(repository.name, Set.empty)
           case (None, None) => throw new Exception("Found: " + c + " but both commit and unversioned base dir was None")
         }
       }
@@ -141,7 +145,7 @@ private[adept] class GitLoader(baseDir: File, private[adept] val results: Set[Re
 
             //choose variants to use:
             val chosenVariants = RankLogic.chosenVariants(allVariants, allRankings)
-            if (allVariants.nonEmpty && chosenVariants.isEmpty) throw new Exception("Could not chose variants for: " + id + ". Variants: " + allVariants + "\nRankings: "+ allRankings)
+            if (allVariants.nonEmpty && chosenVariants.isEmpty) throw new Exception("Could not chose variants for: " + id + ". Variants: " + allVariants + "\nRankings: " + allRankings)
 
             val gitHashes = gitRankings.flatMap(_.variants)
             val unversionedHashes = unversionedRankings.flatMap(_.variants)

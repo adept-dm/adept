@@ -131,7 +131,7 @@ public class Lockfile {
         commit = new Commit((String) jsonContextValue.get("commit"));
       else
         commit = null;
-      VariantHash hash = new VariantHash((String) jsonContextValue.get("variant"));
+      VariantHash hash = new VariantHash((String) jsonContextValue.get("hash"));
       LockfileContext contextValue = new LockfileContext(info, id, repository, locations, commit, hash);
       context.add(contextValue);
     }
@@ -195,7 +195,7 @@ public class Lockfile {
     for (LockfileArtifact lockfileArtifact : artifacts) {
       allSizes += lockfileArtifact.size;
     }
-    progress.beginTask("Downloading artifacts", allSizes);
+    progress.beginTask("Getting artifacts", allSizes);
 
     for (LockfileArtifact lockfileArtifact : artifacts) {
       File tmpFile = File.createTempFile("adept-", lockfileArtifact.filename, getTmpDir());

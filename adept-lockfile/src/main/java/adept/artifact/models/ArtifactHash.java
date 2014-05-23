@@ -8,7 +8,7 @@ public class ArtifactHash {
   
   @Override
   public boolean equals(Object other) {
-    if (other instanceof ArtifactHash && other != null) {
+    if (other != null && other instanceof ArtifactHash) {
       return this.value.equals(((ArtifactHash) other).value);
     } else return false;
   }
