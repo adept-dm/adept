@@ -1,7 +1,3 @@
-organization := "com.adepthub"
-
-version := "0.9.2"
-
 scalaVersion := "2.10.3"
 
 scalacOptions += "-feature"
@@ -14,6 +10,8 @@ incOptions := incOptions.value.withNameHashing(true)
 
 lazy val adeptLockfile = project.in(file("adept-lockfile")).settings(
   name := "adept-lockfile",
+  version := "0.9.2",
+  organization := "com.adepthub",
   autoScalaLibrary in Test := false,
   crossPaths in Test := false,
   libraryDependencies ++= Seq(
@@ -25,6 +23,8 @@ lazy val adeptLockfile = project.in(file("adept-lockfile")).settings(
 
 lazy val adeptCore = project.in(file("adept-core")).settings(
   name := "adept-core",
+  version := "0.9.2",
+  organization := "com.adepthub",
   //jgit
   resolvers += "Jgit Repository" at "https://repo.eclipse.org/content/groups/releases/",
   //play?
