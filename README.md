@@ -2,8 +2,8 @@
 _- the predictable dependency management system where faith is not required_
 
 
-## Adept is under development
-Adept is still under development so unless you are willing to get stranded with no support, wait till the 20th May for the alpha release.
+## Adept Alpha is OUT!
+Currently only sbt is supported. The sbt plugin install instructions are available here: https://github.com/adepthub/adepthub-ext
 
 ## Overview
 <img src="https://raw.github.com/wiki/adept-dm/adept/images/adept_logo.png"
