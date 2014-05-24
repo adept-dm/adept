@@ -1,11 +1,13 @@
 # Adept #
-_- the predictable dependency management system where faith is not required_
+_- adept dependency management_
 
 
 ## Adept Alpha is OUT!
 Currently only sbt is supported. The sbt plugin install instructions are available here: https://github.com/adepthub/adepthub-ext
 
 ## Overview
+[![Build Status](https://travis-ci.org/adept-dm/adept.svg?branch=master)](https://travis-ci.org/adept-dm/adept)
+
 <img src="https://raw.github.com/wiki/adept-dm/adept/images/adept_logo.png"
  alt="Adept logo" title="Adept" width="205px" height="194px" align="right" />
 
