@@ -1,0 +1,89 @@
+{
+  "requirements" : [ {
+    "id" : "jvm/config/system",
+    "constraints" : {
+      "binary-version" : [ "1.6" ]
+    },
+    "exclusions" : [ ]
+  }, {
+    "id" : "net.minidev/json-smart/config/compile",
+    "constraints" : { },
+    "exclusions" : [ ]
+  }, {
+    "id" : "net.minidev/json-smart/config/master",
+    "constraints" : { },
+    "exclusions" : [ ]
+  }, {
+    "id" : "org.scala-lang/scala-library/config/compile",
+    "constraints" : {
+      "binary-version" : [ "2.10" ]
+    },
+    "exclusions" : [ ]
+  }, {
+    "id" : "org.scala-lang/scala-library/config/master",
+    "constraints" : {
+      "binary-version" : [ "2.10" ]
+    },
+    "exclusions" : [ ]
+  } ],
+  "context" : [ {
+    "info" : "net.minidev/json-smart [ivy-name=(json-smart),ivy-organisation=(net.minidev),module-hash=(a848899aa9fa69e5e2eeba420b02bd56a9588da01225f2aadd997170740f8b42),version=(1.2)]",
+    "id" : "net.minidev/json-smart",
+    "repository" : "net.minidev",
+    "locations" : [ "git://adepthub.com/repos/net.minidev" ],
+    "commit" : "a507f7dd808c3e8a7fcda78d93f8e176f5704792",
+    "hash" : "ebe4e40763550d2e6eea393dbf9efbd20c94095e1343b7eee7c36edb9d6fe8b2"
+  }, {
+    "info" : "net.minidev/json-smart/config/compile [configuration=(compile),ivy-name=(json-smart),ivy-organisation=(net.minidev),module-hash=(a848899aa9fa69e5e2eeba420b02bd56a9588da01225f2aadd997170740f8b42),version=(1.2)]",
+    "id" : "net.minidev/json-smart/config/compile",
+    "repository" : "net.minidev",
+    "locations" : [ "git://adepthub.com/repos/net.minidev" ],
+    "commit" : "a507f7dd808c3e8a7fcda78d93f8e176f5704792",
+    "hash" : "72ebfdce78c26663595d49558772c25bddb990653e02c7c1748a6f9502a4580b"
+  }, {
+    "info" : "net.minidev/json-smart/config/master [configuration=(master),ivy-name=(json-smart),ivy-organisation=(net.minidev),module-hash=(a848899aa9fa69e5e2eeba420b02bd56a9588da01225f2aadd997170740f8b42),version=(1.2)]",
+    "id" : "net.minidev/json-smart/config/master",
+    "repository" : "net.minidev",
+    "locations" : [ "git://adepthub.com/repos/net.minidev" ],
+    "commit" : "a507f7dd808c3e8a7fcda78d93f8e176f5704792",
+    "hash" : "c56c3ad1ec974c6696bb00b354e1f64ff9f04dd6156609d290da8db6c01192f4"
+  }, {
+    "info" : "org.scala-lang/scala-library [binary-version=(2.10),ivy-name=(scala-library),ivy-organisation=(org.scala-lang),module-hash=(1240a5588058d05617e00dceba49f905cf22a3604883cb30f72259846bd0b325),version=(2.10.3)]",
+    "id" : "org.scala-lang/scala-library",
+    "repository" : "org.scala-lang",
+    "locations" : [ "git://adepthub.com/repos/org.scala-lang" ],
+    "commit" : "3be604a32fe38a2c0f43affd1e36e2966ab6260f",
+    "hash" : "93de30bb83827cadc1e45b00b56f575139f9bcdb0eaff08276a654602cb5438e"
+  }, {
+    "info" : "org.scala-lang/scala-library/config/compile [binary-version=(2.10),configuration=(compile),ivy-name=(scala-library),ivy-organisation=(org.scala-lang),module-hash=(1240a5588058d05617e00dceba49f905cf22a3604883cb30f72259846bd0b325),version=(2.10.3)]",
+    "id" : "org.scala-lang/scala-library/config/compile",
+    "repository" : "org.scala-lang",
+    "locations" : [ "git://adepthub.com/repos/org.scala-lang" ],
+    "commit" : "3be604a32fe38a2c0f43affd1e36e2966ab6260f",
+    "hash" : "3f0fb83e9b14e3db64d3b319f8fd8164356de2a7afc5e07418ef23e5e5fc257b"
+  }, {
+    "info" : "org.scala-lang/scala-library/config/master [binary-version=(2.10),configuration=(master),ivy-name=(scala-library),ivy-organisation=(org.scala-lang),module-hash=(1240a5588058d05617e00dceba49f905cf22a3604883cb30f72259846bd0b325),version=(2.10.3)]",
+    "id" : "org.scala-lang/scala-library/config/master",
+    "repository" : "org.scala-lang",
+    "locations" : [ "git://adepthub.com/repos/org.scala-lang" ],
+    "commit" : "3be604a32fe38a2c0f43affd1e36e2966ab6260f",
+    "hash" : "bd07365d4d74583908ce4fdbb657b1e959dece273bf31a5f1e5d2b7576ffa5fe"
+  } ],
+  "artifacts" : [ {
+    "hash" : "7d3f7319a7f2294c171124afbb2d02fc6436e13c7e29220cb2902f4be0cfe526",
+    "size" : 54203,
+    "locations" : [ "http://repo1.maven.org/maven2/net/minidev/json-smart/1.2/json-smart-1.2.jar" ],
+    "attributes" : {
+      "configurations" : [ "master" ]
+    },
+    "filename" : "json-smart-1.2.jar"
+  }, {
+    "hash" : "b42fb280a16db14ccb3d5157aa30dc5965d9e7ded489059c03a991c29b650a27",
+    "size" : 7126003,
+    "locations" : [ "http://repo1.maven.org/maven2/org/scala-lang/scala-library/2.10.3/scala-library-2.10.3.jar" ],
+    "attributes" : {
+      "configurations" : [ "master" ]
+    },
+    "filename" : "scala-library-2.10.3.jar"
+  } ]
+}

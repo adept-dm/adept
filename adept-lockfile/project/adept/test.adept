@@ -1,0 +1,97 @@
+{
+  "requirements" : [ {
+    "id" : "jvm/config/system",
+    "constraints" : {
+      "binary-version" : [ "1.6" ]
+    },
+    "exclusions" : [ ]
+  }, {
+    "id" : "org.scala-lang/scala-library/config/compile",
+    "constraints" : {
+      "binary-version" : [ "2.10" ]
+    },
+    "exclusions" : [ ]
+  }, {
+    "id" : "org.scala-lang/scala-library/config/master",
+    "constraints" : {
+      "binary-version" : [ "2.10" ]
+    },
+    "exclusions" : [ ]
+  }, {
+    "id" : "org.scalatest/scalatest/config/compile",
+    "constraints" : { },
+    "exclusions" : [ ]
+  }, {
+    "id" : "org.scalatest/scalatest/config/master",
+    "constraints" : { },
+    "exclusions" : [ ]
+  } ],
+  "context" : [ {
+    "info" : "org.scala-lang/scala-library [binary-version=(2.10),ivy-name=(scala-library),ivy-organisation=(org.scala-lang),module-hash=(1240a5588058d05617e00dceba49f905cf22a3604883cb30f72259846bd0b325),version=(2.10.3)]",
+    "id" : "org.scala-lang/scala-library",
+    "repository" : "org.scala-lang",
+    "locations" : [ "git://adepthub.com/repos/org.scala-lang" ],
+    "commit" : "3be604a32fe38a2c0f43affd1e36e2966ab6260f",
+    "hash" : "93de30bb83827cadc1e45b00b56f575139f9bcdb0eaff08276a654602cb5438e"
+  }, {
+    "info" : "org.scala-lang/scala-library/config/compile [binary-version=(2.10),configuration=(compile),ivy-name=(scala-library),ivy-organisation=(org.scala-lang),module-hash=(1240a5588058d05617e00dceba49f905cf22a3604883cb30f72259846bd0b325),version=(2.10.3)]",
+    "id" : "org.scala-lang/scala-library/config/compile",
+    "repository" : "org.scala-lang",
+    "locations" : [ "git://adepthub.com/repos/org.scala-lang" ],
+    "commit" : "3be604a32fe38a2c0f43affd1e36e2966ab6260f",
+    "hash" : "3f0fb83e9b14e3db64d3b319f8fd8164356de2a7afc5e07418ef23e5e5fc257b"
+  }, {
+    "info" : "org.scala-lang/scala-library/config/master [binary-version=(2.10),configuration=(master),ivy-name=(scala-library),ivy-organisation=(org.scala-lang),module-hash=(1240a5588058d05617e00dceba49f905cf22a3604883cb30f72259846bd0b325),version=(2.10.3)]",
+    "id" : "org.scala-lang/scala-library/config/master",
+    "repository" : "org.scala-lang",
+    "locations" : [ "git://adepthub.com/repos/org.scala-lang" ],
+    "commit" : "3be604a32fe38a2c0f43affd1e36e2966ab6260f",
+    "hash" : "bd07365d4d74583908ce4fdbb657b1e959dece273bf31a5f1e5d2b7576ffa5fe"
+  }, {
+    "info" : "org.scalatest/scalatest [ivy-name=(scalatest_2.10),ivy-organisation=(org.scalatest),module-hash=(c57906adc160f01b31955959170344cfe7eee09d8f35eaa6aa5b495a462f7beb),version=(2.0)]",
+    "id" : "org.scalatest/scalatest",
+    "repository" : "org.scalatest",
+    "locations" : [ "git://adepthub.com/repos/org.scalatest" ],
+    "commit" : "2eddf39fc941d222822fc1c688de09ead18ef79a",
+    "hash" : "f0082854c7ca5191cfa9ce20698a7ae7ddd9f44baa08c8dc79daeec598a8299d"
+  }, {
+    "info" : "org.scalatest/scalatest/config/compile [configuration=(compile),ivy-name=(scalatest_2.10),ivy-organisation=(org.scalatest),module-hash=(c57906adc160f01b31955959170344cfe7eee09d8f35eaa6aa5b495a462f7beb),version=(2.0)]",
+    "id" : "org.scalatest/scalatest/config/compile",
+    "repository" : "org.scalatest",
+    "locations" : [ "git://adepthub.com/repos/org.scalatest" ],
+    "commit" : "2eddf39fc941d222822fc1c688de09ead18ef79a",
+    "hash" : "47fc327459f93a965531a42897d6741f508fcd5cbaa519ca45962a90eb1fc115"
+  }, {
+    "info" : "org.scalatest/scalatest/config/master [configuration=(master),ivy-name=(scalatest_2.10),ivy-organisation=(org.scalatest),module-hash=(c57906adc160f01b31955959170344cfe7eee09d8f35eaa6aa5b495a462f7beb),version=(2.0)]",
+    "id" : "org.scalatest/scalatest/config/master",
+    "repository" : "org.scalatest",
+    "locations" : [ "git://adepthub.com/repos/org.scalatest" ],
+    "commit" : "2eddf39fc941d222822fc1c688de09ead18ef79a",
+    "hash" : "11ccf349734e932f97bc79b4002522691cfe45ae7b847e984e8c3b4a8b3a6f58"
+  } ],
+  "artifacts" : [ {
+    "hash" : "84bae8ce3b369febb9436fe36ed9b9d7dcc51af2cc9b8a3317a33124cfd5d4a9",
+    "size" : 3149351,
+    "locations" : [ "http://repo1.maven.org/maven2/org/scala-lang/scala-reflect/2.10.0/scala-reflect-2.10.0.jar" ],
+    "attributes" : {
+      "configurations" : [ "master" ]
+    },
+    "filename" : "scala-reflect-2.10.0.jar"
+  }, {
+    "hash" : "8e6abe3c043411ba25f71f1d1f06ecea09f815a9a6f1758c5832448da9174dff",
+    "size" : 7158439,
+    "locations" : [ "http://repo1.maven.org/maven2/org/scalatest/scalatest_2.10/2.0/scalatest_2.10-2.0.jar" ],
+    "attributes" : {
+      "configurations" : [ "master" ]
+    },
+    "filename" : "scalatest_2.10-2.0.jar"
+  }, {
+    "hash" : "b42fb280a16db14ccb3d5157aa30dc5965d9e7ded489059c03a991c29b650a27",
+    "size" : 7126003,
+    "locations" : [ "http://repo1.maven.org/maven2/org/scala-lang/scala-library/2.10.3/scala-library-2.10.3.jar" ],
+    "attributes" : {
+      "configurations" : [ "master" ]
+    },
+    "filename" : "scala-library-2.10.3.jar"
+  } ]
+}

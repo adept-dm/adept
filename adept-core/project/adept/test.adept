@@ -1,0 +1,365 @@
+{
+  "requirements" : [ {
+    "id" : "com.typesafe.play/play-json/config/compile",
+    "constraints" : { },
+    "exclusions" : [ ]
+  }, {
+    "id" : "com.typesafe.play/play-json/config/master",
+    "constraints" : { },
+    "exclusions" : [ ]
+  }, {
+    "id" : "javax.transaction/jta/config/compile",
+    "constraints" : { },
+    "exclusions" : [ ]
+  }, {
+    "id" : "javax.transaction/jta/config/master",
+    "constraints" : { },
+    "exclusions" : [ ]
+  }, {
+    "id" : "jvm/config/system",
+    "constraints" : {
+      "binary-version" : [ "1.6" ]
+    },
+    "exclusions" : [ ]
+  }, {
+    "id" : "net.minidev/json-smart/config/compile",
+    "constraints" : { },
+    "exclusions" : [ ]
+  }, {
+    "id" : "net.minidev/json-smart/config/master",
+    "constraints" : { },
+    "exclusions" : [ ]
+  }, {
+    "id" : "net.sf.ehcache/ehcache-core/config/compile",
+    "constraints" : { },
+    "exclusions" : [ ]
+  }, {
+    "id" : "net.sf.ehcache/ehcache-core/config/master",
+    "constraints" : { },
+    "exclusions" : [ ]
+  }, {
+    "id" : "org.eclipse.jgit/org.eclipse.jgit/config/compile",
+    "constraints" : { },
+    "exclusions" : [ ]
+  }, {
+    "id" : "org.eclipse.jgit/org.eclipse.jgit/config/master",
+    "constraints" : { },
+    "exclusions" : [ ]
+  }, {
+    "id" : "org.scala-lang/scala-library/config/compile",
+    "constraints" : {
+      "binary-version" : [ "2.10" ]
+    },
+    "exclusions" : [ ]
+  }, {
+    "id" : "org.scala-lang/scala-library/config/master",
+    "constraints" : {
+      "binary-version" : [ "2.10" ]
+    },
+    "exclusions" : [ ]
+  }, {
+    "id" : "org.scalatest/scalatest/config/compile",
+    "constraints" : { },
+    "exclusions" : [ ]
+  }, {
+    "id" : "org.scalatest/scalatest/config/master",
+    "constraints" : { },
+    "exclusions" : [ ]
+  } ],
+  "context" : [ {
+    "info" : "com.typesafe.play/play-json [ivy-name=(play-json_2.10),ivy-organisation=(com.typesafe.play),module-hash=(c97d33bedd1da2698a1ac3005cc90a8f5cf55800782b09b2b02171b4ce90c906),version=(2.2.1)]",
+    "id" : "com.typesafe.play/play-json",
+    "repository" : "com.typesafe.play",
+    "locations" : [ "git://adepthub.com/repos/com.typesafe.play" ],
+    "commit" : "accd4cebbd3b2309130caa4e5e4ed6e5a0f340a8",
+    "hash" : "5cc0331b49f67681c33f286e44e410bbacabbe25ce243ef803162100184c4a03"
+  }, {
+    "info" : "com.typesafe.play/play-json/config/compile [configuration=(compile),ivy-name=(play-json_2.10),ivy-organisation=(com.typesafe.play),module-hash=(c97d33bedd1da2698a1ac3005cc90a8f5cf55800782b09b2b02171b4ce90c906),version=(2.2.1)]",
+    "id" : "com.typesafe.play/play-json/config/compile",
+    "repository" : "com.typesafe.play",
+    "locations" : [ "git://adepthub.com/repos/com.typesafe.play" ],
+    "commit" : "accd4cebbd3b2309130caa4e5e4ed6e5a0f340a8",
+    "hash" : "235d4a49033e86e18dda4df134d263f8662d961159d1562b12098d8f59e52d54"
+  }, {
+    "info" : "com.typesafe.play/play-json/config/master [configuration=(master),ivy-name=(play-json_2.10),ivy-organisation=(com.typesafe.play),module-hash=(c97d33bedd1da2698a1ac3005cc90a8f5cf55800782b09b2b02171b4ce90c906),version=(2.2.1)]",
+    "id" : "com.typesafe.play/play-json/config/master",
+    "repository" : "com.typesafe.play",
+    "locations" : [ "git://adepthub.com/repos/com.typesafe.play" ],
+    "commit" : "accd4cebbd3b2309130caa4e5e4ed6e5a0f340a8",
+    "hash" : "c34b042ea7f51b5d01468f2e61a72cfe83d6dd8c0475fb5598d056098690871c"
+  }, {
+    "info" : "javax.transaction/jta [ivy-name=(jta),ivy-organisation=(javax.transaction),module-hash=(118c72b2fa4902c9b17bae986871f2b1374c2ee874affcdee27c40a844fadf55),version=(1.1)]",
+    "id" : "javax.transaction/jta",
+    "repository" : "javax.transaction",
+    "locations" : [ "git://adepthub.com/repos/javax.transaction" ],
+    "commit" : "3be9b6c6c65209b007930a7b28af66229df96154",
+    "hash" : "5896242c613fe13a606f26ac77edf53177354898d133426d10662e16810672c5"
+  }, {
+    "info" : "javax.transaction/jta/config/compile [configuration=(compile),ivy-name=(jta),ivy-organisation=(javax.transaction),module-hash=(118c72b2fa4902c9b17bae986871f2b1374c2ee874affcdee27c40a844fadf55),version=(1.1)]",
+    "id" : "javax.transaction/jta/config/compile",
+    "repository" : "javax.transaction",
+    "locations" : [ "git://adepthub.com/repos/javax.transaction" ],
+    "commit" : "3be9b6c6c65209b007930a7b28af66229df96154",
+    "hash" : "7377ef357dfaa99275a4387f72cb6c6fb04bc474decd3c22496288b671681af3"
+  }, {
+    "info" : "javax.transaction/jta/config/master [configuration=(master),ivy-name=(jta),ivy-organisation=(javax.transaction),module-hash=(118c72b2fa4902c9b17bae986871f2b1374c2ee874affcdee27c40a844fadf55),version=(1.1)]",
+    "id" : "javax.transaction/jta/config/master",
+    "repository" : "javax.transaction",
+    "locations" : [ "git://adepthub.com/repos/javax.transaction" ],
+    "commit" : "3be9b6c6c65209b007930a7b28af66229df96154",
+    "hash" : "7913b13e98ddcfd3d6ab9ce8216a82e0b89c2cf11f137bb2762dafb421e78bd6"
+  }, {
+    "info" : "net.minidev/json-smart [ivy-name=(json-smart),ivy-organisation=(net.minidev),module-hash=(a848899aa9fa69e5e2eeba420b02bd56a9588da01225f2aadd997170740f8b42),version=(1.2)]",
+    "id" : "net.minidev/json-smart",
+    "repository" : "net.minidev",
+    "locations" : [ "git://adepthub.com/repos/net.minidev" ],
+    "commit" : "a507f7dd808c3e8a7fcda78d93f8e176f5704792",
+    "hash" : "ebe4e40763550d2e6eea393dbf9efbd20c94095e1343b7eee7c36edb9d6fe8b2"
+  }, {
+    "info" : "net.minidev/json-smart/config/compile [configuration=(compile),ivy-name=(json-smart),ivy-organisation=(net.minidev),module-hash=(a848899aa9fa69e5e2eeba420b02bd56a9588da01225f2aadd997170740f8b42),version=(1.2)]",
+    "id" : "net.minidev/json-smart/config/compile",
+    "repository" : "net.minidev",
+    "locations" : [ "git://adepthub.com/repos/net.minidev" ],
+    "commit" : "a507f7dd808c3e8a7fcda78d93f8e176f5704792",
+    "hash" : "72ebfdce78c26663595d49558772c25bddb990653e02c7c1748a6f9502a4580b"
+  }, {
+    "info" : "net.minidev/json-smart/config/master [configuration=(master),ivy-name=(json-smart),ivy-organisation=(net.minidev),module-hash=(a848899aa9fa69e5e2eeba420b02bd56a9588da01225f2aadd997170740f8b42),version=(1.2)]",
+    "id" : "net.minidev/json-smart/config/master",
+    "repository" : "net.minidev",
+    "locations" : [ "git://adepthub.com/repos/net.minidev" ],
+    "commit" : "a507f7dd808c3e8a7fcda78d93f8e176f5704792",
+    "hash" : "c56c3ad1ec974c6696bb00b354e1f64ff9f04dd6156609d290da8db6c01192f4"
+  }, {
+    "info" : "net.sf.ehcache/ehcache-core [ivy-name=(ehcache-core),ivy-organisation=(net.sf.ehcache),module-hash=(68858805178c8c5e9bdba3f4e11e65eef561e78034aa9431644002d823e493f4),version=(2.6.6)]",
+    "id" : "net.sf.ehcache/ehcache-core",
+    "repository" : "net.sf.ehcache",
+    "locations" : [ "git://adepthub.com/repos/net.sf.ehcache" ],
+    "commit" : "2c05b99c904ed05cabc517792354e8c15f2ddeb6",
+    "hash" : "ae87177b5d3fd905b7c1501c43b82bcab41bf0cb0a4e3249ad6f67c8ac7e14a8"
+  }, {
+    "info" : "net.sf.ehcache/ehcache-core/config/compile [configuration=(compile),ivy-name=(ehcache-core),ivy-organisation=(net.sf.ehcache),module-hash=(68858805178c8c5e9bdba3f4e11e65eef561e78034aa9431644002d823e493f4),version=(2.6.6)]",
+    "id" : "net.sf.ehcache/ehcache-core/config/compile",
+    "repository" : "net.sf.ehcache",
+    "locations" : [ "git://adepthub.com/repos/net.sf.ehcache" ],
+    "commit" : "2c05b99c904ed05cabc517792354e8c15f2ddeb6",
+    "hash" : "bfc929a47798e45a9bea5ff5a39a3d69b9023d71fc9a2b72e190fdccec5432eb"
+  }, {
+    "info" : "net.sf.ehcache/ehcache-core/config/master [configuration=(master),ivy-name=(ehcache-core),ivy-organisation=(net.sf.ehcache),module-hash=(68858805178c8c5e9bdba3f4e11e65eef561e78034aa9431644002d823e493f4),version=(2.6.6)]",
+    "id" : "net.sf.ehcache/ehcache-core/config/master",
+    "repository" : "net.sf.ehcache",
+    "locations" : [ "git://adepthub.com/repos/net.sf.ehcache" ],
+    "commit" : "2c05b99c904ed05cabc517792354e8c15f2ddeb6",
+    "hash" : "ac1be817933726413025f73b559fe25fcc5fbecd756e3096cd9408c3df4a43a1"
+  }, {
+    "info" : "org.eclipse.jgit/org.eclipse.jgit [ivy-name=(org.eclipse.jgit),ivy-organisation=(org.eclipse.jgit),module-hash=(bbdf4a7c250a5fdbbeae8a4e497ef6a454385bdc6cda79f366f231e21b7cc084),version=(3.1.0.201310021548-r)]",
+    "id" : "org.eclipse.jgit/org.eclipse.jgit",
+    "repository" : "org.eclipse.jgit",
+    "locations" : [ "git://adepthub.com/repos/org.eclipse.jgit" ],
+    "commit" : "d53ecc5483dcc010e6c6abc8a0705f9305746a69",
+    "hash" : "a283609fe2e56df90ddaeafaf1550f85ccfc530215e4760ac43defe531a67d52"
+  }, {
+    "info" : "org.eclipse.jgit/org.eclipse.jgit/config/compile [configuration=(compile),ivy-name=(org.eclipse.jgit),ivy-organisation=(org.eclipse.jgit),module-hash=(bbdf4a7c250a5fdbbeae8a4e497ef6a454385bdc6cda79f366f231e21b7cc084),version=(3.1.0.201310021548-r)]",
+    "id" : "org.eclipse.jgit/org.eclipse.jgit/config/compile",
+    "repository" : "org.eclipse.jgit",
+    "locations" : [ "git://adepthub.com/repos/org.eclipse.jgit" ],
+    "commit" : "d53ecc5483dcc010e6c6abc8a0705f9305746a69",
+    "hash" : "0b5b51c98c009bfc9f80995bfb09961676cdefd06ea7a5a795a9634ba6f95ac8"
+  }, {
+    "info" : "org.eclipse.jgit/org.eclipse.jgit/config/master [configuration=(master),ivy-name=(org.eclipse.jgit),ivy-organisation=(org.eclipse.jgit),module-hash=(bbdf4a7c250a5fdbbeae8a4e497ef6a454385bdc6cda79f366f231e21b7cc084),version=(3.1.0.201310021548-r)]",
+    "id" : "org.eclipse.jgit/org.eclipse.jgit/config/master",
+    "repository" : "org.eclipse.jgit",
+    "locations" : [ "git://adepthub.com/repos/org.eclipse.jgit" ],
+    "commit" : "d53ecc5483dcc010e6c6abc8a0705f9305746a69",
+    "hash" : "4903851bcb5328df03f21937e960b300571e77f428070cf738c98a9ddc2fb0ea"
+  }, {
+    "info" : "org.scalatest/scalatest [ivy-name=(scalatest_2.10),ivy-organisation=(org.scalatest),module-hash=(c57906adc160f01b31955959170344cfe7eee09d8f35eaa6aa5b495a462f7beb),version=(2.0)]",
+    "id" : "org.scalatest/scalatest",
+    "repository" : "org.scalatest",
+    "locations" : [ "git://adepthub.com/repos/org.scalatest" ],
+    "commit" : "2eddf39fc941d222822fc1c688de09ead18ef79a",
+    "hash" : "f0082854c7ca5191cfa9ce20698a7ae7ddd9f44baa08c8dc79daeec598a8299d"
+  }, {
+    "info" : "org.scalatest/scalatest/config/compile [configuration=(compile),ivy-name=(scalatest_2.10),ivy-organisation=(org.scalatest),module-hash=(c57906adc160f01b31955959170344cfe7eee09d8f35eaa6aa5b495a462f7beb),version=(2.0)]",
+    "id" : "org.scalatest/scalatest/config/compile",
+    "repository" : "org.scalatest",
+    "locations" : [ "git://adepthub.com/repos/org.scalatest" ],
+    "commit" : "2eddf39fc941d222822fc1c688de09ead18ef79a",
+    "hash" : "47fc327459f93a965531a42897d6741f508fcd5cbaa519ca45962a90eb1fc115"
+  }, {
+    "info" : "org.scalatest/scalatest/config/master [configuration=(master),ivy-name=(scalatest_2.10),ivy-organisation=(org.scalatest),module-hash=(c57906adc160f01b31955959170344cfe7eee09d8f35eaa6aa5b495a462f7beb),version=(2.0)]",
+    "id" : "org.scalatest/scalatest/config/master",
+    "repository" : "org.scalatest",
+    "locations" : [ "git://adepthub.com/repos/org.scalatest" ],
+    "commit" : "2eddf39fc941d222822fc1c688de09ead18ef79a",
+    "hash" : "11ccf349734e932f97bc79b4002522691cfe45ae7b847e984e8c3b4a8b3a6f58"
+  } ],
+  "artifacts" : [ {
+    "hash" : "19f7007ae4d61e1e47585ea742eb407bef36cd348b127bd4bf5c862f0a2f72b8",
+    "size" : 40544,
+    "locations" : [ "http://repo1.maven.org/maven2/org/joda/joda-convert/1.3.1/joda-convert-1.3.1.jar" ],
+    "attributes" : {
+      "configurations" : [ "master" ]
+    },
+    "filename" : "joda-convert-1.3.1.jar"
+  }, {
+    "hash" : "1ec254be61bd73b44b9adf26923d04e18965aa48cb3d3e1537096056e139e3c7",
+    "size" : 191738,
+    "locations" : [ "http://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-core/2.2.2/jackson-core-2.2.2.jar" ],
+    "attributes" : {
+      "configurations" : [ "master" ]
+    },
+    "filename" : "jackson-core-2.2.2.jar"
+  }, {
+    "hash" : "48cd629c3081dff4d8c35e7da4efb3bcc4ed4b35c8a7e8198d5c30e0312bd912",
+    "size" : 225751,
+    "locations" : [ "http://repo1.maven.org/maven2/com/jcraft/jsch/0.1.46/jsch-0.1.46.jar" ],
+    "attributes" : {
+      "configurations" : [ "master" ]
+    },
+    "filename" : "jsch-0.1.46.jar"
+  }, {
+    "hash" : "62035399bb0eb6486c843134ff9bcbb86b916aea2ef811916150c3a3950b7cf5",
+    "size" : 366840,
+    "locations" : [ "http://repo.typesafe.com/typesafe/releases/com/typesafe/play/play-functional_2.10/2.2.1/play-functional_2.10-2.2.1.jar" ],
+    "attributes" : {
+      "configurations" : [ "master" ]
+    },
+    "filename" : "play-functional_2.10-2.2.1.jar"
+  }, {
+    "hash" : "635d0625268a7443194d3640d058cd4d03af57fa55a506204ac211371b39d220",
+    "size" : 1346296,
+    "locations" : [ "http://repo1.maven.org/maven2/net/sf/ehcache/ehcache-core/2.6.6/ehcache-core-2.6.6.jar" ],
+    "attributes" : {
+      "configurations" : [ "master" ]
+    },
+    "filename" : "ehcache-core-2.6.6.jar"
+  }, {
+    "hash" : "638c58a97e04db5cd84de838d36a2caa09f8b36cdc23f57fdff159a00e8fbabc",
+    "size" : 627243,
+    "locations" : [ "http://repo.typesafe.com/typesafe/releases/com/typesafe/play/play-json_2.10/2.2.1/play-json_2.10-2.2.1.jar" ],
+    "attributes" : {
+      "configurations" : [ "master" ]
+    },
+    "filename" : "play-json_2.10-2.2.1.jar"
+  }, {
+    "hash" : "779aa03cba0398d3a3fc97cb665c15aafbfb532f104c1e52711a25afc4d88dc8",
+    "size" : 650514,
+    "locations" : [ "http://repo1.maven.org/maven2/org/scala-stm/scala-stm_2.10/0.7/scala-stm_2.10-0.7.jar" ],
+    "attributes" : {
+      "configurations" : [ "master" ]
+    },
+    "filename" : "scala-stm_2.10-0.7.jar"
+  }, {
+    "hash" : "7d3f7319a7f2294c171124afbb2d02fc6436e13c7e29220cb2902f4be0cfe526",
+    "size" : 54203,
+    "locations" : [ "http://repo1.maven.org/maven2/net/minidev/json-smart/1.2/json-smart-1.2.jar" ],
+    "attributes" : {
+      "configurations" : [ "master" ]
+    },
+    "filename" : "json-smart-1.2.jar"
+  }, {
+    "hash" : "82caa94bc4dee0b3485084ae15858fef41687bf0dfa82c52cb8870a00fbffd23",
+    "size" : 3171168,
+    "locations" : [ "http://repo1.maven.org/maven2/org/scala-lang/scala-reflect/2.10.2/scala-reflect-2.10.2.jar" ],
+    "attributes" : {
+      "configurations" : [ "master" ]
+    },
+    "filename" : "scala-reflect-2.10.2.jar"
+  }, {
+    "hash" : "8e6abe3c043411ba25f71f1d1f06ecea09f815a9a6f1758c5832448da9174dff",
+    "size" : 7158439,
+    "locations" : [ "http://repo1.maven.org/maven2/org/scalatest/scalatest_2.10/2.0/scalatest_2.10-2.0.jar" ],
+    "attributes" : {
+      "configurations" : [ "master" ]
+    },
+    "filename" : "scalatest_2.10-2.0.jar"
+  }, {
+    "hash" : "9079d44aed426254019a2d9fd3e3e63870e831363f82c38984a17e01c3dd650f",
+    "size" : 187497,
+    "locations" : [ "http://repo1.maven.org/maven2/com/typesafe/config/1.0.2/config-1.0.2.jar" ],
+    "attributes" : {
+      "configurations" : [ "master" ]
+    },
+    "filename" : "config-1.0.2.jar"
+  }, {
+    "hash" : "9b49ec36ccdea13fbca8d1e1e2a74a8cc94e4fa0a9aced1fc74f8df32c1b1b99",
+    "size" : 7121818,
+    "locations" : [ "http://repo1.maven.org/maven2/org/scala-lang/scala-library/2.10.2/scala-library-2.10.2.jar" ],
+    "attributes" : {
+      "configurations" : [ "master" ]
+    },
+    "filename" : "scala-library-2.10.2.jar"
+  }, {
+    "hash" : "b8ec163b4a47bad16f9a0b7d03c3210c6b0a29216d768031073ac20817c0ba50",
+    "size" : 15071,
+    "locations" : [ "http://repo1.maven.org/maven2/javax/transaction/jta/1.1/jta-1.1.jar" ],
+    "attributes" : {
+      "configurations" : [ "master" ]
+    },
+    "filename" : "jta-1.1.jar"
+  }, {
+    "hash" : "be786d03626a64acdae156917ef370b6e8ceb5e1f7e65b8a66780805c0fa3621",
+    "size" : 5198,
+    "locations" : [ "http://repo.typesafe.com/typesafe/releases/com/typesafe/play/play-datacommons_2.10/2.2.1/play-datacommons_2.10-2.2.1.jar" ],
+    "attributes" : {
+      "configurations" : [ "master" ]
+    },
+    "filename" : "play-datacommons_2.10-2.2.1.jar"
+  }, {
+    "hash" : "c21e020d437681b2dc4935a2d1dde697d8e095cb3c801f69936609eae4f3e8d0",
+    "size" : 716463,
+    "locations" : [ "http://repo.typesafe.com/typesafe/releases/com/typesafe/play/play-iteratees_2.10/2.2.1/play-iteratees_2.10-2.2.1.jar" ],
+    "attributes" : {
+      "configurations" : [ "master" ]
+    },
+    "filename" : "play-iteratees_2.10-2.2.1.jar"
+  }, {
+    "hash" : "ccc4a5a10e7a30ce61f11496a460b28fbfb48695e0f11d4ffcb76cc715bd7116",
+    "size" : 33491,
+    "locations" : [ "http://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-annotations/2.2.2/jackson-annotations-2.2.2.jar" ],
+    "attributes" : {
+      "configurations" : [ "master" ]
+    },
+    "filename" : "jackson-annotations-2.2.2.jar"
+  }, {
+    "hash" : "d1296fa8926f71743be61cb4bfdac2ac3deb9ffe1a4948b1f293cb7a1bdb1800",
+    "size" : 53916,
+    "locations" : [ "http://repo1.maven.org/maven2/com/googlecode/javaewah/JavaEWAH/0.5.6/JavaEWAH-0.5.6.jar" ],
+    "attributes" : {
+      "configurations" : [ "master" ]
+    },
+    "filename" : "JavaEWAH-0.5.6.jar"
+  }, {
+    "hash" : "d849d117fc3798838c6cd42db6a7ecf6d9ae050c3997417b8e4e251e592b1d3e",
+    "size" : 25496,
+    "locations" : [ "http://repo1.maven.org/maven2/org/slf4j/slf4j-api/1.6.1/slf4j-api-1.6.1.jar" ],
+    "attributes" : {
+      "configurations" : [ "master" ]
+    },
+    "filename" : "slf4j-api-1.6.1.jar"
+  }, {
+    "hash" : "e5183ca131f7195bde5b27e4cd18deeb6d14f8bc5c483b1431421132927240af",
+    "size" : 573912,
+    "locations" : [ "http://repo1.maven.org/maven2/joda-time/joda-time/2.2/joda-time-2.2.jar" ],
+    "attributes" : {
+      "configurations" : [ "master" ]
+    },
+    "filename" : "joda-time-2.2.jar"
+  }, {
+    "hash" : "f123f5f0674cc7c501cab5387f7d149eb1d48cb2dedf15b47d9cf6a38c1dc095",
+    "size" : 1833272,
+    "locations" : [ "http://repo1.maven.org/maven2/org/eclipse/jgit/org.eclipse.jgit/3.1.0.201310021548-r/org.eclipse.jgit-3.1.0.201310021548-r.jar" ],
+    "attributes" : {
+      "configurations" : [ "master" ]
+    },
+    "filename" : "org.eclipse.jgit-3.1.0.201310021548-r.jar"
+  }, {
+    "hash" : "f9d2033d9d3809f307440227adf8900dbb89234282c77eacabd75d0f538a7cd9",
+    "size" : 866104,
+    "locations" : [ "http://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.2.2/jackson-databind-2.2.2.jar" ],
+    "attributes" : {
+      "configurations" : [ "master" ]
+    },
+    "filename" : "jackson-databind-2.2.2.jar"
+  } ]
+}
