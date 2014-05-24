@@ -24,56 +24,49 @@ class GitLoaderTest extends FunSuite with Matchers {
     repoA.init()
     val repoB = new GitRepository(tmpDir, RepositoryName("com.b"))
     repoB.init()
-    val aId = Id("A")
-    val aVariant =  Variant(aId, Set(version -> Set("1.0.0"), binaryVersion -> Set("1.0")), requirements = Set("B" -> Set(Constraint(binaryVersion, Set("2.0")))))
-    val aVariantHash = VariantMetadata.fromVariant(aVariant).hash
-    val b20Variant = Variant("B", Set(version -> Set("2.0.1"), binaryVersion -> Set("2.0")), requirements = Set.empty)
-    val b20VariantHash = VariantMetadata.fromVariant(b20Variant).hash
-      
-    val infoA = aVariant -> repoA
-    val infoB = Set(
+    val info = Set(
+      Variant("A", Set(version -> Set("1.0.0"), binaryVersion -> Set("1.0")),
+        requirements = Set("B" -> Set(Constraint(binaryVersion, Set("2.0"))))) -> repoA,
+
       Variant("B", Set(version -> Set("1.0.0"), binaryVersion -> Set("1.0")),
         requirements = Set.empty) -> repoB,
-      b20Variant -> repoB)
-        
-    val results= (infoB + infoA).map {
+      Variant("B", Set(version -> Set("2.0.1"), binaryVersion -> Set("2.0")),
+        requirements = Set.empty) -> repoB)
+
+    info.map {
       case (v, r) =>
         val metadata = VariantMetadata.fromVariant(v)
         r.add(metadata.write(v.id, r))
         val rankId = RankingMetadata.DefaultRankId
-        r.add(RankingMetadata(Seq(metadata.hash)).write(v.id, rankId, r))
+        val formerRankings = RankingMetadata.read(v.id, rankId, r).toList.flatMap(_.variants)
+        r.add(RankingMetadata(metadata.hash :: formerRankings).write(v.id, rankId, r))
         val commit = r.commit("Adding: " + v.id)
 
         ResolutionResult(v.id, r.name, Some(commit), metadata.hash)
     }
-
-    val aTransitiveResults = ResolutionResultsMetadata(results.toSeq.filter(_.variant == b20VariantHash))
-    repoA.add(aTransitiveResults.write(aId, aVariantHash, repoA))
-        
-    results
   }
 
-  def createUnversionedResolutionResults(tmpDir: File) = {
-    val repo = new Repository(tmpDir, RepositoryName("com.b"))
-    val info = Set(
-      Variant("B", Set(version -> Set("1.0.1"), binaryVersion -> Set("1.0"))), 
-      Variant("B", Set(version -> Set("1.0.0"), binaryVersion -> Set("1.0"))))
-
-    val initialResults = info.map {
-      case v =>
-        val metadata = VariantMetadata.fromVariant(v)
-        metadata.write(v.id, repo)
-        val rankId = RankingMetadata.DefaultRankId
-        RankingMetadata(Seq(metadata.hash)).write(v.id, rankId, repo)
-
-        ResolutionResult(v.id, repo.name, None, metadata.hash)
-    }
-    initialResults
-  }
+//TODO: create a test for unversioned resolution results
+//  def createUnversionedResolutionResults(tmpDir: File) = {
+//    val repo = new Repository(tmpDir, RepositoryName("com.b"))
+//    val info = Set(
+//      Variant("B", Set(version -> Set("1.0.1"), binaryVersion -> Set("1.0"))),
+//      Variant("B", Set(version -> Set("1.0.0"), binaryVersion -> Set("1.0"))))
+//
+//    val initialResults = info.map {
+//      case v =>
+//        val metadata = VariantMetadata.fromVariant(v)
+//        metadata.write(v.id, repo)
+//        val rankId = RankingMetadata.DefaultRankId
+//        RankingMetadata(Seq(metadata.hash)).write(v.id, rankId, repo)
+//
+//        ResolutionResult(v.id, repo.name, None, metadata.hash)
+//    }
+//    initialResults
+//  }
 
   test("Git Loader basics: add and resolve") {
     usingTmpDir { tmpDir =>
-
       val requirements: Set[Requirement] = Set(
         "A" -> Set(Constraint(binaryVersion, Set("1.0"))))
       val initialResults = createVersionedResolutionResults(tmpDir)
