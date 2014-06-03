@@ -37,7 +37,7 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
   }
 
   def hasCommit(commit: Commit): Boolean = {
-    usingRevWalk { (gitRepo, revWalk) =>
+    exists && usingRevWalk { (gitRepo, revWalk) =>
       lookup(gitRepo, revWalk, commit.value).isDefined
     }
   }
@@ -98,7 +98,11 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
 
   def getHead: Commit = usingRevWalk { (gitRepo, revWalk) =>
     val resolvedRef = gitRepo.resolve(Head)
-    Commit(revWalk.lookupCommit(resolvedRef).name)
+    if (resolvedRef != null) {
+      Commit(revWalk.lookupCommit(resolvedRef).name)
+    } else {
+      throw new Exception("In Git: " + gitRepo.getDirectory().getAbsolutePath() + ": cannot resolve commit: " + Head)
+    }
   }
 
   def add(files: Set[File]): Set[File] = synchronized { //this is synchronized because git locks when it writes and we do not want to try to break that one, feels bad but that is the way it is
