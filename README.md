@@ -36,8 +36,6 @@ Adept gives you speed and deterministic behavior:
 
 ## Contributing
 
-The guys at adepthub.com is rolling out an Alpha end of February! It is exciting times in the world of dependency management!
-
 
 Do you want to take part in shaping the ultimate dependency managmenet system on the JVM for years to come? 
 
