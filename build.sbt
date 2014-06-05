@@ -10,7 +10,7 @@ val scalatestDep = "org.scalatest" %% "scalatest" % "2.0" % "test"
 
 incOptions := incOptions.value.withNameHashing(true)
 
-val adeptVersion = "0.9.2.3"
+val adeptVersion = "0.9.2.6"
 
 val jvmTarget = "1.6"
 
