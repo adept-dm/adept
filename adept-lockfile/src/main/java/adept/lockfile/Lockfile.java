@@ -45,15 +45,29 @@ public class Lockfile {
    * Lockfiles gets created by factory read methods or by LockfileManager (in
    * adept-core), only package visibility
    */
-  Lockfile(Set<LockfileRequirement> requirements, Set<LockfileContext> context,
+  public Lockfile(Set<LockfileRequirement> requirements, Set<LockfileContext> context,
       Set<LockfileArtifact> artifacts) {
-    // we are in control of the Sets (only we can instaniate) here so even if
+    // we are in control of the Sets (only we can instantiate) here so even if
     // they are mutable it is OK (yeah! :)
     this.requirements = requirements;
     this.context = context;
     this.artifacts = artifacts;
   }
 
+  // Getters: TODO: make copies of requirements to ensure immutability? seems a bit too strict though
+  public Set<LockfileRequirement> getRequirements() {
+    return requirements;
+  }
+
+  public Set<LockfileArtifact> getArtifacts() {
+    return artifacts;
+  }
+
+  public Set<LockfileContext> getContext() {
+    return context;
+  }
+
+  //
   private static Set<String> deserializeStringSet(JSONArray jsonStrings) {
     Set<String> values = new HashSet<String>(jsonStrings.size());
     for (int i = 0; i < jsonStrings.size(); i++) {

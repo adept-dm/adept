@@ -1,7 +1,7 @@
 package adept.lockfile;
 
-class Commit {
-  Commit(String value) {
+public class Commit {
+  public Commit(String value) {
     this.value = value;
   }
 

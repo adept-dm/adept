@@ -1,6 +1,6 @@
 package adept.lockfile;
 
-class VariantHash {
+public class VariantHash {
   VariantHash(String value) {
     this.value = value;
   }

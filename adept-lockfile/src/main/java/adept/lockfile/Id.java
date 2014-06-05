@@ -1,7 +1,7 @@
 package adept.lockfile;
 
-class Id {
-  Id(String value) {
+public class Id {
+  public Id(String value) {
     this.value = value;
   }
   

@@ -1,6 +1,6 @@
 package adept.lockfile;
 
-class RepositoryName {
+public class RepositoryName {
   RepositoryName(String value) {
     this.value = value;
   }

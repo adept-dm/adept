@@ -11,7 +11,7 @@ import adept.artifact.models.ArtifactLocation;
  * Limited to this package only, use Lockfile factory methods to create lockfile
  * instead, or LockfileGenerator
  */
-class LockfileArtifact { // TODO: equals, hashCode
+public class LockfileArtifact { // TODO: equals, hashCode
   public final ArtifactHash hash;
   public final Integer size; // TODO: we have to make this a Long, because we
                              // might hit some strange issues but json smart
@@ -24,7 +24,7 @@ class LockfileArtifact { // TODO: equals, hashCode
   /* can be null */
   public final String filename;
 
-  LockfileArtifact(ArtifactHash hash, Integer size,
+  public LockfileArtifact(ArtifactHash hash, Integer size,
       Set<ArtifactLocation> locations, Set<ArtifactAttribute> attributes,
       String filename) {
     this.hash = hash;
