@@ -18,5 +18,5 @@ resolvers += "Typesafe Repository" at "http://repo.typesafe.com/typesafe/release
 
 resolvers += Resolver.url("Typesafe Repository (non maven compat)",  url("http://repo.typesafe.com/typesafe/releases"))(Resolver.ivyStylePatterns)
 
-addSbtPlugin("com.adepthub" % "adepthub-sbt" % "0.9.2.4")
+//addSbtPlugin("com.adepthub" % "adepthub-sbt" % "0.9.2.4")
 

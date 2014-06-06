@@ -5,10 +5,17 @@ import adept.artifact.models.Artifact;
 
 public class ArtifactDownloadResult {
   final public Artifact artifact;
-  final public Exception exception; //null if tmpFile is set
-  final public File tmpFile; //null if exception is set
+  final public Exception exception; //null if failed
+  final public File tmpFile; //null if no tmpFile was used
   final public String filename; //null if exception is set
-  private File cachedFile;
+  private File cachedFile; //null if failed
+  
+  public ArtifactDownloadResult(Artifact artifact, String filename) {
+    this.artifact = artifact;
+    this.filename = filename;
+    this.exception = null;
+    this.tmpFile = null;
+  }
   
   public ArtifactDownloadResult(Artifact artifact, File tmpFile, String filename) {
     this.artifact = artifact;
@@ -25,11 +32,11 @@ public class ArtifactDownloadResult {
   }
   
   public boolean isFailed() {
-    return exception != null && tmpFile == null;
+    return exception != null && cachedFile == null;
   }
 
   public boolean isSuccess() {
-    return exception == null && tmpFile != null;
+    return exception == null && cachedFile != null;
   }
 
   public File getCachedFile() {

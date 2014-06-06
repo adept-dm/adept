@@ -80,7 +80,8 @@ public class ArtifactDownloader implements Callable<ArtifactDownloadResult> {
           File srcFile = tmpFile;
           result.setCachedFile(ArtifactCache.cache(baseDir, srcFile, hash, filename));
         }
-        progress.update(artifact.size.intValue());
+        Long kilobytesDownloaded = artifact.size / 1024;
+        progress.update(kilobytesDownloaded.intValue());
 
       } catch (IOException ioException) {
         logger.debug("Got exception: " + ioException.getMessage() + " cause: " + ioException.getCause());
