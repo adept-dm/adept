@@ -9,7 +9,7 @@ import net.sf.ehcache.CacheManager
 import java.io.File
 import org.scalatest.OptionValues._
 import adept.repository.metadata.VariantMetadata
-import adept.repository.metadata.ResolutionResultsMetadata
+import adept.repository.metadata.ContextMetadata
 import adept.repository.metadata.RepositoryLocationsMetadata
 import adept.repository.metadata.RankingMetadata
 
@@ -19,7 +19,7 @@ class GitLoaderTest extends FunSuite with Matchers {
   import adept.test.CacheUtils._
   import adept.test.OutputUtils._
 
-  def createVersionedResolutionResults(tmpDir: File) = {
+  def createVersionedContext(tmpDir: File) = {
     val repoA = new GitRepository(tmpDir, RepositoryName("com.a"))
     repoA.init()
     val repoB = new GitRepository(tmpDir, RepositoryName("com.b"))
@@ -42,12 +42,12 @@ class GitLoaderTest extends FunSuite with Matchers {
         r.add(RankingMetadata(metadata.hash :: formerRankings).write(v.id, rankId, r))
         val commit = r.commit("Adding: " + v.id)
 
-        ResolutionResult(v.id, r.name, Some(commit), metadata.hash)
+        ContextValue(v.id, r.name, Some(commit), metadata.hash)
     }
   }
 
-//TODO: create a test for unversioned resolution results
-//  def createUnversionedResolutionResults(tmpDir: File) = {
+//TODO: create a test for unversioned context
+//  def createUnversionedContext(tmpDir: File) = {
 //    val repo = new Repository(tmpDir, RepositoryName("com.b"))
 //    val info = Set(
 //      Variant("B", Set(version -> Set("1.0.1"), binaryVersion -> Set("1.0"))),
@@ -60,7 +60,7 @@ class GitLoaderTest extends FunSuite with Matchers {
 //        val rankId = RankingMetadata.DefaultRankId
 //        RankingMetadata(Seq(metadata.hash)).write(v.id, rankId, repo)
 //
-//        ResolutionResult(v.id, repo.name, None, metadata.hash)
+//        ContextValue(v.id, repo.name, None, metadata.hash)
 //    }
 //    initialResults
 //  }
@@ -69,7 +69,7 @@ class GitLoaderTest extends FunSuite with Matchers {
     usingTmpDir { tmpDir =>
       val requirements: Set[Requirement] = Set(
         "A" -> Set(Constraint(binaryVersion, Set("1.0"))))
-      val initialResults = createVersionedResolutionResults(tmpDir)
+      val initialResults = createVersionedContext(tmpDir)
       val loader = new GitLoader(tmpDir, initialResults, cacheManager, progress = progress)
       val result = resolve(requirements, loader)
       checkResolved(result, Set("A", "B"))

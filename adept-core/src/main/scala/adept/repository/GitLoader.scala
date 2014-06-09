@@ -8,7 +8,7 @@ import net.sf.ehcache.CacheManager
 import adept.hash.Hasher
 import net.sf.ehcache.Ehcache
 import org.eclipse.jgit.lib.ProgressMonitor
-import adept.repository.metadata.ResolutionResultsMetadata
+import adept.repository.metadata.ContextMetadata
 import adept.logging.Logging
 import adept.repository.metadata.RepositoryLocationsMetadata
 import adept.repository.metadata.RankingMetadata
@@ -37,16 +37,16 @@ object GitLoader extends Logging {
   }
 
   //TODO: private because I might want to move this to another class? 
-  private[adept] def computeTransitiveContext(baseDir: File, context: Set[ResolutionResult], unversionedBaseDir: Option[File] = None): Set[ResolutionResult] = {
+  private[adept] def computeTransitiveContext(baseDir: File, context: Set[ContextValue], unversionedBaseDir: Option[File] = None): Set[ContextValue] = {
     context.flatMap { c =>
       (c.commit, unversionedBaseDir) match {
         case (Some(commit), _) =>
           val repository = new GitRepository(baseDir, c.repository)
-          val children = ResolutionResultsMetadata.read(c.id, c.variant, repository, commit).getOrElse(throw new Exception("Could not read context from: " + c))
+          val children = ContextMetadata.read(c.id, c.variant, repository, commit).getOrElse(throw new Exception("Could not read context from: " + c))
           children.values
         case (None, Some(unversionedBaseDir)) =>
           val repository = new Repository(unversionedBaseDir, c.repository)
-          val children = ResolutionResultsMetadata.read(c.id, c.variant, repository).getOrElse(throw new Exception("Could not read context from: " + c))
+          val children = ContextMetadata.read(c.id, c.variant, repository).getOrElse(throw new Exception("Could not read context from: " + c))
           children.values
         case (None, None) =>
           throw new Exception("Found: " + c + " but both commit and unversioned base dir was None")
@@ -55,7 +55,7 @@ object GitLoader extends Logging {
   }
 
   //TODO: private because I might want to move this to another class? 
-  private[adept] def computeTransitiveLocations(baseDir: File, inputContext: Set[ResolutionResult], transitiveContext: Set[ResolutionResult], unversionedBaseDir: Option[File] = None): Set[RepositoryLocations] = {
+  private[adept] def computeTransitiveLocations(baseDir: File, inputContext: Set[ContextValue], transitiveContext: Set[ContextValue], unversionedBaseDir: Option[File] = None): Set[RepositoryLocations] = {
     //TODO: UGLY code, refactor with computeTransitiveContext
     val requiredRepositories = transitiveContext.map(_.repository)
 
@@ -64,12 +64,12 @@ object GitLoader extends Logging {
         case (Some(commit), _) =>
           val repository = new GitRepository(baseDir, c.repository)
           if (!repository.exists) throw new Exception("Cannot get transitive locations for: " + c)
-          val children = ResolutionResultsMetadata.read(c.id, c.variant, repository, commit).getOrElse(throw new Exception("Could not read locations from: " + c))
+          val children = ContextMetadata.read(c.id, c.variant, repository, commit).getOrElse(throw new Exception("Could not read locations from: " + c))
           children.values
         case (None, Some(unversionedBaseDir)) =>
           val repository = new Repository(unversionedBaseDir, c.repository)
           if (!repository.exists) throw new Exception("Cannot get transitive locations for: " + c)
-          val children = ResolutionResultsMetadata.read(c.id, c.variant, repository).getOrElse(throw new Exception("Could not read locations from: " + c))
+          val children = ContextMetadata.read(c.id, c.variant, repository).getOrElse(throw new Exception("Could not read locations from: " + c))
           children.values
         case (None, None) =>
           throw new Exception("Found: " + c + " but both commit and unversioned base dir was None")
@@ -91,7 +91,7 @@ object GitLoader extends Logging {
   }
 
   //TODO: private because I might want to move this to another class? 
-  private[adept] def applyOverrides(context: Set[ResolutionResult], overrides: Set[ResolutionResult]): Set[ResolutionResult] = {
+  private[adept] def applyOverrides(context: Set[ContextValue], overrides: Set[ContextValue]): Set[ContextValue] = {
     val overridesById = overrides.groupBy(v => (v.repository, v.id))
     context.flatMap { v =>
       overridesById.getOrElse(v.repository -> v.id, Set(v))
@@ -100,7 +100,7 @@ object GitLoader extends Logging {
 
 }
 
-private[adept] class GitLoader(baseDir: File, private[adept] val results: Set[ResolutionResult], cacheManager: CacheManager, unversionedBaseDirs: Set[File] = Set.empty, private[adept] val loadedVariants: Set[Variant] = Set.empty, progress: ProgressMonitor = NullProgressMonitor.INSTANCE) extends VariantsLoader with Logging {
+private[adept] class GitLoader(baseDir: File, private[adept] val results: Set[ContextValue], cacheManager: CacheManager, unversionedBaseDirs: Set[File] = Set.empty, private[adept] val loadedVariants: Set[Variant] = Set.empty, progress: ProgressMonitor = NullProgressMonitor.INSTANCE) extends VariantsLoader with Logging {
   import GitLoader._
   import adept.utils.CacheHelpers.usingCache
 
@@ -118,7 +118,7 @@ private[adept] class GitLoader(baseDir: File, private[adept] val results: Set[Re
             val gitRepository = new GitRepository(baseDir, repositoryName)
             //use only latest commit:
             val allCommits = results.collect {
-              case ResolutionResult(_, _, Some(commit), _) => commit
+              case ContextValue(_, _, Some(commit), _) => commit
             }
             val onlyLatestCommits = GitHelpers.lastestCommits(gitRepository, allCommits)
             val allVariants = results.map(_.variant)

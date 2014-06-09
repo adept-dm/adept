@@ -35,6 +35,9 @@ build
 .idea/*.iws
 .idea/workspace.xml
 .idea/tasks.xml
+.idea/modules
+.idea/libraries
+.idea/dictionaries
 
 # Test tmp files:
 tmp

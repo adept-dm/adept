@@ -9,7 +9,7 @@ import adept.repository.models._
 import adept.resolution.models._
 import adept.artifact.models._
 
-class ResolutionResultsMetadataTest extends FunSuite with Matchers {
+class ContextMetadataTest extends FunSuite with Matchers {
   import adept.test.FileUtils.usingTmpDir
 
   test("Create and read repository metadata") {
@@ -18,7 +18,7 @@ class ResolutionResultsMetadataTest extends FunSuite with Matchers {
       repository.init()
       val id = Id("test/foo")
 
-      val repositoryMetadata = ResolutionResultsMetadata(Seq(ResolutionResult(
+      val repositoryMetadata = ContextMetadata(Seq(ContextValue(
           id = id,
           repository = RepositoryName("test"),
           commit = Some(Commit("131321321")),
@@ -29,7 +29,7 @@ class ResolutionResultsMetadataTest extends FunSuite with Matchers {
       repository.add(repositoryMetadata.write(id, hash, repository))
       repository.commit("Added repository")
       import org.scalatest.OptionValues._
-      ResolutionResultsMetadata.read(id, hash, repository, repository.getHead).value shouldEqual repositoryMetadata
+      ContextMetadata.read(id, hash, repository, repository.getHead).value shouldEqual repositoryMetadata
     }
   }
 }
