@@ -20,6 +20,8 @@
       <sourceFolder url="file://$MODULE_DIR$/../src/test/scala" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/../src/test/java" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/../src/test/resources" isTestSource="true" />
+      <excludeFolder url="file://$MODULE_DIR$/../.idea" />
+      <excludeFolder url="file://$MODULE_DIR$" />
       <excludeFolder url="file://$MODULE_DIR$/../target" />
     </content>
     <orderEntry type="inheritedJdk" />
