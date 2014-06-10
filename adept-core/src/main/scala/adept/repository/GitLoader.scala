@@ -141,7 +141,7 @@ private[adept] class GitLoader(baseDir: File, private[adept] val context: Set[Co
               }
             }
             val allRankings = gitRankings ++ unversionedRankings
-            if (allVariants.nonEmpty && allRankings.isEmpty) throw new Exception("Could not find any ranking files for: " + id + " when comparing: " + results)
+            if (allVariants.nonEmpty && allRankings.isEmpty) throw new Exception("Could not find any ranking files for: " + id + " when comparing: " + context)
 
             //choose variants to use:
             val chosenVariants = RankLogic.chosenVariants(allVariants, allRankings)
