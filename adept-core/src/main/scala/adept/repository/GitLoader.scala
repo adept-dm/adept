@@ -100,28 +100,28 @@ object GitLoader extends Logging {
 
 }
 
-private[adept] class GitLoader(baseDir: File, private[adept] val results: Set[ContextValue], cacheManager: CacheManager, unversionedBaseDirs: Set[File] = Set.empty, private[adept] val loadedVariants: Set[Variant] = Set.empty, progress: ProgressMonitor = NullProgressMonitor.INSTANCE) extends VariantsLoader with Logging {
+private[adept] class GitLoader(baseDir: File, private[adept] val context: Set[ContextValue], cacheManager: CacheManager, unversionedBaseDirs: Set[File] = Set.empty, private[adept] val loadedVariants: Set[Variant] = Set.empty, progress: ProgressMonitor = NullProgressMonitor.INSTANCE) extends VariantsLoader with Logging {
   import GitLoader._
   import adept.utils.CacheHelpers.usingCache
 
   private val thisUniqueId = Hasher.hash((
-    results.map { resolution => resolution.id.value + "-" + resolution.repository.value + "-" + resolution.variant.value + "-" + resolution.commit.map(_.value).mkString }.toSeq.sorted.mkString("#") ++
+    context.map { cv => cv.id.value + "-" + cv.repository.value + "-" + cv.variant.value + "-" + cv.commit.map(_.value).mkString }.toSeq.sorted.mkString("#") ++
     loadedVariants.map(variant => VariantMetadata.fromVariant(variant).hash.value).toSeq.sorted.mkString("#")).getBytes)
 
   private val cache: Ehcache = getCache(cacheManager)
 
   private lazy val cachedById = { //lazy this might take a while
-    results.groupBy(_.id).map {
-      case (id, results) =>
-        val variantsLazyLoad = results.groupBy(_.repository).flatMap {
-          case (repositoryName, results) =>
+    context.groupBy(_.id).map {
+      case (id, contextValues) =>
+        val variantsLazyLoad = contextValues.groupBy(_.repository).flatMap {
+          case (repositoryName, contextValues) =>
             val gitRepository = new GitRepository(baseDir, repositoryName)
             //use only latest commit:
-            val allCommits = results.collect {
+            val allCommits = contextValues.collect {
               case ContextValue(_, _, Some(commit), _) => commit
             }
             val onlyLatestCommits = GitHelpers.lastestCommits(gitRepository, allCommits)
-            val allVariants = results.map(_.variant)
+            val allVariants = contextValues.map(_.variant)
 
             //all rankings
             val gitRankings = onlyLatestCommits.flatMap { commit =>
