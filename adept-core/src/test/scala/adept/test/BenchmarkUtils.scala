@@ -32,12 +32,12 @@ object BenchmarkUtils {
     BenchmarkId(requirements.toString)
   }
 
-  implicit def convertResults(results: Set[ContextValue]): BenchmarkId = {
-    BenchmarkId(results.toString)
+  implicit def convertContext(context: Set[ContextValue]): BenchmarkId = {
+    BenchmarkId(context.toString)
     
   }
   implicit def convertGitLoader(loader: GitLoader): BenchmarkId = {
-    convertResults(loader.results)
+    convertContext(loader.context)
   }
 
   implicit def convertMemGitLoader(loader: MemoryLoader): BenchmarkId = {
