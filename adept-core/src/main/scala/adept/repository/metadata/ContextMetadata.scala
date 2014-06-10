@@ -10,33 +10,33 @@ import java.io.FileWriter
 import adept.repository.GitRepository
 import java.io.File
 
-case class ResolutionResultsMetadata(values: Seq[ResolutionResult]) {
-  import ResolutionResultsMetadata._
+case class ContextMetadata(values: Seq[ContextValue]) {
+  import ContextMetadata._
   lazy val jsonString = Json.prettyPrint(Json.toJson(values.sorted))
 
   def write(id: Id, hash: VariantHash, repository: Repository): File = {
-    val file = repository.ensureResolutionResultsFile(id, hash)
+    val file = repository.ensureContextFile(id, hash)
     MetadataContent.write(jsonString, file)
   }
 }
 
-object ResolutionResultsMetadata {
+object ContextMetadata {
 
-  private[adept] implicit def format: Format[ResolutionResult] = {
+  private[adept] implicit def format: Format[ContextValue] = {
     (
       (__ \ "id").format[String] and
       (__ \ "repository").format[String] and
       (__ \ "commit").format[Option[String]] and
       (__ \ "variant").format[String])({
         case (id, repository, commit, variant) =>
-          ResolutionResult(
+          ContextValue(
             Id(id),
             RepositoryName(repository),
             commit.map(Commit(_)),
             VariantHash(variant))
       },
-        unlift({ r: ResolutionResult =>
-          val ResolutionResult(id, repository, commit, variant) = r
+        unlift({ cv: ContextValue =>
+          val ContextValue(id, repository, commit, variant) = cv
           Some((
             id.value,
             repository.value,
@@ -45,13 +45,13 @@ object ResolutionResultsMetadata {
         }))
   }
 
-  def read(id: Id, hash: VariantHash, repository: Repository): Option[ResolutionResultsMetadata] = {
-    val file = repository.getResolutionResultsFile(id, hash)
+  def read(id: Id, hash: VariantHash, repository: Repository): Option[ContextMetadata] = {
+    val file = repository.getContextFile(id, hash)
     repository.usingFileInputStream(file) {
       case Right(Some(is)) =>
         val json = Json.parse(io.Source.fromInputStream(is).getLines.mkString("\n"))
-        Json.fromJson[Seq[ResolutionResult]](json) match {
-          case JsSuccess(values, _) => Some(ResolutionResultsMetadata(values))
+        Json.fromJson[Seq[ContextValue]](json) match {
+          case JsSuccess(values, _) => Some(ContextMetadata(values))
           case JsError(errors) => throw new Exception("Could parse json: " + id + "#" + hash + " in dir:  " + repository.dir + " (" + file.getAbsolutePath() + "). Got errors: " + errors)
         }
       case Right(None) => None
@@ -60,13 +60,13 @@ object ResolutionResultsMetadata {
     }
   }
 
-  def read(id: Id, hash: VariantHash, repository: GitRepository, commit: Commit): Option[ResolutionResultsMetadata] = {
-    repository.usingResolutionResultsInputStream(id, hash, commit) {
+  def read(id: Id, hash: VariantHash, repository: GitRepository, commit: Commit): Option[ContextMetadata] = {
+    repository.usingContextInputStream(id, hash, commit) {
       case Right(Some(is)) =>
         val json = Json.parse(io.Source.fromInputStream(is).getLines.mkString("\n"))
-        Json.fromJson[Seq[ResolutionResult]](json) match {
-          case JsSuccess(values, _) => Some(ResolutionResultsMetadata(values))
-          case JsError(errors) => throw new Exception("Could parse json: " + id + "#" + hash + " for commit: " + commit + " in dir:  " + repository.dir + " (" + repository.asGitPath(repository.getResolutionResultsFile(id, hash)) + "). Got errors: " + errors)
+        Json.fromJson[Seq[ContextValue]](json) match {
+          case JsSuccess(values, _) => Some(ContextMetadata(values))
+          case JsError(errors) => throw new Exception("Could parse json: " + id + "#" + hash + " for commit: " + commit + " in dir:  " + repository.dir + " (" + repository.asGitPath(repository.getContextFile(id, hash)) + "). Got errors: " + errors)
         }
       case Right(None) => None
       case Left(error) =>

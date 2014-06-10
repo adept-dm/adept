@@ -5,7 +5,7 @@ import adept.artifact.models.ArtifactLocation
 import adept.artifact.models.ArtifactAttribute
 import play.api.libs.json._
 import play.api.libs.functional.syntax._
-import adept.repository.models.ResolutionResult
+import adept.repository.models.ContextValue
 
 private[adept] object LockfileConverters {
     import collection.JavaConverters._
@@ -26,7 +26,7 @@ private[adept] object LockfileConverters {
     val commit = Option(lockfileContext.commit).map(c => adept.repository.models.Commit(c.value))
     val repository = adept.repository.models.RepositoryName(lockfileContext.repository.value)
     val hash = adept.repository.models.VariantHash(lockfileContext.hash.value)
-    ResolutionResult(id, repository, commit, hash)
+    ContextValue(id, repository, commit, hash)
   }
 
   //Helpers to convert from Scala to Java:

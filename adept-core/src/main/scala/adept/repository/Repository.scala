@@ -24,7 +24,7 @@ object Repository {
   val ReposDirName = "repos"
 
   val JsonFileEnding = "json"
-  val ResolutionResultsFileName = "context." + JsonFileEnding //TODO: change ResolutionResults to Context and ResolutionResult to ContextValue
+  val ContextFileName = "context." + JsonFileEnding
   val InfoMetadataFileName = "info." + JsonFileEnding
   val VariantMetadataFileName = "variant." + JsonFileEnding
   val ArtifactMetadataFileName = "artifact." + JsonFileEnding
@@ -133,12 +133,12 @@ class Repository(val baseDir: File, val name: RepositoryName) { //TODO: had to r
     ensureParentDirs(getVariantFile(id, hash))
   }
 
-  def getResolutionResultsFile(id: Id, hash: VariantHash) = {
-    new File(getVariantHashDir(id, hash), ResolutionResultsFileName)
+  def getContextFile(id: Id, hash: VariantHash) = {
+    new File(getVariantHashDir(id, hash), ContextFileName)
   }
 
-  def ensureResolutionResultsFile(id: Id, hash: VariantHash) = {
-    ensureParentDirs(getResolutionResultsFile(id, hash))
+  def ensureContextFile(id: Id, hash: VariantHash) = {
+    ensureParentDirs(getContextFile(id, hash))
   }
 
   def getArtifactFile(hash: ArtifactHash) = {

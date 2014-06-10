@@ -2,9 +2,12 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea_modules/adept-core.iml" filepath="$PROJECT_DIR$/.idea_modules/adept-core.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea_modules/adept-core-build.iml" filepath="$PROJECT_DIR$/.idea_modules/adept-core-build.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/adept.iml" filepath="$PROJECT_DIR$/.idea/modules/adept.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/adept-build.iml" filepath="$PROJECT_DIR$/.idea/modules/adept-build.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/adeptCore.iml" filepath="$PROJECT_DIR$/.idea/modules/adeptCore.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/adeptCore-build.iml" filepath="$PROJECT_DIR$/.idea/modules/adeptCore-build.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/adeptLockfile.iml" filepath="$PROJECT_DIR$/.idea/modules/adeptLockfile.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/adeptLockfile-build.iml" filepath="$PROJECT_DIR$/.idea/modules/adeptLockfile-build.iml" />
     </modules>
   </component>
 </project>
-

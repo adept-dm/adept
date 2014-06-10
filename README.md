@@ -1,12 +1,15 @@
 # Adept #
 _- adept dependency management_
 
-
 ## Adept Alpha is OUT!
-Currently only sbt is supported. The sbt plugin install instructions are available here: https://github.com/adepthub/adepthub-ext
+
+Currently only sbt is supported. The sbt plugin install instructions are available here:
+https://github.com/adepthub/adepthub-ext
 
 ## Overview
-[![Build Status](https://travis-ci.org/adept-dm/adept.svg?branch=master)](https://travis-ci.org/adept-dm/adept)
+
+[![Build
+Status](https://travis-ci.org/adept-dm/adept.svg?branch=master)](https://travis-ci.org/adept-dm/adept)
 
 <img src="https://raw.github.com/wiki/adept-dm/adept/images/adept_logo.png"
  alt="Adept logo" title="Adept" width="205px" height="194px" align="right" />
@@ -36,9 +39,7 @@ Adept gives you speed and deterministic behavior:
 
 ## Contributing
 
-
-Do you want to take part in shaping the ultimate dependency managmenet system on the JVM for years to come? 
-
+Do you want to take part in shaping the ultimate dependency management system on the JVM for years to come?
 
 **Now is the time! Head over to the [Contributing] section**
 
@@ -46,14 +47,15 @@ Do you want to take part in shaping the ultimate dependency managmenet system on
 
 **Do you struggle with your builds at work and think Adept could solve your issues?**
 
-**Want to enage in Adept now and make sure your requirements are met?**
+**Want to engage in Adept now and make sure your requirements are met?**
 
-Create an [issue] [issues] and tell the world about your interest or drop me a mail directly if privacy is required: fredrik.ekholdt (at) typesafe.com !
-
+Create an [issue] [issues] and tell the world about your interest or drop me a mail directly if privacy is
+required: fredrik.ekholdt (at) typesafe.com !
 
 ## Questions or need help?
 
-No question should be unasked: head to the [issues tracker] [issues] or start a thread on the [mailing list] [mailinglist].
+No question should be unasked: head to the [issues tracker] [issues] or start a thread on the [mailing list]
+[mailinglist].
 
 ## License
 
@@ -82,4 +84,3 @@ limitations under the License.
 [setup-image]: https://github.com/adept-dm/adept/wiki/images/setup.png
 [roadmap-image]: https://github.com/adept-dm/adept/wiki/images/roadmap.png
 [contributing-image]: https://github.com/adept-dm/adept/wiki/images/contribute.png
-
