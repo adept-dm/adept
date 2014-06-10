@@ -251,8 +251,8 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
     }
   }
 
-  private[repository] def usingResolutionResultsInputStream[A](id: Id, hash: VariantHash, commit: Commit)(block: Either[String, Option[InputStream]] => A): A = {
-    usingInputStream(commit, asGitPath(getResolutionResultsFile(id, hash)))(block)
+  private[repository] def usingContextInputStream[A](id: Id, hash: VariantHash, commit: Commit)(block: Either[String, Option[InputStream]] => A): A = {
+    usingInputStream(commit, asGitPath(getContextFile(id, hash)))(block)
   }
 
   private[repository] def usingVariantInputStream[A](id: Id, hash: VariantHash, commit: Commit)(block: Either[String, Option[InputStream]] => A): A = {

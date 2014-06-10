@@ -6,13 +6,12 @@ import play.api.libs.json._
 import play.api.libs.functional.syntax._
 import adept.utils.OrderingHelpers
 
-/** The resolution result for each Id: answers the who we found (the variant hash) and where we found it (commit and repository) */
-@deprecated("ResolutionResult will change name soon") //TODO: change to Context and ContextValues
-case class ResolutionResult(id: Id, repository: RepositoryName, commit: Option[Commit], variant: VariantHash) //TODO: rename variant to hash
+/** The context value for each Id: answers the who we found (the variant hash) and where we found it (commit and repository) */
+case class ContextValue(id: Id, repository: RepositoryName, commit: Option[Commit], variant: VariantHash) //TODO: rename variant to hash
 
-object ResolutionResult {
-  implicit val ordering: Ordering[ResolutionResult] = new Ordering[ResolutionResult] {
-    def compare(x: ResolutionResult, y: ResolutionResult): Int = {
+object ContextValue {
+  implicit val ordering: Ordering[ContextValue] = new Ordering[ContextValue] {
+    def compare(x: ContextValue, y: ContextValue): Int = {
       if (x.repository.value < y.repository.value)
         -1
       else if (x.repository.value > y.repository.value)

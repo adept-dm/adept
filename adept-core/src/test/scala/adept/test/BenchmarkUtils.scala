@@ -1,7 +1,7 @@
 package adept.test
 
 import adept.resolution.models.Requirement
-import adept.repository.models.ResolutionResult
+import adept.repository.models.ContextValue
 import adept.hash.Hasher
 import adept.resolution.resolver.models.ResolveResult
 import adept.resolution.models.Variant
@@ -32,7 +32,7 @@ object BenchmarkUtils {
     BenchmarkId(requirements.toString)
   }
 
-  implicit def convertResults(results: Set[ResolutionResult]): BenchmarkId = {
+  implicit def convertResults(results: Set[ContextValue]): BenchmarkId = {
     BenchmarkId(results.toString)
     
   }
