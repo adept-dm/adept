@@ -3,11 +3,9 @@ package adept.repository.metadata
 import adept.repository.models._
 import adept.resolution.models._
 import adept.repository.Repository
-import play.api.libs.json.Format
 import java.io.FileInputStream
 import java.io.FileOutputStream
-import play.api.libs.json._
-import play.api.libs.functional.syntax._
+import com.fasterxml.jackson.databind.ObjectMapper
 import java.io.BufferedWriter
 import java.io.FileWriter
 import adept.hash.Hasher
@@ -31,7 +29,7 @@ case class VariantMetadata(attributes: Seq[Attribute], artifacts: Seq[ArtifactRe
     VariantHash(Hasher.hash(jsonString.getBytes))
   }
 
-  lazy val jsonString = Json.prettyPrint(Json.toJson(this))
+  lazy val jsonString = new ObjectMapper().writeValueAsString(this)
 
   def write(id: Id, repository: Repository): File = {
     require(hash.value.length == Repository.HashLength, "Hash for: " + id + " (" + this + ") has length:" + hash.value.length + " but should have " + Repository.HashLength)
@@ -47,58 +45,57 @@ object VariantMetadata {
   }
 
   import ArtifactMetadata._
+//
+//  implicit val requirementFormat: Format[Requirement] = {
+//    (
+//      (__ \ "id").format[String] and
+//      (__ \ "constraints").format[Map[String, Set[String]]] and
+//      (__ \ "exclusions").format[Seq[String]])({
+//        case (id, constraints, exclusions) =>
+//          Requirement(
+//            Id(id),
+//            constraints.map { case (name, values) => Constraint(name, values) }.toSet,
+//            exclusions.map(Id(_)).toSet)
+//      },
+//        unlift({ r: Requirement =>
+//          val Requirement(id, constraints, exlusions) = r
+//          Some((
+//            id.value,
+//            constraints.toSeq.sorted.map(c => c.name -> c.values).toMap,
+//            exlusions.toSeq.map(_.value).sorted))
+//        }))
+//  }
+//
+//  implicit def format: Format[VariantMetadata] = {
+//    (
+//      (__ \ "attributes").format[Map[String, Set[String]]] and
+//      (__ \ "artifacts").format[Seq[ArtifactRef]] and
+//      (__ \ "requirements").format[Seq[Requirement]])({
+//        case (attributes, artifacts, requirements) =>
+//          VariantMetadata(
+//            attributes.map { case (name, values) => Attribute(name, values) }.toSeq,
+//            artifacts,
+//            requirements)
+//      },
+//        unlift({ vm: VariantMetadata =>
+//          val VariantMetadata(attributes, artifacts, requirements) = vm
+//          Some((
+//            attributes.toSeq.sorted.map(a => a.name -> a.values).toMap,
+//            artifacts.toSeq.sorted,
+//            requirements.toSeq.sorted))
+//        }))
+//  }
 
-  implicit val requirementFormat: Format[Requirement] = {
-    (
-      (__ \ "id").format[String] and
-      (__ \ "constraints").format[Map[String, Set[String]]] and
-      (__ \ "exclusions").format[Seq[String]])({
-        case (id, constraints, exclusions) =>
-          Requirement(
-            Id(id),
-            constraints.map { case (name, values) => Constraint(name, values) }.toSet,
-            exclusions.map(Id(_)).toSet)
-      },
-        unlift({ r: Requirement =>
-          val Requirement(id, constraints, exlusions) = r
-          Some((
-            id.value,
-            constraints.toSeq.sorted.map(c => c.name -> c.values).toMap,
-            exlusions.toSeq.map(_.value).sorted))
-        }))
-  }
-
-  implicit def format: Format[VariantMetadata] = {
-    (
-      (__ \ "attributes").format[Map[String, Set[String]]] and
-      (__ \ "artifacts").format[Seq[ArtifactRef]] and
-      (__ \ "requirements").format[Seq[Requirement]])({
-        case (attributes, artifacts, requirements) =>
-          VariantMetadata(
-            attributes.map { case (name, values) => Attribute(name, values) }.toSeq,
-            artifacts,
-            requirements)
-      },
-        unlift({ vm: VariantMetadata =>
-          val VariantMetadata(attributes, artifacts, requirements) = vm
-          Some((
-            attributes.toSeq.sorted.map(a => a.name -> a.values).toMap,
-            artifacts.toSeq.sorted,
-            requirements.toSeq.sorted))
-        }))
-  }
-
-  private def readJson(id: Id, hash: VariantHash, repository: Repository, is: InputStream, checkHash: Boolean) = {
-    val json = Json.parse(io.Source.fromInputStream(is).getLines.mkString("\n"))
-    Json.fromJson[VariantMetadata](json) match {
-      case JsSuccess(value, _) =>
-        if (checkHash) {
-          if (value.hash == hash) {
-            Some(value)
-          } else throw new Exception("Found variant metdata: " + value + " for hash " + hash + " but it has a different hash: " + hash) //TODO: this might be overkill?
-        } else Some(value)
-      case JsError(errors) => throw new Exception("Could parse json: " + hash + " for in dir:  " + repository.dir.getAbsolutePath() + " (" + repository.getVariantFile(id, hash).getAbsolutePath + "). Got errors: " + errors)
-    }
+  private def readJson(id: Id, hash: VariantHash, repository: Repository, is: InputStream, checkHash: Boolean) :
+  Option[VariantMetadata] = {
+    val value = new ObjectMapper().readValue(io.Source.fromInputStream(is).getLines.mkString("\n"),
+    classOf[VariantMetadata])
+      if (checkHash) {
+        if (value.hash == hash) {
+          Some(value)
+        } else throw new Exception("Found variant metdata: " + value + " for hash " + hash +
+          " but it has a different hash: " + hash) //TODO: this might be overkill?
+      } else Some(value)
   }
 
   def read(id: Id, hash: VariantHash, repository: Repository, checkHash: Boolean): Option[VariantMetadata] = {
@@ -112,7 +109,8 @@ object VariantMetadata {
     }
   }
 
-  def read(id: Id, hash: VariantHash, repository: GitRepository, commit: Commit, checkHash: Boolean = true): Option[VariantMetadata] = {
+  def read(id: Id, hash: VariantHash, repository: GitRepository, commit: Commit, checkHash: Boolean = true):
+  Option[VariantMetadata] = {
     repository.usingVariantInputStream(id, hash, commit) {
       case Right(Some(is)) =>
         readJson(id, hash, repository, is, checkHash)

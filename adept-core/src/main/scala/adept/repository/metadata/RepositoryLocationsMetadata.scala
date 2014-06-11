@@ -2,8 +2,7 @@ package adept.repository.metadata
 
 import adept.repository.models.RepositoryName
 import adept.repository.models.RepositoryLocations
-import play.api.libs.json._
-import play.api.libs.functional.syntax._
+import com.fasterxml.jackson.databind.ObjectMapper
 import adept.repository.Repository
 import java.io.File
 import adept.repository.GitRepository
@@ -15,7 +14,7 @@ case class RepositoryLocationsMetadata(uris: Seq[String]) {
     RepositoryLocations(name, uris.toSet)
   }
 
-  lazy val jsonString = Json.prettyPrint(Json.toJson(uris.sorted))
+  lazy val jsonString = new ObjectMapper().writeValueAsString(uris.sorted)
 
   def write(name: RepositoryName, repository: Repository): File = { //name: the name of the repository where the uris are pointing. repository represents the directory where you are storing this information
     val file = repository.ensureRepositoryLocationsFile(name)
@@ -44,11 +43,12 @@ object RepositoryLocationsMetadata {
   def read(name: RepositoryName, repository: GitRepository, commit: Commit): Option[RepositoryLocationsMetadata] = {
     repository.usingRepositoryLocationsStream(name, commit) {
       case Right(Some(is)) =>
-        val json = Json.parse(io.Source.fromInputStream(is).getLines.mkString("\n"))
-        Json.fromJson[Seq[String]](json) match {
-          case JsSuccess(values, _) => Some(RepositoryLocationsMetadata(values))
-          case JsError(errors) => throw new Exception("Could parse json for repository locations in: " + name + " for commit: " + commit + " in dir:  " + repository.dir + " (" + repository.getRepositoryLocationsFile(name).getAbsolutePath + "). Got errors: " + errors)
-        }
+        Some(new ObjectMapper().readValue(io.Source.fromInputStream(is).getLines.mkString("\n"),
+          classOf[RepositoryLocationsMetadata]))
+//        Json.fromJson[Seq[String]](json) match {
+//          case JsSuccess(values, _) => Some(RepositoryLocationsMetadata(values))
+//          case JsError(errors) => throw new Exception("Could parse json for repository locations in: " + name + " for commit: " + commit + " in dir:  " + repository.dir + " (" + repository.getRepositoryLocationsFile(name).getAbsolutePath + "). Got errors: " + errors)
+//        }
       case Right(None) => None
       case Left(error) =>
         throw new Exception("Could not read: " + name + " for commit: " + commit + " in dir:  " + repository.dir + ". Got error: " + error)
@@ -59,11 +59,12 @@ object RepositoryLocationsMetadata {
     val file = repository.getRepositoryLocationsFile(name)
     repository.usingFileInputStream(repository.getRepositoryLocationsFile(name)) {
       case Right(Some(is)) =>
-        val json = Json.parse(io.Source.fromInputStream(is).getLines.mkString("\n"))
-        Json.fromJson[Seq[String]](json) match {
-          case JsSuccess(values, _) => Some(RepositoryLocationsMetadata(values))
-          case JsError(errors) => throw new Exception("Could parse json for repository locations in: " + name + " in dir:  " + repository.dir + " (" + file.getAbsolutePath + "). Got errors: " + errors)
-        }
+        Some(new ObjectMapper().readValue(io.Source.fromInputStream(is).getLines.mkString("\n"),
+        classOf[RepositoryLocationsMetadata]))
+//        Json.fromJson[Seq[String]](json) match {
+//          case JsSuccess(values, _) => Some(RepositoryLocationsMetadata(values))
+//          case JsError(errors) => throw new Exception("Could parse json for repository locations in: " + name + " in dir:  " + repository.dir + " (" + file.getAbsolutePath + "). Got errors: " + errors)
+//        }
       case Right(None) => None
       case Left(error) =>
         throw new Exception("Could not read: " + name + " for file: " + file.getAbsolutePath() + " in dir:  " + repository.dir + ". Got error: " + error)
