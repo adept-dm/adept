@@ -14,7 +14,7 @@ public class Artifact implements JsonSerializable {
   public Artifact(ArtifactHash hash, Long size, Set<ArtifactLocation> locations) {
     this.hash = hash;
     this.size = size;
-    this.locations = new HashSet<>();
+    this.locations = new HashSet<ArtifactLocation>();
     this.locations.addAll(locations); // copying since Java's collections are
                                       // mutable
   }

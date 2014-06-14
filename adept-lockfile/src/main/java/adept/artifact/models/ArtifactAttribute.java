@@ -29,7 +29,7 @@ public class ArtifactAttribute implements JsonSerializable {
           name = parser.getValueAsString();
           break;
         case "values":
-          values = new HashSet<>();
+          values = new HashSet<String>();
           while (parser.nextToken() != JsonToken.END_ARRAY) {
             values.add(parser.getValueAsString());
           }

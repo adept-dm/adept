@@ -65,7 +65,7 @@ public class Lockfile {
           name = parser.getValueAsString();
           break;
         case "values":
-          values = new HashSet<>();
+          values = new HashSet<String>();
           assert (parser.getCurrentToken() == JsonToken.START_ARRAY);
           while (parser.nextToken() != JsonToken.END_ARRAY) {
             values.add(parser.getValueAsString());
@@ -92,14 +92,14 @@ public class Lockfile {
           id = parser.getValueAsString();
           break;
         case "constraints":
-          constraints = new HashSet<>();
+          constraints = new HashSet<Constraint>();
           assert (parser.getCurrentToken() == JsonToken.START_ARRAY);
           while (parser.nextToken() != JsonToken.END_ARRAY) {
             constraints.add(parseConstraint(parser));
           }
           break;
         case "exclusions":
-          exclusions = new HashSet<>();
+          exclusions = new HashSet<Id>();
           assert (parser.getCurrentToken() == JsonToken.START_ARRAY);
           while (parser.nextToken() != JsonToken.END_ARRAY) {
             exclusions.add(new Id(parser.getValueAsString()));
@@ -135,7 +135,7 @@ public class Lockfile {
           repository = new RepositoryName(parser.getValueAsString());
           break;
         case "locations":
-          locations = new HashSet<>();
+          locations = new HashSet<RepositoryLocation>();
           assert (parser.getCurrentToken() == JsonToken.START_ARRAY);
           while (parser.nextToken() != JsonToken.END_ARRAY) {
             locations.add(new RepositoryLocation(parser.getValueAsString()));
@@ -168,7 +168,7 @@ public class Lockfile {
           name = parser.getValueAsString();
           break;
         case "values":
-          values = new HashSet<>();
+          values = new HashSet<String>();
           assert (parser.getCurrentToken() == JsonToken.START_ARRAY);
           while (parser.nextToken() != JsonToken.END_ARRAY) {
             values.add(parser.getValueAsString());
@@ -199,14 +199,14 @@ public class Lockfile {
           size = parser.getValueAsInt();
           break;
         case "locations":
-          locations = new HashSet<>();
+          locations = new HashSet<ArtifactLocation>();
           assert (parser.getCurrentToken() == JsonToken.START_ARRAY);
           while (parser.nextToken() != JsonToken.END_ARRAY) {
             locations.add(new ArtifactLocation(parser.getValueAsString()));
           }
           break;
         case "attributes":
-          attributes = new HashSet<>();
+          attributes = new HashSet<ArtifactAttribute>();
           assert (parser.getCurrentToken() == JsonToken.START_ARRAY);
           while (parser.nextToken() != JsonToken.END_ARRAY) {
             attributes.add(parseAttribute(parser));
@@ -235,19 +235,19 @@ public class Lockfile {
         parser.nextToken();
         switch (fieldName) {
           case "requirements":
-            requirements = new HashSet<>();
+            requirements = new HashSet<LockfileRequirement>();
             while (parser.nextToken() != JsonToken.END_ARRAY) {
               requirements.add(parseRequirement(parser));
             }
             break;
           case "context":
-            contexts = new HashSet<>();
+            contexts = new HashSet<LockfileContext>();
             while (parser.nextToken() != JsonToken.END_ARRAY) {
               contexts.add(parseContext(parser));
             }
             break;
           case "artifacts":
-            artifacts = new HashSet<>();
+            artifacts = new HashSet<LockfileArtifact>();
             while (parser.nextToken() != JsonToken.END_ARRAY) {
               artifacts.add(parseArtifact(parser));
             }
@@ -284,7 +284,7 @@ public class Lockfile {
     ExecutorService executorService = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
     Set<ArtifactDownloadResult> results = new HashSet<>(this.artifacts.size());
 
-    Set<LockfileArtifact> nonLocalArtifacts = new HashSet<>();
+    Set<LockfileArtifact> nonLocalArtifacts = new HashSet<LockfileArtifact>();
     for (LockfileArtifact artifact : this.artifacts) {
       File currentCachedFile = ArtifactCache.getOrCreateExistingCacheFile(baseDir, artifact.hash, artifact.filename,
           true);
@@ -297,7 +297,7 @@ public class Lockfile {
       }
     }
 
-    Set<Future<ArtifactDownloadResult>> futures = new HashSet<>(nonLocalArtifacts.size());
+    Set<Future<ArtifactDownloadResult>> futures = new HashSet<Future<ArtifactDownloadResult>>(nonLocalArtifacts.size());
 
     int allSizes = 0;
     for (LockfileArtifact lockfileArtifact : nonLocalArtifacts) {
