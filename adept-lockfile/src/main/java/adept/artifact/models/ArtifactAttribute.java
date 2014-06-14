@@ -24,16 +24,13 @@ public class ArtifactAttribute implements JsonSerializable {
       String fieldName = parser.getCurrentName();
       // Read value, or START_OBJECT/START_ARRAY
       parser.nextToken();
-      switch (fieldName) {
-        case "name":
-          name = parser.getValueAsString();
-          break;
-        case "values":
-          values = new HashSet<String>();
-          while (parser.nextToken() != JsonToken.END_ARRAY) {
-            values.add(parser.getValueAsString());
-          }
-          break;
+      if (fieldName.equals("name")) {
+        name = parser.getValueAsString();
+      } else if (fieldName.equals("values")) {
+        values = new HashSet<String>();
+        while (parser.nextToken() != JsonToken.END_ARRAY) {
+          values.add(parser.getValueAsString());
+        }
       }
     }
 
@@ -43,7 +40,7 @@ public class ArtifactAttribute implements JsonSerializable {
   public void writeJson(JsonGenerator generator) throws java.io.IOException {
     generator.writeStringField("name", name);
     generator.writeArrayFieldStart("values");
-    for (String value: values) {
+    for (String value : values) {
       generator.writeString(value);
     }
     generator.writeEndArray();

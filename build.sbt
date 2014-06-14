@@ -18,7 +18,8 @@ lazy val adeptLockfile = project.in(file("adept-lockfile")).settings(
   name := "adept-lockfile",
   version := adeptVersion,
   organization := "com.adepthub",
-  scalacOptions += "-target:jvm-"+jvmTarget,
+  scalacOptions += s"-target:jvm-$jvmTarget",
+  javacOptions ++= Seq("-target", jvmTarget, "-source", jvmTarget),
   autoScalaLibrary in Test := false,
   crossPaths in Test := false, 
   libraryDependencies ++= Seq(
@@ -32,6 +33,7 @@ lazy val adeptCore = project.in(file("adept-core")).settings(
   version := adeptVersion,
   organization := "com.adepthub",
   scalacOptions += "-target:jvm-"+jvmTarget,
+  javacOptions ++= Seq("-target", jvmTarget, "-source", jvmTarget),
   //jgit
   resolvers += "Jgit Repository" at "https://repo.eclipse.org/content/groups/releases/",
   //play?

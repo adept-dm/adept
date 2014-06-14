@@ -60,17 +60,14 @@ public class Lockfile {
       String fieldName = parser.getCurrentName();
       // Get value or array start token
       parser.nextToken();
-      switch (fieldName) {
-        case "name":
-          name = parser.getValueAsString();
-          break;
-        case "values":
-          values = new HashSet<String>();
-          assert (parser.getCurrentToken() == JsonToken.START_ARRAY);
-          while (parser.nextToken() != JsonToken.END_ARRAY) {
-            values.add(parser.getValueAsString());
-          }
-          break;
+      if (fieldName.equals("name")) {
+        name = parser.getValueAsString();
+      } else if (fieldName.equals("values")) {
+        values = new HashSet<String>();
+        assert (parser.getCurrentToken() == JsonToken.START_ARRAY);
+        while (parser.nextToken() != JsonToken.END_ARRAY) {
+          values.add(parser.getValueAsString());
+        }
       }
     }
 
@@ -87,24 +84,20 @@ public class Lockfile {
       String fieldName = parser.getCurrentName();
       // Get value or array start token
       parser.nextToken();
-      switch (fieldName) {
-        case "id":
-          id = parser.getValueAsString();
-          break;
-        case "constraints":
-          constraints = new HashSet<Constraint>();
-          assert (parser.getCurrentToken() == JsonToken.START_ARRAY);
-          while (parser.nextToken() != JsonToken.END_ARRAY) {
-            constraints.add(parseConstraint(parser));
-          }
-          break;
-        case "exclusions":
+      if (fieldName.equals("id")) {
+        id = parser.getValueAsString();
+      } else if (fieldName.equals("constraints")) {
+        constraints = new HashSet<Constraint>();
+        assert (parser.getCurrentToken() == JsonToken.START_ARRAY);
+        while (parser.nextToken() != JsonToken.END_ARRAY) {
+          constraints.add(parseConstraint(parser));
+        }
+      } else if (fieldName.equals("exclusions")) {
           exclusions = new HashSet<Id>();
           assert (parser.getCurrentToken() == JsonToken.START_ARRAY);
           while (parser.nextToken() != JsonToken.END_ARRAY) {
             exclusions.add(new Id(parser.getValueAsString()));
           }
-          break;
       }
     }
 
@@ -124,29 +117,22 @@ public class Lockfile {
       String fieldName = parser.getCurrentName();
       // Get value or array start token
       parser.nextToken();
-      switch (fieldName) {
-        case "info":
-          info = parser.getValueAsString();
-          break;
-        case "id":
-          id = new Id(parser.getValueAsString());
-          break;
-        case "repository":
-          repository = new RepositoryName(parser.getValueAsString());
-          break;
-        case "locations":
-          locations = new HashSet<RepositoryLocation>();
-          assert (parser.getCurrentToken() == JsonToken.START_ARRAY);
-          while (parser.nextToken() != JsonToken.END_ARRAY) {
-            locations.add(new RepositoryLocation(parser.getValueAsString()));
-          }
-          break;
-        case "commit":
-          commit = new Commit(parser.getValueAsString());
-          break;
-        case "hash":
+      if (fieldName.equals("info")) {
+        info = parser.getValueAsString();
+      } else if (fieldName.equals("id")) {
+        id = new Id(parser.getValueAsString());
+      } else if (fieldName.equals("repository")) {
+        repository = new RepositoryName(parser.getValueAsString());
+      } else if (fieldName.equals("locations")) {
+        locations = new HashSet<RepositoryLocation>();
+        assert (parser.getCurrentToken() == JsonToken.START_ARRAY);
+        while (parser.nextToken() != JsonToken.END_ARRAY) {
+          locations.add(new RepositoryLocation(parser.getValueAsString()));
+        }
+      } else if (fieldName.equals("commit")) {
+        commit = new Commit(parser.getValueAsString());
+      } else if (fieldName.equals("hash")) {
           hash = new VariantHash(parser.getValueAsString());
-          break;
       }
     }
 
@@ -163,17 +149,14 @@ public class Lockfile {
       String fieldName = parser.getCurrentName();
       // Get value or array start token
       parser.nextToken();
-      switch (fieldName) {
-        case "name":
-          name = parser.getValueAsString();
-          break;
-        case "values":
+      if (fieldName.equals("name")) {
+        name = parser.getValueAsString();
+      } else if (fieldName.equals("values")) {
           values = new HashSet<String>();
           assert (parser.getCurrentToken() == JsonToken.START_ARRAY);
           while (parser.nextToken() != JsonToken.END_ARRAY) {
             values.add(parser.getValueAsString());
           }
-          break;
       }
     }
     return new ArtifactAttribute(name, values);
@@ -191,28 +174,23 @@ public class Lockfile {
       String fieldName = parser.getCurrentName();
       // Get value or array start token
       parser.nextToken();
-      switch (fieldName) {
-        case "hash":
-          hash = new ArtifactHash(parser.getValueAsString());
-          break;
-        case "size":
-          size = parser.getValueAsInt();
-          break;
-        case "locations":
-          locations = new HashSet<ArtifactLocation>();
-          assert (parser.getCurrentToken() == JsonToken.START_ARRAY);
-          while (parser.nextToken() != JsonToken.END_ARRAY) {
-            locations.add(new ArtifactLocation(parser.getValueAsString()));
-          }
-          break;
-        case "attributes":
-          attributes = new HashSet<ArtifactAttribute>();
-          assert (parser.getCurrentToken() == JsonToken.START_ARRAY);
-          while (parser.nextToken() != JsonToken.END_ARRAY) {
-            attributes.add(parseAttribute(parser));
-          }
-          break;
-        case "filename":
+      if (fieldName.equals("hash")) {
+        hash = new ArtifactHash(parser.getValueAsString());
+      } else if (fieldName.equals("size")) {
+        size = parser.getValueAsInt();
+      } else if (fieldName.equals("locations")) {
+        locations = new HashSet<ArtifactLocation>();
+        assert (parser.getCurrentToken() == JsonToken.START_ARRAY);
+        while (parser.nextToken() != JsonToken.END_ARRAY) {
+          locations.add(new ArtifactLocation(parser.getValueAsString()));
+        }
+      } else if (fieldName.equals("attributes")) {
+        attributes = new HashSet<ArtifactAttribute>();
+        assert (parser.getCurrentToken() == JsonToken.START_ARRAY);
+        while (parser.nextToken() != JsonToken.END_ARRAY) {
+          attributes.add(parseAttribute(parser));
+        }
+      } else if (fieldName.equals("filename")) {
           filename = parser.getValueAsString();
           break;
       }
@@ -234,25 +212,21 @@ public class Lockfile {
         String fieldName = parser.getCurrentName();
         // Read value, or START_OBJECT/START_ARRAY
         parser.nextToken();
-        switch (fieldName) {
-          case "requirements":
-            requirements = new HashSet<LockfileRequirement>();
-            while (parser.nextToken() != JsonToken.END_ARRAY) {
-              requirements.add(parseRequirement(parser));
-            }
-            break;
-          case "context":
-            contexts = new HashSet<LockfileContext>();
-            while (parser.nextToken() != JsonToken.END_ARRAY) {
-              contexts.add(parseContext(parser));
-            }
-            break;
-          case "artifacts":
+        if (fieldName.equals("requirements")) {
+          requirements = new HashSet<LockfileRequirement>();
+          while (parser.nextToken() != JsonToken.END_ARRAY) {
+            requirements.add(parseRequirement(parser));
+          }
+        } else if (fieldName.equals("context")) {
+          contexts = new HashSet<LockfileContext>();
+          while (parser.nextToken() != JsonToken.END_ARRAY) {
+            contexts.add(parseContext(parser));
+          }
+        } else if (fieldName.equals("artifacts")) {
             artifacts = new HashSet<LockfileArtifact>();
             while (parser.nextToken() != JsonToken.END_ARRAY) {
               artifacts.add(parseArtifact(parser));
             }
-            break;
         }
       }
     }
