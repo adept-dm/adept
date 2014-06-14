@@ -224,7 +224,8 @@ public class Lockfile {
     Set<LockfileRequirement> requirements = null;
     Set<LockfileContext> contexts = null;
     Set<LockfileArtifact> artifacts = null;
-    try (JsonParser parser = new JsonFactory().createParser(data)) {
+    JsonParser parser = new JsonFactory().createParser(data);
+    try {
       // Get START_OBJECT
       parser.nextToken();
       // Read field name or END_OBJECT
@@ -254,6 +255,9 @@ public class Lockfile {
             break;
         }
       }
+    }
+    finally {
+      parser.close();
     }
 
     return new Lockfile(requirements, contexts, artifacts);
