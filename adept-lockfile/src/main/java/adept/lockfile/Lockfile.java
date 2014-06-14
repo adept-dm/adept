@@ -58,12 +58,15 @@ public class Lockfile {
     Set<String> values = null;
     while (parser.nextToken() != JsonToken.END_OBJECT) {
       String fieldName = parser.getCurrentName();
+      // Get value or array start token
+      parser.nextToken();
       switch (fieldName) {
         case "name":
           name = parser.getValueAsString();
           break;
         case "values":
           values = new HashSet<>();
+          assert (parser.getCurrentToken() == JsonToken.START_ARRAY);
           while (parser.nextToken() != JsonToken.END_ARRAY) {
             values.add(parser.getValueAsString());
           }
@@ -82,6 +85,8 @@ public class Lockfile {
     while (parser.nextToken() != JsonToken.END_OBJECT) {
       assert (parser.getCurrentToken() == JsonToken.FIELD_NAME);
       String fieldName = parser.getCurrentName();
+      // Get value or array start token
+      parser.nextToken();
       switch (fieldName) {
         case "id":
           id = parser.getValueAsString();
@@ -117,6 +122,8 @@ public class Lockfile {
     while (parser.nextToken() != JsonToken.END_OBJECT) {
       assert (parser.getCurrentToken() == JsonToken.FIELD_NAME);
       String fieldName = parser.getCurrentName();
+      // Get value or array start token
+      parser.nextToken();
       switch (fieldName) {
         case "info":
           info = parser.getValueAsString();
@@ -154,6 +161,8 @@ public class Lockfile {
     while (parser.nextToken() != JsonToken.END_OBJECT) {
       assert (parser.getCurrentToken() == JsonToken.FIELD_NAME);
       String fieldName = parser.getCurrentName();
+      // Get value or array start token
+      parser.nextToken();
       switch (fieldName) {
         case "name":
           name = parser.getValueAsString();
@@ -180,6 +189,8 @@ public class Lockfile {
     while (parser.nextToken() != JsonToken.END_OBJECT) {
       assert (parser.getCurrentToken() == JsonToken.FIELD_NAME);
       String fieldName = parser.getCurrentName();
+      // Get value or array start token
+      parser.nextToken();
       switch (fieldName) {
         case "hash":
           hash = new ArtifactHash(parser.getValueAsString());
@@ -222,8 +233,6 @@ public class Lockfile {
         String fieldName = parser.getCurrentName();
         // Read value, or START_OBJECT/START_ARRAY
         parser.nextToken();
-//          parseField(parser, fieldName)
-
         switch (fieldName) {
           case "requirements":
             requirements = new HashSet<>();
