@@ -263,8 +263,8 @@ public class Lockfile {
     FileReader reader = null;
     try {
       if (!file.isFile()) {
-        return new Lockfile(new HashSet<>(), new HashSet<>(),
-            new HashSet<>());
+        return new Lockfile(new HashSet<LockfileRequirement>(), new HashSet<LockfileContext>(),
+            new HashSet<LockfileArtifact>());
       } else {
         reader = new FileReader(file);
         return read(reader);

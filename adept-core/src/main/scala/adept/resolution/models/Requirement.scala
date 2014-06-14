@@ -16,7 +16,7 @@ case class Requirement(id: Id, constraints: Set[Constraint], exclusions: Set[Id]
     Constraint(name, values)
   }
 
-  def writeJson(generator: JsonGenerator) {
+  def writeJson(generator: JsonGenerator): Unit = {
     generator.writeStringField("id", id.value)
     JsonService.writeArrayField("constraints", constraints, generator)
     JsonService.writeStringArrayField("exclusions", exclusions.map(_.value), generator)

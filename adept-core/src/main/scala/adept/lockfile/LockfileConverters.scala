@@ -67,7 +67,7 @@ private[adept] object LockfileConverters {
   }
 
   def toJsonString(lockfile: Lockfile) = {
-    JsonService.writeJson((generator: JsonGenerator) => {
+    JsonService.writeJson({ generator: JsonGenerator =>
       val reqs = lockfile.requirements.asScala.toSet
       JsonService.writeArrayField("requirements", reqs, generator)
     })

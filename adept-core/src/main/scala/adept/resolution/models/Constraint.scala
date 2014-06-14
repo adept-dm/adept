@@ -8,7 +8,7 @@ import adept.artifact.models.JsonSerializable
 case class Constraint(name: String, values: Set[String]) extends JsonSerializable {
   def toAttribute: Attribute = Attribute(name, values)
 
-  def writeJson(generator: JsonGenerator) {
+  def writeJson(generator: JsonGenerator): Unit = {
     generator.writeStringField("name", name)
     JsonService.writeStringArrayField("values", values, generator)
   }

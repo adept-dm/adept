@@ -8,7 +8,7 @@ import adept.artifact.models.JsonSerializable
 /** The context value for each Id: answers the who we found (the variant hash) and where we found it (commit and repository) */
 case class ContextValue(id: Id, repository: RepositoryName, commit: Option[Commit], variant: VariantHash)
   extends JsonSerializable {
-  def writeJson(generator: JsonGenerator) {
+  def writeJson(generator: JsonGenerator): Unit = {
     generator.writeStringField("id", id.value)
     generator.writeStringField("repository", repository.value)
     JsonService.writeStringField("commit", commit.map(_.value), generator)

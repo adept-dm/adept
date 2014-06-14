@@ -25,7 +25,7 @@ case class ArtifactRef(hash: ArtifactHash, attributes: Set[ArtifactAttribute], f
       attributes.map(a => a.name + "=" + a.values.asScala.mkString("(", ",", ")")).mkString("[", ",", "]")
   }
 
-  def writeJson(generator: JsonGenerator) {
+  def writeJson(generator: JsonGenerator): Unit = {
       generator.writeStringField("hash", hash.value)
       JsonService.writeArrayField("attributes", attributes, generator)
       filename.map { generator.writeStringField("filename", _) }

@@ -14,12 +14,10 @@ case class ArtifactMetadata(size: Long, locations: Set[ArtifactLocation]) {
     new Artifact(hash, size, locations.asJava)
   }
 
-  lazy val jsonString = {
-    JsonService.writeJson((generator: JsonGenerator) => {
-      generator.writeNumberField("size", size)
-      JsonService.writeStringArrayField("locations", locations.map(_.value), generator)
-    })
-  }
+  lazy val jsonString = JsonService.writeJson({generator: JsonGenerator =>
+    generator.writeNumberField("size", size)
+    JsonService.writeStringArrayField("locations", locations.map(_.value), generator)
+  })
 
   def write(hash: ArtifactHash, repository: Repository): File = {
     val file = repository.ensureArtifactFile(hash)

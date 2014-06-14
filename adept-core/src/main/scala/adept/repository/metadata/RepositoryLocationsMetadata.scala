@@ -15,7 +15,7 @@ case class RepositoryLocationsMetadata(uris: Seq[String]) {
   }
 
   lazy val jsonString = {
-    JsonService.writeJson((generator: JsonGenerator) => {
+    JsonService.writeJson({generator: JsonGenerator =>
       JsonService.writeStringArrayField("uris", uris.sorted, generator)
     })
   }

@@ -13,7 +13,7 @@ import com.fasterxml.jackson.core.{JsonParser, JsonGenerator}
 import adept.artifact.models.JsonSerializable
 
 case class LicenseInfo(name: Option[String], url: Option[String]) extends JsonSerializable {
-  def writeJson(generator: JsonGenerator) {
+  def writeJson(generator: JsonGenerator): Unit = {
     JsonService.writeStringField("name", name, generator)
     JsonService.writeStringField("url", url, generator)
   }
@@ -25,8 +25,8 @@ object LicenseInfo {
     var url: Option[String] = null
     JsonService.parseObject(parser, (parser: JsonParser, fieldName: String) => {
       fieldName match {
-        case "name" => name = Some(parser.getValueAsString())
-        case "url" => url = Some(parser.getValueAsString())
+        case "name" => name = Some(parser.getValueAsString)
+        case "url" => url = Some(parser.getValueAsString)
       }
     })
     LicenseInfo(name, url)
@@ -34,7 +34,7 @@ object LicenseInfo {
 }
 
 case class VcsInfo(url: Option[String], connection: Option[String]) extends JsonSerializable {
-  def writeJson(generator: JsonGenerator) {
+  def writeJson(generator: JsonGenerator): Unit = {
     JsonService.writeStringField("url", url, generator)
     JsonService.writeStringField("connection", connection, generator)
   }
@@ -59,7 +59,7 @@ case class InfoMetadata(description: Option[String], homePage: Option[String], p
                         vcs: Option[VcsInfo], licenses: Seq[LicenseInfo],
                         other: Map[String, Seq[String]] = Map.empty) {
   lazy val jsonString = {
-    JsonService.writeJson((generator: JsonGenerator) => {
+    JsonService.writeJson({generator: JsonGenerator =>
       JsonService.writeStringField("description", description, generator)
       JsonService.writeStringField("homePage", homePage, generator)
       JsonService.writeStringField("publicationDate", publicationDate.map(
