@@ -17,13 +17,7 @@ case class ArtifactMetadata(size: Long, locations: Set[ArtifactLocation]) {
   lazy val jsonString = {
     JsonService.writeJson((generator: JsonGenerator) => {
       generator.writeNumberField("size", size)
-      generator.writeArrayFieldStart("locations")
-      for (location <- locations) {
-        generator.writeStartObject()
-        generator.writeStringField("value", location.value)
-        generator.writeEndObject()
-      }
-      generator.writeEndArray()
+      JsonService.writeStringArrayField("locations", locations.map(_.value), generator)
     })
   }
 
@@ -59,17 +53,7 @@ object ArtifactMetadata {
         case "size" =>
           size = parser.getLongValue
         case "locations" =>
-          locations = Some(JsonService.parseSet(parser, () => {
-            var value: Option[String] = null
-            JsonService.parseObject(parser, (parser: JsonParser, fieldName: String) => {
-              fieldName match {
-                case "value" =>
-                  value = Some(parser.getValueAsString)
-              }
-            })
-
-            new ArtifactLocation(value.get)
-          }))
+          locations = Some(JsonService.parseStringSet(parser).map(new ArtifactLocation(_)))
       }
     })
 

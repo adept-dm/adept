@@ -11,9 +11,7 @@ import com.fasterxml.jackson.core.{JsonParser, JsonGenerator}
 case class ContextMetadata(values: Seq[ContextValue]) {
   lazy val jsonString = {
     val json = JsonService.writeJson((generator: JsonGenerator) => {
-      JsonService.writeArrayField("values", values.sorted, generator, (value: ContextValue) => {
-        value.writeJson(generator)
-      })
+      JsonService.writeArrayField("values", values.sorted, generator)
     })
     json
   }

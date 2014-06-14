@@ -8,7 +8,7 @@ import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
 
-public class ArtifactAttribute {
+public class ArtifactAttribute implements JsonSerializable {
   public final String name;
   public final Set<String> values;
 
@@ -41,14 +41,12 @@ public class ArtifactAttribute {
   }
 
   public void writeJson(JsonGenerator generator) throws java.io.IOException {
-    generator.writeStartObject();
     generator.writeStringField("name", name);
     generator.writeArrayFieldStart("values");
     for (String value: values) {
       generator.writeString(value);
     }
     generator.writeEndArray();
-    generator.writeEndObject();
   }
 
   @Override

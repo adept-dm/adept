@@ -2,9 +2,10 @@ package adept.resolution.models
 
 import adept.utils.OrderingHelpers
 import com.fasterxml.jackson.core.{JsonParser, JsonGenerator}
-import adept.services.JsonService
+import adept.services.{JsonService}
+import adept.artifact.models.JsonSerializable
 
-case class Requirement(id: Id, constraints: Set[Constraint], exclusions: Set[Id]) {
+case class Requirement(id: Id, constraints: Set[Constraint], exclusions: Set[Id]) extends JsonSerializable {
   override def toString = id + " " + constraints.map(c => c.name + "=" + c.values.mkString("(", ",", ")"))
     .mkString("[", ",", "]") + (if (exclusions.nonEmpty) exclusions.mkString("![", " & ", "]") else "")
 
@@ -16,13 +17,9 @@ case class Requirement(id: Id, constraints: Set[Constraint], exclusions: Set[Id]
   }
 
   def writeJson(generator: JsonGenerator) {
-    JsonService.writeObject(generator, () => {
-      generator.writeStringField("id", id.value)
-      JsonService.writeArrayField("constraints", constraints, generator, (constraint: Constraint) => {
-        constraint.writeJson(generator)
-      })
-      JsonService.writeStringArrayField("exclusions", exclusions.map(_.value), generator)
-    })
+    generator.writeStringField("id", id.value)
+    JsonService.writeArrayField("constraints", constraints, generator)
+    JsonService.writeStringArrayField("exclusions", exclusions.map(_.value), generator)
   }
 }
 

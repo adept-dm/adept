@@ -10,15 +10,15 @@ import java.util.Date
 import java.text.SimpleDateFormat
 import adept.services.JsonService
 import com.fasterxml.jackson.core.{JsonParser, JsonGenerator}
+import adept.artifact.models.JsonSerializable
 
-case class LicenseInfo(name: Option[String], url: Option[String]) {
+case class LicenseInfo(name: Option[String], url: Option[String]) extends JsonSerializable {
   def writeJson(generator: JsonGenerator) {
-    JsonService.writeObject(generator, () => {
-      JsonService.writeOptionalStringField("name", name, generator)
-      JsonService.writeOptionalStringField("url", url, generator)
-    })
+    JsonService.writeStringField("name", name, generator)
+    JsonService.writeStringField("url", url, generator)
   }
 }
+
 object LicenseInfo {
   def fromJson(parser: JsonParser): LicenseInfo = {
     var name: Option[String] = null
@@ -33,14 +33,13 @@ object LicenseInfo {
   }
 }
 
-case class VcsInfo(url: Option[String], connection: Option[String]) {
+case class VcsInfo(url: Option[String], connection: Option[String]) extends JsonSerializable {
   def writeJson(generator: JsonGenerator) {
-    JsonService.writeObject(generator, () => {
-      JsonService.writeOptionalStringField("url", url, generator)
-      JsonService.writeOptionalStringField("connection", connection, generator)
-    })
+    JsonService.writeStringField("url", url, generator)
+    JsonService.writeStringField("connection", connection, generator)
   }
 }
+
 object VcsInfo {
   def fromJson(parser: JsonParser): VcsInfo = {
     var url: Option[String] = null
@@ -61,16 +60,12 @@ case class InfoMetadata(description: Option[String], homePage: Option[String], p
                         other: Map[String, Seq[String]] = Map.empty) {
   lazy val jsonString = {
     JsonService.writeJson((generator: JsonGenerator) => {
-      JsonService.writeOptionalStringField("description", description, generator)
-      JsonService.writeOptionalStringField("homePage", homePage, generator)
-      JsonService.writeOptionalStringField("publicationDate", publicationDate.map(
+      JsonService.writeStringField("description", description, generator)
+      JsonService.writeStringField("homePage", homePage, generator)
+      JsonService.writeStringField("publicationDate", publicationDate.map(
         InfoMetadata.dateFormat.format(_)), generator)
-      if (vcs.isDefined) {
-        vcs.get.writeJson(generator)
-      }
-      JsonService.writeArrayField("licenses", licenses, generator, (license: LicenseInfo) => {
-        license.writeJson(generator)
-      })
+      JsonService.writeObject(vcs, generator)
+      JsonService.writeArrayField("licenses", licenses, generator)
       JsonService.writeObjectField("other", other, generator)
     })
   }

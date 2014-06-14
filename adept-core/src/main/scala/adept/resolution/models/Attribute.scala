@@ -2,16 +2,15 @@ package adept.resolution.models
 
 import adept.utils.OrderingHelpers
 import com.fasterxml.jackson.core.{JsonParser, JsonGenerator}
-import adept.services.JsonService
+import adept.services.{JsonService}
+import adept.artifact.models.JsonSerializable
 
-case class Attribute(name: String, values: Set[String]) {
+case class Attribute(name: String, values: Set[String]) extends JsonSerializable {
   def toConstraint: Constraint = Constraint(name, values)
-  
+
   def writeJson(generator: JsonGenerator) {
-    JsonService.writeObject(generator, () => {
-      generator.writeStringField("name", name)
-      JsonService.writeStringArrayField("values", values, generator)
-    })
+    generator.writeStringField("name", name)
+    JsonService.writeStringArrayField("values", values, generator)
   }
 }
 

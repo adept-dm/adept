@@ -3,6 +3,7 @@ package adept.services
 import com.fasterxml.jackson.core._
 import java.io.{InputStream, ByteArrayOutputStream}
 import scala.io
+import adept.artifact.models.JsonSerializable
 
 object JsonService {
   def writeJson(converter: (JsonGenerator) => Unit): String = {
@@ -35,13 +36,19 @@ object JsonService {
     generator.writeEndObject()
   }
 
-  def writeObject(generator: JsonGenerator, converter: () => Unit) {
+  def writeObject(value: JsonSerializable, generator: JsonGenerator) {
     generator.writeStartObject()
-    converter()
+    value.writeJson(generator)
     generator.writeEndObject()
   }
 
-  def writeStringArrayField(fieldName: String, values: Seq[String], generator: JsonGenerator) {
+  def writeObject(value: Option[JsonSerializable], generator: JsonGenerator) {
+    if (value.isDefined) {
+      writeObject(value.get, generator)
+    }
+  }
+
+  def writeStringArrayField(fieldName: String, values: Iterable[String], generator: JsonGenerator) {
     generator.writeArrayFieldStart(fieldName)
     for (elem <- values) {
       generator.writeString(elem)
@@ -49,25 +56,15 @@ object JsonService {
     generator.writeEndArray()
   }
 
-  def writeStringArrayField(fieldName: String, values: Set[String], generator: JsonGenerator) {
-    writeStringArrayField(fieldName, values.toSeq, generator)
-  }
-
-  def writeArrayField[T](fieldName: String, values: Seq[T], generator: JsonGenerator,
-                         converter: (T) => Unit) {
+  def writeArrayField(fieldName: String, values: Iterable[JsonSerializable], generator: JsonGenerator) {
     generator.writeArrayFieldStart(fieldName)
     for (value <- values) {
-      converter(value)
+      writeObject(value, generator)
     }
     generator.writeEndArray()
   }
 
-  def writeArrayField[T](fieldName: String, values: Set[T], generator: JsonGenerator,
-                         converter: (T) => Unit) {
-    writeArrayField(fieldName, values.toSeq, generator, converter)
-  }
-
-  def writeOptionalStringField(fieldName: String, value: Option[String], generator: JsonGenerator) {
+  def writeStringField(fieldName: String, value: Option[String], generator: JsonGenerator) {
     if (value.isDefined) {
       generator.writeStringField(fieldName, value.get)
     }

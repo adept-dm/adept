@@ -11,7 +11,8 @@ import adept.services.JsonService
  *
  * It has an optional filename, which can be used to copy the actual artifact.
  */
-case class ArtifactRef(hash: ArtifactHash, attributes: Set[ArtifactAttribute], filename: Option[String]) {
+case class ArtifactRef(hash: ArtifactHash, attributes: Set[ArtifactAttribute], filename: Option[String])
+  extends JsonSerializable{
   def attribute(name: String) = {
     val values = attributes.collect {
       case artifact if artifact.name == name => artifact.values.asScala
@@ -25,13 +26,9 @@ case class ArtifactRef(hash: ArtifactHash, attributes: Set[ArtifactAttribute], f
   }
 
   def writeJson(generator: JsonGenerator) {
-    JsonService.writeObject(generator, () => {
       generator.writeStringField("hash", hash.value)
-      JsonService.writeArrayField("attributes", attributes, generator, (attribute: ArtifactAttribute) => {
-        attribute.writeJson(generator)
-      })
+      JsonService.writeArrayField("attributes", attributes, generator)
       filename.map { generator.writeStringField("filename", _) }
-    })
   }
 }
 

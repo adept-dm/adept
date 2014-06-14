@@ -35,15 +35,9 @@ case class VariantMetadata(attributes: Seq[Attribute], artifacts: Seq[ArtifactRe
 
   lazy val jsonString = {
     JsonService.writeJson((generator: JsonGenerator) => {
-      JsonService.writeArrayField("attributes", attributes, generator, (attribute: Attribute) => {
-        attribute.writeJson(generator)
-      })
-      JsonService.writeArrayField("artifacts", artifacts, generator, (artifact: ArtifactRef) => {
-        artifact.writeJson(generator)
-      })
-      JsonService.writeArrayField("requirements", requirements, generator, (requirement: Requirement) => {
-        requirement.writeJson(generator)
-      })
+      JsonService.writeArrayField("attributes", attributes, generator)
+      JsonService.writeArrayField("artifacts", artifacts, generator)
+      JsonService.writeArrayField("requirements", requirements, generator)
     })
   }
 
