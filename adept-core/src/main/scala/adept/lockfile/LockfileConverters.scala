@@ -3,8 +3,9 @@ package adept.lockfile
 import adept.artifact.models.ArtifactHash
 import adept.artifact.models.ArtifactLocation
 import adept.artifact.models.ArtifactAttribute
-import com.fasterxml.jackson.databind.ObjectMapper
 import adept.repository.models.ContextValue
+import adept.services.JsonService
+import com.fasterxml.jackson.core.JsonGenerator
 
 private[adept] object LockfileConverters {
   import collection.JavaConverters._
@@ -60,7 +61,8 @@ private[adept] object LockfileConverters {
     new LockfileRequirement(new Id(id.value), constraints.map(c => new Constraint(c.name, c.values.asJava)).asJava, exclusions.map(id => new Id(id.value)).asJava)
   }
 
-  def newArtifact(hash: ArtifactHash, size: Int, locations: Set[ArtifactLocation], attributes: Set[ArtifactAttribute], filename: String) = {
+  def newArtifact(hash: ArtifactHash, size: Int, locations: Set[ArtifactLocation], attributes: Set[ArtifactAttribute],
+                  filename: String) = {
     new LockfileArtifact(hash, size, locations.asJava, attributes.asJava, filename)
   }
 
@@ -154,8 +156,12 @@ private[adept] object LockfileConverters {
 //    })))
 
   def toJsonString(lockfile: Lockfile) = {
-    val mapper = new ObjectMapper()
-    mapper.writeValueAsString(lockfile)
+    JsonService.writeJson((generator: JsonGenerator) => {
+      val reqs = lockfile.requirements.asScala.toSet
+      JsonService.writeArrayField("requirements", reqs, generator, (requirement: LockfileRequirement) =>
+        requirement.writeJson(generator)
+      )
+    })
   }
 }
 

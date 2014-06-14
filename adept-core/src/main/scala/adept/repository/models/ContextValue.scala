@@ -1,14 +1,46 @@
 package adept.repository.models
 
-import adept.repository.models._
 import adept.resolution.models._
-import com.fasterxml.jackson.databind.ObjectMapper
-import adept.utils.OrderingHelpers
+import com.fasterxml.jackson.core.{JsonParser, JsonGenerator}
+import adept.services.JsonService
 
 /** The context value for each Id: answers the who we found (the variant hash) and where we found it (commit and repository) */
-case class ContextValue(id: Id, repository: RepositoryName, commit: Option[Commit], variant: VariantHash) //TODO: rename variant to hash
+case class ContextValue(id: Id, repository: RepositoryName, commit: Option[Commit], variant: VariantHash) {
+  def writeJson(generator: JsonGenerator) {
+    JsonService.writeObject(generator, () => {
+      generator.writeStringField("id", id.value)
+      generator.writeStringField("repository", repository.value)
+      JsonService.writeOptionalStringField("commit", commit.map(_.value), generator)
+      generator.writeStringField("variant", variant.value)
+    })
+  }
+}
+
+//TODO: rename variant to hash
 
 object ContextValue {
+  def fromJson(parser: JsonParser): ContextValue = {
+    var id: Option[String] = null
+    var repository: Option[String] = null
+    var commit: Option[String] = null
+    var variant: Option[String] = null
+    JsonService.parseObject(parser, (parser, fieldName) => {
+      fieldName match {
+        case "id" =>
+          id = Some(parser.getValueAsString())
+        case "repository" =>
+          repository = Some(parser.getValueAsString())
+        case "commit" =>
+          commit = Some(parser.getValueAsString())
+        case "variant" =>
+          variant = Some(parser.getValueAsString())
+      }
+    })
+
+    ContextValue(Id(id.get), RepositoryName(repository.get), Some(Commit(commit.get)),
+      VariantHash(variant.get))
+  }
+
   implicit val ordering: Ordering[ContextValue] = new Ordering[ContextValue] {
     def compare(x: ContextValue, y: ContextValue): Int = {
       if (x.repository.value < y.repository.value)
@@ -42,7 +74,7 @@ object ContextValue {
               1
             } else {
               -1
-            } 
+            }
           }
         }
       }

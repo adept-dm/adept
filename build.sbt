@@ -11,8 +11,8 @@ val scalatestDep = "org.scalatest" %% "scalatest" % "2.0" % "test"
 incOptions := incOptions.value.withNameHashing(true)
 
 val adeptVersion = "0.9.2.5"
-
 val jvmTarget = "1.6"
+val jacksonDep = "com.fasterxml.jackson.core" % "jackson-core" % "2.4.0"
 
 lazy val adeptLockfile = project.in(file("adept-lockfile")).settings(
   name := "adept-lockfile",
@@ -23,10 +23,10 @@ lazy val adeptLockfile = project.in(file("adept-lockfile")).settings(
   crossPaths in Test := false, 
   libraryDependencies ++= Seq(
     "net.minidev" % "json-smart" % "1.2",
-     scalatestDep
+    jacksonDep,
+    scalatestDep
    )
 )//.settings(AdeptPlugin.adeptSettings: _*)
-
 
 lazy val adeptCore = project.in(file("adept-core")).settings(
   name := "adept-core",
@@ -42,7 +42,7 @@ lazy val adeptCore = project.in(file("adept-core")).settings(
      "org.eclipse.jgit" % "org.eclipse.jgit" % 	"3.1.0.201310021548-r",
      "net.sf.ehcache" % "ehcache-core" % "2.6.6", //needed by adept.repository.RepositoryEngine
      "javax.transaction" % "jta" % "1.1", //needed by ehcache
-     "com.fasterxml.jackson.core" % "jackson-databind" % "2.4.0",
+     jacksonDep,
      scalatestDep)
 ).dependsOn(adeptLockfile) //.settings(AdeptPlugin.adeptSettings: _*)
 

@@ -3,36 +3,53 @@ package adept.repository.metadata
 import adept.repository.models._
 import adept.resolution.models._
 import adept.repository.Repository
-import java.io.FileInputStream
-import java.io.FileOutputStream
-import com.fasterxml.jackson.databind.ObjectMapper
-import java.io.BufferedWriter
-import java.io.FileWriter
 import adept.hash.Hasher
 import adept.repository.GitRepository
 import java.io.File
 import java.io.InputStream
 import java.io.FileFilter
+import adept.services.JsonService
+import com.fasterxml.jackson.core.{JsonParser, JsonGenerator}
 
-case class VariantMetadata(attributes: Seq[Attribute], artifacts: Seq[ArtifactRef], requirements: Seq[Requirement]) {
+case class VariantMetadata(attributes: Seq[Attribute], artifacts: Seq[ArtifactRef],
+                           requirements: Seq[Requirement]) {
 
   def toVariant(id: Id): Variant = {
     Variant(id, attributes.toSet, artifacts.toSet, requirements.toSet)
   }
 
   lazy val hash: VariantHash = {
-    //This means we are whitespace sensitive, on the other hand it makes it easier to create other tools that generate/checks the hash (SHA-256 of the contents). 
-    //We are also assuming that there is not that many people who will actually edit the content manually, and that if they do it will be picked up by Git so it is very visible. 
+    //This means we are whitespace sensitive, on the other hand it makes it easier to create other tools
+    // that generate/checks the hash (SHA-256 of the contents).
+    //We are also assuming that there is not that many people who will actually edit the content manually,
+    // and that if they do it will be picked up by Git so it is very visible.
     //Adept only reads from Git so we again we should be good.
-    //I agree that it feels dangerous (and not very defensive), but it is better than using another string as basis for the hash (without whitespaces) because that would be even more confusing and even harder to define exactly how the hash is calculated.
-    //Having a hash that is calculated from the internals would be a more sensible option, but it makes it hard to define how the hash should be. You could imagine that 2 platforms for example sort strings differently which would make it hard.
+    //I agree that it feels dangerous (and not very defensive), but it is better than using another string
+    // as basis for the hash (without whitespaces) because that would be even more confusing and even harder to
+    // define exactly how the hash is calculated.
+    //Having a hash that is calculated from the internals would be a more sensible option, but it makes it hard
+    // to define how the hash should be. You could imagine that 2 platforms for example sort strings differently
+    // which would make it hard.
     VariantHash(Hasher.hash(jsonString.getBytes))
   }
 
-  lazy val jsonString = new ObjectMapper().writeValueAsString(this)
+  lazy val jsonString = {
+    JsonService.writeJson((generator: JsonGenerator) => {
+      JsonService.writeArrayField("attributes", attributes, generator, (attribute: Attribute) => {
+        attribute.writeJson(generator)
+      })
+      JsonService.writeArrayField("artifacts", artifacts, generator, (artifact: ArtifactRef) => {
+        artifact.writeJson(generator)
+      })
+      JsonService.writeArrayField("requirements", requirements, generator, (requirement: Requirement) => {
+        requirement.writeJson(generator)
+      })
+    })
+  }
 
   def write(id: Id, repository: Repository): File = {
-    require(hash.value.length == Repository.HashLength, "Hash for: " + id + " (" + this + ") has length:" + hash.value.length + " but should have " + Repository.HashLength)
+    require(hash.value.length == Repository.HashLength, "Hash for: " + id + " (" + this + ") has length:"
+      + hash.value.length + " but should have " + Repository.HashLength)
     val file = repository.ensureVariantFile(id, hash)
     MetadataContent.write(jsonString, file)
   }
@@ -44,58 +61,36 @@ object VariantMetadata {
     VariantMetadata(variant.attributes.toSeq, variant.artifacts.toSeq, variant.requirements.toSeq)
   }
 
-  import ArtifactMetadata._
-//
-//  implicit val requirementFormat: Format[Requirement] = {
-//    (
-//      (__ \ "id").format[String] and
-//      (__ \ "constraints").format[Map[String, Set[String]]] and
-//      (__ \ "exclusions").format[Seq[String]])({
-//        case (id, constraints, exclusions) =>
-//          Requirement(
-//            Id(id),
-//            constraints.map { case (name, values) => Constraint(name, values) }.toSet,
-//            exclusions.map(Id(_)).toSet)
-//      },
-//        unlift({ r: Requirement =>
-//          val Requirement(id, constraints, exlusions) = r
-//          Some((
-//            id.value,
-//            constraints.toSeq.sorted.map(c => c.name -> c.values).toMap,
-//            exlusions.toSeq.map(_.value).sorted))
-//        }))
-//  }
-//
-//  implicit def format: Format[VariantMetadata] = {
-//    (
-//      (__ \ "attributes").format[Map[String, Set[String]]] and
-//      (__ \ "artifacts").format[Seq[ArtifactRef]] and
-//      (__ \ "requirements").format[Seq[Requirement]])({
-//        case (attributes, artifacts, requirements) =>
-//          VariantMetadata(
-//            attributes.map { case (name, values) => Attribute(name, values) }.toSeq,
-//            artifacts,
-//            requirements)
-//      },
-//        unlift({ vm: VariantMetadata =>
-//          val VariantMetadata(attributes, artifacts, requirements) = vm
-//          Some((
-//            attributes.toSeq.sorted.map(a => a.name -> a.values).toMap,
-//            artifacts.toSeq.sorted,
-//            requirements.toSeq.sorted))
-//        }))
-//  }
-
-  private def readJson(id: Id, hash: VariantHash, repository: Repository, is: InputStream, checkHash: Boolean) :
+  private def readJson(id: Id, hash: VariantHash, repository: Repository, is: InputStream, checkHash: Boolean):
   Option[VariantMetadata] = {
-    val value = new ObjectMapper().readValue(io.Source.fromInputStream(is).getLines.mkString("\n"),
-    classOf[VariantMetadata])
-      if (checkHash) {
-        if (value.hash == hash) {
-          Some(value)
-        } else throw new Exception("Found variant metdata: " + value + " for hash " + hash +
-          " but it has a different hash: " + hash) //TODO: this might be overkill?
-      } else Some(value)
+    var attributes: Option[Seq[Attribute]] = null
+    var artifacts: Option[Seq[ArtifactRef]] = null
+    var requirements: Option[Seq[Requirement]] = null
+    JsonService.parseJson(is, (parser: JsonParser, fieldName) => {
+      fieldName match {
+        case "attributes" =>
+          attributes = Some(JsonService.parseSeq(parser, () => {
+            Attribute.fromJson(parser)
+          }))
+        case "artifacts" =>
+          artifacts = Some(JsonService.parseSeq(parser, () => {
+            ArtifactRef.fromJson(parser)
+          }))
+        case "requirements" =>
+          requirements = Some(JsonService.parseSeq(parser, () => {
+            Requirement.fromJson(parser)
+          }))
+      }
+    })
+    val value = VariantMetadata(attributes.get, artifacts.get, requirements.get)
+    if (checkHash) {
+      if (value.hash == hash) {
+        Some(value)
+      } else {
+        throw new Exception("Found variant metadata: " + value + " for hash " + hash +
+          " but it has a different hash: " + value.hash)
+      } //TODO: this might be overkill?
+    } else Some(value)
   }
 
   def read(id: Id, hash: VariantHash, repository: Repository, checkHash: Boolean): Option[VariantMetadata] = {
@@ -105,7 +100,8 @@ object VariantMetadata {
         readJson(id, hash, repository, is, checkHash)
       case Right(None) => None
       case Left(error) =>
-        throw new Exception("Could not read file: " + file.getAbsolutePath + " for id: " + id + " hash: " + hash + ". Got error: " + error)
+        throw new Exception("Could not read file: " + file.getAbsolutePath + " for id: " + id +
+          " hash: " + hash + ". Got error: " + error)
     }
   }
 
@@ -116,7 +112,8 @@ object VariantMetadata {
         readJson(id, hash, repository, is, checkHash)
       case Right(None) => None
       case Left(error) =>
-        throw new Exception("Could not read: " + hash + " for commit: " + commit + " in dir:  " + repository.dir + ". Got error: " + error)
+        throw new Exception("Could not read: " + hash + " for commit: " + commit + " in dir:  " +
+          repository.dir + ". Got error: " + error)
     }
   }
 
@@ -179,7 +176,7 @@ object VariantMetadata {
   def listIds(repository: Repository): Set[Id] = {
     RankingMetadata.findRankingFiles(repository).map { rankingFile =>
       val IdRankingExtractor = (Repository.getVariantsMetadataDir(repository.baseDir, repository.name).getAbsolutePath + "/(.*?)/" + rankingFile.getName).r
-      val IdRankingExtractor(idString) = rankingFile.getAbsolutePath()
+      val IdRankingExtractor(idString) = rankingFile.getAbsolutePath
       Id(idString)
     }.toSet
   }

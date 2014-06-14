@@ -12,9 +12,7 @@ import org.eclipse.jgit.treewalk.TreeWalk
 import org.eclipse.jgit.treewalk.filter.PathFilter
 import org.eclipse.jgit.lib.ProgressMonitor
 import org.eclipse.jgit.lib.NullProgressMonitor
-import java.io.FilenameFilter
 import adept.logging.Logging
-import adept.hash.Hasher
 import org.eclipse.jgit.revwalk.RevCommit
 import org.eclipse.jgit.revwalk.filter.RevFilter
 import org.eclipse.jgit.lib.ConfigConstants
@@ -26,7 +24,6 @@ import org.eclipse.jgit.lib.ConfigConstants
  */
 class GitRepository(override val baseDir: File, override val name: RepositoryName) extends Repository(baseDir, name) with Logging {
   import GitRepository._
-  import Repository._
 
   override def exists: Boolean = {
     super.exists && new File(dir, ".git").isDirectory
@@ -43,8 +40,10 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
   }
 
   def getRemoteUri(remoteName: String): Option[String] = { //TODO: rename to getLocation(s)?
-    if (remoteName != GitRepository.DefaultRemote) throw new Exception("Cannot get " + remoteName + " remote uri because we only support: " + DefaultRemote + ".") //TODO: support other names
-    val repoConfig = git.getRepository().getConfig()
+    if (remoteName != GitRepository.DefaultRemote) throw new Exception(
+      "Cannot get " + remoteName + " remote uri because we only support: " +
+        DefaultRemote + ".") //TODO: support other names
+    val repoConfig = git.getRepository.getConfig
     Option(repoConfig.getString(
       ConfigConstants.CONFIG_REMOTE_SECTION, remoteName,
       ConfigConstants.CONFIG_KEY_URL))
@@ -52,10 +51,13 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
 
   def addRemoteUri(remoteName: String, uri: String) = {
     if (remoteName != GitRepository.DefaultRemote)
-      throw new Exception("Cannot get " + remoteName + " remote uri because we only support: " + DefaultRemote + ".") //TODO: support other names
-    val repoConfig = git.getRepository().getConfig()
-    repoConfig.setString(ConfigConstants.CONFIG_REMOTE_SECTION, GitRepository.DefaultRemote, ConfigConstants.CONFIG_KEY_URL, uri)
-    repoConfig.setString(ConfigConstants.CONFIG_REMOTE_SECTION, GitRepository.DefaultRemote, "fetch", "+refs/heads/*:refs/remotes/origin/*")
+      throw new Exception("Cannot get " + remoteName + " remote uri because we only support: " +
+        DefaultRemote + ".") //TODO: support other names
+    val repoConfig = git.getRepository.getConfig
+    repoConfig.setString(ConfigConstants.CONFIG_REMOTE_SECTION, GitRepository.DefaultRemote,
+      ConfigConstants.CONFIG_KEY_URL, uri)
+    repoConfig.setString(ConfigConstants.CONFIG_REMOTE_SECTION, GitRepository.DefaultRemote,
+      "fetch", "+refs/heads/*:refs/remotes/origin/*")
     repoConfig.save()
   }
 
@@ -69,15 +71,18 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
 
   def pull(remoteName: String, branch: String, passphrase: Option[String] = None, progress: ProgressMonitor = NullProgressMonitor.INSTANCE) = {
     GitHelpers.withGitSshCredentials(passphrase) {
-      val repoConfig = git.getRepository().getConfig() //
-      repoConfig.setString(ConfigConstants.CONFIG_BRANCH_SECTION, GitRepository.DefaultBranchName, "remote", GitRepository.DefaultRemote)
-      repoConfig.setString(ConfigConstants.CONFIG_BRANCH_SECTION, GitRepository.DefaultBranchName, "merge", "refs/heads/" + GitRepository.DefaultBranchName)
+      val repoConfig = git.getRepository.getConfig //
+      repoConfig.setString(ConfigConstants.CONFIG_BRANCH_SECTION, GitRepository.DefaultBranchName,
+        "remote", GitRepository.DefaultRemote)
+      repoConfig.setString(ConfigConstants.CONFIG_BRANCH_SECTION, GitRepository.DefaultBranchName,
+        "merge", "refs/heads/" + GitRepository.DefaultBranchName)
       repoConfig.save()
       val pullResults = git.pull().setProgressMonitor(progress).call()
-      if (pullResults.isSuccessful())
+      if (pullResults.isSuccessful)
         getHead //TODO: is this right?
       else {
-        throw new Exception("Could not pull successfully in: " + dir.getAbsolutePath + " (and we do not support this yet): " + pullResults) //TODO: <--
+        throw new Exception("Could not pull successfully in: " + dir.getAbsolutePath +
+          " (and we do not support this yet): " + pullResults) //TODO: <--
       }
     }
   }
@@ -101,7 +106,7 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
     if (resolvedRef != null) {
       Commit(revWalk.lookupCommit(resolvedRef).name)
     } else {
-      throw new Exception("In Git: " + gitRepo.getDirectory().getAbsolutePath() + ": cannot resolve commit: " + Head)
+      throw new Exception("In Git: " + gitRepo.getDirectory.getAbsolutePath + ": cannot resolve commit: " + Head)
     }
   }
 
@@ -136,9 +141,8 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
   }
 
   def isClean: Boolean = {
-    import collection.JavaConverters._
     //    println(name + " status: " + git.status.call().getModified().asScala)
-    git.status().call().isClean()
+    git.status().call().isClean
   }
 
   def commit(msg: String): Commit = {
@@ -152,7 +156,8 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
   }
 
   def asGitPath(file: File): String = {
-    file.getAbsolutePath().replace(dir.getAbsolutePath() + File.separator, "").replace(File.separator, GitRepository.GitPathSep)
+    file.getAbsolutePath.replace(dir.getAbsolutePath + File.separator, "")
+      .replace(File.separator, GitRepository.GitPathSep)
   }
 
   //Members private to repository:
@@ -161,7 +166,7 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
   private[repository] def usingGitRepo[A](func: JGitRepository => A): A = {
     var repo: JGitRepository = null
     try {
-      repo = git.getRepository()
+      repo = git.getRepository
       func(repo)
     } finally {
       if (repo != null) repo.close()
@@ -211,7 +216,6 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
     }
   }
 
-  /** @returns first commit found (if any) in _1 and second in _2 */
   private[repository] def compareCommits(thisCommit: Commit, thatCommit: Commit): (Option[Commit], Option[Commit]) = {
     def equalCommits(commit: Commit, revCommit: RevCommit): Boolean = {
       commit.value == revCommit.name
@@ -287,14 +291,14 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
         case e: org.eclipse.jgit.errors.MissingObjectException =>
           throw new Exception("Could not mark commit: " + revCommit + " in " + dir.getAbsolutePath, e)
       }
-      val currentTree = revCommit.getTree()
+      val currentTree = revCommit.getTree
       if (currentTree != null) {
         treeWalk.addTree(currentTree)
         path.foreach(p => treeWalk.setFilter(PathFilter.create(p)))
         treeWalk.setRecursive(true) //without recursive Git will return the directory, not the file
         while (treeWalk.next()) {
-          if (!treeWalk.isSubtree()) {
-            accumulator ++= accumulate(treeWalk.getPathString())
+          if (!treeWalk.isSubtree) {
+            accumulator ++= accumulate(treeWalk.getPathString)
           }
         }
       } else {
@@ -317,7 +321,7 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
         case _: org.eclipse.jgit.errors.MissingObjectException =>
           block(Left("Cannot find commit: " + commit + " in " + dir))
       }
-      val currentTree = revCommit.getTree()
+      val currentTree = revCommit.getTree
       if (currentTree != null) { //if null means we on an empty commit (no tree)
         treeWalk.addTree(currentTree)
         treeWalk.setFilter(PathFilter.create(path))
@@ -329,7 +333,8 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
         } else {
           block(Right(None))
         }
-        if (treeWalk.next()) throw new Exception("Found too many files matching path: " + path + " this one was: " + treeWalk.getPathString)
+        if (treeWalk.next()) throw new Exception("Found too many files matching path: " + path +
+          " this one was: " + treeWalk.getPathString)
         else res
       } else {
         block(Left("Could not create git tree for commit: " + commit + " for dir: " + dir.getAbsolutePath))

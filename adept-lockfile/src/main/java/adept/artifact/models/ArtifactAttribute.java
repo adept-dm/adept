@@ -1,5 +1,11 @@
 package adept.artifact.models;
 
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
+
+import java.io.IOException;
+import java.util.HashSet;
 import java.util.Set;
 
 public class ArtifactAttribute {
@@ -11,9 +17,43 @@ public class ArtifactAttribute {
     this.values = values;
   }
 
+  public static ArtifactAttribute fromJson(JsonParser parser) throws IOException {
+    String name = null;
+    Set<String> values = null;
+    while (parser.nextToken() != JsonToken.END_OBJECT) {
+      String fieldName = parser.getCurrentName();
+      // Read value, or START_OBJECT/START_ARRAY
+      parser.nextToken();
+      switch (fieldName) {
+        case "name":
+          name = parser.getValueAsString();
+          break;
+        case "values":
+          values = new HashSet<>();
+          while (parser.nextToken() != JsonToken.END_ARRAY) {
+            values.add(parser.getValueAsString());
+          }
+          break;
+      }
+    }
+
+    return new ArtifactAttribute(name, values);
+  }
+
+  public void writeJson(JsonGenerator generator) throws java.io.IOException {
+    generator.writeStartObject();
+    generator.writeStringField("name", name);
+    generator.writeArrayFieldStart("values");
+    for (String value: values) {
+      generator.writeString(value);
+    }
+    generator.writeEndArray();
+    generator.writeEndObject();
+  }
+
   @Override
   public boolean equals(Object other) {
-    if (other instanceof ArtifactAttribute && other != null) {
+    if (other instanceof ArtifactAttribute) {
       ArtifactAttribute otherAA = (ArtifactAttribute) other;
 
       if (name.equals(otherAA.name)) {

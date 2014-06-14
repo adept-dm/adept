@@ -1,9 +1,12 @@
 package adept.resolution.models
 
 import adept.utils.OrderingHelpers
+import com.fasterxml.jackson.core.{JsonParser, JsonGenerator}
+import adept.services.JsonService
 
 case class Requirement(id: Id, constraints: Set[Constraint], exclusions: Set[Id]) {
-  override def toString = id + " " + constraints.map(c => c.name + "=" + c.values.mkString("(", ",", ")")).mkString("[", ",", "]") + (if (exclusions.nonEmpty) exclusions.mkString("![", " & ", "]") else "")
+  override def toString = id + " " + constraints.map(c => c.name + "=" + c.values.mkString("(", ",", ")"))
+    .mkString("[", ",", "]") + (if (exclusions.nonEmpty) exclusions.mkString("![", " & ", "]") else "")
 
   def constraint(name: String) = {
     val values = constraints.collect {
@@ -11,9 +14,38 @@ case class Requirement(id: Id, constraints: Set[Constraint], exclusions: Set[Id]
     }.flatten
     Constraint(name, values)
   }
+
+  def writeJson(generator: JsonGenerator) {
+    JsonService.writeObject(generator, () => {
+      generator.writeStringField("id", id.value)
+      JsonService.writeArrayField("constraints", constraints, generator, (constraint: Constraint) => {
+        constraint.writeJson(generator)
+      })
+      JsonService.writeStringArrayField("exclusions", exclusions.map(_.value), generator)
+    })
+  }
 }
 
 object Requirement {
+  def fromJson(parser: JsonParser): Requirement = {
+    var id: Option[String] = null
+    var constraints: Option[Set[Constraint]] = null
+    var exclusions: Option[Set[String]] = null
+    JsonService.parseObject(parser, (parser: JsonParser, fieldName: String) => {
+      fieldName match {
+        case "id" =>
+          id = Some(parser.getValueAsString())
+        case "constraints" =>
+          constraints = Some(JsonService.parseSet(parser, () => {
+            Constraint.fromJson(parser)
+          }))
+        case "exclusions" =>
+          exclusions = Some(JsonService.parseStringSet(parser))
+      }
+    })
+    Requirement(Id(id.get), constraints.get, exclusions.get.map(Id(_)))
+  }
+
   implicit val ordering: Ordering[Requirement] = new Ordering[Requirement] {
     def compare(x: Requirement, y: Requirement): Int = {
       if (x.id.value < y.id.value)
@@ -27,7 +59,7 @@ object Requirement {
             case (res, (cx, cy)) =>
               if (res == 0) {
                 val constraintOrder = Constraint.ordering.compare(cx, cy)
-                if (constraintOrder == 0) 
+                if (constraintOrder == 0)
                   OrderingHelpers.stringSetCompare(x.exclusions.map(_.value), y.exclusions.map(_.value))
                 else constraintOrder
               }
