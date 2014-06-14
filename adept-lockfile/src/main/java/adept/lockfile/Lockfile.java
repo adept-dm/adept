@@ -286,7 +286,7 @@ public class Lockfile {
       throws InterruptedException, ExecutionException,
       AdeptCacheException, IOException {
     ExecutorService executorService = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
-    Set<ArtifactDownloadResult> results = new HashSet<>(this.artifacts.size());
+    Set<ArtifactDownloadResult> results = new HashSet<ArtifactDownloadResult>(this.artifacts.size());
 
     Set<LockfileArtifact> nonLocalArtifacts = new HashSet<LockfileArtifact>();
     for (LockfileArtifact artifact : this.artifacts) {
