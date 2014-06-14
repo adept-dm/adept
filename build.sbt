@@ -22,7 +22,6 @@ lazy val adeptLockfile = project.in(file("adept-lockfile")).settings(
   autoScalaLibrary in Test := false,
   crossPaths in Test := false, 
   libraryDependencies ++= Seq(
-    "net.minidev" % "json-smart" % "1.2",
     jacksonDep,
     scalatestDep
    )
