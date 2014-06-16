@@ -31,5 +31,4 @@ public class ArtifactLocation {
   public String toString() {
     return value;
   }
-
 }

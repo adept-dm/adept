@@ -3,13 +3,16 @@ package adept.resolution.models
 import adept.artifact.models._
 import collection.JavaConverters._
 import adept.utils.OrderingHelpers
+import com.fasterxml.jackson.core.{JsonParser, JsonGenerator}
+import adept.services.JsonService
 
 /**
  * An `ArtifactRef` is a reference (looks up using the `hash`) to an `Artifact`
  *
  * It has an optional filename, which can be used to copy the actual artifact.
  */
-case class ArtifactRef(hash: ArtifactHash, attributes: Set[ArtifactAttribute], filename: Option[String]) {
+case class ArtifactRef(hash: ArtifactHash, attributes: Set[ArtifactAttribute], filename: Option[String])
+  extends JsonSerializable{
   def attribute(name: String) = {
     val values = attributes.collect {
       case artifact if artifact.name == name => artifact.values.asScala
@@ -18,11 +21,37 @@ case class ArtifactRef(hash: ArtifactHash, attributes: Set[ArtifactAttribute], f
   }
 
   override def toString = {
-    hash + (if (filename.isDefined) ":" + filename.get else "") + "; " + attributes.map(a => a.name + "=" + a.values.asScala.mkString("(", ",", ")")).mkString("[", ",", "]")
+    hash + (if (filename.isDefined) ":" + filename.get else "") + "; " +
+      attributes.map(a => a.name + "=" + a.values.asScala.mkString("(", ",", ")")).mkString("[", ",", "]")
+  }
+
+  def writeJson(generator: JsonGenerator): Unit = {
+      generator.writeStringField("hash", hash.value)
+      JsonService.writeArrayField("attributes", attributes, generator)
+      filename.map { generator.writeStringField("filename", _) }
   }
 }
 
 object ArtifactRef {
+  def fromJson(parser: JsonParser): ArtifactRef = {
+    var hash: Option[String] = null
+    var attributes: Option[Set[ArtifactAttribute]] = null
+    var filename: Option[String] = null
+    JsonService.parseObject(parser, (parser: JsonParser, fieldName: String) => {
+      fieldName match {
+        case "hash" =>
+          hash = Some(parser.getValueAsString)
+        case "attributes" =>
+          attributes = Some(JsonService.parseSet(parser, () => {
+            ArtifactAttribute.fromJson(parser)
+          }))
+        case "filename" =>
+          filename = Some(parser.getValueAsString)
+      }
+    })
+    ArtifactRef(new ArtifactHash(hash.get), attributes.get, filename)
+  }
+
   implicit val orderingArtifactAttribute: Ordering[ArtifactAttribute] = new Ordering[ArtifactAttribute] {
     def compare(x: ArtifactAttribute, y: ArtifactAttribute): Int = {
       if (x.name < y.name)
