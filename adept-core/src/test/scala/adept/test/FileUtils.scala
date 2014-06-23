@@ -11,14 +11,14 @@ object FileUtils extends Logging {
     if (rootDir.isDirectory) {
       logger.debug("Deleting root tmp dir: " + rootDir.getAbsolutePath)
       import scala.reflect.io.Directory
-      (new Directory(rootDir)).deleteRecursively()
+      new Directory(rootDir).deleteRecursively()
     }
 
     val testDir = new File(rootDir, "test-dir-" + System.currentTimeMillis)
     if (testDir.mkdirs()) {
       logger.debug("Created testdir: " + testDir.getAbsolutePath)
       f(testDir)
-    } else throw new Exception("Could not create test dir: " + testDir.getAbsolutePath())
+    } else throw new Exception("Could not create test dir: " + testDir.getAbsolutePath)
   }
 
   def usingTmpDirs[A](f: (File, File) => A) = synchronized { //<-- NOTICE
@@ -27,7 +27,7 @@ object FileUtils extends Logging {
     if (rootDir.isDirectory) {
       logger.debug("Deleting root tmp dir: " + rootDir.getAbsolutePath)
       import scala.reflect.io.Directory
-      (new Directory(rootDir)).deleteRecursively()
+      new Directory(rootDir).deleteRecursively()
     }
 
     val testDir1 = new File(rootDir, "test-dir-1-" + System.currentTimeMillis)
@@ -39,11 +39,12 @@ object FileUtils extends Logging {
       f(testDir1, testDir2)
     } else {
       if (testDir1Created && !testDir2Created) {
-        throw new Exception("Could not create test dir: " + testDir2.getAbsolutePath())
+        throw new Exception("Could not create test dir: " + testDir2.getAbsolutePath)
       } else if (!testDir1Created && testDir2Created) {
         throw new Exception("Could not create test dir: " + testDir1.getAbsolutePath)
       } else {
-        throw new Exception("Could not create any test dir. Tried: " + testDir1.getAbsolutePath() + " and " + testDir2.getAbsolutePath())
+        throw new Exception("Could not create any test dir. Tried: " + testDir1.getAbsolutePath
+          + " and " + testDir2.getAbsolutePath)
       }
     }
   }

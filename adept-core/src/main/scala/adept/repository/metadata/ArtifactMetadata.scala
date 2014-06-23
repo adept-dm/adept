@@ -2,21 +2,22 @@ package adept.repository.metadata
 
 import adept.artifact.models._
 import adept.repository.Repository
-import play.api.libs.json._
-import play.api.libs.functional.syntax._
 import adept.repository.models.Commit
 import adept.repository.GitRepository
-import java.io.File
+import java.io.{File, InputStream}
 import collection.JavaConverters._
-import adept.resolution.models.ArtifactRef
-import java.io.InputStream
+import com.fasterxml.jackson.core.{JsonGenerator, JsonParser}
+import adept.services.JsonService
 
 case class ArtifactMetadata(size: Long, locations: Set[ArtifactLocation]) {
   def toArtifact(hash: ArtifactHash): Artifact = {
     new Artifact(hash, size, locations.asJava)
   }
 
-  lazy val jsonString = Json.prettyPrint(Json.toJson(this))
+  lazy val jsonString = JsonService.writeJson({generator: JsonGenerator =>
+    generator.writeNumberField("size", size)
+    JsonService.writeStringArrayField("locations", locations.map(_.value), generator)
+  })
 
   def write(hash: ArtifactHash, repository: Repository): File = {
     val file = repository.ensureArtifactFile(hash)
@@ -30,36 +31,6 @@ object ArtifactMetadata {
     ArtifactMetadata(artifact.size, Set() ++ artifact.locations.asScala)
   }
 
-  private[adept] implicit val formatArtifactRef: Format[ArtifactRef] = {
-    (
-      (__ \ "hash").format[String] and
-      (__ \ "attributes").format[Map[String, Set[String]]] and
-      (__ \ "filename").format[Option[String]])({
-        case (hashString, attributes, filename) =>
-          ArtifactRef(new ArtifactHash(hashString),
-            attributes.map { case (name, values) => new ArtifactAttribute(name, values.asJava) }.toSet,
-            filename)
-      }, unlift({ a: ArtifactRef =>
-        import ArtifactRef.orderingArtifactAttribute
-        val ArtifactRef(hash, attributes, filename) = a
-        Some((hash.value,
-          attributes.toSeq.sorted.map(o => o.name -> (Set() ++ o.values.asScala)).toMap,
-          filename))
-      }))
-  }
-
-  private[adept] implicit val formatArtifactMetadata: Format[ArtifactMetadata] = {
-    (
-      (__ \ "size").format[Long] and
-      (__ \ "locations").format[Set[String]])({
-        case (size, locations) =>
-          ArtifactMetadata(size, locations.map(new ArtifactLocation(_)))
-      }, unlift({ a: ArtifactMetadata =>
-        val ArtifactMetadata(size, locations) = a
-        Some((size, locations.map(_.value)))
-      }))
-  }
-
   def read(hash: ArtifactHash, repository: Repository): Option[ArtifactMetadata] = {
     val file = repository.getArtifactFile(hash)
     repository.usingFileInputStream(file) {
@@ -67,16 +38,32 @@ object ArtifactMetadata {
         readJson(hash, repository, is)
       case Right(None) => None
       case Left(error) =>
-        throw new Exception("Could not read file: " + file.getAbsolutePath + " for hash: " + hash + ". Got error: " + error)
+        throw new Exception("Could not read file: " + file.getAbsolutePath + " for hash: " + hash +
+          ". Got error: " + error)
     }
   }
 
-  private def readJson(hash: ArtifactHash, repository: Repository, is: InputStream) = {
-    val json = Json.parse(io.Source.fromInputStream(is).getLines.mkString("\n"))
-    Json.fromJson[ArtifactMetadata](json) match {
-      case JsSuccess(value, _) => Some(value)
-      case JsError(errors) => throw new Exception("Could parse json: " + hash + " in dir:  " + repository.dir + " (" + repository.getArtifactFile(hash).getAbsolutePath + "). Got errors: " + errors)
+  private def readJson(hash: ArtifactHash, repository: Repository, is: InputStream): Option[ArtifactMetadata] = {
+    var size = -1L
+    var locations: Option[Set[ArtifactLocation]] = null
+    val json = JsonService.parseJson(is, (parser: JsonParser, fieldName: String) => {
+      fieldName match {
+        case "size" =>
+          size = parser.getLongValue
+        case "locations" =>
+          locations = Some(JsonService.parseStringSet(parser).map(new ArtifactLocation(_)))
+      }
+    })
+
+    if (size == -1 || !locations.isDefined) {
+      throw new Exception(s"Invalid JSON: $json")
     }
+
+    Some(ArtifactMetadata(size, locations.get))
+    //    Json.fromJson[ArtifactMetadata](json) match {
+    //      case JsSuccess(value, _) => Some(value)
+    //      case JsError(errors) => throw new Exception("Could not parse json: " + hash + " in dir:  " + repository.dir + " (" + repository.getArtifactFile(hash).getAbsolutePath + "). Got errors: " + errors)
+    //    }
   }
 
   def read(hash: ArtifactHash, repository: GitRepository, commit: Commit): Option[ArtifactMetadata] = {
@@ -85,7 +72,8 @@ object ArtifactMetadata {
         readJson(hash, repository, is)
       case Right(None) => None
       case Left(error) =>
-        throw new Exception("Could not read: " + hash + " for commit: " + commit + " in dir:  " + repository.dir + ". Got error: " + error)
+        throw new Exception("Could not read: " + hash + " for commit: " + commit + " in dir:  "
+          + repository.dir + ". Got error: " + error)
     }
   }
 }

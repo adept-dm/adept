@@ -1,18 +1,5 @@
 package adept.lockfile;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.Reader;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-
 import adept.artifact.AdeptCacheException;
 import adept.artifact.ArtifactCache;
 import adept.artifact.ArtifactDownloadResult;
@@ -22,10 +9,14 @@ import adept.artifact.models.ArtifactHash;
 import adept.artifact.models.ArtifactLocation;
 import adept.logging.JavaLogger;
 import adept.progress.ProgressMonitor;
-import net.minidev.json.JSONArray;
-import net.minidev.json.JSONObject;
-import net.minidev.json.JSONValue;
-import net.minidev.json.parser.ParseException;
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
+
+import java.io.*;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.concurrent.*;
 
 public class Lockfile {
   final Set<LockfileRequirement> requirements;
@@ -62,133 +53,191 @@ public class Lockfile {
     return artifacts;
   }
 
-  public Set<LockfileContext> getContext() {
-    return context;
+  public static Constraint parseConstraint(JsonParser parser) throws IOException {
+    String name = null;
+    Set<String> values = null;
+    while (parser.nextToken() != JsonToken.END_OBJECT) {
+      String fieldName = parser.getCurrentName();
+      // Get value or array start token
+      parser.nextToken();
+      if (fieldName.equals("name")) {
+        name = parser.getValueAsString();
+      } else if (fieldName.equals("values")) {
+        values = new HashSet<String>();
+        assert (parser.getCurrentToken() == JsonToken.START_ARRAY);
+        while (parser.nextToken() != JsonToken.END_ARRAY) {
+          values.add(parser.getValueAsString());
+        }
+      }
+    }
+
+    return new Constraint(name, values);
   }
 
-  //
-  private static Set<String> deserializeStringSet(JSONArray jsonStrings) {
-    Set<String> values = new HashSet<String>(jsonStrings.size());
-    for (int i = 0; i < jsonStrings.size(); i++) {
-      values.add((String) jsonStrings.get(i));
+  public static LockfileRequirement parseRequirement(JsonParser parser) throws IOException {
+    assert (parser.getCurrentToken() == JsonToken.START_OBJECT);
+    String id = null;
+    Set<Constraint> constraints = null;
+    Set<Id> exclusions = null;
+    while (parser.nextToken() != JsonToken.END_OBJECT) {
+      assert (parser.getCurrentToken() == JsonToken.FIELD_NAME);
+      String fieldName = parser.getCurrentName();
+      // Get value or array start token
+      parser.nextToken();
+      if (fieldName.equals("id")) {
+        id = parser.getValueAsString();
+      } else if (fieldName.equals("constraints")) {
+        constraints = new HashSet<Constraint>();
+        assert (parser.getCurrentToken() == JsonToken.START_ARRAY);
+        while (parser.nextToken() != JsonToken.END_ARRAY) {
+          constraints.add(parseConstraint(parser));
+        }
+      } else if (fieldName.equals("exclusions")) {
+          exclusions = new HashSet<Id>();
+          assert (parser.getCurrentToken() == JsonToken.START_ARRAY);
+          while (parser.nextToken() != JsonToken.END_ARRAY) {
+            exclusions.add(new Id(parser.getValueAsString()));
+          }
+      }
     }
-    return values;
+
+    return new LockfileRequirement(new Id(id), constraints, exclusions);
   }
 
-  private static Set<Id> deserializeIdSet(JSONArray jsonStrings) {
-    Set<Id> values = new HashSet<Id>(jsonStrings.size());
-    for (int i = 0; i < jsonStrings.size(); i++) {
-      values.add(new Id((String) jsonStrings.get(i)));
+  private static LockfileContext parseContext(JsonParser parser) throws IOException {
+    String info = null;
+    Id id = null;
+    RepositoryName repository = null;
+    Set<RepositoryLocation> locations = null;
+    Commit commit = null;
+    VariantHash hash = null;
+    assert (parser.getCurrentToken() == JsonToken.START_OBJECT);
+    while (parser.nextToken() != JsonToken.END_OBJECT) {
+      assert (parser.getCurrentToken() == JsonToken.FIELD_NAME);
+      String fieldName = parser.getCurrentName();
+      // Get value or array start token
+      parser.nextToken();
+      if (fieldName.equals("info")) {
+        info = parser.getValueAsString();
+      } else if (fieldName.equals("id")) {
+        id = new Id(parser.getValueAsString());
+      } else if (fieldName.equals("repository")) {
+        repository = new RepositoryName(parser.getValueAsString());
+      } else if (fieldName.equals("locations")) {
+        locations = new HashSet<RepositoryLocation>();
+        assert (parser.getCurrentToken() == JsonToken.START_ARRAY);
+        while (parser.nextToken() != JsonToken.END_ARRAY) {
+          locations.add(new RepositoryLocation(parser.getValueAsString()));
+        }
+      } else if (fieldName.equals("commit")) {
+        commit = new Commit(parser.getValueAsString());
+      } else if (fieldName.equals("hash")) {
+          hash = new VariantHash(parser.getValueAsString());
+      }
     }
-    return values;
+
+    return new LockfileContext(info, id, repository, locations, commit,
+        hash);
   }
 
-  private static Set<RepositoryLocation> deserializeRepositoryLocationSet(JSONArray jsonStrings) {
-    Set<RepositoryLocation> values = new HashSet<RepositoryLocation>(jsonStrings.size());
-    for (int i = 0; i < jsonStrings.size(); i++) {
-      values.add(new RepositoryLocation((String) jsonStrings.get(i)));
+  private static ArtifactAttribute parseAttribute(JsonParser parser) throws IOException {
+    String name = null;
+    Set<String> values = null;
+    assert (parser.getCurrentToken() == JsonToken.START_OBJECT);
+    while (parser.nextToken() != JsonToken.END_OBJECT) {
+      assert (parser.getCurrentToken() == JsonToken.FIELD_NAME);
+      String fieldName = parser.getCurrentName();
+      // Get value or array start token
+      parser.nextToken();
+      if (fieldName.equals("name")) {
+        name = parser.getValueAsString();
+      } else if (fieldName.equals("values")) {
+          values = new HashSet<String>();
+          assert (parser.getCurrentToken() == JsonToken.START_ARRAY);
+          while (parser.nextToken() != JsonToken.END_ARRAY) {
+            values.add(parser.getValueAsString());
+          }
+      }
     }
-    return values;
+    return new ArtifactAttribute(name, values);
   }
 
-  private static Set<ArtifactLocation> deserializeArtifactLocationSet(JSONArray jsonStrings) {
-    Set<ArtifactLocation> values = new HashSet<ArtifactLocation>(jsonStrings.size());
-    for (int i = 0; i < jsonStrings.size(); i++) {
-      values.add(new ArtifactLocation((String) jsonStrings.get(i)));
+  private static LockfileArtifact parseArtifact(JsonParser parser) throws IOException {
+    ArtifactHash hash = null;
+    Integer size = null;
+    Set<ArtifactLocation> locations = null;
+    Set<ArtifactAttribute> attributes = null;
+    String filename = null;
+    assert (parser.getCurrentToken() == JsonToken.START_OBJECT);
+    while (parser.nextToken() != JsonToken.END_OBJECT) {
+      assert (parser.getCurrentToken() == JsonToken.FIELD_NAME);
+      String fieldName = parser.getCurrentName();
+      // Get value or array start token
+      parser.nextToken();
+      if (fieldName.equals("hash")) {
+        hash = new ArtifactHash(parser.getValueAsString());
+      } else if (fieldName.equals("size")) {
+        size = parser.getValueAsInt();
+      } else if (fieldName.equals("locations")) {
+        locations = new HashSet<ArtifactLocation>();
+        assert (parser.getCurrentToken() == JsonToken.START_ARRAY);
+        while (parser.nextToken() != JsonToken.END_ARRAY) {
+          locations.add(new ArtifactLocation(parser.getValueAsString()));
+        }
+      } else if (fieldName.equals("attributes")) {
+        attributes = new HashSet<ArtifactAttribute>();
+        assert (parser.getCurrentToken() == JsonToken.START_ARRAY);
+        while (parser.nextToken() != JsonToken.END_ARRAY) {
+          attributes.add(parseAttribute(parser));
+        }
+      } else if (fieldName.equals("filename")) {
+          filename = parser.getValueAsString();
+          break;
+      }
     }
-    return values;
-  }
-
-  private static Set<Constraint> deserializeConstraints(JSONObject jsonConstraints) {
-    Set<Constraint> constraints = new HashSet<Constraint>(jsonConstraints.size());
-    for (String name : jsonConstraints.keySet()) {
-      JSONArray jsonConstraintValues = (JSONArray) jsonConstraints.get(name);
-      Set<String> values = deserializeStringSet(jsonConstraintValues);
-      constraints.add(new Constraint(name, values));
-    }
-    return constraints;
-  }
-
-  private static Set<ArtifactAttribute> deserializeArtifactAttributes(JSONObject jsonArtifactAttributes) {
-    Set<ArtifactAttribute> attributes = new HashSet<ArtifactAttribute>(jsonArtifactAttributes.size());
-    for (String name : jsonArtifactAttributes.keySet()) {
-      JSONArray jsonConstraintValues = (JSONArray) jsonArtifactAttributes.get(name);
-      Set<String> values = deserializeStringSet(jsonConstraintValues);
-      attributes.add(new ArtifactAttribute(name, values));
-    }
-    return attributes;
-  }
-
-  private static Lockfile deserialize(JSONObject jsonLockfile) {
-    JSONArray jsonRequirements = (JSONArray) jsonLockfile.get("requirements");
-    Set<LockfileRequirement> requirements = new HashSet<LockfileRequirement>(jsonRequirements.size());
-
-    for (int i = 0; i < jsonRequirements.size(); i++) {
-      JSONObject jsonRequirement = (JSONObject) jsonRequirements.get(i);
-      Id id = new Id((String) jsonRequirement.get("id"));
-      Set<Constraint> constraints = deserializeConstraints((JSONObject) jsonRequirement.get("constraints"));
-      Set<Id> exclusions = deserializeIdSet((JSONArray) jsonRequirement.get("exclusions"));
-      LockfileRequirement requirement = new LockfileRequirement(id, constraints, exclusions);
-      requirements.add(requirement);
-    }
-
-    JSONArray jsonContext = (JSONArray) jsonLockfile.get("context");
-    Set<LockfileContext> context = new HashSet<LockfileContext>(jsonContext.size());
-
-    for (int i = 0; i < jsonContext.size(); i++) {
-      JSONObject jsonContextValue = (JSONObject) jsonContext.get(i);
-      String info = (String) jsonContextValue.get("info");
-      Id id = new Id((String) jsonContextValue.get("id"));
-      Set<RepositoryLocation> locations = deserializeRepositoryLocationSet((JSONArray) jsonContextValue
-          .get("locations"));
-      RepositoryName repository = new RepositoryName((String) jsonContextValue.get("repository"));
-      final Commit commit;
-      if (jsonContextValue.get("commit") != null)
-        commit = new Commit((String) jsonContextValue.get("commit"));
-      else
-        commit = null;
-      VariantHash hash = new VariantHash((String) jsonContextValue.get("hash"));
-      LockfileContext contextValue = new LockfileContext(info, id, repository, locations, commit, hash);
-      context.add(contextValue);
-    }
-
-    JSONArray jsonArtifacts = (JSONArray) jsonLockfile.get("artifacts");
-    Set<LockfileArtifact> artifacts = new HashSet<LockfileArtifact>(jsonArtifacts.size());
-
-    for (int i = 0; i < jsonArtifacts.size(); i++) {
-      JSONObject jsonArtifact = (JSONObject) jsonArtifacts.get(i);
-      ArtifactHash hash = new ArtifactHash((String) jsonArtifact.get("hash"));
-      Integer size = (Integer) jsonArtifact.get("size");
-      Set<ArtifactLocation> locations = deserializeArtifactLocationSet((JSONArray) jsonArtifact.get("locations"));
-      Set<ArtifactAttribute> attributes = deserializeArtifactAttributes((JSONObject) jsonArtifact.get("attributes"));
-      final String filename;
-      if (jsonArtifact.get("filename") != null)
-        filename = (String) jsonArtifact.get("filename");
-      else
-        filename = null;
-      LockfileArtifact artifact = new LockfileArtifact(hash, size, locations, attributes, filename);
-      artifacts.add(artifact);
-    }
-    return new Lockfile(requirements, context, artifacts);
-  }
-
-  public static Lockfile read(String data) throws LockfileParseException {
-    try {
-      return deserialize((JSONObject) JSONValue.parseStrict(data));
-    } catch (ParseException e) {
-      throw new LockfileParseException(e);
-    }
+    return new LockfileArtifact(hash, size, locations, attributes, filename);
   }
 
   public static Lockfile read(Reader data) throws LockfileParseException, IOException {
+    Set<LockfileRequirement> requirements = null;
+    Set<LockfileContext> contexts = null;
+    Set<LockfileArtifact> artifacts = null;
+    JsonParser parser = new JsonFactory().createParser(data);
     try {
-      return deserialize((JSONObject) JSONValue.parseStrict(data));
-    } catch (ParseException e) {
-      throw new LockfileParseException(e);
+      // Get START_OBJECT
+      parser.nextToken();
+      // Read field name or END_OBJECT
+      while (parser.nextToken() != JsonToken.END_OBJECT) {
+        assert (parser.getCurrentToken() == JsonToken.FIELD_NAME);
+        String fieldName = parser.getCurrentName();
+        // Read value, or START_OBJECT/START_ARRAY
+        parser.nextToken();
+        if (fieldName.equals("requirements")) {
+          requirements = new HashSet<LockfileRequirement>();
+          while (parser.nextToken() != JsonToken.END_ARRAY) {
+            requirements.add(parseRequirement(parser));
+          }
+        } else if (fieldName.equals("context")) {
+          contexts = new HashSet<LockfileContext>();
+          while (parser.nextToken() != JsonToken.END_ARRAY) {
+            contexts.add(parseContext(parser));
+          }
+        } else if (fieldName.equals("artifacts")) {
+            artifacts = new HashSet<LockfileArtifact>();
+            while (parser.nextToken() != JsonToken.END_ARRAY) {
+              artifacts.add(parseArtifact(parser));
+            }
+        }
+      }
     }
+    finally {
+      parser.close();
+    }
+
+    return new Lockfile(requirements, contexts, artifacts);
   }
 
-  public static Lockfile read(File file) throws LockfileParseException, FileNotFoundException, IOException {
+  public static Lockfile read(File file) throws LockfileParseException, IOException {
     FileReader reader = null;
     try {
       if (!file.isFile()) {
@@ -207,7 +256,8 @@ public class Lockfile {
   protected int THREAD_POOL_SIZE = 30;
 
   public Set<ArtifactDownloadResult> download(File baseDir, Long timeout, TimeUnit timeoutUnit, int maxRetries,
-      JavaLogger logger, ProgressMonitor progress) throws InterruptedException, ExecutionException,
+                                              JavaLogger logger, ProgressMonitor progress)
+      throws InterruptedException, ExecutionException,
       AdeptCacheException, IOException {
     ExecutorService executorService = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
     Set<ArtifactDownloadResult> results = new HashSet<ArtifactDownloadResult>(this.artifacts.size());
@@ -229,7 +279,7 @@ public class Lockfile {
 
     int allSizes = 0;
     for (LockfileArtifact lockfileArtifact : nonLocalArtifacts) {
-      allSizes += lockfileArtifact.size/1024;
+      allSizes += lockfileArtifact.size / 1024;
     }
     boolean displayProgress = !nonLocalArtifacts.isEmpty();
     if (displayProgress)
@@ -243,7 +293,6 @@ public class Lockfile {
     }
     executorService.shutdown();
     executorService.awaitTermination(timeout, timeoutUnit);
-
 
     for (Future<ArtifactDownloadResult> future : futures) {
       ArtifactDownloadResult result = future.get();

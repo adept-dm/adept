@@ -11,28 +11,29 @@ val scalatestDep = "org.scalatest" %% "scalatest" % "2.0" % "test"
 incOptions := incOptions.value.withNameHashing(true)
 
 val adeptVersion = "0.9.2.5"
-
 val jvmTarget = "1.6"
+val jacksonDep = "com.fasterxml.jackson.core" % "jackson-core" % "2.4.0"
 
 lazy val adeptLockfile = project.in(file("adept-lockfile")).settings(
   name := "adept-lockfile",
   version := adeptVersion,
   organization := "com.adepthub",
-  scalacOptions += "-target:jvm-"+jvmTarget,
+  scalacOptions += s"-target:jvm-$jvmTarget",
+  javacOptions ++= Seq("-target", jvmTarget, "-source", jvmTarget),
   autoScalaLibrary in Test := false,
   crossPaths in Test := false, 
   libraryDependencies ++= Seq(
-    "net.minidev" % "json-smart" % "1.2",
-     scalatestDep
+    jacksonDep,
+    scalatestDep
    )
 )//.settings(AdeptPlugin.adeptSettings: _*)
-
 
 lazy val adeptCore = project.in(file("adept-core")).settings(
   name := "adept-core",
   version := adeptVersion,
   organization := "com.adepthub",
   scalacOptions += "-target:jvm-"+jvmTarget,
+  javacOptions ++= Seq("-target", jvmTarget, "-source", jvmTarget),
   //jgit
   resolvers += "Jgit Repository" at "https://repo.eclipse.org/content/groups/releases/",
   //play?
@@ -42,7 +43,7 @@ lazy val adeptCore = project.in(file("adept-core")).settings(
      "org.eclipse.jgit" % "org.eclipse.jgit" % 	"3.1.0.201310021548-r",
      "net.sf.ehcache" % "ehcache-core" % "2.6.6", //needed by adept.repository.RepositoryEngine
      "javax.transaction" % "jta" % "1.1", //needed by ehcache
-     "com.typesafe.play" %% "play-json" % "2.2.1",
+     jacksonDep,
      scalatestDep)
 ).dependsOn(adeptLockfile) //.settings(AdeptPlugin.adeptSettings: _*)
 

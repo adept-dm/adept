@@ -2,13 +2,11 @@ package adept.repository.metadata
 
 import org.scalatest.FunSuite
 import org.scalatest.Matchers
-import adept.resolution.models.Id
 import adept.hash.Hasher
 import adept.repository.GitRepository
 import adept.repository.models._
 import adept.resolution.models._
 import adept.artifact.models._
-import adept.repository.Repository
 
 class VariantMetadataTest extends FunSuite with Matchers {
   import adept.test.FileUtils.usingTmpDir
