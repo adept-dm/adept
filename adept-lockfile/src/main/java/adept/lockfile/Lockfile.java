@@ -53,6 +53,10 @@ public class Lockfile {
     return artifacts;
   }
 
+  public Set<LockfileContext> getContext() {
+    return context;
+  }
+
   public static Constraint parseConstraint(JsonParser parser) throws IOException {
     String name = null;
     Set<String> values = null;
