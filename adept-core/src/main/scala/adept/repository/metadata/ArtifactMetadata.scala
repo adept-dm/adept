@@ -14,7 +14,7 @@ case class ArtifactMetadata(size: Long, locations: Set[ArtifactLocation]) {
     new Artifact(hash, size, locations.asJava)
   }
 
-  lazy val jsonString = JsonService.writeJson({generator: JsonGenerator =>
+  lazy val jsonString = JsonService.writeJson({ generator: JsonGenerator =>
     generator.writeNumberField("size", size)
     JsonService.writeStringArrayField("locations", locations.map(_.value), generator)
   })
@@ -43,30 +43,19 @@ object ArtifactMetadata {
     }
   }
 
-  private def readJson(hash: ArtifactHash, repository: Repository, is: InputStream): Option[ArtifactMetadata] = {
-    var size = -1L
-    var locations: Option[Set[ArtifactLocation]] = None
-    val json = JsonService.parseJson(is, (parser: JsonParser, fieldName: String) => {
-      fieldName match {
-        case "size" =>
-          size = parser.getLongValue
-        case "locations" =>
-          locations = Some(JsonService.parseStringSet(parser).map(new ArtifactLocation(_)))
-      }
-    })
+  private def readJson(hash: ArtifactHash, repository: Repository, is: InputStream):
+  Option[ArtifactMetadata] = {
+    val (artifactMetadata, _) = JsonService.parseJson(is, Map(
+      ("size", _.getValueAsLong),
+      ("locations", JsonService.parseStringSet(_).map(new ArtifactLocation(_)))
+    ), valueMap => ArtifactMetadata(valueMap.get[Long]("size"),
+      valueMap.getSet[ArtifactLocation]("locations")))
 
-    if (size == -1 || !locations.isDefined) {
-      throw new Exception(s"Invalid JSON: $json")
-    }
-
-    Some(ArtifactMetadata(size, locations.get))
-    //    Json.fromJson[ArtifactMetadata](json) match {
-    //      case JsSuccess(value, _) => Some(value)
-    //      case JsError(errors) => throw new Exception("Could not parse json: " + hash + " in dir:  " + repository.dir + " (" + repository.getArtifactFile(hash).getAbsolutePath + "). Got errors: " + errors)
-    //    }
+    Some(artifactMetadata)
   }
 
-  def read(hash: ArtifactHash, repository: GitRepository, commit: Commit): Option[ArtifactMetadata] = {
+  def read(hash: ArtifactHash, repository: GitRepository, commit: Commit):
+  Option[ArtifactMetadata] = {
     repository.usingArtifactInputStream(hash, commit) {
       case Right(Some(is)) =>
         readJson(hash, repository, is)

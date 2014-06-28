@@ -31,37 +31,26 @@ object ContextMetadata {
         readJson(is)
       case Right(None) => None
       case Left(error) =>
-        throw new Exception("Could not read: " + id + "#" + hash + " in dir:  " + repository.dir + ". Got error: " + error)
+        throw new Exception("Could not read: " + id + "#" + hash + " in dir:  " + repository.dir +
+          ". Got error: " + error)
     }
   }
 
-  def read(id: Id, hash: VariantHash, repository: GitRepository, commit: Commit): Option[ContextMetadata] = {
+  def read(id: Id, hash: VariantHash, repository: GitRepository, commit: Commit):
+  Option[ContextMetadata] = {
     repository.usingContextInputStream(id, hash, commit) {
       case Right(Some(is)) =>
         readJson(is)
       case Right(None) => None
       case Left(error) =>
-        throw new Exception("Could not read: " + id + "#" + hash + " for commit: " + commit + " in dir:  " + repository.dir + ". Got error: " + error)
+        throw new Exception("Could not read: " + id + "#" + hash + " for commit: " + commit +
+          " in dir:  " + repository.dir + ". Got error: " + error)
     }
   }
 
   def readJson(is: InputStream): Option[ContextMetadata] = {
-    var values: Option[Seq[ContextValue]] = None
-    val json = JsonService.parseJson(is, (parser: JsonParser, fieldName: String) => {
-      fieldName match {
-        case "values" =>
-          values = Some(JsonService.parseSeq(parser, () => {
-            ContextValue.fromJson(parser)
-          }))
-      }
-    })
-    if (!values.isDefined) {
-      throw new Exception(s"Invalid JSON: $json")
-    }
-    Some(ContextMetadata(values.get))
-    //        Json.fromJson[Seq[ContextValue]](json) match {
-    //          case JsSuccess(values, _) => Some(ContextMetadata(values))
-    //          case JsError(errors) => throw new Exception("Could parse json: " + id + "#" + hash + " in dir:  " + repository.dir + " (" + file.getAbsolutePath() + "). Got errors: " + errors)
-    //        }
+    JsonService.parseJson(is, Map(
+      ("values", JsonService.parseSeq(_, ContextValue.fromJson))
+    ), valueMap => Some(ContextMetadata(valueMap.getSeq[ContextValue]("values"))))._1
   }
 }

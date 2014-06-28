@@ -25,22 +25,12 @@ case class Requirement(id: Id, constraints: Set[Constraint], exclusions: Set[Id]
 
 object Requirement {
   def fromJson(parser: JsonParser): Requirement = {
-    var id: Option[String] = None
-    var constraints: Option[Set[Constraint]] = None
-    var exclusions: Option[Set[String]] = None
-    JsonService.parseObject(parser, (parser: JsonParser, fieldName: String) => {
-      fieldName match {
-        case "id" =>
-          id = Some(parser.getValueAsString())
-        case "constraints" =>
-          constraints = Some(JsonService.parseSet(parser, () => {
-            Constraint.fromJson(parser)
-          }))
-        case "exclusions" =>
-          exclusions = Some(JsonService.parseStringSet(parser))
-      }
-    })
-    Requirement(Id(id.get), constraints.get, exclusions.get.map(Id(_)))
+    JsonService.parseObject(parser, Map(
+      ("id", _.getValueAsString),
+      ("constraints", JsonService.parseSet(_, Constraint.fromJson)),
+      ("exclusions", JsonService.parseStringSet)
+    ), valueMap => Requirement(Id(valueMap.getString("id")),
+      valueMap.getSet[Constraint]("constraints"), valueMap.getStringSet("exclusions").map(Id(_))))
   }
 
   implicit val ordering: Ordering[Requirement] = new Ordering[Requirement] {

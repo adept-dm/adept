@@ -16,18 +16,12 @@ case class Attribute(name: String, values: Set[String]) extends JsonSerializable
 
 object Attribute {
   def fromJson(parser: JsonParser): Attribute = {
-    var name: Option[String] = None
-    var values: Option[Set[String]] = None
-    JsonService.parseObject(parser, (parser: JsonParser, fieldName: String) => {
-      fieldName match {
-        case "name" =>
-          name = Some(parser.getValueAsString())
-        case "values" =>
-          values = Some(JsonService.parseStringSet(parser))
-      }
-    })
-
-    Attribute(name.get, values.get)
+    JsonService.parseObject(parser, Map(
+      ("name", _.getValueAsString),
+      ("values", JsonService.parseStringSet(_))
+    ),
+      valueMap => Attribute(valueMap.get("name"), valueMap.getSet[String]("values"))
+    )
   }
 
   implicit val ordering: Ordering[Attribute] = new Ordering[Attribute] {

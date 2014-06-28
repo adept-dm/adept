@@ -35,7 +35,8 @@ object RepositoryLocationsMetadata {
   }
 
   def listLocations(repository: GitRepository, commit: Commit): Set[RepositoryLocationsMetadata] = {
-    repository.usePath[RepositoryLocationsMetadata](Some(Repository.RepositoryLocationsMetadataDirName), commit) { path =>
+    repository.usePath[RepositoryLocationsMetadata](Some(
+      Repository.RepositoryLocationsMetadataDirName), commit) { path =>
       path match {
         case LocationsRegex(name) =>
           RepositoryLocationsMetadata.read(RepositoryName(name), repository, commit)
@@ -44,14 +45,11 @@ object RepositoryLocationsMetadata {
     }
   }
 
-  def read(name: RepositoryName, repository: GitRepository, commit: Commit): Option[RepositoryLocationsMetadata] = {
+  def read(name: RepositoryName, repository: GitRepository, commit: Commit):
+  Option[RepositoryLocationsMetadata] = {
     repository.usingRepositoryLocationsStream(name, commit) {
       case Right(Some(is)) =>
         readJson(is)
-//        Json.fromJson[Seq[String]](json) match {
-//          case JsSuccess(values, _) => Some(RepositoryLocationsMetadata(values))
-//          case JsError(errors) => throw new Exception("Could parse json for repository locations in: " + name + " for commit: " + commit + " in dir:  " + repository.dir + " (" + repository.getRepositoryLocationsFile(name).getAbsolutePath + "). Got errors: " + errors)
-//        }
       case Right(None) => None
       case Left(error) =>
         throw new Exception("Could not read: " + name + " for commit: " + commit + " in dir:  " +
@@ -64,29 +62,17 @@ object RepositoryLocationsMetadata {
     repository.usingFileInputStream(repository.getRepositoryLocationsFile(name)) {
       case Right(Some(is)) =>
         readJson(is)
-//        Json.fromJson[Seq[String]](json) match {
-//          case JsSuccess(values, _) => Some(RepositoryLocationsMetadata(values))
-//          case JsError(errors) => throw new Exception("Could parse json for repository locations in: " + name + " in dir:  " + repository.dir + " (" + file.getAbsolutePath + "). Got errors: " + errors)
-//        }
       case Right(None) => None
       case Left(error) =>
-        throw new Exception("Could not read: " + name + " for file: " + file.getAbsolutePath() + " in dir:  " +
+        throw new Exception("Could not read: " + name + " for file: " + file.getAbsolutePath() +
+          " in dir:  " +
           repository.dir + ". Got error: " + error)
     }
   }
 
   private def readJson(is: InputStream): Option[RepositoryLocationsMetadata] = {
-    var uris: Option[Seq[String]] = None
-    val json = JsonService.parseJson(is, (parser: JsonParser, fieldName: String) => {
-      fieldName match {
-        case "uris" =>
-          uris = Some(JsonService.parseStringSeq(parser))
-      }
-    })
-    if (!uris.isDefined) {
-      throw new Exception(s"Invalid JSON: $json")
-    }
-
-    Some(RepositoryLocationsMetadata(uris.get))
+    JsonService.parseJson(is, Map(
+      ("uris", JsonService.parseStringSeq)
+    ), valueMap => Some(RepositoryLocationsMetadata(valueMap.getStringSeq("uris"))))._1
   }
 }

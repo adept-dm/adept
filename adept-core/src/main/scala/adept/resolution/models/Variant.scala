@@ -6,7 +6,7 @@ import adept.services.JsonService
 /**
  * A variant is the "atom" of Adept, in the sense that it
  * is not the smallest unit, but sort of...
- * 
+ *
  * It is the equivalent of 'version' in many dependency managers, 
  * but since Adept is awesome (yeah, that is right) and multi-dimensional 
  * (meaning it can resolve on multiple attributes) you could risk having 
@@ -14,9 +14,9 @@ import adept.services.JsonService
  * but with different requirements). Therefore, 'version' would be a poor choice 
  * for a name while variant fits the bill perfectly.
  */
-case class Variant(id: Id, attributes: Set[Attribute] = Set.empty, artifacts: Set[ArtifactRef] = Set.empty,
-                   requirements: Set[Requirement] = Set.empty) {
-  
+case class Variant(id: Id, attributes: Set[Attribute] = Set.empty, artifacts: Set[ArtifactRef] =
+Set.empty, requirements: Set[Requirement] = Set.empty) {
+
   def attribute(name: String) = {
     val values = attributes.collect {
       case artifact if artifact.name == name => artifact.values
@@ -25,7 +25,8 @@ case class Variant(id: Id, attributes: Set[Attribute] = Set.empty, artifacts: Se
   }
 
   override lazy val toString = {
-    id + " " + attributes.toSeq.sorted.map(a => a.name + "=" + a.values.mkString("(", ",", ")")).mkString("[", ",", "]")
+    id + " " + attributes.toSeq.sorted.map(a => a.name + "=" + a.values.mkString("(", ",", ")"))
+      .mkString("[", ",", "]")
   }
 
   lazy val fullString = {
@@ -37,23 +38,12 @@ case class Variant(id: Id, attributes: Set[Attribute] = Set.empty, artifacts: Se
 
 object Variant {
   def fromJson(parser: JsonParser): Variant = {
-    var id: Option[Id] = None
-    var attributes: Set[Attribute] = Set[Attribute]()
-    var artifacts = Set[ArtifactRef]()
-    var requirements = Set[Requirement]()
-
-    JsonService.parseObject(parser, (parser, fieldName) => {
-      fieldName match {
-        case "id" => id = Some(Id(parser.getValueAsString()))
-        case "attributes" => attributes = JsonService.parseSet(parser, () =>
-          Attribute.fromJson(parser)
-        )
-        case "artifacts" =>
-          artifacts = JsonService.parseSet(parser, () => ArtifactRef.fromJson(parser))
-        case "requirements" => requirements = JsonService.parseSet(parser, () => Requirement.fromJson(parser))
-      }
-    })
-
-    Variant(id.get, attributes, artifacts, requirements)
+    JsonService.parseObject(parser, Map(
+      ("id", _.getValueAsString),
+      ("attributes", JsonService.parseSet(_, Attribute.fromJson)),
+      ("artifacts", JsonService.parseSet(_, ArtifactRef.fromJson)),
+      ("requirements", JsonService.parseSet(_, Requirement.fromJson))
+    ), valueMap => Variant(Id(valueMap.getString("id")), valueMap.getSet[Attribute]("attributes"),
+      valueMap.getSet[ArtifactRef]("artifacts"), valueMap.getSet[Requirement]("requirements")))
   }
 }

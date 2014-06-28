@@ -16,17 +16,10 @@ case class Constraint(name: String, values: Set[String]) extends JsonSerializabl
 
 object Constraint {
   def fromJson(parser: JsonParser): Constraint = {
-    var name: Option[String] = None
-    var values: Option[Set[String]] = None
-    JsonService.parseObject(parser, (parser: JsonParser, fieldName: String) => {
-      fieldName match {
-        case "name" =>
-          name = Some(parser.getValueAsString())
-        case "values" =>
-          values = Some(JsonService.parseStringSet(parser))
-      }
-    })
-    Constraint(name.get, values.get)
+    JsonService.parseObject(parser, Map(
+      ("name", _.getValueAsString),
+      ("values", JsonService.parseStringSet)
+    ), valueMap => Constraint(valueMap.getString("name"), valueMap.getStringSet("values")))
   }
 
   implicit val ordering: Ordering[Constraint] = new Ordering[Constraint] {

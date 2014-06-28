@@ -20,25 +20,14 @@ case class ContextValue(id: Id, repository: RepositoryName, commit: Option[Commi
 
 object ContextValue {
   def fromJson(parser: JsonParser): ContextValue = {
-    var id: Option[String] = None
-    var repository: Option[String] = None
-    var commit: Option[String] = None
-    var variant: Option[String] = None
-    JsonService.parseObject(parser, (parser, fieldName) => {
-      fieldName match {
-        case "id" =>
-          id = Some(parser.getValueAsString())
-        case "repository" =>
-          repository = Some(parser.getValueAsString())
-        case "commit" =>
-          commit = Some(parser.getValueAsString())
-        case "variant" =>
-          variant = Some(parser.getValueAsString())
-      }
-    })
-
-    ContextValue(Id(id.get), RepositoryName(repository.get), Some(Commit(commit.get)),
-      VariantHash(variant.get))
+    JsonService.parseObject(parser, Map(
+      ("id", _ getValueAsString),
+      ("repository", _.getValueAsString),
+      ("commit", parser => Commit(parser.getValueAsString)),
+      ("variant", _.getValueAsString)
+    ), valueMap => ContextValue(Id(valueMap.getString("id")),
+      RepositoryName(valueMap.getString("repository")), valueMap.getOption[Commit]("commit"),
+      VariantHash(valueMap.get("variant"))))
   }
 
   implicit val ordering: Ordering[ContextValue] = new Ordering[ContextValue] {

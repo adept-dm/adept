@@ -21,15 +21,11 @@ case class LicenseInfo(name: Option[String], url: Option[String]) extends JsonSe
 
 object LicenseInfo {
   def fromJson(parser: JsonParser): LicenseInfo = {
-    var name: Option[String] = None
-    var url: Option[String] = None
-    JsonService.parseObject(parser, (parser: JsonParser, fieldName: String) => {
-      fieldName match {
-        case "name" => name = Some(parser.getValueAsString)
-        case "url" => url = Some(parser.getValueAsString)
-      }
-    })
-    LicenseInfo(name, url)
+    JsonService.parseObject(parser, Map(
+        ("name", _.getValueAsString),
+        ("url", _.getValueAsString)
+      ), valueMap => LicenseInfo(valueMap.getOption[String]("name"),
+      valueMap.getOption[String]("url")))
   }
 }
 
@@ -42,20 +38,18 @@ case class VcsInfo(url: Option[String], connection: Option[String]) extends Json
 
 object VcsInfo {
   def fromJson(parser: JsonParser): VcsInfo = {
-    var url: Option[String] = None
-    var connection: Option[String] = None
-    JsonService.parseObject(parser, (parser: JsonParser, fieldName: String) => {
-      fieldName match {
-        case "url" => url = Some(parser.getValueAsString())
-        case "connection" => connection = Some(parser.getValueAsString())
-      }
-    })
-    VcsInfo(url, connection)
+    JsonService.parseObject(parser, Map(
+      ("url", _.getValueAsString),
+      ("connection", _.getValueAsString)
+    ),
+    valueMap => VcsInfo(valueMap.getOption[String]("url"),
+      valueMap.getOption[String]("connection")))
   }
 }
 
 @deprecated("InfoMetadata might change format on release")
-case class InfoMetadata(description: Option[String], homePage: Option[String], publicationDate: Option[Date],
+case class InfoMetadata(description: Option[String], homePage: Option[String], publicationDate:
+Option[Date],
                         vcs: Option[VcsInfo], licenses: Seq[LicenseInfo],
                         other: Map[String, Seq[String]] = Map.empty) {
   lazy val jsonString = {
@@ -86,42 +80,25 @@ object InfoMetadata {
         readJson(id, hash, repository, is)
       case Right(None) => None
       case Left(error) =>
-        throw new Exception("Could not read file: " + file.getAbsolutePath + " for hash: " + hash + ". Got error: " + error)
+        throw new Exception("Could not read file: " + file.getAbsolutePath + " for hash: " + hash +
+          ". Got error: " + error)
     }
   }
 
-  private def readJson(id: Id, hash: VariantHash, repository: Repository, is: InputStream): Option[InfoMetadata] = {
-    var description: Option[String] = None
-    var homePage: Option[String] = None
-    var publicationDate: Option[Date] = None
-    var vcs: Option[VcsInfo] = None
-    var licenses: Option[Seq[LicenseInfo]] = None
-    var other: Option[Map[String, Seq[String]]] = None
-    JsonService.parseJson(is, (parser: JsonParser, fieldName: String) => {
-      fieldName match {
-        case "description" =>
-          description = Some(parser.getValueAsString())
-        case "homePage" =>
-          homePage = Some(parser.getValueAsString())
-        case "publicationDate" =>
-          publicationDate = Some(dateFormat.parse(parser.getValueAsString()))
-        case "vcs" =>
-          vcs = Some(VcsInfo.fromJson(parser))
-        case "licenses" =>
-          licenses = Some(JsonService.parseSeq(parser, () => {
-            LicenseInfo.fromJson(parser)
-          }))
-        case "other" =>
-          other = Some(JsonService.parseStringMap(parser))
-      }
-    })
-
-    Some(InfoMetadata(description, homePage, publicationDate, vcs, licenses.get, other.get))
-
-    //    Json.fromJson[InfoMetadata](json) match {
-    //      case JsSuccess(value, _) => Some(value)
-    //      case JsError(errors) => throw new Exception("Could parse json: " + hash + " in dir:  " + repository.dir + " (" + repository.getInfoFile(id, hash).getAbsolutePath + "). Got errors: " + errors)
-    //    }
+  private def readJson(id: Id, hash: VariantHash, repository: Repository, is: InputStream):
+  Option[InfoMetadata] = {
+    JsonService.parseJson(is, Map(
+        ("description", _.getValueAsString),
+        ("homePage", _.getValueAsString),
+        ("publicationDate", JsonService.parseDate(_, dateFormat)),
+        ("vcs", VcsInfo.fromJson(_)),
+        ("licenses", JsonService.parseSeq(_, LicenseInfo.fromJson)),
+        ("other", JsonService.parseStringSeqMap(_))
+      ), (valueMap) => Some(InfoMetadata(valueMap.getOption[String]("description"),
+        valueMap.getOption[String]("homePage"), valueMap.getOption[Date]("publicationDate"),
+        valueMap.getOption[VcsInfo]("vcs"), valueMap.getSeq[LicenseInfo]("licenses"),
+        valueMap.getStringSeqMap("other")))
+    )._1
   }
 
   def read(id: Id, hash: VariantHash, repository: GitRepository, commit: Commit): Option[InfoMetadata] = {
@@ -130,7 +107,8 @@ object InfoMetadata {
         readJson(id, hash, repository, is)
       case Right(None) => None
       case Left(error) =>
-        throw new Exception("Could not read: " + hash + " for commit: " + commit + " in dir:  " + repository.dir + ". Got error: " + error)
+        throw new Exception("Could not read: " + hash + " for commit: " + commit + " in dir:  " +
+          repository.dir + ". Got error: " + error)
     }
   }
 }
