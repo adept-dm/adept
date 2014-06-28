@@ -34,9 +34,9 @@ case class ArtifactRef(hash: ArtifactHash, attributes: Set[ArtifactAttribute], f
 
 object ArtifactRef {
   def fromJson(parser: JsonParser): ArtifactRef = {
-    var hash: Option[String] = null
-    var attributes: Option[Set[ArtifactAttribute]] = null
-    var filename: Option[String] = null
+    var hash: Option[String] = None
+    var attributes: Option[Set[ArtifactAttribute]] = None
+    var filename: Option[String] = None
     JsonService.parseObject(parser, (parser: JsonParser, fieldName: String) => {
       fieldName match {
         case "hash" =>

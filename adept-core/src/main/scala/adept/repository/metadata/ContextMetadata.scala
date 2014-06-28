@@ -45,8 +45,8 @@ object ContextMetadata {
     }
   }
 
-  private def readJson(is: InputStream): Option[ContextMetadata] = {
-    var values: Option[Seq[ContextValue]] = null
+  def readJson(is: InputStream): Option[ContextMetadata] = {
+    var values: Option[Seq[ContextValue]] = None
     val json = JsonService.parseJson(is, (parser: JsonParser, fieldName: String) => {
       fieldName match {
         case "values" =>

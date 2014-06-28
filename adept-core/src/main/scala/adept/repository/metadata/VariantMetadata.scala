@@ -57,9 +57,9 @@ object VariantMetadata {
 
   private def readJson(id: Id, hash: VariantHash, repository: Repository, is: InputStream, checkHash: Boolean):
   Option[VariantMetadata] = {
-    var attributes: Option[Seq[Attribute]] = null
-    var artifacts: Option[Seq[ArtifactRef]] = null
-    var requirements: Option[Seq[Requirement]] = null
+    var attributes: Option[Seq[Attribute]] = None
+    var artifacts: Option[Seq[ArtifactRef]] = None
+    var requirements: Option[Seq[Requirement]] = None
     JsonService.parseJson(is, (parser: JsonParser, fieldName) => {
       fieldName match {
         case "attributes" =>

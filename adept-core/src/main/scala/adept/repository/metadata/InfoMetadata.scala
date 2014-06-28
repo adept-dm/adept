@@ -21,8 +21,8 @@ case class LicenseInfo(name: Option[String], url: Option[String]) extends JsonSe
 
 object LicenseInfo {
   def fromJson(parser: JsonParser): LicenseInfo = {
-    var name: Option[String] = null
-    var url: Option[String] = null
+    var name: Option[String] = None
+    var url: Option[String] = None
     JsonService.parseObject(parser, (parser: JsonParser, fieldName: String) => {
       fieldName match {
         case "name" => name = Some(parser.getValueAsString)
@@ -42,8 +42,8 @@ case class VcsInfo(url: Option[String], connection: Option[String]) extends Json
 
 object VcsInfo {
   def fromJson(parser: JsonParser): VcsInfo = {
-    var url: Option[String] = null
-    var connection: Option[String] = null
+    var url: Option[String] = None
+    var connection: Option[String] = None
     JsonService.parseObject(parser, (parser: JsonParser, fieldName: String) => {
       fieldName match {
         case "url" => url = Some(parser.getValueAsString())
@@ -91,12 +91,12 @@ object InfoMetadata {
   }
 
   private def readJson(id: Id, hash: VariantHash, repository: Repository, is: InputStream): Option[InfoMetadata] = {
-    var description: Option[String] = null
-    var homePage: Option[String] = null
-    var publicationDate: Option[Date] = null
-    var vcs: Option[VcsInfo] = null
-    var licenses: Option[Seq[LicenseInfo]] = null
-    var other: Option[Map[String, Seq[String]]] = null
+    var description: Option[String] = None
+    var homePage: Option[String] = None
+    var publicationDate: Option[Date] = None
+    var vcs: Option[VcsInfo] = None
+    var licenses: Option[Seq[LicenseInfo]] = None
+    var other: Option[Map[String, Seq[String]]] = None
     JsonService.parseJson(is, (parser: JsonParser, fieldName: String) => {
       fieldName match {
         case "description" =>

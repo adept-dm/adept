@@ -37,7 +37,7 @@ case class Variant(id: Id, attributes: Set[Attribute] = Set.empty, artifacts: Se
 
 object Variant {
   def fromJson(parser: JsonParser): Variant = {
-    var id: Option[Id] = null
+    var id: Option[Id] = None
     var attributes: Set[Attribute] = Set[Attribute]()
     var artifacts = Set[ArtifactRef]()
     var requirements = Set[Requirement]()

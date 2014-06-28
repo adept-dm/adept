@@ -25,9 +25,9 @@ case class Requirement(id: Id, constraints: Set[Constraint], exclusions: Set[Id]
 
 object Requirement {
   def fromJson(parser: JsonParser): Requirement = {
-    var id: Option[String] = null
-    var constraints: Option[Set[Constraint]] = null
-    var exclusions: Option[Set[String]] = null
+    var id: Option[String] = None
+    var constraints: Option[Set[Constraint]] = None
+    var exclusions: Option[Set[String]] = None
     JsonService.parseObject(parser, (parser: JsonParser, fieldName: String) => {
       fieldName match {
         case "id" =>

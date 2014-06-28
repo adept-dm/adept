@@ -20,10 +20,10 @@ case class ContextValue(id: Id, repository: RepositoryName, commit: Option[Commi
 
 object ContextValue {
   def fromJson(parser: JsonParser): ContextValue = {
-    var id: Option[String] = null
-    var repository: Option[String] = null
-    var commit: Option[String] = null
-    var variant: Option[String] = null
+    var id: Option[String] = None
+    var repository: Option[String] = None
+    var commit: Option[String] = None
+    var variant: Option[String] = None
     JsonService.parseObject(parser, (parser, fieldName) => {
       fieldName match {
         case "id" =>

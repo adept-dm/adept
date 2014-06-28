@@ -16,8 +16,8 @@ case class Constraint(name: String, values: Set[String]) extends JsonSerializabl
 
 object Constraint {
   def fromJson(parser: JsonParser): Constraint = {
-    var name: Option[String] = null
-    var values: Option[Set[String]] = null
+    var name: Option[String] = None
+    var values: Option[Set[String]] = None
     JsonService.parseObject(parser, (parser: JsonParser, fieldName: String) => {
       fieldName match {
         case "name" =>

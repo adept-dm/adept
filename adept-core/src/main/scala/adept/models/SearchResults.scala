@@ -18,10 +18,10 @@ case class GitSearchResult(override val variant: Variant, override val rankId: R
 
 object GitSearchResult {
   def fromJson(parser: JsonParser): GitSearchResult = {
-    var variant: Option[Variant] = null
-    var rankId: Option[RankId] = null
-    var repository: Option[RepositoryName] = null
-    var commit: Option[Commit] = null
+    var variant: Option[Variant] = None
+    var rankId: Option[RankId] = None
+    var repository: Option[RepositoryName] = None
+    var commit: Option[Commit] = None
     var locations: Seq[String] = Seq[String]()
     var isLocal: Boolean = false
     JsonService.parseObject(parser, (parser, fieldName) => {

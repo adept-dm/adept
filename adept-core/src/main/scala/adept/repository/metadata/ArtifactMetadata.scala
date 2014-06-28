@@ -45,7 +45,7 @@ object ArtifactMetadata {
 
   private def readJson(hash: ArtifactHash, repository: Repository, is: InputStream): Option[ArtifactMetadata] = {
     var size = -1L
-    var locations: Option[Set[ArtifactLocation]] = null
+    var locations: Option[Set[ArtifactLocation]] = None
     val json = JsonService.parseJson(is, (parser: JsonParser, fieldName: String) => {
       fieldName match {
         case "size" =>

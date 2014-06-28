@@ -76,7 +76,7 @@ object RepositoryLocationsMetadata {
   }
 
   private def readJson(is: InputStream): Option[RepositoryLocationsMetadata] = {
-    var uris: Option[Seq[String]] = null
+    var uris: Option[Seq[String]] = None
     val json = JsonService.parseJson(is, (parser: JsonParser, fieldName: String) => {
       fieldName match {
         case "uris" =>

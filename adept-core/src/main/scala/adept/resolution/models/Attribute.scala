@@ -16,8 +16,8 @@ case class Attribute(name: String, values: Set[String]) extends JsonSerializable
 
 object Attribute {
   def fromJson(parser: JsonParser): Attribute = {
-    var name: Option[String] = null
-    var values: Option[Set[String]] = null
+    var name: Option[String] = None
+    var values: Option[Set[String]] = None
     JsonService.parseObject(parser, (parser: JsonParser, fieldName: String) => {
       fieldName match {
         case "name" =>
