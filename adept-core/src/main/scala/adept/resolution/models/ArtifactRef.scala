@@ -34,22 +34,12 @@ case class ArtifactRef(hash: ArtifactHash, attributes: Set[ArtifactAttribute], f
 
 object ArtifactRef {
   def fromJson(parser: JsonParser): ArtifactRef = {
-    var hash: Option[String] = null
-    var attributes: Option[Set[ArtifactAttribute]] = null
-    var filename: Option[String] = null
-    JsonService.parseObject(parser, (parser: JsonParser, fieldName: String) => {
-      fieldName match {
-        case "hash" =>
-          hash = Some(parser.getValueAsString)
-        case "attributes" =>
-          attributes = Some(JsonService.parseSet(parser, () => {
-            ArtifactAttribute.fromJson(parser)
-          }))
-        case "filename" =>
-          filename = Some(parser.getValueAsString)
-      }
-    })
-    ArtifactRef(new ArtifactHash(hash.get), attributes.get, filename)
+    JsonService.parseObject(parser, Map(
+      ("hash", _.getValueAsString),
+      ("attributes", JsonService.parseSet(_, ArtifactAttribute.fromJson)),
+      ("filename", _.getValueAsString)
+    ), valueMap => ArtifactRef(new ArtifactHash(valueMap.getString("hash")),
+      valueMap.getSet[ArtifactAttribute]("attributes"), valueMap.getOption[String]("filename")))
   }
 
   implicit val orderingArtifactAttribute: Ordering[ArtifactAttribute] = new Ordering[ArtifactAttribute] {

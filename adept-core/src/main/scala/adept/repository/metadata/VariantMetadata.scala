@@ -42,7 +42,8 @@ case class VariantMetadata(attributes: Seq[Attribute], artifacts: Seq[ArtifactRe
   }
 
   def write(id: Id, repository: Repository): File = {
-    require(hash.value.length == Repository.HashLength, "Hash for: " + id + " (" + this + ") has length:"
+    require(hash.value.length == Repository.HashLength, "Hash for: " + id +
+      " (" + this + ") has length:"
       + hash.value.length + " but should have " + Repository.HashLength)
     val file = repository.ensureVariantFile(id, hash)
     MetadataContent.write(jsonString, file)
@@ -55,28 +56,17 @@ object VariantMetadata {
     VariantMetadata(variant.attributes.toSeq, variant.artifacts.toSeq, variant.requirements.toSeq)
   }
 
-  private def readJson(id: Id, hash: VariantHash, repository: Repository, is: InputStream, checkHash: Boolean):
+  private def readJson(id: Id, hash: VariantHash, repository: Repository, is: InputStream,
+                       checkHash: Boolean):
   Option[VariantMetadata] = {
-    var attributes: Option[Seq[Attribute]] = null
-    var artifacts: Option[Seq[ArtifactRef]] = null
-    var requirements: Option[Seq[Requirement]] = null
-    JsonService.parseJson(is, (parser: JsonParser, fieldName) => {
-      fieldName match {
-        case "attributes" =>
-          attributes = Some(JsonService.parseSeq(parser, () => {
-            Attribute.fromJson(parser)
-          }))
-        case "artifacts" =>
-          artifacts = Some(JsonService.parseSeq(parser, () => {
-            ArtifactRef.fromJson(parser)
-          }))
-        case "requirements" =>
-          requirements = Some(JsonService.parseSeq(parser, () => {
-            Requirement.fromJson(parser)
-          }))
-      }
-    })
-    val value = VariantMetadata(attributes.get, artifacts.get, requirements.get)
+    val value = JsonService.parseJson(is, Map(
+        ("attributes", JsonService.parseSeq(_, Attribute.fromJson)),
+        ("artifacts", JsonService.parseSeq(_, ArtifactRef.fromJson)),
+        ("requirements", JsonService.parseSeq(_, Requirement.fromJson))
+      ), valueMap => VariantMetadata(valueMap.getSeq[Attribute]("attributes"),
+            valueMap.getSeq[ArtifactRef]("artifacts"), valueMap.getSeq[Requirement](
+        "requirements"))
+    )._1
     if (checkHash) {
       if (value.hash == hash) {
         Some(value)
@@ -87,7 +77,8 @@ object VariantMetadata {
     } else Some(value)
   }
 
-  def read(id: Id, hash: VariantHash, repository: Repository, checkHash: Boolean): Option[VariantMetadata] = {
+  def read(id: Id, hash: VariantHash, repository: Repository, checkHash: Boolean):
+  Option[VariantMetadata] = {
     val file = repository.getVariantFile(id, hash)
     repository.usingFileInputStream(file) {
       case Right(Some(is)) =>
@@ -99,7 +90,8 @@ object VariantMetadata {
     }
   }
 
-  def read(id: Id, hash: VariantHash, repository: GitRepository, commit: Commit, checkHash: Boolean = true):
+  def read(id: Id, hash: VariantHash, repository: GitRepository, commit: Commit, checkHash:
+  Boolean = true):
   Option[VariantMetadata] = {
     repository.usingVariantInputStream(id, hash, commit) {
       case Right(Some(is)) =>
@@ -147,7 +139,8 @@ object VariantMetadata {
     idDir.listFiles(Level1FileFilter).flatMap { level1Dir =>
       level1Dir.listFiles(Level2FileFilter).flatMap { level2Dir =>
         level2Dir.listFiles(Level3FileFilter).flatMap { level3Dir =>
-          if ((level1Dir.getName + level2Dir.getName + level3Dir.getName).size == Repository.HashLength) {
+          if ((level1Dir.getName + level2Dir.getName + level3Dir.getName).size ==
+            Repository.HashLength) {
             level3Dir.listFiles(VariantFileFilter).flatMap { variantFile =>
               Some(VariantHash(level1Dir.getName + level2Dir.getName + level3Dir.getName))
             }
@@ -169,7 +162,8 @@ object VariantMetadata {
 
   def listIds(repository: Repository): Set[Id] = {
     RankingMetadata.findRankingFiles(repository).map { rankingFile =>
-      val IdRankingExtractor = (Repository.getVariantsMetadataDir(repository.baseDir, repository.name).getAbsolutePath + "/(.*?)/" + rankingFile.getName).r
+      val IdRankingExtractor = (Repository.getVariantsMetadataDir(repository.baseDir,
+        repository.name).getAbsolutePath + "/(.*?)/" + rankingFile.getName).r
       val IdRankingExtractor(idString) = rankingFile.getAbsolutePath
       Id(idString)
     }.toSet
