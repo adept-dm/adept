@@ -58,7 +58,7 @@ Option[Date],
       JsonService.writeStringField("homePage", homePage, generator)
       JsonService.writeStringField("publicationDate", publicationDate.map(
         InfoMetadata.dateFormat.format(_)), generator)
-      JsonService.writeObject(vcs, generator)
+      JsonService.writeObject("vcs", vcs, generator)
       JsonService.writeArrayField("licenses", licenses, generator)
       JsonService.writeObjectField("other", other, generator)
     })

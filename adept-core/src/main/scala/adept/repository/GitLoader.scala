@@ -17,7 +17,8 @@ import org.eclipse.jgit.lib.NullProgressMonitor
 object GitLoader extends Logging {
 
   private def hash(id: Id, constraints: Set[Constraint], uniqueId: String): String = {
-    val uniqueString = "idc" + (id.value + constraints.toSeq.sorted.map(c => c.name + c.values.mkString(",").mkString(";")) + uniqueId)
+    val uniqueString = "idc" + (id.value + constraints.toSeq.sorted.map(c => c.name +
+      c.values.mkString(",").mkString(";")) + uniqueId)
     Hasher.hash(uniqueString.getBytes)
   }
 
@@ -37,16 +38,19 @@ object GitLoader extends Logging {
   }
 
   //TODO: private because I might want to move this to another class? 
-  private[adept] def computeTransitiveContext(baseDir: File, context: Set[ContextValue], unversionedBaseDir: Option[File] = None): Set[ContextValue] = {
+  private[adept] def computeTransitiveContext(baseDir: File, context: Set[ContextValue],
+                                              unversionedBaseDir: Option[File] = None): Set[ContextValue] = {
     context.flatMap { c =>
       (c.commit, unversionedBaseDir) match {
         case (Some(commit), _) =>
           val repository = new GitRepository(baseDir, c.repository)
-          val children = ContextMetadata.read(c.id, c.variant, repository, commit).getOrElse(throw new Exception("Could not read context from: " + c))
+          val children = ContextMetadata.read(c.id, c.variant, repository, commit).getOrElse(
+            throw new Exception("Could not read context from: " + c))
           children.values
         case (None, Some(unversionedBaseDir)) =>
           val repository = new Repository(unversionedBaseDir, c.repository)
-          val children = ContextMetadata.read(c.id, c.variant, repository).getOrElse(throw new Exception("Could not read context from: " + c))
+          val children = ContextMetadata.read(c.id, c.variant, repository).getOrElse(
+            throw new Exception("Could not read context from: " + c))
           children.values
         case (None, None) =>
           throw new Exception("Found: " + c + " but both commit and unversioned base dir was None")
@@ -55,7 +59,10 @@ object GitLoader extends Logging {
   }
 
   //TODO: private because I might want to move this to another class? 
-  private[adept] def computeTransitiveLocations(baseDir: File, inputContext: Set[ContextValue], transitiveContext: Set[ContextValue], unversionedBaseDir: Option[File] = None): Set[RepositoryLocations] = {
+  private[adept] def computeTransitiveLocations(baseDir: File, inputContext: Set[ContextValue],
+                                                transitiveContext: Set[ContextValue],
+                                                unversionedBaseDir: Option[File] = None):
+  Set[RepositoryLocations] = {
     //TODO: UGLY code, refactor with computeTransitiveContext
     val requiredRepositories = transitiveContext.map(_.repository)
 
@@ -64,12 +71,14 @@ object GitLoader extends Logging {
         case (Some(commit), _) =>
           val repository = new GitRepository(baseDir, c.repository)
           if (!repository.exists) throw new Exception("Cannot get transitive locations for: " + c)
-          val children = ContextMetadata.read(c.id, c.variant, repository, commit).getOrElse(throw new Exception("Could not read locations from: " + c))
+          val children = ContextMetadata.read(c.id, c.variant, repository, commit).getOrElse(
+            throw new Exception("Could not read locations from: " + c))
           children.values
         case (None, Some(unversionedBaseDir)) =>
           val repository = new Repository(unversionedBaseDir, c.repository)
           if (!repository.exists) throw new Exception("Cannot get transitive locations for: " + c)
-          val children = ContextMetadata.read(c.id, c.variant, repository).getOrElse(throw new Exception("Could not read locations from: " + c))
+          val children = ContextMetadata.read(c.id, c.variant, repository).getOrElse(
+            throw new Exception("Could not read locations from: " + c))
           children.values
         case (None, None) =>
           throw new Exception("Found: " + c + " but both commit and unversioned base dir was None")
@@ -79,19 +88,24 @@ object GitLoader extends Logging {
           case (Some(commit), _) =>
             val repository = new GitRepository(baseDir, c.repository)
             if (!repository.exists) throw new Exception("Cannot get transitive locations for: " + c)
-            RepositoryLocationsMetadata.read(v.repository, repository, commit).map(_.toRepositoryLocations(v.repository)).toSet +  RepositoryLocations(repository.name, repository.getRemoteUri(GitRepository.DefaultRemote).toSet)
+            RepositoryLocationsMetadata.read(v.repository, repository, commit).map(
+              _.toRepositoryLocations(v.repository)).toSet +  RepositoryLocations(
+              repository.name, repository.getRemoteUri(GitRepository.DefaultRemote).toSet)
           case (None, Some(unversionedBaseDir)) =>
             val repository = new Repository(unversionedBaseDir, c.repository)
             if (!repository.exists) throw new Exception("Cannot get transitive locations for: " + c)
-            RepositoryLocationsMetadata.read(v.repository, repository).map(_.toRepositoryLocations(v.repository)).toSet +  RepositoryLocations(repository.name, Set.empty)
-          case (None, None) => throw new Exception("Found: " + c + " but both commit and unversioned base dir was None")
+            RepositoryLocationsMetadata.read(v.repository, repository).map(_.toRepositoryLocations(
+              v.repository)).toSet +  RepositoryLocations(repository.name, Set.empty)
+          case (None, None) => throw new Exception("Found: " + c +
+            " but both commit and unversioned base dir was None")
         }
       }
     }
   }
 
   //TODO: private because I might want to move this to another class? 
-  private[adept] def applyOverrides(context: Set[ContextValue], overrides: Set[ContextValue]): Set[ContextValue] = {
+  private[adept] def applyOverrides(context: Set[ContextValue], overrides: Set[ContextValue]):
+  Set[ContextValue] = {
     val overridesById = overrides.groupBy(v => (v.repository, v.id))
     context.flatMap { v =>
       overridesById.getOrElse(v.repository -> v.id, Set(v))
@@ -100,13 +114,18 @@ object GitLoader extends Logging {
 
 }
 
-private[adept] class GitLoader(baseDir: File, private[adept] val context: Set[ContextValue], cacheManager: CacheManager, unversionedBaseDirs: Set[File] = Set.empty, private[adept] val loadedVariants: Set[Variant] = Set.empty, progress: ProgressMonitor = NullProgressMonitor.INSTANCE) extends VariantsLoader with Logging {
+private[adept] class GitLoader(baseDir: File, private[adept] val context: Set[ContextValue],
+                               cacheManager: CacheManager, unversionedBaseDirs: Set[File] = Set.empty,
+                               private[adept] val loadedVariants: Set[Variant] = Set.empty, progress:
+ProgressMonitor = NullProgressMonitor.INSTANCE) extends VariantsLoader with Logging {
   import GitLoader._
   import adept.utils.CacheHelpers.usingCache
 
   private val thisUniqueId = Hasher.hash((
-    context.map { cv => cv.id.value + "-" + cv.repository.value + "-" + cv.variant.value + "-" + cv.commit.map(_.value).mkString }.toSeq.sorted.mkString("#") ++
-    loadedVariants.map(variant => VariantMetadata.fromVariant(variant).hash.value).toSeq.sorted.mkString("#")).getBytes)
+    context.map { cv => cv.id.value + "-" + cv.repository.value + "-" + cv.variant.value + "-" +
+      cv.commit.map(_.value).mkString }.toSeq.sorted.mkString("#") ++
+    loadedVariants.map(variant => VariantMetadata.fromVariant(variant).hash.value).toSeq.sorted
+      .mkString("#")).getBytes)
 
   private val cache: Ehcache = getCache(cacheManager)
 
@@ -141,11 +160,15 @@ private[adept] class GitLoader(baseDir: File, private[adept] val context: Set[Co
               }
             }
             val allRankings = gitRankings ++ unversionedRankings
-            if (allVariants.nonEmpty && allRankings.isEmpty) throw new Exception("Could not find any ranking files for: " + id + " when comparing: " + context)
+            if (allVariants.nonEmpty && allRankings.isEmpty)
+              throw new Exception("Could not find any ranking files for: " + id +
+                " when comparing: " + context)
 
             //choose variants to use:
             val chosenVariants = RankLogic.chosenVariants(allVariants, allRankings)
-            if (allVariants.nonEmpty && chosenVariants.isEmpty) throw new Exception("Could not chose variants for: " + id + ". Variants: " + allVariants + "\nRankings: " + allRankings)
+            if (allVariants.nonEmpty && chosenVariants.isEmpty)
+              throw new Exception("Could not chose variants for: " + id + ". Variants: " +
+                allVariants + "\nRankings: " + allRankings)
 
             val gitHashes = gitRankings.flatMap(_.variants)
             val unversionedHashes = unversionedRankings.flatMap(_.variants)
@@ -155,29 +178,36 @@ private[adept] class GitLoader(baseDir: File, private[adept] val context: Set[Co
               if (gitHashes(variant) && !unversionedHashes(variant)) {
                 onlyLatestCommits.map { commit =>
                   () => {
-                    VariantMetadata.read(id, variant, gitRepository, commit, checkHash = true).map(_.toVariant(id))
+                    VariantMetadata.read(id, variant, gitRepository, commit, checkHash = true)
+                      .map(_.toVariant(id))
                   }
                 }
               } else if (unversionedHashes(variant) && !gitHashes(variant)) {
-                logger.warn("Using unversioned (imported?) variant " + variant + " for " + id + " - contribute to git repositories to avoid this warning")
+                logger.warn("Using unversioned (imported?) variant " + variant + " for " + id +
+                  " - contribute to git repositories to avoid this warning")
                 repositories.map { repository =>
                   () => {
                     VariantMetadata.read(id, variant, repository, checkHash = true).map(_.toVariant(id))
                   }
                 }
               } else if (unversionedHashes(variant) && gitHashes(variant)) {
-                logger.warn("Using unversioned (imported?) variant: " + variant + " in " + repositories.map(_.dir.getAbsolutePath).mkString(",") + " and versioned ones from: " + gitRepository.dir.getAbsolutePath())
+                logger.warn("Using unversioned (imported?) variant: " + variant + " in " + repositories.map(
+                  _.dir.getAbsolutePath).mkString(",") + " and versioned ones from: " + gitRepository
+                  .dir.getAbsolutePath)
                 repositories.map { repository =>
                   () => {
                     VariantMetadata.read(id, variant, repository, checkHash = true).map(_.toVariant(id))
                   }
                 } ++ onlyLatestCommits.map { commit =>
                   () => {
-                    VariantMetadata.read(id, variant, gitRepository, commit, checkHash = true).map(_.toVariant(id))
+                    VariantMetadata.read(id, variant, gitRepository, commit, checkHash = true).map(
+                      _.toVariant(id))
                   }
                 }
               } else {
-                throw new Exception("Expected to hash: " + variant + " to be in a rankig in either: " + repositories.map(_.dir.getAbsolutePath).mkString(",") + " or " + gitRepository.dir.getAbsolutePath() + ". Rankings:\n" + allRankings.mkString("\n"))
+                throw new Exception("Expected to hash: " + variant + " to be in a rankig in either: " +
+                  repositories.map(_.dir.getAbsolutePath).mkString(",") + " or " +
+                  gitRepository.dir.getAbsolutePath + ". Rankings:\n" + allRankings.mkString("\n"))
               }
 
             }
