@@ -34,13 +34,29 @@ case class ValueMap(map: mutable.Map[String, Any] = mutable.Map.empty[String, An
 
 object JsonService {
   def writeJson(converter: (JsonGenerator) => Unit): String = {
+    writeTopLevel({generator =>
+      generator.writeStartObject()
+      converter(generator)
+      generator.writeEndObject()
+    })
+  }
+
+  def writeJsonArray(objects: Iterable[JsonSerializable]): String = {
+    writeTopLevel({generator =>
+      generator.writeStartArray()
+      for (obj <- objects) {
+        writeObject(obj, generator)
+      }
+      generator.writeEndArray()
+    })
+  }
+
+  private def writeTopLevel(converter: (JsonGenerator) => Unit): String = {
     val os = new ByteArrayOutputStream()
     val generator = new JsonFactory().createGenerator(os)
     generator.useDefaultPrettyPrinter()
     try {
-      generator.writeStartObject()
       converter(generator)
-      generator.writeEndObject()
     }
     finally {
       generator.close()
