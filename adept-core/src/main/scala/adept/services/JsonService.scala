@@ -2,7 +2,7 @@ package adept.services
 
 import com.fasterxml.jackson.core._
 import java.io.{InputStream, ByteArrayOutputStream}
-import scala.io
+import scala.io.Source
 import adept.artifact.models.JsonSerializable
 import scala.collection.mutable
 import java.text.SimpleDateFormat
@@ -131,7 +131,7 @@ object JsonService {
     */
   def parseJson[T](is: InputStream, field2converter: Map[String, (JsonParser) => Any],
                    constructor: ValueMap => T): (T, String) = {
-    val json = io.Source.fromInputStream(is).getLines().mkString("\n")
+    val json = Source.fromInputStream(is).getLines().mkString("\n")
     val parser = new JsonFactory().createParser(json)
     try {
       // Get START_OBJECT
