@@ -4,7 +4,7 @@ import adept.artifact.models.JsonSerializable
 import adept.resolution.models._
 import adept.repository.models.{Commit, RepositoryName, RankId}
 import com.fasterxml.jackson.core.{JsonGenerator, JsonParser}
-import adept.services.JsonService
+import adept.services.{ValueMap, JsonService}
 
 abstract sealed class SearchResult(val variant: Variant, val rankId: RankId, val repository: RepositoryName,
   val isImport: Boolean) extends JsonSerializable
@@ -35,17 +35,22 @@ case class GitSearchResult(override val variant: Variant, override val rankId: R
 
 object GitSearchResult {
   def fromJson(parser: JsonParser): GitSearchResult = {
-    JsonService.parseObject(parser, Map(
+    JsonService.parseObject(parser, jsonConversionMap, constructFromJson)
+  }
+  
+  def constructFromJson(valueMap: ValueMap): GitSearchResult = {
+    GitSearchResult(Variant(Id(valueMap.getString("variant"))),
+      RankId(valueMap.getString("rankId")),
+      RepositoryName(valueMap.getString("repository")), Commit(valueMap.getString("commit")),
+      valueMap.getStringSeq("locations"), valueMap.getOrElse[Boolean]("isLocal", false))
+  }
+
+  val jsonConversionMap: Map[String, (JsonParser) => Any] = Map(
       ("variant", Variant.fromJson _),
       ("rankId", _.getValueAsString),
       ("repository", _.getValueAsString),
       ("commit", _.getValueAsString),
       ("locations", JsonService.parseStringSeq),
       ("isLocal", _.getValueAsBoolean)
-    ), valueMap =>
-      GitSearchResult(Variant(Id(valueMap.getString("variant"))),
-        RankId(valueMap.getString("rankId")),
-        RepositoryName(valueMap.getString("repository")), Commit(valueMap.getString("commit")),
-        valueMap.getStringSeq("locations"), valueMap.getOrElse[Boolean]("isLocal", false)))
-  }
+    )
 }

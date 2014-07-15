@@ -34,7 +34,7 @@ case class ValueMap(map: mutable.Map[String, Any] = mutable.Map.empty[String, An
 
 object JsonService {
   def writeJson(converter: (JsonGenerator) => Unit): String = {
-    writeTopLevel({generator =>
+    writeTopLevel({ generator =>
       generator.writeStartObject()
       converter(generator)
       generator.writeEndObject()
@@ -42,7 +42,7 @@ object JsonService {
   }
 
   def writeJsonArray(objects: Iterable[JsonSerializable]): String = {
-    writeTopLevel({generator =>
+    writeTopLevel({ generator =>
       generator.writeStartArray()
       for (obj <- objects) {
         writeObject(obj, generator)
@@ -121,7 +121,7 @@ object JsonService {
     }
   }
 
-  /** Parse a JSON document from an input stream.
+  /** Parse a JSON document from an input stream into an object.
     *
     * @param is input stream
     * @param field2converter map from field names to lambdas for converting to values
@@ -131,12 +131,42 @@ object JsonService {
     */
   def parseJson[T](is: InputStream, field2converter: Map[String, (JsonParser) => Any],
                    constructor: ValueMap => T): (T, String) = {
+    parseImpl(is, { parser =>
+      // Get START_OBJECT
+      parser.nextToken()
+      assert(parser.getCurrentToken == JsonToken.START_OBJECT)
+      parseObject(parser, field2converter, constructor)
+    })
+  }
+
+  /** Parse a JSON document from an input stream into a set.
+    *
+    * @param is input stream
+    * @param field2converter map from field names to lambdas for converting to values
+    * @param constructor lambda to construct object from field values
+    * @tparam T element type
+    * @return parsed set and JSON document
+    */
+  def parseJsonSet[T](is: InputStream, field2converter: Map[String, (JsonParser) => Any],
+                      constructor: ValueMap => T): (Set[T], String) = {
+    parseImpl(is, { parser =>
+      assert(parser.getCurrentToken == JsonToken.START_ARRAY)
+      val elems = mutable.Set.empty[T]
+      while (parser.nextToken() != JsonToken.END_ARRAY) {
+        val elem = parseObject(parser, field2converter, constructor)
+        elems.add(elem)
+      }
+      elems.toSet
+    })
+  }
+
+  private def parseImpl[T](is: InputStream, parseContent: (JsonParser) => T): (T, String) = {
     val json = Source.fromInputStream(is).getLines().mkString("\n")
     val parser = new JsonFactory().createParser(json)
     try {
-      // Get START_OBJECT
+      // Get START_ARRAY
       parser.nextToken()
-      (parseObject(parser, field2converter, constructor), json)
+      (parseContent(parser), json)
     }
     finally {
       parser.close()
@@ -211,7 +241,7 @@ object JsonService {
 
     map.toMap
   }
-  
+
   def parseDate(parser: JsonParser, dateFormat: SimpleDateFormat): Date = {
     dateFormat.parse(parser.getValueAsString)
   }
