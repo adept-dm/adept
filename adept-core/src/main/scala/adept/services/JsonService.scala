@@ -131,40 +131,25 @@ object JsonService {
     */
   def parseJson[T](is: InputStream, field2converter: Map[String, (JsonParser) => Any],
                    constructor: ValueMap => T): (T, String) = {
-    parseImpl(is, { parser =>
-      // Get START_OBJECT
-      parser.nextToken()
-      assert(parser.getCurrentToken == JsonToken.START_OBJECT)
-      parseObject(parser, field2converter, constructor)
-    })
+    parseImpl(is, parseObject(_, field2converter, constructor))
   }
 
   /** Parse a JSON document from an input stream into a set.
     *
     * @param is input stream
-    * @param field2converter map from field names to lambdas for converting to values
-    * @param constructor lambda to construct object from field values
+    * @param converter lambda for converting elements to objects
     * @tparam T element type
     * @return parsed set and JSON document
     */
-  def parseJsonSet[T](is: InputStream, field2converter: Map[String, (JsonParser) => Any],
-                      constructor: ValueMap => T): (Set[T], String) = {
-    parseImpl(is, { parser =>
-      assert(parser.getCurrentToken == JsonToken.START_ARRAY)
-      val elems = mutable.Set.empty[T]
-      while (parser.nextToken() != JsonToken.END_ARRAY) {
-        val elem = parseObject(parser, field2converter, constructor)
-        elems.add(elem)
-      }
-      elems.toSet
-    })
+  def parseJsonSet[T](is: InputStream, converter: (JsonParser) => T): (Set[T], String) = {
+    parseImpl(is, parseSet(_, converter))
   }
 
   private def parseImpl[T](is: InputStream, parseContent: (JsonParser) => T): (T, String) = {
     val json = Source.fromInputStream(is).getLines().mkString("\n")
     val parser = new JsonFactory().createParser(json)
     try {
-      // Get START_ARRAY
+      // Get start token
       parser.nextToken()
       (parseContent(parser), json)
     }
