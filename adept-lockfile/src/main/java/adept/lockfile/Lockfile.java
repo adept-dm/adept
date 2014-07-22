@@ -40,6 +40,15 @@ public class Lockfile {
                   Set<LockfileArtifact> artifacts) {
     // we are in control of the Sets (only we can instantiate) here so even if
     // they are mutable it is OK (yeah! :)
+    if (requirements == null) {
+      throw new IllegalArgumentException("requirements is null");
+    }
+    if (context == null) {
+      throw new IllegalArgumentException("context is null");
+    }
+    if (artifacts == null) {
+      throw new IllegalArgumentException("artifacts is null");
+    }
     this.requirements = requirements;
     this.context = context;
     this.artifacts = artifacts;
@@ -204,14 +213,22 @@ public class Lockfile {
     return new LockfileArtifact(hash, size, locations, attributes, filename);
   }
 
-  public static Lockfile read(Reader data) throws LockfileParseException, IOException {
+  public static Lockfile read(Reader reader) throws LockfileParseException, IOException {
     Set<LockfileRequirement> requirements = null;
     Set<LockfileContext> contexts = null;
     Set<LockfileArtifact> artifacts = null;
-    JsonParser parser = new JsonFactory().createParser(data);
+    char[] buffer = new char[1024];
+    int n;
+    Writer writer = new StringWriter();
+    while ((n = reader.read(buffer)) != -1) {
+      writer.write(buffer, 0, n);
+    }
+    String json = writer.toString();
+    JsonParser parser = new JsonFactory().createParser(json);
     try {
       // Get START_OBJECT
       parser.nextToken();
+      assert parser.getCurrentToken() == JsonToken.START_OBJECT;
       // Read field name or END_OBJECT
       while (parser.nextToken() != JsonToken.END_OBJECT) {
         assert (parser.getCurrentToken() == JsonToken.FIELD_NAME);
@@ -240,6 +257,15 @@ public class Lockfile {
       parser.close();
     }
 
+    if (requirements == null) {
+      throw new LockfileParseException(String.format("Couldn't parse requirements from JSON: %s", json));
+    }
+    if (contexts == null) {
+      throw new LockfileParseException(String.format("Couldn't parse contexts from JSON: %s", json));
+    }
+    if (artifacts == null) {
+      throw new LockfileParseException(String.format("Couldn't parse artifacts from JSON: %s", json));
+    }
     return new Lockfile(requirements, contexts, artifacts);
   }
 
@@ -251,11 +277,17 @@ public class Lockfile {
             new HashSet<LockfileArtifact>());
       } else {
         reader = new FileReader(file);
-        return read(reader);
+        try {
+          return read(reader);
+        }
+        catch (LockfileParseException err) {
+          throw new LockfileParseException(file, err);
+        }
       }
     } finally {
-      if (reader != null)
+      if (reader != null) {
         reader.close();
+      }
     }
   }
 

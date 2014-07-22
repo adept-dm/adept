@@ -45,6 +45,9 @@ private[adept] object LockfileConverters {
   }
 
   def context(lockfile: Lockfile) = {
+    if (lockfile.context == null) {
+      throw new IllegalArgumentException("lockfile.context is null")
+    }
     Set() ++ lockfile.context.asScala.map(asCoreContext)
   }
 
