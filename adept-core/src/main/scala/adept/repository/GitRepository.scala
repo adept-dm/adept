@@ -137,7 +137,9 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
   }
 
   def init() = {
+    logger.debug(s"Initializing Git repository ${dir.getAbsolutePath}")
     val git = Git.init().setDirectory(dir).call()
+    logger.debug(s"Creating initial commit")
     val revCommit = git.commit().setMessage("Initialized " + name.value).call
     val initCommit = Commit(revCommit.name)
     git.tag().setName(InitTag).call()

@@ -1,20 +1,18 @@
 package adept.repository
 
-import java.io.File
-import org.eclipse.jgit.lib.Constants
+import java.io.{File, FileInputStream, IOException, InputStream}
+
+import adept.artifact.models.ArtifactHash
 import adept.repository.models._
 import adept.resolution.models._
-import adept.repository.metadata.VariantMetadata
-import adept.artifact.models.ArtifactHash
-import java.io.InputStream
-import java.io.FileReader
-import java.io.FilenameFilter
-import java.io.IOException
-import java.io.FileInputStream
 
 case class InitException(reason: String) extends Exception("Could not initialize: " + reason)
-case class MalformedVariantHashException(repo: Repository, hash: VariantHash) extends Exception("Variant hash: '" + hash.value + "' (size: " + hash.value.length + ") was not well-formed in repository: " + repo.dir.getAbsolutePath)
-case class MalformedArtifactHashException(repo: Repository, hash: ArtifactHash) extends Exception("Artifact hash: '" + hash.value + "' was not well-formed in repository: " + repo.dir.getAbsolutePath)
+case class MalformedVariantHashException(repo: Repository, hash: VariantHash) extends
+  Exception("Variant hash: '" + hash.value + "' (size: " + hash.value.length +
+    ") was not well-formed in repository: " + repo.dir.getAbsolutePath)
+case class MalformedArtifactHashException(repo: Repository, hash: ArtifactHash) extends
+  Exception("Artifact hash: '" + hash.value + "' was not well-formed in repository: " +
+    repo.dir.getAbsolutePath)
 
 object Repository {
   val LocationsDirName = "locations"
@@ -54,18 +52,22 @@ object Repository {
     }
   }
 
-  private def getLocationsDir(baseDir: File, name: RepositoryName) = new File(getRepoDir(baseDir, name), LocationsDirName)
+  private def getLocationsDir(baseDir: File, name: RepositoryName) = new File(getRepoDir(baseDir, name),
+    LocationsDirName)
 
-  def getArtifactsMetadataDir(baseDir: File, name: RepositoryName) = new File(getLocationsDir(baseDir, name), ArtifactsMetadataDirName)
-  def getRepositoryLocationsMetadataDir(baseDir: File, name: RepositoryName) = new File(getLocationsDir(baseDir, name), RepositoryLocationsMetadataDirName)
-  def getVariantsMetadataDir(baseDir: File, name: RepositoryName) = new File(getRepoDir(baseDir, name), VariantsMetadataDirName)
+  def getArtifactsMetadataDir(baseDir: File, name: RepositoryName) = new File(getLocationsDir(baseDir, name),
+    ArtifactsMetadataDirName)
+  def getRepositoryLocationsMetadataDir(baseDir: File, name: RepositoryName) = new File(getLocationsDir(
+    baseDir, name), RepositoryLocationsMetadataDirName)
+  def getVariantsMetadataDir(baseDir: File, name: RepositoryName) = new File(getRepoDir(baseDir, name),
+    VariantsMetadataDirName)
 
   private[adept] def ensureParentDirs(file: File): File = { //merge with code in ArtifactCache (createParentDir)
-    val dir = file.getParentFile()
-    if (!(dir.isDirectory() || dir.mkdirs()))
-      throw new IOException("Could not create dir: " + dir.getAbsolutePath())
+    val dir = file.getParentFile
+    if (!(dir.isDirectory || dir.mkdirs()))
+      throw new IOException("Could not create dir: " + dir.getAbsolutePath)
     else
-      file;
+      file
   }
 }
 
@@ -95,7 +97,7 @@ object Repository {
  *           - "artifact.json": information about the hashes (file size and locations)
  */
 class Repository(val baseDir: File, val name: RepositoryName) { //TODO: had to remove private[adept]  but should it be there?
-  import Repository._
+  import adept.repository.Repository._
   require(name.value.nonEmpty, "Cannot create a repository with an empty name")
 
   val dir = getRepoDir(baseDir, name)
@@ -114,7 +116,8 @@ class Repository(val baseDir: File, val name: RepositoryName) { //TODO: had to r
     else {
       val level1 = new File(getIdFile(variantsMetadataDir, id), hash.value.slice(0, Level1Length))
       val level2 = new File(level1, hash.value.slice(Level2Length, Level1Length + Level2Length))
-      val level3 = new File(level2, hash.value.slice(Level1Length + Level2Length, Level3Length + Level1Length + Level2Length))
+      val level3 = new File(level2, hash.value.slice(Level1Length + Level2Length, Level3Length +
+        Level1Length + Level2Length))
       level3
     }
   }
@@ -147,7 +150,8 @@ class Repository(val baseDir: File, val name: RepositoryName) { //TODO: had to r
     else {
       val level1 = new File(artifactsMetadataDir, hash.value.slice(0, Level1Length))
       val level2 = new File(level1, hash.value.slice(Level2Length, Level1Length + Level2Length))
-      val level3 = new File(level2, hash.value.slice(Level1Length + Level2Length, Level3Length + Level1Length + Level2Length))
+      val level3 = new File(level2, hash.value.slice(Level1Length + Level2Length, Level3Length +
+        Level1Length + Level2Length))
       new File(level3, ArtifactMetadataFileName)
     }
   }
@@ -183,7 +187,8 @@ class Repository(val baseDir: File, val name: RepositoryName) { //TODO: had to r
     ensureParentDirs(getRepositoryLocationsFile(name))
   }
 
-  private[repository] def usingFileInputStream[A](file: File)(block: Either[String, Option[InputStream]] => A): A = {
+  private[repository] def usingFileInputStream[A](file: File)(block: Either[String, Option[InputStream]] =>
+    A): A = {
     if (!file.exists()) {
       block(Right(None))
     } else {
