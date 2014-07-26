@@ -1,18 +1,14 @@
 package adept.repository
 
-import adept.resolution.models._
-import adept.repository.models._
-import adept.repository.metadata.VariantMetadata
 import java.io.File
-import net.sf.ehcache.CacheManager
+
 import adept.hash.Hasher
-import net.sf.ehcache.Ehcache
-import org.eclipse.jgit.lib.ProgressMonitor
-import adept.repository.metadata.ContextMetadata
 import adept.logging.Logging
-import adept.repository.metadata.RepositoryLocationsMetadata
-import adept.repository.metadata.RankingMetadata
-import org.eclipse.jgit.lib.NullProgressMonitor
+import adept.repository.metadata.{ContextMetadata, RankingMetadata, RepositoryLocationsMetadata,
+  VariantMetadata}
+import adept.repository.models._
+import adept.resolution.models._
+import net.sf.ehcache.{CacheManager, Ehcache}
 
 object GitLoader extends Logging {
 
@@ -116,9 +112,9 @@ object GitLoader extends Logging {
 
 private[adept] class GitLoader(baseDir: File, private[adept] val context: Set[ContextValue],
                                cacheManager: CacheManager, unversionedBaseDirs: Set[File] = Set.empty,
-                               private[adept] val loadedVariants: Set[Variant] = Set.empty, progress:
-ProgressMonitor = NullProgressMonitor.INSTANCE) extends VariantsLoader with Logging {
-  import GitLoader._
+                               private[adept] val loadedVariants: Set[Variant] = Set.empty)
+  extends VariantsLoader with Logging {
+  import adept.repository.GitLoader._
   import adept.utils.CacheHelpers.usingCache
 
   private val thisUniqueId = Hasher.hash((

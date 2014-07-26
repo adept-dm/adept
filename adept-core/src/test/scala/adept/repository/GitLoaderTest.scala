@@ -1,23 +1,17 @@
 package adept.repository
 
-import org.scalatest.FunSuite
-import org.scalatest.Matchers
-import org.eclipse.jgit.lib.TextProgressMonitor
+import java.io.File
+
+import adept.repository.metadata.{RankingMetadata, VariantMetadata}
 import adept.repository.models._
 import adept.resolution.models._
-import net.sf.ehcache.CacheManager
-import java.io.File
-import org.scalatest.OptionValues._
-import adept.repository.metadata.VariantMetadata
-import adept.repository.metadata.ContextMetadata
-import adept.repository.metadata.RepositoryLocationsMetadata
-import adept.repository.metadata.RankingMetadata
+import org.scalatest.{FunSuite, Matchers}
 
 class GitLoaderTest extends FunSuite with Matchers {
-  import adept.test.FileUtils._
-  import adept.test.ResolverUtils._
   import adept.test.CacheUtils._
+  import adept.test.FileUtils._
   import adept.test.OutputUtils._
+  import adept.test.ResolverUtils._
 
   def createVersionedContext(tmpDir: File) = {
     val repoA = new GitRepository(tmpDir, RepositoryName("com.a"))

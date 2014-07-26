@@ -1,29 +1,18 @@
 package adept
 
-import java.io.File
-import net.sf.ehcache.CacheManager
-import org.eclipse.jgit.lib.ProgressMonitor
-import adept.logging.Logging
-import adept.resolution.models.Id
-import adept.repository.models.{ContextValue, RepositoryName}
-import adept.resolution.models.Constraint
-import adept.repository.GitRepository
-import adept.repository.metadata.VariantMetadata
-import adept.repository.metadata.RankingMetadata
-import org.eclipse.jgit.lib.TextProgressMonitor
-import adept.repository.AttributeConstraintFilter
-import adept.repository.Repository
-import adept.lockfile.Lockfile
-import java.io.FileOutputStream
-import adept.lockfile.LockfileConverters
-import adept.resolution.models.Variant
-import adept.resolution.models.Requirement
-import adept.repository.GitLoader
-import adept.resolution.Resolver
-import adept.models.GitSearchResult
+import java.io.{File, FileOutputStream}
 
-class Adept(baseDir: File, cacheManager: CacheManager, passphrase: Option[String] = None,
-            progress: ProgressMonitor = new TextProgressMonitor) extends Logging {
+import adept.lockfile.{Lockfile, LockfileConverters}
+import adept.logging.Logging
+import adept.models.GitSearchResult
+import adept.repository.{AttributeConstraintFilter, GitLoader, GitRepository, Repository}
+import adept.repository.metadata.{RankingMetadata, VariantMetadata}
+import adept.repository.models.{ContextValue, RepositoryName}
+import adept.resolution.Resolver
+import adept.resolution.models.{Constraint, Id, Requirement, Variant}
+import net.sf.ehcache.CacheManager
+
+class Adept(baseDir: File, cacheManager: CacheManager, passphrase: Option[String] = None) extends Logging {
 
   private[adept] def matches(term: String, id: Id) = {
     (id.value + Id.Sep).contains(term)
@@ -33,7 +22,7 @@ class Adept(baseDir: File, cacheManager: CacheManager, passphrase: Option[String
   Set[ContextValue], overriddenContext: Set[ContextValue], providedVariants: Set[Variant], overrides:
                    Set[ContextValue] = Set.empty, unversionedBaseDirs: Set[File] = Set.empty) = {
     val loader = new GitLoader(baseDir, overriddenContext, cacheManager = cacheManager, unversionedBaseDirs =
-      unversionedBaseDirs, loadedVariants = providedVariants, progress = progress)
+      unversionedBaseDirs, loadedVariants = providedVariants)
     val resolver = new Resolver(loader)
     val result = resolver.resolve(requirements)
     if (result.isResolved) Right(result)

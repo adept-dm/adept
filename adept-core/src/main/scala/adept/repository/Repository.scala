@@ -36,7 +36,7 @@ object Repository {
   val Level2Length = 4
   val Level3Length = HashLength - Level1Length - Level2Length
 
-  def getReposDir(baseDir: File) = new File(baseDir, ReposDirName)
+  def getReposDir(baseDir: File) = new File(baseDir.getAbsoluteFile, ReposDirName)
   def getRepoDir(baseDir: File, name: RepositoryName) = new File(getReposDir(baseDir), name.value)
 
   def listRepositories(baseDir: File) = {

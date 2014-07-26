@@ -1,21 +1,18 @@
 package adept.repository
 
-import java.io.File
-import adept.repository.models._
-import java.io.InputStream
-import adept.resolution.models.Id
+import java.io.{File, InputStream}
+
 import adept.artifact.models.ArtifactHash
-import org.eclipse.jgit.lib.{ Constants, Repository => JGitRepository }
+import adept.logging.Logging
+import adept.repository.models._
+import adept.resolution.models.Id
 import org.eclipse.jgit.api.Git
-import org.eclipse.jgit.revwalk.RevWalk
+import org.eclipse.jgit.lib.{ConfigConstants, Constants, NullProgressMonitor, ProgressMonitor,
+  Repository => JGitRepository}
+import org.eclipse.jgit.revwalk.filter.RevFilter
+import org.eclipse.jgit.revwalk.{RevCommit, RevWalk}
 import org.eclipse.jgit.treewalk.TreeWalk
 import org.eclipse.jgit.treewalk.filter.PathFilter
-import org.eclipse.jgit.lib.ProgressMonitor
-import org.eclipse.jgit.lib.NullProgressMonitor
-import adept.logging.Logging
-import org.eclipse.jgit.revwalk.RevCommit
-import org.eclipse.jgit.revwalk.filter.RevFilter
-import org.eclipse.jgit.lib.ConfigConstants
 
 /**
  *  Defines Git operations and streams methods used for READ operations.
@@ -24,7 +21,7 @@ import org.eclipse.jgit.lib.ConfigConstants
  */
 class GitRepository(override val baseDir: File, override val name: RepositoryName) extends
     Repository(baseDir, name) with Logging {
-  import GitRepository._
+  import adept.repository.GitRepository._
 
   override def exists: Boolean = {
     super.exists && new File(dir, ".git").isDirectory
@@ -114,22 +111,30 @@ class GitRepository(override val baseDir: File, override val name: RepositoryNam
     }
   }
 
-  def add(files: Set[File]): Set[File] = synchronized { //this is synchronized because git locks when it writes and we do not want to try to break that one, feels bad but that is the way it is
+  // this is synchronized because git locks when it writes and we do not want to try to break that one,
+  // feels bad but that is the way it is
+  def add(files: Set[File]): Set[File] = synchronized {
     add(files.toSeq: _*)
   }
 
-  def add(files: File*): Set[File] = synchronized { //this is synchronized because git locks when it writes and we do not want to try to break that one, feels bad but that is the way it is
+  // this is synchronized because git locks when it writes and we do not want to try to break that one,
+  // feels bad but that is the way it is
+  def add(files: File*): Set[File] = synchronized {
     files.foreach { file =>
       git.add().addFilepattern(asGitPath(file)).call()
     }
     files.toSet
   }
 
-  def rm(files: Set[File]): Set[File] = synchronized { //this is synchronized because git locks when it writes and we do not want to try to break that one, feels bad but that is the way it is
+  // this is synchronized because git locks when it writes and we do not want to try to break that one,
+  // feels bad but that is the way it is
+  def rm(files: Set[File]): Set[File] = synchronized {
     rm(files.toSeq: _*)
   }
 
-  def rm(files: File*): Set[File] = synchronized { //this is synchronized because git locks when it writes and we do not want to try to break that one, feels bad but that is the way it is
+  // this is synchronized because git locks when it writes and we do not want to try to break that one,
+  // feels bad but that is the way it is
+  def rm(files: File*): Set[File] = synchronized {
     files.foreach { file =>
       git.rm().addFilepattern(asGitPath(file)).call()
     }
