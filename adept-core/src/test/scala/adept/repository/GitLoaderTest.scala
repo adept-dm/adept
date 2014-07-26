@@ -10,7 +10,6 @@ import org.scalatest.{FunSuite, Matchers}
 class GitLoaderTest extends FunSuite with Matchers {
   import adept.test.CacheUtils._
   import adept.test.FileUtils._
-  import adept.test.OutputUtils._
   import adept.test.ResolverUtils._
 
   def createVersionedContext(tmpDir: File) = {
@@ -64,7 +63,7 @@ class GitLoaderTest extends FunSuite with Matchers {
       val requirements: Set[Requirement] = Set(
         "A" -> Set(Constraint(binaryVersion, Set("1.0"))))
       val initialResults = createVersionedContext(tmpDir)
-      val loader = new GitLoader(tmpDir, initialResults, cacheManager, progress = progress)
+      val loader = new GitLoader(tmpDir, initialResults, cacheManager)
       val result = resolve(requirements, loader)
       checkResolved(result, Set("A", "B"))
       checkVariants(result, "A", version -> Set("1.0.0"), binaryVersion -> Set("1.0"))
