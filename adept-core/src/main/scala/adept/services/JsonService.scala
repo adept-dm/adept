@@ -86,14 +86,14 @@ object JsonService {
     generator.writeEndObject()
   }
 
-  def writeObject(fieldName: String, value: JsonSerializable, generator: JsonGenerator) {
-    generator.writeObjectFieldStart(fieldName)
+  def writeObjectField(fieldName: String, value: JsonSerializable, generator: JsonGenerator) {
+    generator.writeFieldName(fieldName)
     writeObject(value, generator)
   }
 
-  def writeObject(fieldName: String, value: Option[JsonSerializable], generator: JsonGenerator) {
+  def writeObjectField(fieldName: String, value: Option[JsonSerializable], generator: JsonGenerator) {
     if (value.isDefined) {
-      writeObject(fieldName, value.get, generator)
+      writeObjectField(fieldName, value.get, generator)
     }
   }
 

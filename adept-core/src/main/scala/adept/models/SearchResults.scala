@@ -13,7 +13,7 @@ case class ImportSearchResult(override val variant: Variant, override val rankId
                               override val repository: RepositoryName) extends SearchResult(variant, rankId, repository,
   isImport = true) {
   override def writeJson(generator: JsonGenerator): Unit = {
-    JsonService.writeObject("variant", variant, generator)
+    JsonService.writeObjectField("variant", variant, generator)
     generator.writeStringField("rankId", rankId.value)
     generator.writeStringField("repository", repository.value)
   }
@@ -24,7 +24,7 @@ case class GitSearchResult(override val variant: Variant, override val rankId: R
                            isLocal: Boolean = false)
   extends SearchResult(variant, rankId, repository, isImport = false) {
   override def writeJson(generator: JsonGenerator): Unit = {
-    JsonService.writeObject("variant", variant, generator)
+    JsonService.writeObjectField("variant", variant, generator)
     generator.writeStringField("rankId", rankId.value)
     generator.writeStringField("repository", repository.value)
     generator.writeStringField("commit", commit.value)
