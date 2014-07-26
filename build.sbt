@@ -39,9 +39,10 @@ lazy val adeptCore = project.in(file("adept-core")).settings(
   resolvers += "Jgit Repository" at "https://repo.eclipse.org/content/groups/releases/",
   //play?
   resolvers += "Typesafe Repository" at "http://repo.typesafe.com/typesafe/releases/",
-  resolvers += Resolver.url("Typesafe Repository (non maven compat)",  url("http://repo.typesafe.com/typesafe/releases"))(Resolver.ivyStylePatterns),
+  resolvers += Resolver.url("Typesafe Repository (non maven compat)",
+    url("http://repo.typesafe.com/typesafe/releases"))(Resolver.ivyStylePatterns),
   libraryDependencies ++= Seq(
-     "org.eclipse.jgit" % "org.eclipse.jgit" % 	"3.1.0.201310021548-r",
+     "org.eclipse.jgit" % "org.eclipse.jgit" % 	"3.4.1.201406201815-r",
      "net.sf.ehcache" % "ehcache-core" % "2.6.6", //needed by adept.repository.RepositoryEngine
      "javax.transaction" % "jta" % "1.1", //needed by ehcache
      jacksonDep,
