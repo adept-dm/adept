@@ -258,13 +258,13 @@ public class Lockfile {
     }
 
     if (requirements == null) {
-      throw new LockfileParseException(String.format("Couldn't parse requirements from JSON: %s", json));
+      requirements = new HashSet<LockfileRequirement>();
     }
     if (contexts == null) {
-      throw new LockfileParseException(String.format("Couldn't parse contexts from JSON: %s", json));
+      contexts = new HashSet<LockfileContext>();
     }
     if (artifacts == null) {
-      throw new LockfileParseException(String.format("Couldn't parse artifacts from JSON: %s", json));
+      artifacts = new HashSet<LockfileArtifact>();
     }
     return new Lockfile(requirements, contexts, artifacts);
   }
