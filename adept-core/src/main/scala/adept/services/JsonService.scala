@@ -153,6 +153,10 @@ object JsonService {
       parser.nextToken()
       (parseContent(parser), json)
     }
+    catch {
+      case err: AssertionError =>
+        throw new AssertionError(s"$err, JSON: $json")
+    }
     finally {
       parser.close()
     }
