@@ -96,7 +96,8 @@ object Repository {
  *         - <hash>: same as variant hash, but for artifacts so this is the actual hash of the file represented by the artifact
  *           - "artifact.json": information about the hashes (file size and locations)
  */
-class Repository(val baseDir: File, val name: RepositoryName) { //TODO: had to remove private[adept]  but should it be there?
+//TODO: had to remove private[adept]  but should it be there?
+class Repository(val baseDir: File, val name: RepositoryName) {
   import adept.repository.Repository._
   require(name.value.nonEmpty, "Cannot create a repository with an empty name")
 
