@@ -7,7 +7,7 @@ import adept.artifact.models.JsonSerializable
 import scala.collection.mutable
 import java.text.SimpleDateFormat
 import java.util.Date
-import adept.exceptions.JsonMissingFieldException
+import adept.exceptions.{JsonParseExceptionBase, JsonParseException, JsonMissingFieldException}
 
 case class ValueMap(map: mutable.Map[String, Any] = mutable.Map.empty[String, Any]) {
   def add(key: String, value: Any): Unit = map(key) = value
@@ -156,6 +156,7 @@ object JsonService {
     catch {
       case err: AssertionError =>
         throw new AssertionError(s"$err, JSON: $json")
+      case err: JsonParseExceptionBase => throw JsonParseException(err.getMessage, json)
     }
     finally {
       parser.close()

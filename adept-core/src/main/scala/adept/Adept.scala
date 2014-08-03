@@ -30,9 +30,9 @@ class Adept(baseDir: File, cacheManager: CacheManager, passphrase: Option[String
   }
 
   def writeLockfile(lockfile: Lockfile, file: File) = {
-    var fos: FileOutputStream = null
+    val fos: FileOutputStream = null
     try {
-      var fos = new FileOutputStream(file)
+      val fos = new FileOutputStream(file)
       fos.write(LockfileConverters.toJsonString(lockfile).getBytes)
       fos.flush()
     } finally {
