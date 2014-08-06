@@ -42,20 +42,25 @@ class Adept(baseDir: File, cacheManager: CacheManager, passphrase: Option[String
 
   def searchLocalRepository(term: String, name: RepositoryName, constraints: Set[Constraint] = Set.empty):
   Set[GitSearchResult] = {
+    logger.debug(s"Searching repository $name for package $term")
     val repository = new GitRepository(baseDir, name)
     if (repository.exists) {
+      logger.debug("Repository exists")
       val commit = repository.getHead
       VariantMetadata.listIds(repository, commit).flatMap { id =>
         if (matches(term, id)) {
+          logger.debug(s"Variant $id matches package ($term)")
           val locations = repository.getRemoteUri(GitRepository.DefaultRemote).map { location =>
             Seq(location)
           }.getOrElse(Seq.empty)
           val variants = RankingMetadata.listRankIds(id, repository, commit).flatMap { rankId =>
             val ranking = RankingMetadata.read(id, rankId, repository, commit)
-              .getOrElse(throw new Exception("Could not read rank id: " +(id, rankId, repository.dir.getAbsolutePath, commit)))
+              .getOrElse(throw new Exception("Could not read rank id: " + (id, rankId,
+              repository.dir.getAbsolutePath, commit)))
             ranking.variants.map { hash =>
               VariantMetadata.read(id, hash, repository, commit).map(_.toVariant(id))
-                .getOrElse(throw new Exception("Could not read variant: " +(rankId, id, hash, repository.dir.getAbsolutePath, commit)))
+                .getOrElse(throw new Exception("Could not read variant: " + (rankId, id, hash,
+                repository.dir.getAbsolutePath, commit)))
             }.filter { variant =>
               constraints.isEmpty ||
                 AttributeConstraintFilter.matches(variant.attributes.toSet, constraints)
@@ -73,11 +78,13 @@ class Adept(baseDir: File, cacheManager: CacheManager, passphrase: Option[String
         }
       }
     } else {
+      logger.debug("Repository doesn't exist")
       Set.empty[GitSearchResult]
     }
   }
 
   def localSearch(term: String, constraints: Set[Constraint] = Set.empty): Set[GitSearchResult] = {
+    logger.debug(s"Searching locally for package $term")
     Repository.listRepositories(baseDir).flatMap { name =>
       searchLocalRepository(term, name, constraints)
     }

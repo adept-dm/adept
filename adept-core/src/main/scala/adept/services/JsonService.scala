@@ -155,7 +155,7 @@ object JsonService {
     }
     catch {
       case err: AssertionError =>
-        throw new AssertionError(s"$err, JSON: $json")
+        throw new AssertionError(s"$err, JSON: $json", err)
       case err: JsonParseExceptionBase => throw JsonParseException(err.getMessage, json)
     }
     finally {
