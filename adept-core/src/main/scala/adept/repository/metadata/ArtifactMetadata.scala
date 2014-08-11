@@ -1,13 +1,14 @@
 package adept.repository.metadata
 
-import adept.artifact.models._
-import adept.repository.Repository
-import adept.repository.models.Commit
-import adept.repository.GitRepository
 import java.io.{File, InputStream}
-import collection.JavaConverters._
-import com.fasterxml.jackson.core.{JsonGenerator, JsonParser}
+
+import adept.artifact.models._
+import adept.repository.{GitRepository, Repository}
+import adept.repository.models.Commit
 import adept.services.JsonService
+import com.fasterxml.jackson.core.JsonGenerator
+
+import scala.collection.JavaConverters._
 
 case class ArtifactMetadata(size: Long, locations: Set[ArtifactLocation]) {
   def toArtifact(hash: ArtifactHash): Artifact = {

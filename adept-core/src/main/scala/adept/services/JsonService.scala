@@ -2,12 +2,12 @@ package adept.services
 
 import com.fasterxml.jackson.core._
 import java.io.{InputStream, ByteArrayOutputStream}
-import scala.io
+import scala.io.Source
 import adept.artifact.models.JsonSerializable
 import scala.collection.mutable
 import java.text.SimpleDateFormat
 import java.util.Date
-import adept.exceptions.JsonMissingFieldException
+import adept.exceptions.{JsonParseExceptionBase, JsonParseException, JsonMissingFieldException}
 
 case class ValueMap(map: mutable.Map[String, Any] = mutable.Map.empty[String, Any]) {
   def add(key: String, value: Any): Unit = map(key) = value
@@ -34,13 +34,29 @@ case class ValueMap(map: mutable.Map[String, Any] = mutable.Map.empty[String, An
 
 object JsonService {
   def writeJson(converter: (JsonGenerator) => Unit): String = {
+    writeTopLevel({ generator =>
+      generator.writeStartObject()
+      converter(generator)
+      generator.writeEndObject()
+    })
+  }
+
+  def writeJsonArray(objects: Iterable[JsonSerializable]): String = {
+    writeTopLevel({ generator =>
+      generator.writeStartArray()
+      for (obj <- objects) {
+        writeObject(obj, generator)
+      }
+      generator.writeEndArray()
+    })
+  }
+
+  private def writeTopLevel(converter: (JsonGenerator) => Unit): String = {
     val os = new ByteArrayOutputStream()
     val generator = new JsonFactory().createGenerator(os)
     generator.useDefaultPrettyPrinter()
     try {
-      generator.writeStartObject()
       converter(generator)
-      generator.writeEndObject()
     }
     finally {
       generator.close()
@@ -64,15 +80,20 @@ object JsonService {
     generator.writeEndObject()
   }
 
-  def writeObject(value: JsonSerializable, generator: JsonGenerator) {
+  private def writeObject(value: JsonSerializable, generator: JsonGenerator) {
     generator.writeStartObject()
     value.writeJson(generator)
     generator.writeEndObject()
   }
 
-  def writeObject(value: Option[JsonSerializable], generator: JsonGenerator) {
+  def writeObjectField(fieldName: String, value: JsonSerializable, generator: JsonGenerator) {
+    generator.writeFieldName(fieldName)
+    writeObject(value, generator)
+  }
+
+  def writeObjectField(fieldName: String, value: Option[JsonSerializable], generator: JsonGenerator) {
     if (value.isDefined) {
-      writeObject(value.get, generator)
+      writeObjectField(fieldName, value.get, generator)
     }
   }
 
@@ -100,7 +121,7 @@ object JsonService {
     }
   }
 
-  /** Parse a JSON document from an input stream.
+  /** Parse a JSON document from an input stream into an object.
     *
     * @param is input stream
     * @param field2converter map from field names to lambdas for converting to values
@@ -110,12 +131,32 @@ object JsonService {
     */
   def parseJson[T](is: InputStream, field2converter: Map[String, (JsonParser) => Any],
                    constructor: ValueMap => T): (T, String) = {
-    val json = io.Source.fromInputStream(is).getLines().mkString("\n")
+    parseImpl(is, parseObject(_, field2converter, constructor))
+  }
+
+  /** Parse a JSON document from an input stream into a set.
+    *
+    * @param is input stream
+    * @param converter lambda for converting elements to objects
+    * @tparam T element type
+    * @return parsed set and JSON document
+    */
+  def parseJsonSet[T](is: InputStream, converter: (JsonParser) => T): (Set[T], String) = {
+    parseImpl(is, parseSet(_, converter))
+  }
+
+  private def parseImpl[T](is: InputStream, parseContent: (JsonParser) => T): (T, String) = {
+    val json = Source.fromInputStream(is).getLines().mkString("\n")
     val parser = new JsonFactory().createParser(json)
     try {
-      // Get START_OBJECT
+      // Get start token
       parser.nextToken()
-      (parseObject(parser, field2converter, constructor), json)
+      (parseContent(parser), json)
+    }
+    catch {
+      case err: AssertionError =>
+        throw new AssertionError(s"$err, JSON: $json", err)
+      case err: JsonParseExceptionBase => throw JsonParseException(err.getMessage, json)
     }
     finally {
       parser.close()
@@ -190,7 +231,7 @@ object JsonService {
 
     map.toMap
   }
-  
+
   def parseDate(parser: JsonParser, dateFormat: SimpleDateFormat): Date = {
     dateFormat.parse(parser.getValueAsString)
   }

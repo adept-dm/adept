@@ -1,6 +1,7 @@
 package adept.resolution.models
 
-import com.fasterxml.jackson.core.JsonParser
+import adept.artifact.models.JsonSerializable
+import com.fasterxml.jackson.core.{JsonGenerator, JsonParser}
 import adept.services.JsonService
 
 /**
@@ -15,7 +16,7 @@ import adept.services.JsonService
  * for a name while variant fits the bill perfectly.
  */
 case class Variant(id: Id, attributes: Set[Attribute] = Set.empty, artifacts: Set[ArtifactRef] =
-Set.empty, requirements: Set[Requirement] = Set.empty) {
+Set.empty, requirements: Set[Requirement] = Set.empty) extends JsonSerializable {
 
   def attribute(name: String) = {
     val values = attributes.collect {
@@ -33,6 +34,13 @@ Set.empty, requirements: Set[Requirement] = Set.empty) {
     toString +
       (if (requirements.nonEmpty) requirements.toSeq.sorted.mkString("{", ",", "}") else "") +
       (if (artifacts.nonEmpty) artifacts.toSeq.sorted.mkString("|", ",", "|") else "")
+  }
+
+  override def writeJson(generator: JsonGenerator): Unit = {
+    generator.writeStringField("id", id.value)
+    JsonService.writeArrayField("attributes", attributes, generator)
+    JsonService.writeArrayField("artifacts", artifacts, generator)
+    JsonService.writeArrayField("requirements", requirements, generator)
   }
 }
 
