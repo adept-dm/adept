@@ -1,13 +1,11 @@
 package adept.repository.metadata
 
-import adept.repository.models.RepositoryName
-import adept.repository.models.RepositoryLocations
-import adept.repository.Repository
-import java.io.{InputStream, File}
-import adept.repository.GitRepository
-import adept.repository.models.Commit
+import java.io.{File, InputStream}
+
+import adept.repository.{GitRepository, Repository}
+import adept.repository.models.{Commit, RepositoryLocations, RepositoryName}
 import adept.services.JsonService
-import com.fasterxml.jackson.core.{JsonGenerator, JsonParser}
+import com.fasterxml.jackson.core.JsonGenerator
 
 case class RepositoryLocationsMetadata(uris: Seq[String]) {
   def toRepositoryLocations(name: RepositoryName): RepositoryLocations = {
@@ -20,15 +18,17 @@ case class RepositoryLocationsMetadata(uris: Seq[String]) {
     })
   }
 
-  def write(name: RepositoryName, repository: Repository): File = { //name: the name of the repository where the uris are pointing. repository represents the directory where you are storing this information
+  // name: the name of the repository where the uris are pointing. repository represents the directory where
+  // you are storing this information
+  def write(name: RepositoryName, repository: Repository): File = {
     val file = repository.ensureRepositoryLocationsFile(name)
     MetadataContent.write(jsonString, file)
   }
 }
 
 object RepositoryLocationsMetadata {
-  import Repository._
-  import GitRepository._
+  import adept.repository.GitRepository._
+  import adept.repository.Repository._
 
   private[adept] val LocationsRegex = {
     s"""$RepositoryLocationsMetadataDirName$GitPathSep(.*?)$GitPathSep$VariantMetadataFileName""".r
@@ -36,12 +36,10 @@ object RepositoryLocationsMetadata {
 
   def listLocations(repository: GitRepository, commit: Commit): Set[RepositoryLocationsMetadata] = {
     repository.usePath[RepositoryLocationsMetadata](Some(
-      Repository.RepositoryLocationsMetadataDirName), commit) { path =>
-      path match {
-        case LocationsRegex(name) =>
-          RepositoryLocationsMetadata.read(RepositoryName(name), repository, commit)
-        case _ => None
-      }
+      Repository.RepositoryLocationsMetadataDirName), commit) {
+      case LocationsRegex(name) =>
+        RepositoryLocationsMetadata.read(RepositoryName(name), repository, commit)
+      case _ => None
     }
   }
 
@@ -64,7 +62,7 @@ object RepositoryLocationsMetadata {
         readJson(is)
       case Right(None) => None
       case Left(error) =>
-        throw new Exception("Could not read: " + name + " for file: " + file.getAbsolutePath() +
+        throw new Exception("Could not read: " + name + " for file: " + file.getAbsolutePath +
           " in dir:  " +
           repository.dir + ". Got error: " + error)
     }

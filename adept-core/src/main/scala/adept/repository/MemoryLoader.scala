@@ -11,7 +11,7 @@ class MemoryLoader(private[adept] val variants: Set[Variant]) extends VariantsLo
   val variantsById = variants.groupBy(_.id) //avoid filtering ids that we know won't match
 
   def loadVariants(id: Id, constraints: Set[Constraint]): Set[Variant] = {
-    AttributeConstraintFilter.filter(id, variantsById.get(id).getOrElse(Set.empty).toSet, constraints)
+    AttributeConstraintFilter.filter(id, variantsById.getOrElse(id, Set.empty).toSet, constraints)
   }
 
 }

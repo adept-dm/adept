@@ -12,7 +12,8 @@ object RankLogic {
   /**
    * Defines rank logic:
    *  - if the list of input variants contains 2 or more that is in the same ranking file, select the first one
-   *  - if there is no variant hashes found for the input variants in the rankings, select the last one in the ranking file
+   *  - if there is no variant hashes found for the input variants in the rankings, select the last one
+   *  in the ranking file
    *
    *  Also checks that 2 rankings does NOT contain the same hash
    */
@@ -25,11 +26,14 @@ object RankLogic {
       var first = ranking.variants.headOption
       ranking.variants.foreach { hash =>
         if (variants.contains(hash)) {
-          if (foundVariantHash.isEmpty) foundVariantHash = Some(hash) //found a hash, is considered the best of which ever hashes are found in this file
-          else if (foundVariantHash.isDefined) comparableVariants -= hash //there is already a hash which is considered better so remove this one
+          //found a hash, is considered the best of which ever hashes are found in this file
+          if (foundVariantHash.isEmpty) foundVariantHash = Some(hash)
+          //there is already a hash which is considered better so remove this one
+          else if (foundVariantHash.isDefined) comparableVariants -= hash
         }
       }
-      if (foundVariantHash.isEmpty) comparableVariants ++= first //we did not find any matches in this file so pick first
+      //we did not find any matches in this file so pick first
+      if (foundVariantHash.isEmpty) comparableVariants ++= first
     }
     comparableVariants
   }
