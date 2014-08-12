@@ -62,7 +62,8 @@ object Repository {
   def getVariantsMetadataDir(baseDir: File, name: RepositoryName) = new File(getRepoDir(baseDir, name),
     VariantsMetadataDirName)
 
-  private[adept] def ensureParentDirs(file: File): File = { //merge with code in ArtifactCache (createParentDir)
+  //merge with code in ArtifactCache (createParentDir)
+  private[adept] def ensureParentDirs(file: File): File = {
     val dir = file.getParentFile
     if (!(dir.isDirectory || dir.mkdirs()))
       throw new IOException("Could not create dir: " + dir.getAbsolutePath)
@@ -83,17 +84,22 @@ object Repository {
  *     - "variants"
  *       - <id>: is the id and might be more than one sub-directory (foo/bar/zoo has 3 directory levels)
  *         - "info.json" (OPTIONAL): extra information (home page, description, ...) not used for resolution
- *         - "<rank id>.ranking": contains the rank of variants (i.e defines what is the 'best' variant). Typically there is one rank file per list of _compatible_ variants
- *         - <hash>: is the variant hash of the item (SHA-256 of the contents of variant.json) and is split into 2 sub directories (first 4 chars (level 1), next 4 chars (level 2), then the rest (level 3))
+ *         - "<rank id>.ranking": contains the rank of variants (i.e defines what is the 'best' variant).
+ *         Typically there is one rank file per list of _compatible_ variants
+ *         - <hash>: is the variant hash of the item (SHA-256 of the contents of variant.json) and is split
+ *         into 2 sub directories (first 4 chars (level 1), next 4 chars (level 2), then the rest (level 3))
  *           - "variant.json": the variant metadata: attributes, requirements and artifacts references
- *           - "resolution-results.json": the exact repository information this variant requires to resolve (commit, name, variant, ..)
+ *           - "resolution-results.json": the exact repository information this variant requires to resolve
+ *           (commit, name, variant, ..)
  *     - "locations"
- *       TODO: - "hosts.properties" (OPTIONAL): hosts that are used and can be overridden in locations and uris TODO: this has not been implemented yet
+ *       TODO: - "hosts.properties" (OPTIONAL): hosts that are used and can be overridden in locations and
+ *       uris TODO: this has not been implemented yet
  *       - repositories
  *         - <repository name>: the repository name of a repository this one requires
  *           - "repository.json": contains repository locations (e.g. git uris)
  *       - artifacts
- *         - <hash>: same as variant hash, but for artifacts so this is the actual hash of the file represented by the artifact
+ *         - <hash>: same as variant hash, but for artifacts so this is the actual hash of the file
+ *         represented by the artifact
  *           - "artifact.json": information about the hashes (file size and locations)
  */
 //TODO: had to remove private[adept]  but should it be there?
