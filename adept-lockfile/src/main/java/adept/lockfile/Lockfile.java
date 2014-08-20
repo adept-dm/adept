@@ -33,11 +33,22 @@ public class Lockfile {
   }
 
   /**
-   * Lockfiles gets created by factory read methods or by LockfileManager (in adept-core), only package visibility
+   * Lockfiles gets created by factory read methods or by LockfileManager (in adept-core), only
+   * package visibility
    */
-  public Lockfile(Set<LockfileRequirement> requirements, Set<LockfileContext> context, Set<LockfileArtifact> artifacts) {
+  public Lockfile(Set<LockfileRequirement> requirements, Set<LockfileContext> context,
+                  Set<LockfileArtifact> artifacts) {
     // we are in control of the Sets (only we can instantiate) here so even if
     // they are mutable it is OK (yeah! :)
+    if (requirements == null) {
+      throw new IllegalArgumentException("requirements is null");
+    }
+    if (context == null) {
+      throw new IllegalArgumentException("context is null");
+    }
+    if (artifacts == null) {
+      throw new IllegalArgumentException("artifacts is null");
+    }
     this.requirements = requirements;
     this.context = context;
     this.artifacts = artifacts;
@@ -202,14 +213,22 @@ public class Lockfile {
     return new LockfileArtifact(hash, size, locations, attributes, filename);
   }
 
-  public static Lockfile read(Reader data) throws LockfileParseException, IOException {
+  public static Lockfile read(Reader reader) throws LockfileParseException, IOException {
     Set<LockfileRequirement> requirements = null;
     Set<LockfileContext> contexts = null;
     Set<LockfileArtifact> artifacts = null;
-    JsonParser parser = new JsonFactory().createParser(data);
+    char[] buffer = new char[1024];
+    int n;
+    Writer writer = new StringWriter();
+    while ((n = reader.read(buffer)) != -1) {
+      writer.write(buffer, 0, n);
+    }
+    String json = writer.toString();
+    JsonParser parser = new JsonFactory().createParser(json);
     try {
       // Get START_OBJECT
       parser.nextToken();
+      assert parser.getCurrentToken() == JsonToken.START_OBJECT;
       // Read field name or END_OBJECT
       while (parser.nextToken() != JsonToken.END_OBJECT) {
         assert (parser.getCurrentToken() == JsonToken.FIELD_NAME);
@@ -238,6 +257,15 @@ public class Lockfile {
       parser.close();
     }
 
+    if (requirements == null) {
+      requirements = new HashSet<LockfileRequirement>();
+    }
+    if (contexts == null) {
+      contexts = new HashSet<LockfileContext>();
+    }
+    if (artifacts == null) {
+      artifacts = new HashSet<LockfileArtifact>();
+    }
     return new Lockfile(requirements, contexts, artifacts);
   }
 
@@ -249,37 +277,45 @@ public class Lockfile {
             new HashSet<LockfileArtifact>());
       } else {
         reader = new FileReader(file);
-        return read(reader);
+        try {
+          return read(reader);
+        }
+        catch (LockfileParseException err) {
+          throw new LockfileParseException(file, err);
+        }
       }
     } finally {
-      if (reader != null)
+      if (reader != null) {
         reader.close();
+      }
     }
   }
 
   protected int THREAD_POOL_SIZE = 30;
 
-  public Set<ArtifactDownloadResult> download(File baseDir, Long timeout, TimeUnit timeoutUnit, int maxRetries,
-                                              JavaLogger logger, ProgressMonitor progress)
-      throws InterruptedException, ExecutionException,
+  public Set<ArtifactDownloadResult> download(File baseDir, Long timeout, TimeUnit timeoutUnit,
+                                              int maxRetries, JavaLogger logger, ProgressMonitor progress)
+  throws InterruptedException, ExecutionException,
       AdeptCacheException, IOException {
     ExecutorService executorService = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
     Set<ArtifactDownloadResult> results = new HashSet<ArtifactDownloadResult>(this.artifacts.size());
 
     Set<LockfileArtifact> nonLocalArtifacts = new HashSet<LockfileArtifact>();
     for (LockfileArtifact artifact : this.artifacts) {
-      File currentCachedFile = ArtifactCache.getOrCreateExistingCacheFile(baseDir, artifact.hash, artifact.filename,
-          true);
+      File currentCachedFile = ArtifactCache.getOrCreateExistingCacheFile(baseDir, artifact.hash,
+          artifact.filename, true);
       if (currentCachedFile == null || !currentCachedFile.isFile()) {
         nonLocalArtifacts.add(artifact);
       } else {
-        ArtifactDownloadResult result = new ArtifactDownloadResult(artifact.getArtifact(), currentCachedFile.getName());
+        ArtifactDownloadResult result = new ArtifactDownloadResult(artifact.getArtifact(),
+            currentCachedFile.getName());
         result.setCachedFile(currentCachedFile);
         results.add(result);
       }
     }
 
-    Set<Future<ArtifactDownloadResult>> futures = new HashSet<Future<ArtifactDownloadResult>>(nonLocalArtifacts.size());
+    Set<Future<ArtifactDownloadResult>> futures = new HashSet<Future<ArtifactDownloadResult>>(
+        nonLocalArtifacts.size());
 
     int allSizes = 0;
     for (LockfileArtifact lockfileArtifact : nonLocalArtifacts) {
@@ -315,11 +351,13 @@ public class Lockfile {
         }
         locationsString = locationsString.substring(0, locationsString.length() - 1); // cut last ',' off
 
-        logger.error("Failed to get artifact with filename: '" + result.filename + "' from: " + locationsString + "."
+        logger.error("Failed to get artifact with filename: '" + result.filename + "' from: " +
+            locationsString + "."
             + causeString + " Hash: " + result.artifact.hash.value);
         results.add(result);
       } else {
-        assert (false); // Illegal state: got a download result that is neither failed nor successful!?
+        // Illegal state: got a download result that is neither failed nor successful!?
+        throw new AssertionError("Reached illegal state");
       }
     }
     if (displayProgress)

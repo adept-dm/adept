@@ -5,7 +5,8 @@ import com.fasterxml.jackson.core.{JsonParser, JsonGenerator}
 import adept.services.JsonService
 import adept.artifact.models.JsonSerializable
 
-/** The context value for each Id: answers the who we found (the variant hash) and where we found it (commit and repository) */
+/** The context value for each Id: answers the who we found (the variant hash) and where we found it
+  * (commit and repository) */
 case class ContextValue(id: Id, repository: RepositoryName, commit: Option[Commit], variant: VariantHash)
   extends JsonSerializable {
   def writeJson(generator: JsonGenerator): Unit = {
@@ -21,7 +22,7 @@ case class ContextValue(id: Id, repository: RepositoryName, commit: Option[Commi
 object ContextValue {
   def fromJson(parser: JsonParser): ContextValue = {
     JsonService.parseObject(parser, Map(
-      ("id", _ getValueAsString),
+      ("id", _.getValueAsString),
       ("repository", _.getValueAsString),
       ("commit", parser => Commit(parser.getValueAsString)),
       ("variant", _.getValueAsString)

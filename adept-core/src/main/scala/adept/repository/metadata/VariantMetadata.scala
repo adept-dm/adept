@@ -1,35 +1,34 @@
 package adept.repository.metadata
 
+import java.io.{File, FileFilter, InputStream}
+
+import adept.hash.Hasher
+import adept.logging.Logging
+import adept.repository.{GitRepository, Repository}
 import adept.repository.models._
 import adept.resolution.models._
-import adept.repository.Repository
-import adept.hash.Hasher
-import adept.repository.GitRepository
-import java.io.File
-import java.io.InputStream
-import java.io.FileFilter
 import adept.services.JsonService
-import com.fasterxml.jackson.core.{JsonParser, JsonGenerator}
+import com.fasterxml.jackson.core.JsonGenerator
 
 case class VariantMetadata(attributes: Seq[Attribute], artifacts: Seq[ArtifactRef],
-                           requirements: Seq[Requirement]) {
+                           requirements: Seq[Requirement]) extends Logging {
 
   def toVariant(id: Id): Variant = {
     Variant(id, attributes.toSet, artifacts.toSet, requirements.toSet)
   }
 
   lazy val hash: VariantHash = {
-    //This means we are whitespace sensitive, on the other hand it makes it easier to create other tools
+    // This means we are whitespace sensitive, on the other hand it makes it easier to create other tools
     // that generate/checks the hash (SHA-256 of the contents).
-    //We are also assuming that there is not that many people who will actually edit the content manually,
+    // We are also assuming that there is not that many people who will actually edit the content manually,
     // and that if they do it will be picked up by Git so it is very visible.
-    //Adept only reads from Git so we again we should be good.
-    //I agree that it feels dangerous (and not very defensive), but it is better than using another string
-    // as basis for the hash (without whitespaces) because that would be even more confusing and even harder to
-    // define exactly how the hash is calculated.
-    //Having a hash that is calculated from the internals would be a more sensible option, but it makes it hard
-    // to define how the hash should be. You could imagine that 2 platforms for example sort strings differently
-    // which would make it hard.
+    // Adept only reads from Git so we again we should be good.
+    // I agree that it feels dangerous (and not very defensive), but it is better than using another string
+    // as basis for the hash (without whitespaces) because that would be even more confusing and even
+    // harder to define exactly how the hash is calculated.
+    // Having a hash that is calculated from the internals would be a more sensible option, but it makes it
+    // hard to define how the hash should be. You could imagine that 2 platforms for example sort strings
+    // differently which would make it hard.
     VariantHash(Hasher.hash(jsonString.getBytes))
   }
 
@@ -43,9 +42,9 @@ case class VariantMetadata(attributes: Seq[Attribute], artifacts: Seq[ArtifactRe
 
   def write(id: Id, repository: Repository): File = {
     require(hash.value.length == Repository.HashLength, "Hash for: " + id +
-      " (" + this + ") has length:"
-      + hash.value.length + " but should have " + Repository.HashLength)
+      " (" + this + ") has length:" + hash.value.length + ", but should have " + Repository.HashLength)
     val file = repository.ensureVariantFile(id, hash)
+    logger.debug(s"Writing JSON to file ${file.getAbsolutePath}: $jsonString")
     MetadataContent.write(jsonString, file)
   }
 }
@@ -103,8 +102,8 @@ object VariantMetadata {
     }
   }
 
-  import Repository._
-  import GitRepository._
+  import adept.repository.GitRepository._
+  import adept.repository.Repository._
 
   private[adept] val HashExtractionRegex = {
     s"""$VariantsMetadataDirName$GitPathSep(.*)$GitPathSep([0-9a-fA-F]{${Repository.Level1Length}})$GitPathSep([0-9a-fA-F]{${Repository.Level2Length}})$GitPathSep([0-9a-fA-F]{${Repository.Level3Length}})$GitPathSep$VariantMetadataFileName""".r
@@ -151,12 +150,10 @@ object VariantMetadata {
   }
 
   def listVariants(id: Id, repository: GitRepository, commit: Commit): Set[VariantHash] = {
-    repository.usePath[VariantHash](Some(VariantsMetadataDirName), commit) { path =>
-      path match {
-        case HashExtractionRegex(idValue, level1, level2, level3) if idValue == id.value =>
-          Some(VariantHash(level1 + level2 + level3))
-        case _ => None
-      }
+    repository.usePath[VariantHash](Some(VariantsMetadataDirName), commit) {
+      case HashExtractionRegex(idValue, level1, level2, level3) if idValue == id.value =>
+        Some(VariantHash(level1 + level2 + level3))
+      case _ => None
     }
   }
 
@@ -171,13 +168,10 @@ object VariantMetadata {
 
   def listIds(repository: GitRepository, commit: Commit): Set[Id] = {
     val IdExtractionRegex = s"""$VariantsMetadataDirName$GitPathSep(.*)$GitPathSep(.*?)$GitPathSep(.*?)$GitPathSep(.*?)$GitPathSep$VariantMetadataFileName""".r
-    repository.usePath[Id](Some(VariantsMetadataDirName), commit) { path =>
-      path match {
-        case IdExtractionRegex(id, level1, level2, level3) =>
-          Some(Id(id))
-        case _ => None
-      }
+    repository.usePath[Id](Some(VariantsMetadataDirName), commit) {
+      case IdExtractionRegex(id, level1, level2, level3) =>
+        Some(Id(id))
+      case _ => None
     }
   }
-
 }

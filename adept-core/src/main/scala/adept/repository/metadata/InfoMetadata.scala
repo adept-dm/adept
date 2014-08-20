@@ -57,8 +57,8 @@ Option[Date],
       JsonService.writeStringField("description", description, generator)
       JsonService.writeStringField("homePage", homePage, generator)
       JsonService.writeStringField("publicationDate", publicationDate.map(
-        InfoMetadata.dateFormat.format(_)), generator)
-      JsonService.writeObject(vcs, generator)
+        InfoMetadata.dateFormat.format), generator)
+      JsonService.writeObjectField("vcs", vcs, generator)
       JsonService.writeArrayField("licenses", licenses, generator)
       JsonService.writeObjectField("other", other, generator)
     })
@@ -91,9 +91,9 @@ object InfoMetadata {
         ("description", _.getValueAsString),
         ("homePage", _.getValueAsString),
         ("publicationDate", JsonService.parseDate(_, dateFormat)),
-        ("vcs", VcsInfo.fromJson(_)),
+        ("vcs", VcsInfo.fromJson),
         ("licenses", JsonService.parseSeq(_, LicenseInfo.fromJson)),
-        ("other", JsonService.parseStringSeqMap(_))
+        ("other", JsonService.parseStringSeqMap)
       ), (valueMap) => Some(InfoMetadata(valueMap.getOption[String]("description"),
         valueMap.getOption[String]("homePage"), valueMap.getOption[Date]("publicationDate"),
         valueMap.getOption[VcsInfo]("vcs"), valueMap.getSeq[LicenseInfo]("licenses"),
