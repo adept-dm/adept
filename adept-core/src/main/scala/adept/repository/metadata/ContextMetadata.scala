@@ -1,12 +1,12 @@
 package adept.repository.metadata
 
+import java.io.{File, InputStream}
+
+import adept.repository.{GitRepository, Repository}
 import adept.repository.models._
 import adept.resolution.models._
-import adept.repository.Repository
-import adept.repository.GitRepository
-import java.io.{InputStream, File}
 import adept.services.JsonService
-import com.fasterxml.jackson.core.{JsonParser, JsonGenerator}
+import com.fasterxml.jackson.core.JsonGenerator
 
 case class ContextMetadata(values: Seq[ContextValue]) {
   lazy val jsonString = {

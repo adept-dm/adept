@@ -3,6 +3,7 @@ package adept.repository.metadata
 import java.io.{File, FileFilter, InputStream}
 
 import adept.hash.Hasher
+import adept.logging.Logging
 import adept.repository.{GitRepository, Repository}
 import adept.repository.models._
 import adept.resolution.models._
@@ -10,7 +11,7 @@ import adept.services.JsonService
 import com.fasterxml.jackson.core.JsonGenerator
 
 case class VariantMetadata(attributes: Seq[Attribute], artifacts: Seq[ArtifactRef],
-                           requirements: Seq[Requirement]) {
+                           requirements: Seq[Requirement]) extends Logging {
 
   def toVariant(id: Id): Variant = {
     Variant(id, attributes.toSet, artifacts.toSet, requirements.toSet)
@@ -43,6 +44,7 @@ case class VariantMetadata(attributes: Seq[Attribute], artifacts: Seq[ArtifactRe
     require(hash.value.length == Repository.HashLength, "Hash for: " + id +
       " (" + this + ") has length:" + hash.value.length + ", but should have " + Repository.HashLength)
     val file = repository.ensureVariantFile(id, hash)
+    logger.debug(s"Writing JSON to file ${file.getAbsolutePath}: $jsonString")
     MetadataContent.write(jsonString, file)
   }
 }
