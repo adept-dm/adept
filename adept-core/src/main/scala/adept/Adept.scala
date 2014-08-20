@@ -84,7 +84,7 @@ class Adept(baseDir: File, cacheManager: CacheManager, passphrase: Option[String
   }
 
   def localSearch(term: String, constraints: Set[Constraint] = Set.empty): Set[GitSearchResult] = {
-    logger.debug(s"Searching locally for package $term")
+    logger.debug(s"Searching locally for package $term in '$baseDir'")
     Repository.listRepositories(baseDir).flatMap { name =>
       searchLocalRepository(term, name, constraints)
     }
